@@ -690,7 +690,6 @@ static void SetTimeUnixSec(time_t unix_time) {
 }
 
 
-// OHS specific configuration for ADC
 #include "ohs_shell.h"
 
 /*
@@ -702,60 +701,6 @@ static SerialConfig ser_cfg = {
     0,
     0
 };
-
-
-/* device I2C address */
-#define addr 0b1010000
-
-/* buffers */
-static uint8_t i2c_rx_data[8];
-static uint8_t i2c_tx_data[8];
-
-/*
- * I2C1 config.
- */
-static const I2CConfig i2cfg1 = {
-    OPMODE_I2C,
-    400000,
-    FAST_DUTY_CYCLE_2,
-};
-
-
-/*
- *
- */
-void i2cEEStart(void){
-  msg_t status = MSG_OK;
-  //sysinterval_t tmo = TIME_MS2I(4);
-
-  /* sending */
-  i2cAcquireBus(&I2CD1);
-  //status = i2cMasterTransmitTimeout(&I2CD1, addr, accel_tx_data, 4, NULL, 0, tmo);
-  i2cReleaseBus(&I2CD1);
-
-  osalDbgCheck(MSG_OK == status);
-}
-
-/*
- *
- */
-void i2cEEGetData(void) {
-  msg_t status = MSG_OK;
-  sysinterval_t tmo = TIME_MS2I(4);
-
-  /* read */
-  memset(i2c_rx_data, 0x55, sizeof(i2c_rx_data));
-  i2c_tx_data[0] = 0b10000000;
-  i2cAcquireBus(&I2CD1);
-  status = i2cMasterTransmitTimeout(&I2CD1, addr, i2c_tx_data, 1, i2c_rx_data, sizeof(i2c_rx_data), tmo);
-  i2cReleaseBus(&I2CD1);
-  for(uint8_t i = 0; i < sizeof(i2c_rx_data); i++) {
-    chprintf((BaseSequentialStream*)&SD3, "\t%d: %d", i, i2c_rx_data[i]);
-  }
-  chprintf((BaseSequentialStream*)&SD3, "\r\n");
-  osalDbgCheck(MSG_OK == status);
-}
-
 
 // Peripherial Clock 42MHz SPI2 SPI3
 // Peripherial Clock 84MHz SPI1                                SPI1        SPI2/3
@@ -778,13 +723,6 @@ const SPIConfig spi1cfg = {
   SPI_BaudRatePrescaler_32,
   0
 };
-
-
-//void txend2(RS485Driver *rs485p, uint8_t c) {
-//  (void)*rs485p;
-//  (void)c;
-//  palClearPad(GPIOD, GPIOD_USART2_DE);
-//}
 
 static RS485Config ser_mpc_cfg = {
     19200,          // speed
