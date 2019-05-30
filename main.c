@@ -231,12 +231,12 @@ static THD_FUNCTION(ZoneThread, arg) {
     }
 
     adcConvert(&ADCD1, &adcgrpcfg1, adcSamples, ADC_GRP1_BUF_DEPTH); // Do ADC
-    /*
+
     for(uint8_t i = 0; i < ADC_GRP1_NUM_CHANNELS; i++) {
       chprintf((BaseSequentialStream*)&SD3, " > %d", adcSamples[i]);
     }
     chprintf((BaseSequentialStream*)&SD3, "\r\n");
-    */
+
 
     for(uint8_t i = 0; i < ALARM_ZONES; i++) {
       // Zone enabled ?
