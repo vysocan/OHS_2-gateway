@@ -12,7 +12,7 @@
 #error "In mcuconf.h STM32_BKPRAM_ENABLE must be TRUE!"
 #endif
 
-#define OHS_MAJOR        20
+#define OHS_MAJOR        0
 #define OHS_MINOR        0
 
 #define BACKUP_SRAM_SIZE 0x1000 // 4kB SRAM size

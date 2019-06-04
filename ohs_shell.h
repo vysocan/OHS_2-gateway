@@ -139,7 +139,6 @@ static void decodeLog(char *in, char *out){
 
 }
 
-
 /*
  * Console applet to show log entries
  */
@@ -170,7 +169,8 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
 
     memcpy(&timeConv.ch[0], &rxBuffer[0], sizeof(timeConv.ch));
     ptm = gmtime(&timeConv.val);
-    strftime (dateTime, 30, conf.dateTimeFormat, ptm); // Format date time as needed
+    strftime(dateTime, 30, conf.dateTimeFormat, ptm); // Format date time as needed
+
     decodeLog(&rxBuffer[4], logText);
 
     chprintf(chp, "#%d\t%s Text: %s", (FRAMReadPos/FRAM_MSG_SIZE)+1, dateTime, logText);
@@ -190,18 +190,21 @@ ERROR:
  */
 static void cmd_date(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
-  struct tm timp = {0};
+  struct tm *ptm;
+  char   dateTime[30];
+  time_t unix_time;
 
   if (argc == 0) {
     unix_time = GetTimeUnixSec();
 
     if (unix_time == -1){
-      chprintf(chp, "incorrect time in RTC cell\r\n");
+      chprintf(chp, "Incorrect time in RTC cell.\r\n");
     }
     else{
-      chprintf(chp, "%D ", unix_time);
-      GetTimeTm(&timp);
-      chprintf(chp, "%s", asctime(&timp));
+      ptm = gmtime(&unix_time);
+      strftime(dateTime, 30, conf.dateTimeFormat, ptm); // Format date time as needed
+      chprintf(chp, "Current: %d\t", unix_time);
+      chprintf(chp, "%s\r\n", dateTime);
     }
     return;
   }
@@ -221,14 +224,30 @@ static void cmd_date(BaseSequentialStream *chp, int argc, char *argv[]) {
   }
 
 ERROR:
-  chprintf(chp, "Usage: date get\r\n");
+  chprintf(chp, "Usage: date\r\n");
   chprintf(chp, "       date set N\r\n");
   chprintf(chp, "where N is time in seconds sins Unix epoch\r\n");
-  chprintf(chp, "you can get current N value from unix console by the command\r\n");
+  chprintf(chp, "you can get current N value from unix console by the command:\r\n");
   chprintf(chp, "%s", "date +\%s\r\n");
   return;
 }
 
+/* Can be measured using dd if=/dev/xxxx of=/dev/null bs=512 count=10000.*/
+static void cmd_debug(BaseSequentialStream *chp, int argc, char *argv[]) {
+  (void)argv;
+
+  if (argc > 0) {
+    chprintf(chp, "Usage: debug\r\n");
+    return;
+  }
+  // Reroute all console to USB
+  console = (BaseSequentialStream*)&SDU1;
+  while (chnGetTimeout((BaseChannel *)chp, TIME_IMMEDIATE) == Q_TIMEOUT) {
+  }
+  // Reroute all console back to SD3
+  console = (BaseSequentialStream*)&SD3;
+  chprintf(chp, "\r\n\nstopped\r\n");
+}
 
 /*
  *
@@ -237,21 +256,28 @@ static const ShellCommand commands[] = {
   {"date",  cmd_date},
   {"log",  cmd_log},
   {"threads",  cmd_threads},
+  {"debug",  cmd_debug},
   {NULL, NULL}
 };
 
 /*
  *
  */
-static const ShellConfig shell_cfg1 = {
+/*static const ShellConfig shell_cfg1 = {
   (BaseSequentialStream  *)&SD3,
+  commands
+};*/
+
+static const ShellConfig shell_cfg1 = {
+  (BaseSequentialStream *)&PORTAB_SDU1,
   commands
 };
 
 /*
  * working area for shell thread
  */
-static THD_WORKING_AREA(waShell, 1024);
+#define SHELL_WA_SIZE   THD_WORKING_AREA_SIZE(2048)
+//static THD_WORKING_AREA(waShell, 2048);
 
 
 #endif /* OHS_SHELL_H_ */

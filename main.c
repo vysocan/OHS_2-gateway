@@ -16,9 +16,11 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "ch.h"
 #include "hal.h"
+#include "portab.h"
 
 #include "rt_test_root.h"
 #include "oslib_test_root.h"
@@ -26,16 +28,16 @@
 // Added from ChibiOS
 #include "shell.h"
 #include "chprintf.h"
+#include "usbcfg.h"
 
 // Conf related
 #include "ohs_conf.h"
 
+// LWIP
 #include "lwipthread.h"
 #include "lwip/apps/httpd.h"
 #include "lwip/apps/sntp.h"
 
-// USB
-//#include "usbcfg.h"
 
 // FRAM on SPI related
 #define CMD_25AA_WRSR     0x01  // Write status register
@@ -61,7 +63,7 @@ static adcsample_t adcSamples[ADC_GRP1_NUM_CHANNELS * ADC_GRP1_BUF_DEPTH];
 
 // RTC related
 static RTCDateTime timespec;
-static time_t unix_time;
+//static time_t unix_time;
 
 // time_t conversion
 union time_tag {
@@ -89,8 +91,6 @@ char tmpLog[LOGGER_MSG_LENGTH]; // Temporary logger string
 /*
  * OHS Includes
  */
-
-
 // OHS specific configuration for ADC
 #include "ohs_adc.h"
 
@@ -107,7 +107,6 @@ typedef struct {
   char     name[NAME_LENGTH];
   uint16_t dummyAlign;
 } registration_t;
-
 
 
 // Dynamic nodes
@@ -134,8 +133,8 @@ typedef struct {
 } node_t;
 node_t node[NODES];
 
-
-
+// Define debug console
+BaseSequentialStream* console = (BaseSequentialStream*)&SD3;
 
 /*
  * Mailboxes
@@ -185,14 +184,14 @@ void pushToLog(char *what, uint8_t size) {
 
     outMsg->timestamp = GetTimeUnixSec();  // Set timestamp
     memcpy(&outMsg->text[0], what, size);  // Copy string
-    //chprintf((BaseSequentialStream*)&SD3, "L msg %s %d\r\n", outMsg->text, size);
+    //chprintf(console, "L msg %s %d\r\n", outMsg->text, size);
 
     msg_t msg = chMBPostTimeout(&logger_mb, (msg_t)outMsg, TIME_IMMEDIATE);
     if (msg != MSG_OK) {
-      //chprintf((BaseSequentialStream*)&SD3, "MB full %d\r\n", temp);
+      //chprintf(console, "MB full %d\r\n", temp);
     }
   } else {
-    chprintf((BaseSequentialStream*)&SD3, "L P full %d \r\n", outMsg);
+    chprintf(console, "L P full %d \r\n", outMsg);
   }
 }
 
@@ -233,9 +232,9 @@ static THD_FUNCTION(ZoneThread, arg) {
     adcConvert(&ADCD1, &adcgrpcfg1, adcSamples, ADC_GRP1_BUF_DEPTH); // Do ADC
 
     for(uint8_t i = 0; i < ADC_GRP1_NUM_CHANNELS; i++) {
-      chprintf((BaseSequentialStream*)&SD3, " > %d", adcSamples[i]);
+      chprintf(console, " > %d", adcSamples[i]);
     }
-    chprintf((BaseSequentialStream*)&SD3, "\r\n");
+    chprintf(console, "\r\n");
 
 
     for(uint8_t i = 0; i < ALARM_ZONES; i++) {
@@ -361,15 +360,15 @@ static THD_FUNCTION(ZoneThread, arg) {
         if (outMsg != NULL) {
           outMsg->zone = val;
           outMsg->type = 'P';
-          //chprintf((BaseSequentialStream*)&SD3, "P OK %d %d\r\n", outMsg, outMsg->zone);
+          //chprintf(console, "P OK %d %d\r\n", outMsg, outMsg->zone);
           msg = chMBPostTimeout(&alarmEvent_mb, (msg_t)outMsg, TIME_IMMEDIATE);
           if (msg == MSG_OK) {
-            //chprintf((BaseSequentialStream*)&SD3, "MB put %d\r\n", temp);
+            //chprintf(console, "MB put %d\r\n", temp);
           } else {
-            //chprintf((BaseSequentialStream*)&SD3, "MB full %d\r\n", temp);
+            //chprintf(console, "MB full %d\r\n", temp);
           }
         } else {
-          //chprintf((BaseSequentialStream*)&SD3, "P full %d \r\n", outMsg);
+          //chprintf(console, "P full %d \r\n", outMsg);
         }
         */
       } // zone enabled
@@ -434,7 +433,7 @@ static THD_FUNCTION(AEThread, arg) {
         tmpLog[0] = 'S'; tmpLog[1] = 'X';  tmpLog[2] = _group;  pushToLog(tmpLog, 3); // ALARM no auth.
       }
     } else {
-      chprintf((BaseSequentialStream*)&SD3, "%s -> ERROR\r\n", arg);
+      chprintf(console, "%s -> ERROR\r\n", arg);
     }
     chPoolFree(&alarmEvent_pool, inMsg);
   }
@@ -454,10 +453,10 @@ static THD_FUNCTION(LoggerThread, arg) {
     msg = chMBFetchTimeout(&logger_mb, (msg_t*)&inMsg, TIME_INFINITE);
     if (msg == MSG_OK) {
       /*
-      chprintf((BaseSequentialStream*)&SD3, "Log %d", inMsg);
-      chprintf((BaseSequentialStream*)&SD3, ", T %d", inMsg->timestamp);
-      chprintf((BaseSequentialStream*)&SD3, ", %s", inMsg->text);
-      chprintf((BaseSequentialStream*)&SD3, "\r\n");
+      chprintf(console, "Log %d", inMsg);
+      chprintf(console, ", T %d", inMsg->timestamp);
+      chprintf(console, ", %s", inMsg->text);
+      chprintf(console, "\r\n");
       */
       spiAcquireBus(&SPID1);
 
@@ -476,11 +475,11 @@ static THD_FUNCTION(LoggerThread, arg) {
       buffer[FRAM_MSG_SIZE+2] = 0xFF;                           // Set flag
 
       /*
-      chprintf((BaseSequentialStream*)&SD3, ">%s\r\n", &buffer[7]);
+      chprintf(console, ">%s\r\n", &buffer[7]);
       for(uint8_t i = 0; i < FRAM_MSG_SIZE+3; i++) {
-         chprintf((BaseSequentialStream*)&SD3, "%x %c-", buffer[i], buffer[i]);
+         chprintf(console, "%x %c-", buffer[i], buffer[i]);
       }
-      chprintf((BaseSequentialStream*)&SD3, "\r\n");
+      chprintf(console, "\r\n");
       */
 
       spiSelect(&SPID1);
@@ -490,7 +489,7 @@ static THD_FUNCTION(LoggerThread, arg) {
 
       FRAMWritePos += FRAM_MSG_SIZE; // uint16_t will overflow by itself or FRAM address registers are ignored
     } else {
-      chprintf((BaseSequentialStream*)&SD3, "Log ERROR\r\n");
+      chprintf(console, "Log ERROR\r\n");
     }
     chPoolFree(&logger_pool, inMsg);
   }
@@ -517,24 +516,24 @@ static THD_FUNCTION(RS485Thread, arg) {
     (void)evt;
 
     eventflags_t flags = chEvtGetAndClearFlags(&serialListener);
-    chprintf((BaseSequentialStream*)&SD3, "RS485: %d, %d-%d\r\n", flags, RS485D2.trcState, RS485D2.ibHead);
+    chprintf(console, "RS485: %d, %d-%d\r\n", flags, RS485D2.trcState, RS485D2.ibHead);
     //resp = chBSemWait(&RS485D2.received);
     if (flags & RS485_MSG_RECEIVED){
       resp = rs485GetMsg(&RS485D2, &rs485Msg);
-      chprintf((BaseSequentialStream*)&SD3, "RS485 received: %d, ", resp);
-      chprintf((BaseSequentialStream*)&SD3, "from %d, ", rs485Msg.address);
-      chprintf((BaseSequentialStream*)&SD3, "ctrl %d, ", rs485Msg.ctrl);
-      chprintf((BaseSequentialStream*)&SD3, "length %d\r\n", rs485Msg.length);
-      chprintf((BaseSequentialStream*)&SD3, "Data: ");
+      chprintf(console, "RS485 received: %d, ", resp);
+      chprintf(console, "from %d, ", rs485Msg.address);
+      chprintf(console, "ctrl %d, ", rs485Msg.ctrl);
+      chprintf(console, "length %d\r\n", rs485Msg.length);
+      chprintf(console, "Data: ");
       for(uint8_t i = 0; i < rs485Msg.length; i++) {
-        chprintf((BaseSequentialStream*)&SD3, "%d-%x, ", i, rs485Msg.data[i]);
+        chprintf(console, "%d-%x, ", i, rs485Msg.data[i]);
       }
-      chprintf((BaseSequentialStream*)&SD3, "\r\n");
+      chprintf(console, "\r\n");
       /*
       for(uint8_t i = RS485_HEADER_SIZE; i < rs485Msg.length + RS485_HEADER_SIZE + RS485_CRC_SIZE; i++) {
-        chprintf((BaseSequentialStream*)&SD3, "%d-%x, ", i,  RS485D2.ib[i]);
+        chprintf(console, "%d-%x, ", i,  RS485D2.ib[i]);
       }
-      chprintf((BaseSequentialStream*)&SD3, "%x - %x\r\n", RS485D2.crc >> 8, RS485D2.crc & 0b11111111);
+      chprintf(console, "%x - %x\r\n", RS485D2.crc >> 8, RS485D2.crc & 0b11111111);
       */
 
       // Registration
@@ -554,7 +553,7 @@ static THD_FUNCTION(RS485Thread, arg) {
 
             msg_t msg = chMBPostTimeout(&registration_mb, (msg_t)outMsg, TIME_IMMEDIATE);
             if (msg != MSG_OK) {
-              //chprintf((BaseSequentialStream*)&SD3, "R-MB full %d\r\n", temp);
+              //chprintf(console, "R-MB full %d\r\n", temp);
             }
           } else {
             pushToLogText("FR"); // Registration queue is full
@@ -583,11 +582,11 @@ static THD_FUNCTION(RegistrationThread, arg) {
   while (true) {
     msg = chMBFetchTimeout(&registration_mb, (msg_t*)&inMsg, TIME_INFINITE);
     if (msg == MSG_OK) {
-      chprintf((BaseSequentialStream*)&SD3, "Incoming registration\r\n");
+      chprintf(console, "Incoming registration\r\n");
 
-      chprintf((BaseSequentialStream*)&SD3, "Node %c", inMsg->node);
-      chprintf((BaseSequentialStream*)&SD3, ", %c", inMsg->type);
-      chprintf((BaseSequentialStream*)&SD3, "\r\n");
+      chprintf(console, "Node %c", inMsg->node);
+      chprintf(console, ", %c", inMsg->type);
+      chprintf(console, "\r\n");
 
 
       switch(inMsg->node){
@@ -625,7 +624,7 @@ static THD_FUNCTION(RegistrationThread, arg) {
               node[_node].last_OK  = GetTimeUnixSec();  // Get timestamp
               memcpy(&node[_node].name, &inMsg->name, NAME_LENGTH);// node[_node].name[NAME_LENGTH-1] = 0;
               tmpLog[0] = 'N'; tmpLog[1] = 'R'; tmpLog[2] = inMsg->address; tmpLog[3] = inMsg->number; tmpLog[4] = inMsg->node; tmpLog[5] = inMsg->type;  pushToLog(tmpLog, 6);
-              chprintf((BaseSequentialStream*)&SD3, "Registration %d\r\n", _node);
+              chprintf(console, "Registration %d\r\n", _node);
             }
           } else {
             // there is match already
@@ -633,7 +632,7 @@ static THD_FUNCTION(RegistrationThread, arg) {
             node[_node].last_OK  = GetTimeUnixSec();  // Get timestamp
             node[_node].value    = 0; // Reset value
             memcpy(&node[_node].name, &inMsg->name, NAME_LENGTH);// node[_node].name[NAME_LENGTH-1] = 0;
-            chprintf((BaseSequentialStream*)&SD3, "Re-registration %d\r\n", _node);
+            chprintf(console, "Re-registration %d\r\n", _node);
           }
           break;
           default:
@@ -641,7 +640,7 @@ static THD_FUNCTION(RegistrationThread, arg) {
           break;
       } // end switch
     } else {
-      chprintf((BaseSequentialStream*)&SD3, "Registration ERROR\r\n");
+      chprintf(console, "Registration ERROR\r\n");
     }
     chPoolFree(&registration_pool, inMsg);
   }
@@ -655,11 +654,14 @@ static THD_FUNCTION(RegistrationThread, arg) {
 static THD_WORKING_AREA(waThread1, 128);
 static THD_FUNCTION(Thread1, arg) {
   chRegSetThreadName(arg);
+  systime_t time;
 
   while (true) {
-    palSetPad(GPIOB, GPIOB_RELAY_2);
-    chThdSleepMilliseconds(300);
-    palClearPad(GPIOB, GPIOB_RELAY_2);
+    time = serusbcfg.usbp->state == USB_ACTIVE ? 250 : 500;
+
+    //palSetPad(GPIOB, GPIOB_RELAY_2);
+    chThdSleepMilliseconds(time);
+    //palClearPad(GPIOB, GPIOB_RELAY_2);
     chThdSleepMilliseconds(2000);
   }
 }
@@ -691,6 +693,63 @@ static void SetTimeUnixSec(time_t unix_time) {
 
 
 #include "ohs_shell.h"
+
+/*===========================================================================*/
+/* Command line related.                                                     */
+/*===========================================================================*/
+
+
+/*#define SHELL_WA_SIZE   THD_WORKING_AREA_SIZE(2048)
+
+ Can be measured using dd if=/dev/xxxx of=/dev/null bs=512 count=10000.
+static void cmd_write(BaseSequentialStream *chp, int argc, char *argv[]) {
+  static uint8_t buf[] =
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+  (void)argv;
+  if (argc > 0) {
+    chprintf(chp, "Usage: write\r\n");
+    return;
+  }
+
+  while (chnGetTimeout((BaseChannel *)chp, TIME_IMMEDIATE) == Q_TIMEOUT) {
+#if 1
+     Writing in channel mode.
+    chnWrite(&PORTAB_SDU1, buf, sizeof buf - 1);
+#else
+     Writing in buffer mode.
+    (void) obqGetEmptyBufferTimeout(&PORTAB_SDU1.obqueue, TIME_INFINITE);
+    memcpy(PORTAB_SDU1.obqueue.ptr, buf, SERIAL_USB_BUFFERS_SIZE);
+    obqPostFullBuffer(&PORTAB_SDU1.obqueue, SERIAL_USB_BUFFERS_SIZE);
+#endif
+  }
+  chprintf(chp, "\r\n\nstopped\r\n");
+}
+
+static const ShellCommand commands[] = {
+  {"write", cmd_write},
+  {NULL, NULL}
+};
+
+static const ShellConfig shell_cfg1 = {
+  (BaseSequentialStream *)&PORTAB_SDU1,
+  commands
+};*/
 
 /*
  *
@@ -745,13 +804,27 @@ int main(void) {
 
   sdStart(&SD3,  &ser_cfg); // Debug port
   sdStart(&SD6,  &ser_cfg); // GSM modem
-  BaseSequentialStream* console = (BaseSequentialStream*)&SD3;
   chprintf(console, "\r\nOHS start\r\n");
 
   rs485Start(&RS485D2, &ser_mpc_cfg);
   chprintf(console, "RS485 timeout: %d/%d\r\n", RS485D2.oneByteTimeUS, RS485D2.oneByteTimeI);
 
-  /* Creating the mailboxes.*/
+  // Initializes a serial-over-USB CDC driver.
+  sduObjectInit(&SDU1);
+  sduStart(&SDU1, &serusbcfg);
+  /*
+   * Activates the USB driver and then the USB bus pull-up on D+.
+   * Note, a delay is inserted in order to not have to disconnect the cable
+   * after a reset.
+   */
+  usbDisconnectBus(serusbcfg.usbp);
+  chThdSleepMilliseconds(1500);
+  usbStart(serusbcfg.usbp, &usbcfg);
+  usbConnectBus(serusbcfg.usbp);
+
+  shellInit();
+
+  // Creating the mailboxes.
   //chMBObjectInit(&alarmEvent_mb, alarmEvent_mb_buffer, ALARMEVENT_FIFO_SIZE);
 
   /* Pools */
@@ -786,8 +859,8 @@ int main(void) {
   chThdCreateStatic(waRS485Thread, sizeof(waRS485Thread), NORMALPRIO, RS485Thread, (void*)"RS485");
   chThdCreateStatic(waRegistrationThread, sizeof(waRegistrationThread), NORMALPRIO, RegistrationThread, (void*)"Registration");
   chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, (void*)"LED");
-  shellInit();
-  chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg1);
+//  shellInit();
+  //chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg1);
   lwipInit(NULL);
 
   /*
@@ -829,6 +902,11 @@ int main(void) {
 
 
   while (true) {
+    if (SDU1.config->usbp->state == USB_ACTIVE) {
+      thread_t *shelltp = chThdCreateFromHeap(NULL, SHELL_WA_SIZE,"shell", NORMALPRIO + 1, shellThread, (void *)&shell_cfg1);
+      chThdWait(shelltp);               /* Waiting termination.             */
+    }
+
     chThdSleepMilliseconds(10000);
 
     temptime = calculateDST(2019, 3, 0, 0, 2);
