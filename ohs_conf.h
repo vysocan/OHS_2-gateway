@@ -28,12 +28,12 @@
 #define PHONE_LENGTH     14     //
 #define EMAIL_LENGTH     30     //
 
-#define ALARM_PIR        2000
-#define ALARM_PIR_LOW    1600
-#define ALARM_PIR_HI     2400
-#define ALARM_OK         1000
-#define ALARM_OK_LOW      600
-#define ALARM_OK_HI      1400
+#define ALARM_PIR        3400 //(3380 = 15.2V)
+#define ALARM_PIR_LOW    3050
+#define ALARM_PIR_HI     3650
+#define ALARM_OK         1850 //(1850 = 15.2V)
+#define ALARM_OK_LOW     1500
+#define ALARM_OK_HI      2100
 #define ALARM_TAMPER     0
 
 #define RADIO_UNIT_OFFSET 15

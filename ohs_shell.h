@@ -232,21 +232,24 @@ ERROR:
   return;
 }
 
-/* Can be measured using dd if=/dev/xxxx of=/dev/null bs=512 count=10000.*/
+// Routing console to USB
 static void cmd_debug(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
 
-  if (argc > 0) {
-    chprintf(chp, "Usage: debug\r\n");
+  if (argc != 1) {
+    chprintf(chp, "Usage: debug on/off\r\n");
     return;
   }
   // Reroute all console to USB
-  console = (BaseSequentialStream*)&SDU1;
-  while (chnGetTimeout((BaseChannel *)chp, TIME_IMMEDIATE) == Q_TIMEOUT) {
+  if ((argc == 1) && (strcmp(argv[0], "on") == 0)){
+    console = (BaseSequentialStream*)&SDU1;
   }
+
   // Reroute all console back to SD3
-  console = (BaseSequentialStream*)&SD3;
-  chprintf(chp, "\r\n\nstopped\r\n");
+  if ((argc == 1) && (strcmp(argv[0], "off") == 0)){
+    console = (BaseSequentialStream*)&SD3;
+    chprintf(chp, "\r\nstopped\r\n");
+  }
 }
 
 /*
@@ -269,7 +272,7 @@ static const ShellCommand commands[] = {
 };*/
 
 static const ShellConfig shell_cfg1 = {
-  (BaseSequentialStream *)&PORTAB_SDU1,
+  (BaseSequentialStream *)&SDU1,
   commands
 };
 
