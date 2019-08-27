@@ -133,7 +133,8 @@ typedef struct {
 node_t node[NODES];
 
 // Define debug console
-BaseSequentialStream* console = (BaseSequentialStream*)&SD3;
+BaseSequentialStream* console = (BaseSequentialStream*)&SD6;
+BaseSequentialStream* gprs    = (BaseSequentialStream*)&SD3;
 
 /*
  * Mailboxes
@@ -230,11 +231,12 @@ static THD_FUNCTION(ZoneThread, arg) {
 
     adcConvert(&ADCD1, &adcgrpcfg1, adcSamples, ADC_GRP1_BUF_DEPTH); // Do ADC
 
+    /*
     for(uint8_t i = 0; i < ADC_GRP1_NUM_CHANNELS; i++) {
       chprintf(console, " > %d", adcSamples[i]);
     }
     chprintf(console, "\r\n");
-
+    */
 
     for(uint8_t i = 0; i < ALARM_ZONES; i++) {
       // Zone enabled ?
@@ -568,6 +570,7 @@ static THD_FUNCTION(RS485Thread, arg) {
   }
 }
 
+
 /*
  * Registration thread
  */
@@ -706,6 +709,50 @@ static SerialConfig ser_cfg = {
     0,
     0
 };
+typedef struct {
+  uint8_t data[256];
+  uint8_t head;
+  uint8_t tail;
+} GPRSMsg_t;
+
+//typedef void (*serccb_t)(SerialDriver *sdp, uint8_t c);
+/*
+void rxchar_cb(UARTDriver *uartp, uint8_t c) {
+  (void)c;
+}
+*/
+
+
+void txend1_cb(SerialDriver *sdp) {
+  (void)sdp;
+}
+
+void txend2_cb(SerialDriver *sdp) {
+
+  (void)sdp;
+}
+void rxchar_cb(SerialDriver *sdp, uint8_t c) {
+  (void)sdp;
+  //(void)c;
+
+  chprintf(console, "GSM : %c, %d\r\n", c, c);
+}
+void rxerr_cb(SerialDriver *sdp, eventflags_t e) {
+  (void)sdp;
+  (void)e;
+}
+
+
+/*
+ *
+ */
+static SerialConfig gprs_cfg = {
+    115200,
+    0,
+    0,
+    0
+    ,txend1_cb,txend2_cb,rxchar_cb,rxerr_cb
+};
 
 // Peripherial Clock 42MHz SPI2 SPI3
 // Peripherial Clock 84MHz SPI1                                SPI1        SPI2/3
@@ -750,6 +797,7 @@ int main(void) {
 
   sdStart(&SD3,  &ser_cfg); // Debug port
   sdStart(&SD6,  &ser_cfg); // GSM modem
+
   chprintf(console, "\r\nOHS start\r\n");
 
   rs485Start(&RS485D2, &ser_mpc_cfg);
@@ -795,7 +843,7 @@ int main(void) {
   */
 
   /*
-   * Creates thread(s).
+   * Create thread(s).
    */
   chThdCreateStatic(waZoneThread, sizeof(waZoneThread), NORMALPRIO, ZoneThread, (void*)"Zone");
   chThdCreateStatic(waAEThread1, sizeof(waAEThread1), NORMALPRIO, AEThread, (void*)"AET 1");
@@ -837,7 +885,6 @@ int main(void) {
 
   chprintf(console, "Size of conf: %d, group: %d\r\n", sizeof(conf), sizeof(group));
 
-
   //uint8_t data;
   //uint32_t data32;
   //uint8_t *baseAddress = (uint8_t *) BKPSRAM_BASE;
@@ -845,6 +892,14 @@ int main(void) {
   // for(uint16_t i = 0; i < 0x100; i++) { *(base_address + i) = 0x55; } //erase BKP_SRAM
   //for(uint16_t i = 0; i < 20; i++) { *(RTCBaseAddress + i) = (0x55 << 24) | (0x55 << 16) | (0x55 << 8) | (0x55 << 0);} // Erase RTC bkp
   //chprintf(console, "BRTC %d ", writeToBkpRTC((uint8_t*)&myStr, sizeof(myStr), 0));
+
+  const char gsmAT[] = "AT\n";
+
+  chprintf(console, "GSM: ");
+  palSetPad(GPIOB, GPIOB_RELAY_1);
+  chThdSleepMilliseconds(1500);
+  palClearPad(GPIOB, GPIOB_RELAY_1);
+  chprintf(console, "started\r\n");
 
 
   while (true) {
@@ -864,6 +919,11 @@ int main(void) {
     chprintf(console, "DST e %d \r\n", temptime);
     ptm = gmtime(&temptime);
     chprintf(console, "DST e %s \r\n", asctime(ptm));
+
+    chprintf(gprs, "AT\r\n");
+    //sdWrite(&SD6, (uint8_t*)gsmAT, 3);
+    //palTogglePad(GPIOC, GPIOC_RX6);
+    //palTogglePad(GPIOC, GPIOC_TX6);
 
     // Dump BKP SRAM
     /*
@@ -893,8 +953,6 @@ int main(void) {
     chprintf(console, "Read >%d\r\n", readFromBkpRTC((uint8_t*)&myStr, sizeof(myStr), 0));
     chprintf(console, ">%s<\r\n", myStr);
     */
-
-    //i2cEEGetData();
 
     /* Send RS485 registartion request
     RS485Msg_t rs485Msg;
