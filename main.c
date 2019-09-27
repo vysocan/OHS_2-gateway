@@ -37,6 +37,9 @@
 #include "lwip/apps/httpd.h"
 #include "lwip/apps/sntp.h"
 
+// GPRS
+#include "GPRS.h"
+
 
 // FRAM on SPI related
 #define CMD_25AA_WRSR     0x01  // Write status register
@@ -86,6 +89,27 @@ typedef struct {
 } logger_t;
 char tmpLog[LOGGER_MSG_LENGTH]; // Temporary logger string
 
+// GPRS
+typedef enum {
+  gprs_NOK,
+  gprs_OK,
+  gprs_ForceReset
+} gprsStatus_t;
+volatile gprsStatus_t gsmStatus = gprs_NOK;
+volatile uint8_t gprsIsAlive = 0;
+volatile uint8_t gprsSetSMS = 0;
+volatile uint8_t gprsReg = 4;
+volatile uint8_t gprsStrength = 0;
+char gprsModemInfo[16];
+char gprsSmsText[120];
+
+
+// GSM modem
+int8_t  GSMisAlive = 0, GSMsetSMS = 0;
+uint8_t GSMreg = 4, GSMstrength = 0;
+
+// Semaphores
+binary_semaphore_t gprsSem;
 
 /*
  * OHS Includes
@@ -133,8 +157,7 @@ typedef struct {
 node_t node[NODES];
 
 // Define debug console
-BaseSequentialStream* console = (BaseSequentialStream*)&SD6;
-BaseSequentialStream* gprs    = (BaseSequentialStream*)&SD3;
+BaseSequentialStream* console = (BaseSequentialStream*)&SD3;
 
 /*
  * Mailboxes
@@ -213,7 +236,7 @@ static THD_FUNCTION(ZoneThread, arg) {
   uint8_t  _group = 255;
 
   chThdSleepMilliseconds(250);
-  pushToLogText("TestLogger");
+  pushToLogText("SS");
   while (true) {
     chThdSleepMilliseconds(250); // time is used also for arm delay and others ...
 
@@ -648,6 +671,100 @@ static THD_FUNCTION(RegistrationThread, arg) {
   }
 }
 
+#define GPRS_PWR_KEY_DELAY 1100
+/*
+ * Service thread
+ */
+static THD_WORKING_AREA(waModemThread, 256);
+static THD_FUNCTION(ModemThread, arg) {
+  chRegSetThreadName(arg);
+  uint8_t counter = 0;
+  uint8_t gprsLastStatus = 255; // get status on start
+  uint8_t resp = 0;
+  uint8_t tempText[10];
+
+  while (true) {
+    // Check is GPRS is free
+    if (chBSemWaitTimeout(&gprsSem, TIME_IMMEDIATE) == MSG_OK) {
+
+      // GPRS alive check
+      if (counter == 15) {
+
+        // Status pin check
+        if (!palReadPad(GPIOC, GPIOC_RX6)) {
+          chprintf(console, "Starting modem: ");
+          palSetPad(GPIOB, GPIOB_RELAY_1);
+          chThdSleepMilliseconds(GPRS_PWR_KEY_DELAY);
+          palClearPad(GPIOB, GPIOB_RELAY_1);
+
+          // Wait for status high
+          do {
+            chprintf(console, ".");
+            chThdSleepMilliseconds(AT_DELAY);
+          } while (!palReadPad(GPIOC, GPIOC_RX6));
+          gsmStatus = gprs_OK;
+          chprintf(console, " started.\r\n");
+          pushToLogText("MO");
+        }
+
+        // AT checks
+        gprsIsAlive = gprsSendCmd(AT_is_alive);
+        if (gprsIsAlive == 1) {
+          if (!gprsSetSMS) {
+            gprsSetSMS = gprsSendCmd(AT_set_sms_to_text);                 // Set modem to text SMS format
+            if (gprsSetSMS) gprsSetSMS = gprsSendCmd(AT_set_sms_receive); // Set modem to dump SMS to serial
+            resp = gprsSendCmdWR(AT_modem_info, (uint8_t*)gprsModemInfo); // Get modem version
+          }
+          resp =gprsSendCmdWRI(AT_registered, tempText, 3);
+          gprsReg = strtol((char*)tempText, NULL, 10);
+          resp = gprsSendCmdWRI(AT_signal_strength, tempText, 2);
+          gprsStrength = (strtol((char*)tempText, NULL, 10)) * 3;
+        } else {
+          gprsReg = 4; gprsStrength = 0; gprsSetSMS = 0;
+          gsmStatus = gprs_ForceReset;
+        }
+
+        // if modem registration changes log it
+        if (gprsLastStatus != gprsReg) {
+          gprsLastStatus = gprsReg;
+          tmpLog[0] = 'M'; tmpLog[1] = gprsReg; tmpLog[2] = gprsStrength;  pushToLog(tmpLog, 3);
+        }
+
+      }
+
+      // Stop modem
+      if (gsmStatus == gprs_ForceReset) {
+        chprintf(console, "Stopping modem: ");
+        palSetPad(GPIOB, GPIOB_RELAY_1);
+        chThdSleepMilliseconds(GPRS_PWR_KEY_DELAY);
+        palClearPad(GPIOB, GPIOB_RELAY_1);
+
+        // Wait for status low
+        do {
+          chprintf(console, ".");
+          chThdSleepMilliseconds(AT_DELAY);
+        } while (palReadPad(GPIOC, GPIOC_RX6));
+        gsmStatus = gprs_NOK;
+        chprintf(console, " stopped.\r\n");
+        pushToLogText("MF");
+      }
+
+      // Read incoming SMS or missed messages
+      while(gprsIsMsg()) {
+        resp = gprsReadMsg((uint8_t*)gprsSmsText);
+        chprintf(console, "Modem: %s(%d)\r\n", gprsSmsText, resp);
+      }
+
+      chBSemSignal(&gprsSem);
+    }
+
+    chThdSleepMilliseconds(1000);
+    counter++;
+  }
+}
+
+
+
 
 /*
  * This is a periodic thread that does absolutely nothing except flashing
@@ -707,52 +824,10 @@ static SerialConfig ser_cfg = {
     115200,
     0,
     0,
-    0
-};
-typedef struct {
-  uint8_t data[256];
-  uint8_t head;
-  uint8_t tail;
-} GPRSMsg_t;
-
-//typedef void (*serccb_t)(SerialDriver *sdp, uint8_t c);
-/*
-void rxchar_cb(UARTDriver *uartp, uint8_t c) {
-  (void)c;
-}
-*/
-
-
-void txend1_cb(SerialDriver *sdp) {
-  (void)sdp;
-}
-
-void txend2_cb(SerialDriver *sdp) {
-
-  (void)sdp;
-}
-void rxchar_cb(SerialDriver *sdp, uint8_t c) {
-  (void)sdp;
-  //(void)c;
-
-  chprintf(console, "GSM : %c, %d\r\n", c, c);
-}
-void rxerr_cb(SerialDriver *sdp, eventflags_t e) {
-  (void)sdp;
-  (void)e;
-}
-
-
-/*
- *
- */
-static SerialConfig gprs_cfg = {
-    115200,
     0,
-    0,
-    0
-    ,txend1_cb,txend2_cb,rxchar_cb,rxerr_cb
+    NULL, NULL, NULL, NULL
 };
+
 
 // Peripherial Clock 42MHz SPI2 SPI3
 // Peripherial Clock 84MHz SPI1                                SPI1        SPI2/3
@@ -765,22 +840,22 @@ static SerialConfig gprs_cfg = {
 #define SPI_BaudRatePrescaler_128       ((uint16_t)0x0030) //  656.25 KHz  328.125 KHz
 #define SPI_BaudRatePrescaler_256       ((uint16_t)0x0038) //  328.125 KHz 164.06 KHz
 /*
- * Maximum speed SPI configuration (18MHz, CPHA=0, CPOL=0, MSb first).
+ * Maximum speed SPI configuration (40MHz, CPHA=0, CPOL=0, MSb first). FM25V05-G Cypress FRAM
  */
 const SPIConfig spi1cfg = {
   false,
   NULL,
   GPIOD, // CS PORT
   GPIOD_SPI1_CS, // CS PIN
-  SPI_BaudRatePrescaler_32,
+  SPI_BaudRatePrescaler_4,
   0
 };
 
 static RS485Config ser_mpc_cfg = {
-    19200,          // speed
-    0,              // address
-    GPIOD,          // port
-    GPIOD_USART2_DE // pad
+  19200,          // speed
+  0,              // address
+  GPIOD,          // port
+  GPIOD_USART2_DE // pad
 };
 
 msg_t resp;
@@ -795,8 +870,11 @@ int main(void) {
   halInit();
   chSysInit();
 
+  // Semaphores
+  chBSemObjectInit(&gprsSem, false);
+
   sdStart(&SD3,  &ser_cfg); // Debug port
-  sdStart(&SD6,  &ser_cfg); // GSM modem
+  gprsInit(&SD1); // GPRS modem
 
   chprintf(console, "\r\nOHS start\r\n");
 
@@ -852,6 +930,7 @@ int main(void) {
   chThdCreateStatic(waLoggerThread, sizeof(waLoggerThread), NORMALPRIO, LoggerThread, (void*)"Logger");
   chThdCreateStatic(waRS485Thread, sizeof(waRS485Thread), NORMALPRIO, RS485Thread, (void*)"RS485");
   chThdCreateStatic(waRegistrationThread, sizeof(waRegistrationThread), NORMALPRIO, RegistrationThread, (void*)"Registration");
+  chThdCreateStatic(waModemThread, sizeof(waModemThread), NORMALPRIO, ModemThread, (void*)"Modem");
   chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, (void*)"LED");
 //  shellInit();
   //chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg1);
@@ -893,15 +972,6 @@ int main(void) {
   //for(uint16_t i = 0; i < 20; i++) { *(RTCBaseAddress + i) = (0x55 << 24) | (0x55 << 16) | (0x55 << 8) | (0x55 << 0);} // Erase RTC bkp
   //chprintf(console, "BRTC %d ", writeToBkpRTC((uint8_t*)&myStr, sizeof(myStr), 0));
 
-  const char gsmAT[] = "AT\n";
-
-  chprintf(console, "GSM: ");
-  palSetPad(GPIOB, GPIOB_RELAY_1);
-  chThdSleepMilliseconds(1500);
-  palClearPad(GPIOB, GPIOB_RELAY_1);
-  chprintf(console, "started\r\n");
-
-
   while (true) {
     if (SDU1.config->usbp->state == USB_ACTIVE) {
       thread_t *shelltp = chThdCreateFromHeap(NULL, SHELL_WA_SIZE,"shell", NORMALPRIO + 1, shellThread, (void *)&shell_cfg1);
@@ -920,8 +990,6 @@ int main(void) {
     ptm = gmtime(&temptime);
     chprintf(console, "DST e %s \r\n", asctime(ptm));
 
-    chprintf(gprs, "AT\r\n");
-    //sdWrite(&SD6, (uint8_t*)gsmAT, 3);
     //palTogglePad(GPIOC, GPIOC_RX6);
     //palTogglePad(GPIOC, GPIOC_TX6);
 

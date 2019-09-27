@@ -76,6 +76,19 @@ const char text_Analog[]            = "Analog";
 const char text_Float[]             = "Float";
 const char text_TX_Power[]          = "TX_Power";
 const char text_Gas[]               = "Gas";
+const char text_not[]               = "not";
+const char text_strength[]          = "strength";
+const char text_unknown[]           = "unknown";
+const char text_roaming[]           = "roaming";
+const char text_searching[]         = "searching";
+const char text_network[]           = "network";
+const char text_denied[]            = "denied";
+const char text_cosp[]              = ", ";
+const char text_Modem[]             = "Modem";
+const char text_On[]                = "On";
+const char text_Off[]               = "Off";
+const char text_power[]             = "power";
+
 
 void printNodeFunction(char *text, char function) {
   switch(function){
@@ -110,7 +123,7 @@ static void decodeLog(char *in, char *out){
     case 'S': // System
       strcat(out, text_System); strcat(out, " ");
       switch(in[1]){
-        case 's': strcat(out, text_started); break;   // boot
+        case 'S': strcat(out, text_started); break;   // boot
         default:  strcat(out, text_Undefined); break; // unknown
       }
     break;
@@ -129,12 +142,33 @@ static void decodeLog(char *in, char *out){
         default : strcat(out, text_registration); strcat(out, " "); strcat(out, text_error); break;
       }
     break;
+    case 'M': // Modem
+      strcat(out, text_Modem); strcat(out, " ");
+      if((in[1]) >= '0' && (in[1]) <= '5') { strcat(out, text_network); strcat(out, " "); }
+      switch(in[1]){
+        case '0' : strcat(out, text_not); strcat(out, " "); strcat(out, text_registered); break;
+        case '1' : strcat(out, text_registered); break;
+        case '2' : strcat(out, text_searching); break;
+        case '3' : strcat(out, text_registration); strcat(out, " "); strcat(out, text_denied); break;
+        // case 4 : strcat(out, text_unk); break;
+        case '5' : strcat(out, text_roaming); break;
+        case 'O' : strcat(out, text_power); strcat(out, " "); strcat(out, text_On); break;
+        case 'F' : strcat(out, text_power); strcat(out, " "); strcat(out, text_Off); break;
+        default : strcat(out, text_unknown); break;
+      }
+      if((in[1]) >= '0' && (in[1]) <= '5') {
+        strcat(out, text_cosp); strcat(out, text_strength); strcat(out, " ");
+        // server << (uint8_t)value[7] << '%';
+      }
+    break;
 
     default: strcat(out, text_Undefined);
     //for(uint16_t ii = 0; ii < LOGGER_MSG_LENGTH; ii++) {
     //  chprintf(chp, "%x %c-", rxBuffer[ii+4], rxBuffer[ii+4]);
     //}
     break; // unknown
+
+    strcat(out, "."); // End
   }
 
 }
@@ -142,6 +176,7 @@ static void decodeLog(char *in, char *out){
 /*
  * Console applet to show log entries
  */
+#define LOGGER_OUTPUT_LEN 15
 static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
 
@@ -151,11 +186,10 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
   char   dateTime[30];
 
   if (argc > 1)  { goto ERROR; }
-  if (argc == 1) { FRAMReadPos = atoi(argv[0]) * FRAM_MSG_SIZE; }
-  if (argc == 0) { FRAMReadPos = FRAMWritePos - (FRAM_MSG_SIZE * 11); }
+  if (argc == 1) { FRAMReadPos = (atoi(argv[0]) - LOGGER_OUTPUT_LEN + 1) * FRAM_MSG_SIZE; }
+  if (argc == 0) { FRAMReadPos = FRAMWritePos - (FRAM_MSG_SIZE * LOGGER_OUTPUT_LEN); }
 
-  for(uint16_t i = 0; i < 10; i++) {
-    FRAMReadPos+=FRAM_MSG_SIZE;
+  for(uint16_t i = 0; i < LOGGER_OUTPUT_LEN; i++) {
     txBuffer[0] = CMD_25AA_READ;
     txBuffer[1] = (FRAMReadPos >> 8) & 0xFF;
     txBuffer[2] = FRAMReadPos & 0xFF;
@@ -173,9 +207,11 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
 
     decodeLog(&rxBuffer[4], logText);
 
-    chprintf(chp, "#%d\t%s Text: %s", (FRAMReadPos/FRAM_MSG_SIZE)+1, dateTime, logText);
-    chprintf(chp, ", Flags: %x\r\n", rxBuffer[FRAM_MSG_SIZE-1]);
+    chprintf(chp, "#%d\t%s Text: %s", (FRAMReadPos/FRAM_MSG_SIZE), dateTime, logText);
+    chprintf(chp, " Flags: %x\r\n", rxBuffer[FRAM_MSG_SIZE-1]);
     chThdSleepMilliseconds(2);
+
+    FRAMReadPos+=FRAM_MSG_SIZE; // Advance for next read
   }
   return;
 

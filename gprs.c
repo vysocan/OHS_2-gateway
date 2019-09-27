@@ -71,14 +71,12 @@ uint8_t gprsRead(void) {
  */
 uint8_t gprsReadMsg(uint8_t *where) {
   if (gprsRingBuffer.message == 0) return 0; // no message
-  chprintf((BaseSequentialStream*)&SD3, "Msg: %d\r\n", gprsRingBuffer.message);
-  chThdSleepMilliseconds(50);
+  //chprintf((BaseSequentialStream*)&SD3, "Msg: %d\r\n", gprsRingBuffer.message); chThdSleepMilliseconds(50);
   uint8_t count = 0;
   uint8_t rb;
   do {
     rb = gprsRead();
-    chprintf((BaseSequentialStream*)&SD3, "%c-%d\r\n", rb, count);
-    chThdSleepMilliseconds(50);
+    //chprintf((BaseSequentialStream*)&SD3, "%c-%d\r\n", rb, count); chThdSleepMilliseconds(50);
     if (rb != 0x0A && rb != 0x0D) { // not CR and NL
       where[count++] = rb;
     }
@@ -103,6 +101,13 @@ uint8_t gprsWaitMsgSpec(uint16_t wait){
 
 uint8_t gprsWaitMsg(void){
   return gprsWaitMsgSpec(AT_WAIT);
+}
+
+/*
+ *
+ */
+uint8_t gprsIsMsg(void){
+  return gprsRingBuffer.message;
 }
 
 /*
@@ -212,7 +217,7 @@ int8_t gprsSendCmdWRI(char *what, uint8_t *response, uint8_t index) {
   if (!gprsWaitMsg()) return -21;               // timeout reached
   r = gprsReadMsg(response);                    // gprsReadMsg serial
   response[r] = 0;                              // terminate the response by null
-  //WS.print(F("2>")); WS.println((char*)response);
+  //chprintf((BaseSequentialStream*)&SD3, "2>%s\r\n", (char*)response);
 
   // get index
   pch = strtok((char*)response," ,.-");
@@ -224,6 +229,7 @@ int8_t gprsSendCmdWRI(char *what, uint8_t *response, uint8_t index) {
   }
   strncpy ((char*)response, pch, strlen(pch));  // ** strlen
   response[strlen(pch)] = 0;  // ** strlen
+  //chprintf((BaseSequentialStream*)&SD3, "r>%s\r\n", (char*)response);
 
   // empty line
   if (!gprsWaitMsg()) return -22;               // timeout reached
@@ -250,10 +256,10 @@ int8_t gprsSendSMSBegin(char *number) {
 
   // SMS header
   //print(AT_send_sms); print('"'); print(number); println('"'); // println is needed
-  chprintf(gprs, "%s=\"%s\"\r\n", AT_send_sms, number);
+  chprintf(gprs, "%s\"%s\"\r\n", AT_send_sms, number);
   if (!gprsWaitMsg()) return -20;               // timeout reached
   t_size = gprsReadMsg(gprsATreply);            // gprsReadMsg serial
-  //WS.print(F("-sms b-")); WS.println((char*)gprsATreply);
+  chprintf((BaseSequentialStream*)&SD3, "sms-b>%s\r\n", (char*)gprsATreply);
   at_tmp = memcmp(AT_send_sms, gprsATreply, strlen(AT_send_sms));     // compare only command part
   if (at_tmp != 0) return -1;                   // echo not match
   else return 1;
@@ -269,7 +275,7 @@ int8_t gprsSendSMSEnd(char *what) {
 
   // End of SMS
   //print(what); write(26);
-  chprintf(gprs, "%s\032", what); // Ctrl+z = 26 = \032
+  chprintf(gprs, "%s%c", what, AT_CTRL_Z); // Ctrl+z
 
   /*
   // empty line
@@ -282,13 +288,13 @@ int8_t gprsSendSMSEnd(char *what) {
   // gprsReadMsg reply
   if (!gprsWaitMsgSpec(AT_WAIT*2)) return -21;  // timeout reached
   t_size = gprsReadMsg(gprsATreply);            // gprsReadMsg serial
-  //WS.print(F("-sms e1-")); WS.println((char*)gprsATreply);
+  chprintf((BaseSequentialStream*)&SD3, "sms-e1>%s\r\n", (char*)gprsATreply);
   at_tmp = memcmp(what, gprsATreply, strlen(what));       // compare
   if (at_tmp != 0) return -2;                   // not received
 
   if (!gprsWaitMsgSpec(AT_WAIT*10)) return -22; // timeout reached, waiting for network ACK
   t_size = gprsReadMsg(gprsATreply);            // gprsReadMsg serial
-  // WS.print(F("-sms e2-")); WS.println((char*)gprsATreply);
+  chprintf((BaseSequentialStream*)&SD3, "sms-e2>%s\r\n", (char*)gprsATreply);
   at_tmp = memcmp(AT_send_sms_reply, gprsATreply, strlen(AT_send_sms_reply));  // compare strlen
   if (at_tmp != 0) return -3;                   // not received
 
@@ -301,7 +307,7 @@ int8_t gprsSendSMSEnd(char *what) {
   // get OK / ERROR
   if (!gprsWaitMsg()) return -24;               // timeout reached
   t_size = gprsReadMsg(gprsATreply);            // gprsReadMsg serial
-  // WS.print(F("-sms e3-")); WS.println((char*)gprsATreply);
+  chprintf((BaseSequentialStream*)&SD3, "sms-e3>%s\r\n", (char*)gprsATreply);
   if (t_size != strlen(AT_OK)) return -15;      // 'OK' size
   at_tmp = memcmp(AT_OK, gprsATreply, t_size);  // compare
   if (at_tmp != 0) return -5;                   // OK not received

@@ -5,6 +5,7 @@
 #include "chprintf.h"
 #include <string.h>
 
+#define AT_CTRL_Z          26
 #define AT_WAIT            50          // how many delay loops wait for modem response
 #define AT_DELAY           100         // delay in millis for modem response
 // Commands
@@ -48,6 +49,7 @@ uint8_t gprsRead(void);
 uint8_t gprsReadMsg(uint8_t *where);
 uint8_t gprsWaitMsgSpec(uint16_t wait);
 uint8_t gprsWaitMsg(void);
+uint8_t gprsIsMsg(void);
 int8_t gprsSendCmd(char *what);
 int8_t gprsSendCmdWR(char *what, uint8_t *response);
 int8_t gprsSendCmdWRI(char *what, uint8_t *response, uint8_t index);
