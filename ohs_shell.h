@@ -89,6 +89,17 @@ const char text_On[]                = "On";
 const char text_Off[]               = "Off";
 const char text_power[]             = "power";
 
+void printInt(char *text, uint8_t num) {
+  char temp[6];
+  itoa(num, temp, 10);
+  strcat(text, temp);
+}
+
+void printFloat(char *text, float num, uint8_t whole, uint8_t fraction) {
+  char temp[10];
+  dtostrf(num, whole, fraction, temp);
+  strcat(text, temp);
+}
 
 void printNodeFunction(char *text, char function) {
   switch(function){
@@ -116,7 +127,20 @@ void printNodeType(char *text, char type) {
   }
 }
 
+/*
+char* pstrcat( char* dest, const char* src ){
+  while (*dest) dest++;
+  while (*dest++ = *src++) {};
+  return --dest;
+}
+*/
 
+/*
+ * TODO: make it better
+ * 1. https://www.joelonsoftware.com/2001/12/11/back-to-basics/
+ * 2. chsnprintf ( out, "%s %s", out, text_* )
+ *
+ */
 static void decodeLog(char *in, char *out){
   out[0] = 0;
   switch(in[0]){
@@ -144,21 +168,20 @@ static void decodeLog(char *in, char *out){
     break;
     case 'M': // Modem
       strcat(out, text_Modem); strcat(out, " ");
-      if((in[1]) >= '0' && (in[1]) <= '5') { strcat(out, text_network); strcat(out, " "); }
+      if((uint8_t)in[1] >= 0 && (uint8_t)in[1] <= 5) { strcat(out, text_network); strcat(out, " "); }
       switch(in[1]){
-        case '0' : strcat(out, text_not); strcat(out, " "); strcat(out, text_registered); break;
-        case '1' : strcat(out, text_registered); break;
-        case '2' : strcat(out, text_searching); break;
-        case '3' : strcat(out, text_registration); strcat(out, " "); strcat(out, text_denied); break;
-        // case 4 : strcat(out, text_unk); break;
-        case '5' : strcat(out, text_roaming); break;
+        case 0 : strcat(out, text_not); strcat(out, " "); strcat(out, text_registered); break;
+        case 1 : strcat(out, text_registered); break;
+        case 2 : strcat(out, text_searching); break;
+        case 3 : strcat(out, text_registration); strcat(out, " "); strcat(out, text_denied); break;
+        case 5 : strcat(out, text_roaming); break;
         case 'O' : strcat(out, text_power); strcat(out, " "); strcat(out, text_On); break;
         case 'F' : strcat(out, text_power); strcat(out, " "); strcat(out, text_Off); break;
-        default : strcat(out, text_unknown); break;
+        default : strcat(out, text_unknown); break; // 4 = unknown
       }
-      if((in[1]) >= '0' && (in[1]) <= '5') {
+      if((uint8_t)in[1] >= 0 && (uint8_t)in[1] <= 5) {
         strcat(out, text_cosp); strcat(out, text_strength); strcat(out, " ");
-        // server << (uint8_t)value[7] << '%';
+        printInt(out, (uint8_t)in[2]); strcat(out, "%");
       }
     break;
 
@@ -167,10 +190,8 @@ static void decodeLog(char *in, char *out){
     //  chprintf(chp, "%x %c-", rxBuffer[ii+4], rxBuffer[ii+4]);
     //}
     break; // unknown
-
-    strcat(out, "."); // End
   }
-
+  strcat(out, "."); // "." as end
 }
 
 /*
@@ -207,7 +228,7 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
 
     decodeLog(&rxBuffer[4], logText);
 
-    chprintf(chp, "#%d\t%s Text: %s", (FRAMReadPos/FRAM_MSG_SIZE), dateTime, logText);
+    chprintf(chp, "#%d\t%s : %s", (FRAMReadPos/FRAM_MSG_SIZE), dateTime, logText);
     chprintf(chp, " Flags: %x\r\n", rxBuffer[FRAM_MSG_SIZE-1]);
     chThdSleepMilliseconds(2);
 
