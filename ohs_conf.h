@@ -38,9 +38,25 @@
 
 #define RADIO_UNIT_OFFSET 15
 
-
-
 #define NOT_SET          "not set"
+
+/**
+ * @name    Node commands
+ */
+#define NODE_CMD_ACK          0
+#define NODE_CMD_REGISTRATION 1
+#define NODE_CMD_PING         2
+#define NODE_CMD_PONG         3
+
+#define NODE_CMD_ARM          10
+#define NODE_CMD_AUTH_0       11
+#define NODE_CMD_AUTH_1       12
+#define NODE_CMD_AUTH_2       13
+#define NODE_CMD_AUTH_3       14
+#define NODE_CMD_AUTH_4       15
+#define NODE_CMD_DISARM       16
+
+char lastKey[KEY_LENGTH];
 
 // Configuration struct
 typedef struct {
@@ -63,7 +79,7 @@ typedef struct {
   char     contactPhone[CONTACTS_SIZE][PHONE_LENGTH];
   char     contactEmail[CONTACTS_SIZE][EMAIL_LENGTH];
 
-  uint8_t  key[KEYS_SIZE];
+  uint8_t  keySetting[KEYS_SIZE];
   char     keyValue[KEYS_SIZE][KEY_LENGTH];
   char     keyName[KEYS_SIZE][NAME_LENGTH];
 
@@ -195,6 +211,22 @@ int16_t readFromBkpRTC(uint8_t *data, uint8_t size, uint8_t offset){
   return i;
 }
 
+/*
+_group = (node[_node].setting >> 1) & 0b1111;
+      chprintf(console, "Key matched, group: %d\r\n", _group);
+      //  key enabled && (group = key_group || key = global)
+      if ((conf.keySetting[i] & 0b1) &&
+*/
+#define GET_CONF_ZONE_ENABLED(x)     ((x) & 0b1)
+#define GET_CONF_ZONE_GROUP(x)       ((x >> 1U) & 0b1111)
+#define GET_CONF_ZONE_AUTH_TIME(x)   ((x >> 5U) & 0b11)
+#define GET_CONF_ZONE_ARM_HOME(x)    ((x >> 7U) & 0b1)
+#define GET_CONF_ZONE_STILL_OPEN(x)  ((x >> 8U) & 0b1)
+#define GET_CONF_ZONE_PIR_AS_TMP(x)  ((x >> 9U) & 0b1)
+#define GET_CONF_ZONE_IS_BATTERY(x)  ((x >> 11U) & 0b1)
+#define GET_CONF_ZONE_IS_REMOTE(x)   ((x >> 12U) & 0b1)
+#define GET_CONF_ZONE_IS_PRESENT(x)  ((x >> 14U) & 0b1)
+#define GET_CONF_ZONE_TYPE(x)        ((x >> 15U) & 0b1)
 
 // Set conf default values
 void setConfDefault(void){
@@ -208,9 +240,9 @@ void setConfDefault(void){
     // Zones setup
     //                    |- Digital 0/ Analog 1
     //                    ||- Present - connected
-    //                    |||- ~ Free ~ TWI zone
+    //                    |||- ~ Free ~
     //                    ||||- Remote zone
-    //                    |||||- Battery node, they dont send OK, only PIR or Tamper.
+    //                    |||||- Battery powered zone, they don't send OK, only PIR or Tamper.
     //                    ||||||- Free
     //                    |||||||- PIR as Tamper
     //                    ||||||||- Still open alarm
@@ -268,12 +300,23 @@ void setConfDefault(void){
     strcpy(conf.contactEmail[i], NOT_SET);
   }
 
-  for(uint8_t i = 0; i < KEYS_SIZE; i++) {
+  for(uint8_t i = 1; i < KEYS_SIZE; i++) {
     // group 16 and disabled
-    conf.key[i] = 0b00011110;
+    conf.keySetting[i] = 0b00011110;
     strcpy(conf.keyName[i], NOT_SET);
     strcpy(conf.keyValue[i], NOT_SET);
   }
+
+      conf.keySetting[0] = 0b00100001;
+      strcpy(conf.keyName[0], "Adam");
+      conf.keyValue[0][0] = 0x1;
+      conf.keyValue[0][1] = 0x77;
+      conf.keyValue[0][2] = 0x39;
+      conf.keyValue[0][3] = 0x5A;
+      conf.keyValue[0][4] = 0x1;
+      conf.keyValue[0][5] = 0x0;
+      conf.keyValue[0][6] = 0x0;
+      conf.keyValue[0][7] = 0x3F;
 
   strcpy(conf.NTPAddress, "time.google.com");
   conf.time_std_week = 0;     //First, Second, Third, Fourth, or Last week of the month

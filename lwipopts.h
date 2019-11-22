@@ -44,7 +44,7 @@
 #define TCPIP_MBOX_SIZE                 MEMP_NUM_PBUF
 #endif
 #if !defined(TCPIP_THREAD_STACKSIZE)
-#define TCPIP_THREAD_STACKSIZE          2048//2048
+#define TCPIP_THREAD_STACKSIZE          2048
 #endif
 
 /* Use ChibiOS specific priorities. */

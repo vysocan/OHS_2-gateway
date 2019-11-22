@@ -155,9 +155,9 @@ static void decodeLog(char *in, char *out){
       printNodeFunction(out, in[4]); strcat(out, ":");
       printNodeType(out, in[5]);
       strcat(out, " "); strcat(out, text_address); strcat(out, " ");
-      //if ((uint8_t)in[2] < RADIO_UNIT_OFFSET) { strcat(out, "W:"); strcat(out, (uint8_t)in[2]); }
-      //else                                    { strcat(out, "R:"); strcat(out, (uint8_t)in[2]-RADIO_UNIT_OFFSET); }
-      //strcat(out, ":"); strcat(out, (uint8_t)in[3]); strcat(out, " ");
+      if ((uint8_t)in[2] < RADIO_UNIT_OFFSET) { strcat(out, "W:"); printInt(out, (uint8_t)in[2]); }
+      else                                    { strcat(out, "R:"); printInt(out, (uint8_t)in[2]-RADIO_UNIT_OFFSET); }
+      strcat(out, ":"); printInt(out, (uint8_t)in[3]); strcat(out, " ");
       if (in[1] != 'E') {strcat(out, text_is); strcat(out, " ");}
       switch(in[1]){
         case 'F' : strcat(out,text_disabled); break;
@@ -168,7 +168,7 @@ static void decodeLog(char *in, char *out){
     break;
     case 'M': // Modem
       strcat(out, text_Modem); strcat(out, " ");
-      if((uint8_t)in[1] >= 0 && (uint8_t)in[1] <= 5) { strcat(out, text_network); strcat(out, " "); }
+      if ((uint8_t)in[1] <= 5) { strcat(out, text_network); strcat(out, " "); }
       switch(in[1]){
         case 0 : strcat(out, text_not); strcat(out, " "); strcat(out, text_registered); break;
         case 1 : strcat(out, text_registered); break;
@@ -179,16 +179,15 @@ static void decodeLog(char *in, char *out){
         case 'F' : strcat(out, text_power); strcat(out, " "); strcat(out, text_Off); break;
         default : strcat(out, text_unknown); break; // 4 = unknown
       }
-      if((uint8_t)in[1] >= 0 && (uint8_t)in[1] <= 5) {
+      if ((uint8_t)in[1] <= 5) {
         strcat(out, text_cosp); strcat(out, text_strength); strcat(out, " ");
         printInt(out, (uint8_t)in[2]); strcat(out, "%");
       }
     break;
-
     default: strcat(out, text_Undefined);
-    //for(uint16_t ii = 0; ii < LOGGER_MSG_LENGTH; ii++) {
-    //  chprintf(chp, "%x %c-", rxBuffer[ii+4], rxBuffer[ii+4]);
-    //}
+    for(uint16_t ii = 0; ii < LOGGER_MSG_LENGTH; ii++) {
+      chsnprintf(out, LOG_TEST_LENGTH, "%s, %c-%x", out, in[ii], in[ii]);
+    }
     break; // unknown
   }
   strcat(out, "."); // "." as end
@@ -238,7 +237,7 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
 
 ERROR:
   chprintf(chp, "Usage: log\r\n");
-  chprintf(chp, "       log N - where N is log entry  start point\r\n");
+  chprintf(chp, "       log N - where N is log last entry point\r\n");
   return;
 }
 

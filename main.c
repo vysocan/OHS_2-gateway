@@ -55,13 +55,13 @@
 #define FRAM_MSG_SIZE     16
 volatile uint16_t FRAMWritePos = 0;
 volatile uint16_t FRAMReadPos  = 0;
-#define LOG_TEST_LENGTH 50
+#define LOG_TEST_LENGTH 80
 char logText[LOG_TEST_LENGTH]; // To decode log text
 
 
 // ADC related
-#define ADC_GRP1_NUM_CHANNELS   10
-#define ADC_GRP1_BUF_DEPTH      1
+#define ADC_GRP1_NUM_CHANNELS 10
+#define ADC_GRP1_BUF_DEPTH    1
 static adcsample_t adcSamples[ADC_GRP1_NUM_CHANNELS * ADC_GRP1_BUF_DEPTH];
 
 // RTC related
@@ -105,9 +105,6 @@ char gprsModemInfo[16];
 char gprsSmsText[120];
 
 
-// GSM modem
-int8_t  GSMisAlive = 0, GSMsetSMS = 0;
-uint8_t GSMreg = 4, GSMstrength = 0;
 
 // Semaphores
 binary_semaphore_t gprsSem;
@@ -123,22 +120,33 @@ binary_semaphore_t gprsSem;
 #define REG_PACKET_HEADER_SIZE 5
 #define REG_PACKET_SIZE 21
 typedef struct {
-  uint8_t  address;
-  char     node;
   char     type;
+  uint8_t  address;
+  char     function;
   uint8_t  number;
   uint16_t setting;
   char     name[NAME_LENGTH];
   uint16_t dummyAlign;
 } registration_t;
 
-
-// Dynamic nodes
-#define NODES 100
+// Sensor events
+#define SENSOR_FIFO_SIZE 10
 typedef struct {
+  char    type;     // = ' ';
+  uint8_t address;  //  = 0;
+  char    function; // = ' ';
+  uint8_t number;   //= 0;
+  float   value;    //= 0;
+} sensor_t;
+
+
+
+// Dynamic NODE_SIZE
+#define NODE_SIZE 10
+typedef struct {
+  char    type;    //= ' ';
   uint8_t address; //= 0;
   char    function;//= ' ';
-  char    type;    //= ' ';
   uint8_t number;  //= 0;
 //                    |- MQTT publish
 //                    ||- Free
@@ -155,7 +163,7 @@ typedef struct {
   uint8_t  queue;  //   = 255; // No queue
   char name[NAME_LENGTH]; // = "";
 } node_t;
-node_t node[NODES];
+node_t node[NODE_SIZE] = {{0}};
 
 // Define debug console
 BaseSequentialStream* console = (BaseSequentialStream*)&SD3;
@@ -171,19 +179,25 @@ static MAILBOX_DECL(logger_mb, logger_mb_buffer, LOGGER_FIFO_SIZE);
 
 static msg_t        registration_mb_buffer[REG_FIFO_SIZE];
 static MAILBOX_DECL(registration_mb, registration_mb_buffer, REG_FIFO_SIZE);
+
+static msg_t        sensor_mb_buffer[SENSOR_FIFO_SIZE];
+static MAILBOX_DECL(sensor_mb, sensor_mb_buffer, SENSOR_FIFO_SIZE);
 /*
  * Pools
  */
-static alarmEvent_t    alarmEvent_pool_queue[ALARMEVENT_FIFO_SIZE];
+static alarmEvent_t   alarmEvent_pool_queue[ALARMEVENT_FIFO_SIZE];
 static MEMORYPOOL_DECL(alarmEvent_pool, sizeof(alarmEvent_t), PORT_NATURAL_ALIGN, NULL);
 
-static logger_t        logger_pool_queue[LOGGER_FIFO_SIZE];
+static logger_t       logger_pool_queue[LOGGER_FIFO_SIZE];
 static MEMORYPOOL_DECL(logger_pool, sizeof(logger_t), PORT_NATURAL_ALIGN, NULL);
 
-static registration_t  registration_pool_queue[REG_FIFO_SIZE];
+static registration_t registration_pool_queue[REG_FIFO_SIZE];
 static MEMORYPOOL_DECL(registration_pool, sizeof(registration_t), PORT_NATURAL_ALIGN, NULL);
 
-//static node_t          node_pool_queue[NODES];
+static sensor_t       sensor_pool_queue[SENSOR_FIFO_SIZE];
+static MEMORYPOOL_DECL(sensor_pool, sizeof(sensor_t), PORT_NATURAL_ALIGN, NULL);
+
+//static node_t          node_pool_queue[NODE_SIZE];
 //static MEMORYPOOL_DECL(node_pool, sizeof(node_t), PORT_NATURAL_ALIGN, NULL);
 
 
@@ -246,7 +260,7 @@ static THD_FUNCTION(ZoneThread, arg) {
       if (group[i].armDelay > 0) {
         group[i].armDelay--;
         if (group[i].armDelay == 0) {
-          //++ _resp = sendCmdToGrp(i, 15);  // send arm message to all nodes
+          //++ _resp = sendCmdToGrp(i, 15);  // send arm message to all NODE_SIZE
           //++ publishGroup(i, 'A');
           tmpLog[0] = 'G'; tmpLog[1] = 'S'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
         }
@@ -263,14 +277,12 @@ static THD_FUNCTION(ZoneThread, arg) {
     */
 
     for(uint8_t i = 0; i < ALARM_ZONES; i++) {
-      // Zone enabled ?
-      if (conf.zone[i] & 0b1){
-
+      if (GET_CONF_ZONE_ENABLED(conf.zone[i])){
         // Remote zone
-        if ((conf.zone[i] >> 12) & 0b1) {
-          // Switch battery zone back to OK after 2 seconds, as battery nodes will not send OK
-          if ((((conf.zone[i] >> 11) & 0b1) == 1) &&
-                (zone[i].lastEvent != 'O') && (zone[i].lastPIR + 2 < GetTimeUnixSec())) {
+        if (GET_CONF_ZONE_IS_REMOTE(conf.zone[i])) {
+          // Switch battery zone back to OK after 2 seconds, as battery NODE_SIZE will not send OK
+          if (((GET_CONF_ZONE_IS_BATTERY(conf.zone[i])) == 1) &&
+             (zone[i].lastEvent != 'O') && (zone[i].lastPIR + 2 < GetTimeUnixSec())) {
             zone[i].lastEvent = 'O';
             zone[i].lastOK = GetTimeUnixSec();    // update current timestamp
           }
@@ -281,7 +293,7 @@ static THD_FUNCTION(ZoneThread, arg) {
           }
         // Local HW
         } else {
-          if ((conf.zone[i] >> 15) & 0b1){ // Digital 0/ Analog 1
+          if (GET_CONF_ZONE_TYPE(conf.zone[i])){ // Digital 0/ Analog 1
             val = adcSamples[i];
           } else {
             switch(i) {
@@ -293,16 +305,16 @@ static THD_FUNCTION(ZoneThread, arg) {
           }
         }
 
-        //    alarm as tamper              is PIR                                               make it tamper
-        if (((conf.zone[i] >> 9) & 0b1) && (val >= ALARM_PIR_LOW && val <= ALARM_PIR_HI)) val = ALARM_TAMPER;
+        //    alarm as tamper                            is PIR                                        make it tamper
+        if ((GET_CONF_ZONE_PIR_AS_TMP(conf.zone[i])) && (val >= ALARM_PIR_LOW && val <= ALARM_PIR_HI)) val = ALARM_TAMPER;
         // get current zone group
-        _group = (conf.zone[i] >> 1) & 0b1111;
+        _group = GET_CONF_ZONE_GROUP(conf.zone[i]);
 
         // Decide zone state
         switch((uint16_t)(val)){
           case ALARM_OK_LOW ... ALARM_OK_HI:
             // Battery node, they will not send OK only PIR and Tamper
-            if (((conf.zone[i] >> 11) & 0b1) != 1) {
+            if (GET_CONF_ZONE_IS_BATTERY(conf.zone[i]) != 1) {
               zone[i].lastEvent = 'O';
               zone[i].lastOK = GetTimeUnixSec();    // update current timestamp
             }
@@ -338,7 +350,7 @@ static THD_FUNCTION(ZoneThread, arg) {
               }
             }
             // Battery node, they will not send OK only PIR and Tamper
-            if (((conf.zone[i] >> 11) & 0b1) != 1) {
+            if (GET_CONF_ZONE_IS_BATTERY(conf.zone[i]) != 1) {
               zone[i].lastEvent = 'P';
               zone[i].lastPIR = GetTimeUnixSec();    // update current timestamp
             }
@@ -373,7 +385,7 @@ static THD_FUNCTION(ZoneThread, arg) {
               }
             }
             // Battery node, they will not send OK only PIR and Tamper
-            if (((conf.zone[i] >> 11) & 0b1) != 1) {
+            if (GET_CONF_ZONE_IS_BATTERY(conf.zone[i]) != 1) {
               zone[i].lastEvent = 'T';
               zone[i].lastPIR = GetTimeUnixSec();    // update current timestamp
             }
@@ -521,23 +533,88 @@ static THD_FUNCTION(LoggerThread, arg) {
 }
 
 
+// Send a command to node
+int8_t sendCmd(uint8_t address, uint8_t command) {
+  RS485Cmd_t rs485Cmd;
+
+  rs485Cmd.address = address;
+  rs485Cmd.ctrl = RS485_FLAG_CMD;
+  rs485Cmd.length = command;
+  return rs485SendCmdWithACK(&RS485D2, &rs485Cmd, 3);
+}
+
+int8_t getNodeIndex(char type, uint8_t address, char function, uint8_t number){
+  for (uint8_t i=0; i < NODE_SIZE; i++) {
+    //chprintf(console, "getNodeIndex: %d,T %d-%d,A %d-%d,F %d-%d,N %d-%d\r\n", i, type, node[i].type, address, node[i].address, function, node[i].function, number, node[i].number);
+    if (node[i].type     == type &&
+        node[i].address  == address &&
+        node[i].function == function &&
+        node[i].number   == number) { return i; }
+  }
+  return -1;
+}
+
+int8_t getNodeFreeIndex(void){
+  for (uint8_t i=0; i < NODE_SIZE; i++) {
+    //chprintf(console, "getNodeFreeIndex: %d, %d\r\n", i, node[i].address);
+    if (node[i].address == 0) { return i; }
+  }
+  return -1;
+}
+
+void checkKey(uint8_t _node, uint8_t *key){
+  uint8_t _group;
+  // Check all keys
+  for (uint8_t i=0; i < KEYS_SIZE; i++){
+    //chprintf(console, "Match :%d\r\n", i);
+    //for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, key[ii]); } chprintf(console, "\r\n");
+    //for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, conf.keyValue[i][ii]); } chprintf(console, "\r\n");
+    if (memcmp(key, &conf.keyValue[i], KEY_LENGTH) == 0) { // key matched
+      _group = (node[_node].setting >> 1) & 0b1111;
+      chprintf(console, "Key matched, group: %d\r\n", _group);
+      //  key enabled && (group = key_group || key = global)
+      if ((conf.keySetting[i] & 0b1) &&
+         ((_group == ((conf.keySetting[i] >> 1) & 0b1111)) || ((conf.keySetting[i] >> 5) & 0b1))) {
+        //     we have alarm                     or   group is armed
+        if  (((group[_group].setting) >> 1 & 0b1) || ((group[_group].setting) & 0b1)) {
+          tmpLog[0] = 'A'; tmpLog[1] = 'D'; tmpLog[2] = i;  pushToLog(tmpLog, 3); // Key
+          //***disarmGroup(_group, _group); // Disarm group and all chained groups
+        } else { // Just do arm
+          tmpLog[0] = 'A'; tmpLog[1] = 'A'; tmpLog[2] = i; pushToLog(tmpLog, 3);
+          //***armGroup(_group, _group); // Arm group and all chained groups
+        }
+        break; // no need to try other
+      } else { // key is not enabled
+        tmpLog[0] = 'A'; tmpLog[1] = 'F'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
+      }
+    } // key matched
+    else if (i == KEYS_SIZE-1) {
+      // Log unknown keys
+      tmpLog[0] = 'A'; tmpLog[1] = 'U'; memcpy(&tmpLog[2], key, KEY_LENGTH); pushToLog(tmpLog, 10);
+      memcpy(&lastKey[0], key, KEY_LENGTH); // store last unknown key
+    }
+  } // for
+}
+
 /*
  * RS485 thread
  */
-static THD_WORKING_AREA(waRS485Thread, 256);
+static THD_WORKING_AREA(waRS485Thread, 512);
 static THD_FUNCTION(RS485Thread, arg) {
   chRegSetThreadName(arg);
   event_listener_t serialListener;
+  eventmask_t evt;
   msg_t resp;
   RS485Msg_t rs485Msg;
   uint8_t _pos;
+  int8_t nodeIndex;
 
   // Register
   // ++ old chEvtRegister((event_source_t *)chnGetEventSource(&RS485D2.event), &serialListener, EVENT_MASK(0));
-  chEvtRegister((event_source_t *)&RS485D2.myEvent, &serialListener, EVENT_MASK(0));
+  chEvtRegister((event_source_t *)&RS485D2.event, &serialListener, EVENT_MASK(0));
 
   while (true) {
-    eventmask_t evt = chEvtWaitAny(ALL_EVENTS);
+    evt = chEvtWaitAny(ALL_EVENTS);
     (void)evt;
 
     eventflags_t flags = chEvtGetAndClearFlags(&serialListener);
@@ -549,11 +626,13 @@ static THD_FUNCTION(RS485Thread, arg) {
       chprintf(console, "from %d, ", rs485Msg.address);
       chprintf(console, "ctrl %d, ", rs485Msg.ctrl);
       chprintf(console, "length %d\r\n", rs485Msg.length);
+      //chprintf(console, "ib %d, ob %d\r\n", RS485D2.ib[1], RS485D2.ob[1]);
       chprintf(console, "Data: ");
       for(uint8_t i = 0; i < rs485Msg.length; i++) {
         chprintf(console, "%d-%x, ", i, rs485Msg.data[i]);
       }
-      chprintf(console, "\r\n");
+      chprintf(console, ".\r\n");
+      //chThdSleepMilliseconds(100);
       /*
       for(uint8_t i = RS485_HEADER_SIZE; i < rs485Msg.length + RS485_HEADER_SIZE + RS485_CRC_SIZE; i++) {
         chprintf(console, "%d-%x, ", i,  RS485D2.ib[i]);
@@ -561,39 +640,58 @@ static THD_FUNCTION(RS485Thread, arg) {
       chprintf(console, "%x - %x\r\n", RS485D2.crc >> 8, RS485D2.crc & 0b11111111);
       */
 
-      // Registration
-      if ((rs485Msg.ctrl == RS485_FLAG_DTA) && (rs485Msg.data[0]=='R')) {
-        _pos = 0;
-        do {
-          _pos++; // Skip 'R'
-          registration_t *outMsg = chPoolAlloc(&registration_pool);
-          if (outMsg != NULL) {
-            // node setting
-            outMsg->node    = rs485Msg.data[_pos];
-            outMsg->address = rs485Msg.address;
-            outMsg->type    = rs485Msg.data[_pos+1];
-            outMsg->number  = (uint8_t)rs485Msg.data[_pos+2];
-            outMsg->setting = ((uint8_t)rs485Msg.data[_pos+3] << 8) | ((uint8_t)rs485Msg.data[_pos+4]);
-            memcpy(&outMsg->name[0], &rs485Msg.data[_pos+5], NAME_LENGTH);  // Copy string
+      if (resp == MSG_OK) {
+        if (rs485Msg.ctrl == RS485_FLAG_DTA) {
+          switch(rs485Msg.data[0]) {
+            case 'R': // Registration
+              _pos = 0;
+              do {
+                _pos++; // Skip 'R'
+                registration_t *outMsg = chPoolAlloc(&registration_pool);
+                if (outMsg != NULL) {
+                  // node setting
+                  outMsg->type     = rs485Msg.data[_pos];
+                  outMsg->address  = rs485Msg.address;
+                  outMsg->function = rs485Msg.data[_pos+1];
+                  outMsg->number   = (uint8_t)rs485Msg.data[_pos+2];
+                  outMsg->setting  = ((uint8_t)rs485Msg.data[_pos+3] << 8) | ((uint8_t)rs485Msg.data[_pos+4]);
+                  memcpy(&outMsg->name[0], &rs485Msg.data[_pos+5], NAME_LENGTH);  // Copy string
 
-            msg_t msg = chMBPostTimeout(&registration_mb, (msg_t)outMsg, TIME_IMMEDIATE);
-            if (msg != MSG_OK) {
-              //chprintf(console, "R-MB full %d\r\n", temp);
-            }
-          } else {
-            pushToLogText("FR"); // Registration queue is full
-          }
-          _pos+=REG_PACKET_SIZE;
-        } while (_pos < rs485Msg.length);
+                  msg_t msg = chMBPostTimeout(&registration_mb, (msg_t)outMsg, TIME_IMMEDIATE);
+                  if (msg != MSG_OK) {
+                    //chprintf(console, "R-MB full %d\r\n", temp);
+                  }
+                } else {
+                  pushToLogText("FR"); // Registration queue is full
+                }
+                _pos+=REG_PACKET_SIZE;
+              } while (_pos < rs485Msg.length);
+              break;
+            case 'K': // iButtons keys
+              nodeIndex = getNodeIndex(rs485Msg.data[0], rs485Msg.address, rs485Msg.data[1], rs485Msg.data[2]);
+              chprintf(console, "Received Key, node index: %d\r\n", nodeIndex);
+              // Node index found
+              if (nodeIndex != -1) {
+                node[nodeIndex].last_OK = GetTimeUnixSec(); // Update timestamp
+                checkKey(nodeIndex, &rs485Msg.data[3]);
+                //  Node is enabled
+                if (node[nodeIndex].setting & 0b1) {
+                  checkKey(nodeIndex, &rs485Msg.data[3]);
+                } else {
+                  // log disabled remote NODE_SIZE
+                  tmpLog[0] = 'N'; tmpLog[1] = 'F'; tmpLog[2] = rs485Msg.address; tmpLog[3] = rs485Msg.data[2]; tmpLog[4] = rs485Msg.data[0]; tmpLog[5] = rs485Msg.data[1];  pushToLog(tmpLog, 6);
+                }
+              } else { // node not found
+                chThdSleepMilliseconds(5);  // This is needed for sleeping battery nodes, or they wont see reg. command.
+                resp = sendCmd(rs485Msg.address, NODE_CMD_REGISTRATION); // call this address to register
+              }
+              break;
+          } // switch case
+        } // data
       }
-
-    }
-
-
-
+    } // (flags & RS485_MSG_RECEIVED)
   }
 }
-
 
 /*
  * Registration thread
@@ -601,74 +699,104 @@ static THD_FUNCTION(RS485Thread, arg) {
 static THD_WORKING_AREA(waRegistrationThread, 256);
 static THD_FUNCTION(RegistrationThread, arg) {
   chRegSetThreadName(arg);
-  msg_t    msg;
+  msg_t msg;
   registration_t *inMsg;
-  uint8_t  _resp, _node;
+  int8_t nodeIndex;
 
   while (true) {
     msg = chMBFetchTimeout(&registration_mb, (msg_t*)&inMsg, TIME_INFINITE);
     if (msg == MSG_OK) {
-      chprintf(console, "Incoming registration\r\n");
-
-      chprintf(console, "Node %c", inMsg->node);
-      chprintf(console, ", %c", inMsg->type);
-      chprintf(console, "\r\n");
-
-
-      switch(inMsg->node){
+      chprintf(console, "Registration for node %c-%c\r\n", inMsg->type, inMsg->function);
+      switch(inMsg->type){
         case 'K':
         case 'S':
         case 'I':
-          _resp = 0;
-          for (_node=0; _node < NODES; _node++) {
-            if (node[_node].address  == inMsg->address &&
-                node[_node].type     == inMsg->type &&
-                node[_node].number   == inMsg->number &&
-                node[_node].function == inMsg->node) {
-              _resp = 1;
-              break;
-            }
-          }
-          // if node not present already
-          if (!_resp) {
-            for (_node=0; _node < NODES; _node++) {
-              // Find empty slot
-              if (node[_node].address == 0) {
-                _resp = 1;
-                break;
-              }
-            }
-            // if no empty slot
-            if (!_resp) {
-              pushToLogText("FN");
+          nodeIndex = getNodeIndex(inMsg->type, inMsg->address, inMsg->function, inMsg->number);
+          // If node not present already
+          if (nodeIndex != 1) {
+            nodeIndex = getNodeFreeIndex(); // Find empty slot
+            if (nodeIndex == -1) {
+              pushToLogText("FN"); // No empty slot
             } else {
-              node[_node].address  = inMsg->address;
-              node[_node].function = inMsg->node;
-              node[_node].type     = inMsg->type;
-              node[_node].number   = inMsg->number;
-              node[_node].setting  = inMsg->setting;
-              node[_node].last_OK  = GetTimeUnixSec();  // Get timestamp
-              memcpy(&node[_node].name, &inMsg->name, NAME_LENGTH);// node[_node].name[NAME_LENGTH-1] = 0;
-              tmpLog[0] = 'N'; tmpLog[1] = 'R'; tmpLog[2] = inMsg->address; tmpLog[3] = inMsg->number; tmpLog[4] = inMsg->node; tmpLog[5] = inMsg->type;  pushToLog(tmpLog, 6);
-              chprintf(console, "Registration %d\r\n", _node);
+              node[nodeIndex].type     = inMsg->type;
+              node[nodeIndex].address  = inMsg->address;
+              node[nodeIndex].function = inMsg->function;
+              node[nodeIndex].number   = inMsg->number;
+              node[nodeIndex].setting  = inMsg->setting;
+              node[nodeIndex].last_OK  = GetTimeUnixSec();
+              memcpy(&node[nodeIndex].name, &inMsg->name, NAME_LENGTH);
+              tmpLog[0] = 'N'; tmpLog[1] = 'R'; tmpLog[2] = inMsg->address; tmpLog[3] = inMsg->number; tmpLog[4] = inMsg->type; tmpLog[5] = inMsg->function;  pushToLog(tmpLog, 6);
+              chprintf(console, "Registered as: %d\r\n", nodeIndex);
             }
           } else {
             // there is match already
-            node[_node].setting  = inMsg->setting;
-            node[_node].last_OK  = GetTimeUnixSec();  // Get timestamp
-            node[_node].value    = 0; // Reset value
-            memcpy(&node[_node].name, &inMsg->name, NAME_LENGTH);// node[_node].name[NAME_LENGTH-1] = 0;
-            chprintf(console, "Re-registration %d\r\n", _node);
+            node[nodeIndex].setting  = inMsg->setting;
+            node[nodeIndex].last_OK  = GetTimeUnixSec();
+            node[nodeIndex].value    = 0; // Reset value
+            memcpy(&node[nodeIndex].name, &inMsg->name, NAME_LENGTH); // node[nodeIndex].name[NAME_LENGTH-1] = 0;
+            chprintf(console, "Re-registred as: %d\r\n", nodeIndex);
           }
           break;
           default:
-            tmpLog[0] = 'N'; tmpLog[1] = 'E'; tmpLog[2] = inMsg->address; tmpLog[3] = inMsg->number; tmpLog[4] = inMsg->node; tmpLog[5] = inMsg->type; pushToLog(tmpLog, 6);
+            tmpLog[0] = 'N'; tmpLog[1] = 'E'; tmpLog[2] = inMsg->address; tmpLog[3] = inMsg->number; tmpLog[4] = inMsg->type; tmpLog[5] = inMsg->function; pushToLog(tmpLog, 6);
           break;
       } // end switch
     } else {
       chprintf(console, "Registration ERROR\r\n");
     }
     chPoolFree(&registration_pool, inMsg);
+  }
+}
+
+/*
+ * Sensor thread
+ */
+static THD_WORKING_AREA(waSensorThread, 256);
+static THD_FUNCTION(SensorThread, arg) {
+  chRegSetThreadName(arg);
+  msg_t msg;
+  sensor_t *inMsg;
+  int8_t   nodeIndex;
+  uint8_t  lastNode = 255;
+  uint32_t lastNodeTime = 0;
+
+
+  while (true) {
+    msg = chMBFetchTimeout(&sensor_mb, (msg_t*)&inMsg, TIME_INFINITE);
+    if (msg == MSG_OK) {
+      nodeIndex = getNodeIndex(inMsg->type, inMsg->address, inMsg->function, inMsg->number);
+      if (nodeIndex != -1) {
+        chprintf(console, "Sensor data for node %c-%c\r\n", inMsg->type, inMsg->function);
+        //  node enabled
+        if (node[nodeIndex].setting & 0b1) {
+          node[nodeIndex].value   = inMsg->value;
+          node[nodeIndex].last_OK = GetTimeUnixSec();  // Get timestamp
+          //++publishNode(nodeIndex); // MQTT
+          // Triggers
+          //++processTriggers(node[nodeIndex].address, node[nodeIndex].type, node[nodeIndex].number, node[nodeIndex].value);
+          // Global battery check
+          if ((node[nodeIndex].function == 'B') && !((node[nodeIndex].setting >> 5) & 0b1) && (node[nodeIndex].value < 3.6)){
+            node[nodeIndex].setting |= (1 << 5); // switch ON  battery low flag
+            tmpLog[0] = 'R'; tmpLog[1] = 'A'; tmpLog[2] = 255; tmpLog[3] = nodeIndex; pushToLog(tmpLog, 4);
+          }
+          if ((node[nodeIndex].function == 'B') && ((node[nodeIndex].setting >> 5) & 0b1) && (node[nodeIndex].value > 4.16)){
+            tmpLog[0] = 'R'; tmpLog[1] = 'D'; tmpLog[2] = 255; tmpLog[3] = nodeIndex; pushToLog(tmpLog, 4);
+            node[nodeIndex].setting &= ~(1 << 5); // switch OFF battery low flag
+          }
+        } // node enabled
+      } else {
+        // Let's call same unknown node for re-registrtion only once a while or we send many packets if multiple sensor data come in
+        if ((lastNode != inMsg->address) || (GetTimeUnixSec() > lastNodeTime)) {
+          chThdSleepMilliseconds(5);  // This is needed for sleeping battery nodes, or they wont see reg. command.
+          nodeIndex = sendCmd(inMsg->address, NODE_CMD_REGISTRATION); // call this address to register
+          lastNode = inMsg->address;
+          lastNodeTime = GetTimeUnixSec() + 1; // add 1-2 second(s)
+        }
+      }
+    }else {
+      chprintf(console, "Sensor ERROR\r\n");
+    }
+    chPoolFree(&sensor_pool, inMsg);
   }
 }
 
@@ -912,12 +1040,14 @@ int main(void) {
   chPoolObjectInit(&alarmEvent_pool, sizeof(alarmEvent_t), NULL);
   chPoolObjectInit(&logger_pool, sizeof(logger_t), NULL);
   chPoolObjectInit(&registration_pool, sizeof(registration_t), NULL);
+  chPoolObjectInit(&sensor_pool, sizeof(sensor_t), NULL);
   //chPoolObjectInit(&node_pool, sizeof(node_t), NULL);
   //chPoolLoadArray(&alarmEvent_pool, alarmEvent_pool_queue, ALARMEVENT_FIFO_SIZE);
   for(uint8_t i = 0; i < ALARMEVENT_FIFO_SIZE; i++) { chPoolFree(&alarmEvent_pool, &alarmEvent_pool_queue[i]); }
   for(uint8_t i = 0; i < LOGGER_FIFO_SIZE; i++) { chPoolFree(&logger_pool, &logger_pool_queue[i]); }
   for(uint8_t i = 0; i < REG_FIFO_SIZE; i++) { chPoolFree(&registration_pool, &registration_pool_queue[i]); }
-  //for(uint8_t i = 0; i < NODES; i++) { chPoolFree(&node_pool, &node_pool_queue[i]); }
+  for(uint8_t i = 0; i < SENSOR_FIFO_SIZE; i++) { chPoolFree(&sensor_pool, &sensor_pool_queue[i]); }
+  //for(uint8_t i = 0; i < NODE_SIZE; i++) { chPoolFree(&node_pool, &node_pool_queue[i]); }
 
   //i2cStart(&I2CD1, &i2cfg1); // I2C
   spiStart(&SPID1, &spi1cfg);  // SPI
@@ -939,6 +1069,7 @@ int main(void) {
   chThdCreateStatic(waLoggerThread, sizeof(waLoggerThread), NORMALPRIO, LoggerThread, (void*)"Logger");
   chThdCreateStatic(waRS485Thread, sizeof(waRS485Thread), NORMALPRIO, RS485Thread, (void*)"RS485");
   chThdCreateStatic(waRegistrationThread, sizeof(waRegistrationThread), NORMALPRIO, RegistrationThread, (void*)"Registration");
+  chThdCreateStatic(waSensorThread, sizeof(waSensorThread), NORMALPRIO, SensorThread, (void*)"Sensor");
   chThdCreateStatic(waModemThread, sizeof(waModemThread), NORMALPRIO, ModemThread, (void*)"Modem");
   chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, (void*)"LED");
 //  shellInit();
@@ -957,6 +1088,7 @@ int main(void) {
     writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
     writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
   }
+  setConfDefault(); // Load OHS default conf.
 
   // Read last group[] state
   readFromBkpRTC((uint8_t*)&group, sizeof(group), 0);
@@ -970,8 +1102,7 @@ int main(void) {
   //sntp_setserver(0, "ntp1.sh.cvut.cz");
   sntp_init();
 
-
-  chprintf(console, "Size of conf: %d, group: %d\r\n", sizeof(conf), sizeof(group));
+    chprintf(console, "Size of conf: %d, group: %d\r\n", sizeof(conf), sizeof(group));
 
   //uint8_t data;
   //uint32_t data32;
@@ -989,6 +1120,7 @@ int main(void) {
 
     chThdSleepMilliseconds(10000);
 
+    /*
     temptime = calculateDST(2019, 3, 0, 0, 2);
     chprintf(console, "DST s %d \r\n", temptime);
     ptm = gmtime(&temptime);
@@ -998,9 +1130,7 @@ int main(void) {
     chprintf(console, "DST e %d \r\n", temptime);
     ptm = gmtime(&temptime);
     chprintf(console, "DST e %s \r\n", asctime(ptm));
-
-    //palTogglePad(GPIOC, GPIOC_RX6);
-    //palTogglePad(GPIOC, GPIOC_TX6);
+    */
 
     // Dump BKP SRAM
     /*
@@ -1031,17 +1161,18 @@ int main(void) {
     chprintf(console, ">%s<\r\n", myStr);
     */
 
-    /* Send RS485 registartion request
+    /*
+    // Send RS485 registration request
+    chprintf(console, "RS485: %d, %d, %d, %d\r\n", RS485D2.state, RS485D2.trcState, RS485D2.ibHead, RS485D2.ibExpLen);
     RS485Msg_t rs485Msg;
-    rs485Msg.address = 15;
+    rs485Msg.address = 1;
     //rs485Msg.ctrl = RS485_FLAG_DTA;
     rs485Msg.ctrl = RS485_FLAG_CMD;
     //rs485Msg.length = 10;
     rs485Msg.length = 1;
     for (uint8_t i = 0; i < rs485Msg.length; i++) { rs485Msg.data[i] = i; }
-    resp = rs485SendMsg(&RS485D2, &rs485Msg);
-    chprintf(console, ">%d<\r\n", resp);
+    resp = rs485SendMsgWithACK(&RS485D2, &rs485Msg, 3);
+    chprintf(console, "Sent: %d\r\n", resp);
     */
-
   }
 }

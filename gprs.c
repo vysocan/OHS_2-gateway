@@ -250,17 +250,16 @@ int8_t gprsSendCmdWRI(char *what, uint8_t *response, uint8_t index) {
  * Send SMS, begin
  */
 int8_t gprsSendSMSBegin(char *number) {
-  uint8_t t_size;
-  int8_t  at_tmp;
+  int8_t at_tmp;
   gprsFlushRX();
 
   // SMS header
   //print(AT_send_sms); print('"'); print(number); println('"'); // println is needed
   chprintf(gprs, "%s\"%s\"\r\n", AT_send_sms, number);
   if (!gprsWaitMsg()) return -20;               // timeout reached
-  t_size = gprsReadMsg(gprsATreply);            // gprsReadMsg serial
+  at_tmp = gprsReadMsg(gprsATreply);            // gprsReadMsg serial
   chprintf((BaseSequentialStream*)&SD3, "sms-b>%s\r\n", (char*)gprsATreply);
-  at_tmp = memcmp(AT_send_sms, gprsATreply, strlen(AT_send_sms));     // compare only command part
+  at_tmp = memcmp(AT_send_sms, gprsATreply, strlen(AT_send_sms)); // compare only command part
   if (at_tmp != 0) return -1;                   // echo not match
   else return 1;
 }
