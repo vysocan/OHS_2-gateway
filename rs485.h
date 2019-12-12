@@ -22,12 +22,10 @@
 #define USART_CR2_STOP1P5_BITS  (3 << 12)   /**< @brief CR2 1.5 stop bit value.*/
 
 typedef struct {
-  /**
-   * @brief Bit rate.
-   */
-  uint32_t                  speed;
-  stm32_gpio_t              port;
-  stm32_gpio_t              pad;
+  uint32_t     speed;
+  uint8_t      address;
+  ioportid_t   deport;
+  uint_fast8_t depad;
 } RS485Config;
 
 #ifdef __cplusplus

@@ -28,10 +28,10 @@
 #define PHONE_LENGTH     14     //
 #define EMAIL_LENGTH     30     //
 
-#define ALARM_PIR        3400 //(3380 = 15.2V)
+#define ALARM_PIR        3400   //(3380 = 15.2V)
 #define ALARM_PIR_LOW    3050
 #define ALARM_PIR_HI     3650
-#define ALARM_OK         1850 //(1850 = 15.2V)
+#define ALARM_OK         1850   //(1850 = 15.2V)
 #define ALARM_OK_LOW     1500
 #define ALARM_OK_HI      2100
 #define ALARM_TAMPER     0
@@ -39,6 +39,10 @@
 #define RADIO_UNIT_OFFSET 15
 
 #define NOT_SET          "not set"
+
+#define NODE_SIZE        10     // Number of nodes
+
+#define LOGGER_MSG_LENGTH 11
 
 /**
  * @name    Node commands
@@ -55,6 +59,126 @@
 #define NODE_CMD_AUTH_3       14
 #define NODE_CMD_AUTH_4       15
 #define NODE_CMD_DISARM       16
+
+
+/*
+ * Bit wise macros for various settings
+ */
+#define GET_CONF_ZONE_ENABLED(x)     ((x) & 0b1)
+#define GET_CONF_ZONE_GROUP(x)       ((x >> 1U) & 0b1111)
+#define GET_CONF_ZONE_AUTH_TIME(x)   ((x >> 5U) & 0b11)
+#define GET_CONF_ZONE_ARM_HOME(x)    ((x >> 7U) & 0b1)
+#define GET_CONF_ZONE_STILL_OPEN(x)  ((x >> 8U) & 0b1)
+#define GET_CONF_ZONE_PIR_AS_TMP(x)  ((x >> 9U) & 0b1)
+#define GET_CONF_ZONE_IS_BATTERY(x)  ((x >> 11U) & 0b1)
+#define GET_CONF_ZONE_IS_REMOTE(x)   ((x >> 12U) & 0b1)
+#define GET_CONF_ZONE_IS_PRESENT(x)  ((x >> 14U) & 0b1)
+#define GET_CONF_ZONE_TYPE(x)        ((x >> 15U) & 0b1)
+#define SET_CONF_ZONE_ENABLED(x)     x |= 1
+#define SET_CONF_ZONE_GROUP(x,y)     x = (((x)&(0b1111111111100001))|(((y & 0b1111) << 1U)&(0b0000000000011110)))
+#define SET_CONF_ZONE_AUTH_TIME(x,y) x = (((x)&(0b1111111110011111))|(((y & 0b11) << 5U)&(0b0000000001100000)))
+#define SET_CONF_ZONE_ARM_HOME(x)    x |= (1 << 7U)
+#define SET_CONF_ZONE_STILL_OPEN(x)  x |= (1 << 8U)
+#define SET_CONF_ZONE_PIR_AS_TMP(x)  x |= (1 << 9U)
+#define SET_CONF_ZONE_IS_BATTERY(x)  x |= (1 << 11U)
+#define SET_CONF_ZONE_IS_REMOTE(x)   x |= (1 << 12U)
+#define SET_CONF_ZONE_IS_PRESENT(x)  x |= (1 << 14U)
+#define SET_CONF_ZONE_TYPE(x)        x |= (1 << 15U)
+#define CLEAR_CONF_ZONE_ENABLED(x)     x &= ~1
+#define CLEAR_CONF_ZONE_ARM_HOME(x)    x &= ~(1 << 7U)
+#define CLEAR_CONF_ZONE_STILL_OPEN(x)  x &= ~(1 << 8U)
+#define CLEAR_CONF_ZONE_PIR_AS_TMP(x)  x &= ~(1 << 9U)
+#define CLEAR_CONF_ZONE_IS_BATTERY(x)  x &= ~(1 << 11U)
+#define CLEAR_CONF_ZONE_IS_REMOTE(x)   x &= ~(1 << 12U)
+#define CLEAR_CONF_ZONE_IS_PRESENT(x)  x &= ~(1 << 14U)
+#define CLEAR_CONF_ZONE_TYPE(x)        x &= ~(1 << 15U)
+
+#define GET_CONF_GROUP_ENABLED(x)      ((x) & 0b1)
+#define GET_CONF_GROUP_TAMPER2(x)      ((x >> 1U) & 0b1)
+#define GET_CONF_GROUP_TAMPER1(x)      ((x >> 2U) & 0b1)
+#define GET_CONF_GROUP_PIR2(x)         ((x >> 3U) & 0b1)
+#define GET_CONF_GROUP_PIR1(x)         ((x >> 4U) & 0b1)
+#define GET_CONF_GROUP_AUTO_ARM(x)     ((x >> 5U) & 0b1)
+#define GET_CONF_GROUP_MQTT_PUB(x)     ((x >> 7U) & 0b1)
+#define GET_CONF_GROUP_ARM_CHAIN(x)    ((x >> 8U) & 0b1111)
+#define GET_CONF_GROUP_DISARM_CHAIN(x) ((x >> 12U) & 0b1111)
+#define SET_CONF_GROUP_ENABLED(x)        x |= 1
+#define SET_CONF_GROUP_TAMPER2(x)        x |= (1 << 1U)
+#define SET_CONF_GROUP_TAMPER1(x)        x |= (1 << 2U)
+#define SET_CONF_GROUP_PIR2(x)           x |= (1 << 3U)
+#define SET_CONF_GROUP_PIR1(x)           x |= (1 << 4U)
+#define SET_CONF_GROUP_AUTO_ARM(x)       x |= (1 << 5U)
+#define SET_CONF_GROUP_MQTT_PUB(x)       x |= (1 << 7U)
+#define SET_CONF_GROUP_ARM_CHAIN(x,y)    x = (((x)&(0b1111000011111111))|(((y & 0b1111) << 8U)&(0b0000111100000000)))
+#define SET_CONF_GROUP_DISARM_CHAIN(x,y) x = (((x)&(0b0000111111111111))|(((y & 0b1111) << 12U)&(0b1111000000000000)))
+#define CLEAR_CONF_GROUP_ENABLED(x)      x &= ~1
+#define CLEAR_CONF_GROUP_TAMPER2(x)      x &= ~(1 << 1U)
+#define CLEAR_CONF_GROUP_TAMPER1(x)      x &= ~(1 << 2U)
+#define CLEAR_CONF_GROUP_PIR2(x)         x &= ~(1 << 3U)
+#define CLEAR_CONF_GROUP_PIR1(x)         x &= ~(1 << 4U)
+#define CLEAR_CONF_GROUP_AUTO_ARM(x)     x &= ~(1 << 5U)
+#define CLEAR_CONF_GROUP_MQTT_PUB(x)     x &= ~(1 << 7U)
+
+#define GET_CONF_CONTACT_ENABLED(x)     ((x) & 0b1)
+#define GET_CONF_CONTACT_GROUP(x)       ((x >> 1U) & 0b1111)
+#define GET_CONF_CONTACT_IS_GLOBAL(x)   ((x >> 5U) & 0b1)
+#define SET_CONF_CONTACT_ENABLED(x)     x |= 1
+#define SET_CONF_CONTACT_GROUP(x,y)     x = (((x)&(0b11100001))|(((y & 0b1111) << 1U)&(0b00011110)))
+#define SET_CONF_CONTACT_IS_GLOBAL(x)   x |= (1 << 5U)
+#define CLEAR_CONF_CONTACT_ENABLED(x)   x &= ~1
+#define CLEAR_CONF_CONTACT_IS_GLOBAL(x) x &= ~(1 << 5U)
+
+
+#define GET_CONF_KEY_ENABLED(x)     ((x) & 0b1)
+#define GET_CONF_KEY_GROUP(x)       ((x >> 1U) & 0b1111)
+#define GET_CONF_KEY_IS_GLOBAL(x)   ((x >> 5U) & 0b1)
+#define SET_CONF_KEY_ENABLED(x)     x |= 1
+#define SET_CONF_KEY_GROUP(x,y)     x = (((x)&(0b11100001))|(((y & 0b1111) << 1U)&(0b00011110)))
+#define SET_CONF_KEY_IS_GLOBAL(x)   x |= (1 << 5U)
+#define CLEAR_CONF_KEY_ENABLED(x)   x &= ~1
+#define CLEAR_CONF_KEY_IS_GLOBAL(x) x &= ~(1 << 5U)
+
+#define GET_ZONE_ALARM(x)     ((x >> 1U) & 0b1)
+#define GET_ZONE_ERROR(x)     ((x >> 5U) & 0b1)
+#define GET_ZONE_QUEUED(x)    ((x >> 6U) & 0b1)
+#define GET_ZONE_FULL_FIFO(x) ((x >> 7U) & 0b1)
+#define SET_ZONE_ALARM(x)     x |= (1 << 1U)
+#define SET_ZONE_ERROR(x)     x |= (1 << 5U)
+#define SET_ZONE_QUEUED(x)    x |= (1 << 6U)
+#define SET_ZONE_FULL_FIFO(x) x |= (1 << 7U)
+#define CLEAR_ZONE_ALARM(x)     x &= ~(1 << 1U)
+#define CLEAR_ZONE_ERROR(x)     x &= ~(1 << 5U)
+#define CLEAR_ZONE_QUEUED(x)    x &= ~(1 << 6U)
+#define CLEAR_ZONE_FULL_FIFO(x) x &= ~(1 << 7U)
+
+#define GET_GROUP_ARMED(x)         ((x) & 0b1)
+#define GET_GROUP_ALARM(x)         ((x >> 1U) & 0b1)
+#define GET_GROUP_WAIT_ATUH(x)     ((x >> 2U) & 0b1)
+#define GET_GROUP_ARMED_HOME(x)    ((x >> 3U) & 0b1)
+#define GET_GROUP_DISABLED_FLAG(x) ((x >> 7U) & 0b1)
+#define SET_GROUP_ARMED(x)         x |= 1
+#define SET_GROUP_ALARM(x)         x |= (1 << 1U)
+#define SET_GROUP_WAIT_ATUH(x)     x |= (1 << 2U)
+#define SET_GROUP_ARMED_HOME(x)    x |= (1 << 3U)
+#define SET_GROUP_DISABLED_FLAG(x) x |= (1 << 7U)
+#define CLEAR_GROUP_ARMED(x)         x &= ~1
+#define CLEAR_GROUP_ALARM(x)         x &= ~(1 << 1U)
+#define CLEAR_GROUP_WAIT_ATUH(x)     x &= ~(1 << 2U)
+#define CLEAR_GROUP_ARMED_HOME(x)    x &= ~(1 << 3U)
+#define CLEAR_GROUP_DISABLED_FLAG(x) x &= ~(1 << 7U)
+
+#define GET_NODE_ENABLED(x)  ((x) & 0b1)
+#define GET_NODE_GROUP(x)    ((x >> 1U) & 0b1111)
+#define GET_NODE_BATT_LOW(x) ((x >> 5U) & 0b1)
+#define GET_NODE_MQTT_PUB(x) ((x >> 7U) & 0b1)
+#define SET_NODE_ENABLED(x)  x |= 1
+#define SET_NODE_GROUP(x,y)  x = (((x)&(0b1111111111100001))|(((y & 0b1111) << 1U)&(0b0000000000011110)))
+#define SET_NODE_BATT_LOW(x) x |= (1 << 5U)
+#define SET_NODE_MQTT_PUB(x) x |= (1 << 7U)
+#define CLEAR_NODE_ENABLED(x)  x &= ~1
+#define CLEAR_NODE_BATT_LOW(x) x &= ~(1 << 5U)
+#define CLEAR_NODE_MQTT_PUB(x) x &= ~(1 << 7U)
+
 
 char lastKey[KEY_LENGTH];
 
@@ -121,6 +245,29 @@ typedef struct {
   uint16_t flags;
 } flags_t;
 flags_t flags;
+
+// Dynamic nodes
+typedef struct {
+  char    type;    //= 'K/S/I';
+  uint8_t address; //= 0;
+  char    function;//= ' ';
+  uint8_t number;  //= 0;
+   //                    |- MQTT publish
+   //                    ||- Free
+   //                    |||- Battery low flag, for battery type node
+   //                    |||||||- Group number
+   //                    |||||||- 0 .. 15
+   //                    |||||||-
+   //                    |||||||-
+   //                    ||||||||-  Enabled
+   //                    76543210
+  uint16_t setting;// = B00011110;  // 2 bytes to store also zone setting
+  float    value;  // = 0;
+  time_t last_OK;// = 0;
+  uint8_t  queue;  //   = 255; // No queue
+  char name[NAME_LENGTH]; // = "";
+} node_t;
+node_t node[NODE_SIZE] = {{0}};
 
 // Set default to runtime structs
 void initRuntimeGroups(void){
@@ -211,23 +358,6 @@ int16_t readFromBkpRTC(uint8_t *data, uint8_t size, uint8_t offset){
   return i;
 }
 
-/*
-_group = (node[_node].setting >> 1) & 0b1111;
-      chprintf(console, "Key matched, group: %d\r\n", _group);
-      //  key enabled && (group = key_group || key = global)
-      if ((conf.keySetting[i] & 0b1) &&
-*/
-#define GET_CONF_ZONE_ENABLED(x)     ((x) & 0b1)
-#define GET_CONF_ZONE_GROUP(x)       ((x >> 1U) & 0b1111)
-#define GET_CONF_ZONE_AUTH_TIME(x)   ((x >> 5U) & 0b11)
-#define GET_CONF_ZONE_ARM_HOME(x)    ((x >> 7U) & 0b1)
-#define GET_CONF_ZONE_STILL_OPEN(x)  ((x >> 8U) & 0b1)
-#define GET_CONF_ZONE_PIR_AS_TMP(x)  ((x >> 9U) & 0b1)
-#define GET_CONF_ZONE_IS_BATTERY(x)  ((x >> 11U) & 0b1)
-#define GET_CONF_ZONE_IS_REMOTE(x)   ((x >> 12U) & 0b1)
-#define GET_CONF_ZONE_IS_PRESENT(x)  ((x >> 14U) & 0b1)
-#define GET_CONF_ZONE_TYPE(x)        ((x >> 15U) & 0b1)
-
 // Set conf default values
 void setConfDefault(void){
   conf.versionMajor   = OHS_MAJOR;
@@ -304,7 +434,7 @@ void setConfDefault(void){
     // group 16 and disabled
     conf.keySetting[i] = 0b00011110;
     strcpy(conf.keyName[i], NOT_SET);
-    strcpy(conf.keyValue[i], NOT_SET);
+    memset(&conf.keyValue[i][0], 0xFF, KEY_LENGTH);  // Set key value to FF
   }
 
       conf.keySetting[0] = 0b00100001;

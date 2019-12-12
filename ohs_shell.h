@@ -8,6 +8,38 @@
 #ifndef OHS_SHELL_H_
 #define OHS_SHELL_H_
 
+#include "memstreams.h"
+
+// FRAM on SPI related
+#define CMD_25AA_WRSR     0x01  // Write status register
+#define CMD_25AA_WRITE    0x02
+#define CMD_25AA_READ     0x03
+#define CMD_25AA_WRDI     0x04  // Write Disable
+#define CMD_25AA_RDSR     0x05  // Read Status Register
+#define CMD_25AA_WREN     0x06  // Write Enable
+#define CMD_25AA_RDID     0x9F  // Read FRAM ID
+#define STATUS_25AA_WEL   0b00000010  // write enable latch (1 == write enable)
+//#define STATUS_25AA_WIP   0b00000001  // write in progress
+//#define FRAM_SIZE         32768
+
+#define FRAM_MSG_SIZE     16
+volatile uint16_t FRAMWritePos = 0;
+volatile uint16_t FRAMReadPos  = 0;
+#define LOG_TEXT_LENGTH 80
+char logText[LOG_TEXT_LENGTH]; // To decode log text
+//#define LOG_TS_LENGTH 40
+//char logTimestamp[LOG_TS_LENGTH];
+
+// RTC related
+static RTCDateTime timespec;
+time_t startTime;  // OHS start timestamp variable
+
+// time_t conversion
+union time_tag {
+  char   ch[4];
+  time_t val;
+} timeConv;
+
 static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
   if (argc > 0) {
@@ -58,6 +90,8 @@ const char text_Undefined[]         = "Undefined";
 const char text_removed[]           = "removed";
 const char text_disabled[]          = "disabled";
 const char text_address[]           = "address";
+const char text_Address[]           = "Address";
+const char text_Group[]             = "Group";
 const char text_registration[]      = "registration";
 const char text_error[]             = "error";
 const char text_registered[]        = "registered";
@@ -88,109 +122,141 @@ const char text_Modem[]             = "Modem";
 const char text_On[]                = "On";
 const char text_Off[]               = "Off";
 const char text_power[]             = "power";
+const char text_monitoring[]        = "monitoring";
+const char text_Node[]              = "Node";
+const char text_Name[]              = "Name";
 
-void printInt(char *text, uint8_t num) {
-  char temp[6];
-  itoa(num, temp, 10);
-  strcat(text, temp);
-}
 
-void printFloat(char *text, float num, uint8_t whole, uint8_t fraction) {
-  char temp[10];
-  dtostrf(num, whole, fraction, temp);
-  strcat(text, temp);
-}
-
-void printNodeFunction(char *text, char function) {
-  switch(function){
-    case 'K': strcat(text, text_Authentication); break;
-    case 'S': strcat(text, text_Sensor); break;
-    case 'I': strcat(text, text_Input); break;
-    default: strcat(text, text_Undefined); break;
-  }
-}
-
-void printNodeType(char *text, char type) {
+void printNodeType(BaseSequentialStream *chp, const char type) {
   switch(type){
-    case 'i': strcat(text, text_iButton); break;
-    case 'T': strcat(text, text_Temperature); break;
-    case 'H': strcat(text, text_Humidity); break;
-    case 'P': strcat(text, text_Pressure); break;
-    case 'V': strcat(text, text_Voltage); break;
-    case 'B': strcat(text, text_Battery); break;
-    case 'D': strcat(text, text_Digital); break;
-    case 'A': strcat(text, text_Analog); break;
-    case 'F': strcat(text, text_Float); break;
-    case 'X': strcat(text, text_TX_Power); break;
-    case 'G': strcat(text, text_Gas); break;
-    default : strcat(text, text_Undefined); break;
+    case 'K': chprintf(chp, "%s", text_Authentication); break;
+    case 'S': chprintf(chp, "%s", text_Sensor); break;
+    case 'I': chprintf(chp, "%s", text_Input); break;
+    default: chprintf(chp, "%s", text_Undefined); break;
   }
 }
 
-/*
-char* pstrcat( char* dest, const char* src ){
-  while (*dest) dest++;
-  while (*dest++ = *src++) {};
-  return --dest;
+void printNodeFunction(BaseSequentialStream *chp, const char function) {
+  switch(function){
+    case 'i': chprintf(chp, "%s", text_iButton); break;
+    case 'T': chprintf(chp, "%s", text_Temperature); break;
+    case 'H': chprintf(chp, "%s", text_Humidity); break;
+    case 'P': chprintf(chp, "%s", text_Pressure); break;
+    case 'V': chprintf(chp, "%s", text_Voltage); break;
+    case 'B': chprintf(chp, "%s", text_Battery); break;
+    case 'D': chprintf(chp, "%s", text_Digital); break;
+    case 'A': chprintf(chp, "%s", text_Analog); break;
+    case 'F': chprintf(chp, "%s", text_Float); break;
+    case 'X': chprintf(chp, "%s", text_TX_Power); break;
+    case 'G': chprintf(chp, "%s", text_Gas); break;
+    default : chprintf(chp, "%s", text_Undefined); break;
+  }
 }
-*/
+
+void printNodeAddress(BaseSequentialStream *chp, const uint8_t address, const uint8_t number) {
+  if (address < RADIO_UNIT_OFFSET) { chprintf(chp, "W:%u:%u ", address, number); }
+  else                             { chprintf(chp, "R:%u:%u ", address-RADIO_UNIT_OFFSET, number); }
+}
+
+void printFrmTimestamp(BaseSequentialStream *chp, time_t *value) {
+  struct tm *ptm;
+  char   dateTime[30];
+
+  ptm = gmtime(value);
+  // Check if return is 0 then format is invalid
+  if (strftime(dateTime, 30, conf.dateTimeFormat, ptm) != 0) chprintf(chp, "%s", dateTime);
+  else chprintf(chp, "%s", text_unknown);
+}
 
 /*
- * TODO: make it better
- * 1. https://www.joelonsoftware.com/2001/12/11/back-to-basics/
- * 2. chsnprintf ( out, "%s %s", out, text_* )
- *
+ * helper function
+ */
+void SetTimeUnixSec(time_t unix_time) {
+  struct tm tim;
+  struct tm *canary;
+
+  /* If the conversion is successful the function returns a pointer
+     to the object the result was written into.*/
+  canary = localtime_r(&unix_time, &tim);
+  osalDbgCheck(&tim == canary);
+
+  rtcConvertStructTmToDateTime(&tim, 0, &timespec);
+  rtcSetTime(&RTCD1, &timespec);
+}
+time_t GetTimeUnixSec(void) {
+  struct tm timestamp;
+
+  rtcGetTime(&RTCD1, &timespec);
+  rtcConvertDateTimeToStructTm(&timespec, &timestamp, NULL);
+  return mktime(&timestamp);
+}
+
+/*
+ * Decode log entries to string
  */
 static void decodeLog(char *in, char *out){
-  out[0] = 0;
+  memset(&out[0], 0x0, LOG_TEXT_LENGTH);
+
+  MemoryStream ms;
+  BaseSequentialStream *chp;
+  /* Memory stream object to be used as a string writer, reserving one
+     byte for the final zero.*/
+  msObjectInit(&ms, (uint8_t *)out, LOG_TEXT_LENGTH-1, 0);
+  /* Performing the print operation using the common code.*/
+  chp = (BaseSequentialStream *)(void *)&ms;
+  //out = (char *)&ms.buffer; -- not needed to reroute
+
   switch(in[0]){
     case 'S': // System
-      strcat(out, text_System); strcat(out, " ");
+      chprintf(chp, "%s ", text_System);
       switch(in[1]){
-        case 'S': strcat(out, text_started); break;   // boot
-        default:  strcat(out, text_Undefined); break; // unknown
+        case 's': chprintf(chp, "%s", text_started); break; // boot
+        case 'S': chprintf(chp, "%s %s", text_monitoring, text_started); break; // Zone thread start
+        default:  chprintf(chp, "%s", text_unknown); break; // unknown
       }
     break;
     case 'N': // remote nodes
-      printNodeFunction(out, in[4]); strcat(out, ":");
-      printNodeType(out, in[5]);
-      strcat(out, " "); strcat(out, text_address); strcat(out, " ");
-      if ((uint8_t)in[2] < RADIO_UNIT_OFFSET) { strcat(out, "W:"); printInt(out, (uint8_t)in[2]); }
-      else                                    { strcat(out, "R:"); printInt(out, (uint8_t)in[2]-RADIO_UNIT_OFFSET); }
-      strcat(out, ":"); printInt(out, (uint8_t)in[3]); strcat(out, " ");
-      if (in[1] != 'E') {strcat(out, text_is); strcat(out, " ");}
+      printNodeType(chp, in[4]); chprintf(chp, ":");
+      printNodeFunction(chp, in[5]);
+      chprintf(chp, " %s ", text_address);
+      printNodeAddress(chp, (uint8_t)in[2], (uint8_t)in[3]);
+      if (in[1] != 'E') {chprintf(chp, "%s ", text_is);}
       switch(in[1]){
-        case 'F' : strcat(out,text_disabled); break;
-        case 'R' : strcat(out,text_registered); break;
-        case 'r' : strcat(out,text_removed); break;
-        default : strcat(out, text_registration); strcat(out, " "); strcat(out, text_error); break;
+        case 'F' : chprintf(chp, "%s", text_disabled); break;
+        case 'R' : chprintf(chp, "%s", text_registered); break;
+        case 'r' : chprintf(chp, "%s", text_removed); break;
+        default : chprintf(chp, "%s %s", text_registration, text_error); break; // 'E'
       }
     break;
     case 'M': // Modem
-      strcat(out, text_Modem); strcat(out, " ");
-      if ((uint8_t)in[1] <= 5) { strcat(out, text_network); strcat(out, " "); }
-      switch(in[1]){
-        case 0 : strcat(out, text_not); strcat(out, " "); strcat(out, text_registered); break;
-        case 1 : strcat(out, text_registered); break;
-        case 2 : strcat(out, text_searching); break;
-        case 3 : strcat(out, text_registration); strcat(out, " "); strcat(out, text_denied); break;
-        case 5 : strcat(out, text_roaming); break;
-        case 'O' : strcat(out, text_power); strcat(out, " "); strcat(out, text_On); break;
-        case 'F' : strcat(out, text_power); strcat(out, " "); strcat(out, text_Off); break;
-        default : strcat(out, text_unknown); break; // 4 = unknown
-      }
+      chprintf(chp, "%s ", text_Modem);
       if ((uint8_t)in[1] <= 5) {
-        strcat(out, text_cosp); strcat(out, text_strength); strcat(out, " ");
-        printInt(out, (uint8_t)in[2]); strcat(out, "%");
+        chprintf(chp, "%s ", text_network);
+        switch(in[1]){
+          case 0 : chprintf(chp, "%s %s", text_not, text_registered); break;
+          case 1 : chprintf(chp, "%s", text_registered); break;
+          case 2 : chprintf(chp, "%s", text_searching); break;
+          case 3 : chprintf(chp, "%s %s", text_registration, text_denied); break;
+          case 5 : chprintf(chp, "%s", text_roaming); break;
+          default : chprintf(chp, "%s", text_unknown); break; // 4 = unknown
+        }
+        chprintf(chp, "%s%s %u%%", text_cosp, text_strength, (uint8_t)in[2]);
+      } else {
+        chprintf(chp, "%s ", text_power);
+        switch(in[1]){
+          case 'O' : chprintf(chp, "%s", text_On); break;
+          case 'F' : chprintf(chp, "%s", text_Off); break;
+          default : chprintf(chp, "%s", text_unknown); break;
+        }
       }
     break;
-    default: strcat(out, text_Undefined);
-    for(uint16_t ii = 0; ii < LOGGER_MSG_LENGTH; ii++) {
-      chsnprintf(out, LOG_TEST_LENGTH, "%s, %c-%x", out, in[ii], in[ii]);
-    }
+    default: chprintf(chp, "%s", text_Undefined);
+      for(uint16_t ii = 0; ii < LOGGER_MSG_LENGTH; ii++) {
+        chprintf(chp, ", %c-%x", in[ii], in[ii]);
+      }
     break; // unknown
   }
-  strcat(out, "."); // "." as end
+  chprintf(chp, "."); // "." as end
 }
 
 /*
@@ -202,8 +268,6 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
 
   char   rxBuffer[FRAM_MSG_SIZE];
   char   txBuffer[3];
-  struct tm *ptm;
-  char   dateTime[30];
 
   if (argc > 1)  { goto ERROR; }
   if (argc == 1) { FRAMReadPos = (atoi(argv[0]) - LOGGER_OUTPUT_LEN + 1) * FRAM_MSG_SIZE; }
@@ -221,13 +285,12 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
     spiUnselect(&SPID1);                // Slave Select de-assertion.
     spiReleaseBus(&SPID1);              // Ownership release.
 
-    memcpy(&timeConv.ch[0], &rxBuffer[0], sizeof(timeConv.ch));
-    ptm = gmtime(&timeConv.val);
-    strftime(dateTime, 30, conf.dateTimeFormat, ptm); // Format date time as needed
-
+    memcpy(&timeConv.ch[0], &rxBuffer[0], sizeof(timeConv.ch)); // Prepare timestamp
     decodeLog(&rxBuffer[4], logText);
 
-    chprintf(chp, "#%d\t%s : %s", (FRAMReadPos/FRAM_MSG_SIZE), dateTime, logText);
+    chprintf(chp, "#%d\t", (FRAMReadPos/FRAM_MSG_SIZE));
+    printFrmTimestamp(chp, &timeConv.val);
+    chprintf(chp, " : %s", logText);
     chprintf(chp, " Flags: %x\r\n", rxBuffer[FRAM_MSG_SIZE-1]);
     chThdSleepMilliseconds(2);
 

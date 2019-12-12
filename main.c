@@ -32,47 +32,26 @@
 // Conf related
 #include "ohs_conf.h"
 
+// Define debug console
+BaseSequentialStream* console = (BaseSequentialStream*)&SD3;
+
+#include "ohs_shell.h"
+
 // LWIP
 #include "lwipthread.h"
 #include "lwip/apps/httpd.h"
 #include "lwip/apps/sntp.h"
+#include "ohs_httpdhandler.h"
 
 // GPRS
 #include "GPRS.h"
 
-
-// FRAM on SPI related
-#define CMD_25AA_WRSR     0x01  // Write status register
-#define CMD_25AA_WRITE    0x02
-#define CMD_25AA_READ     0x03
-#define CMD_25AA_WRDI     0x04  // Write Disable
-#define CMD_25AA_RDSR     0x05  // Read Status Register
-#define CMD_25AA_WREN     0x06  // Write Enable
-#define CMD_25AA_RDID     0x9F  // Read FRAM ID
-#define STATUS_25AA_WEL   0b00000010  // write enable latch (1 == write enable)
-//#define STATUS_25AA_WIP   0b00000001  // write in progress
-//#define FRAM_SIZE         32768
-#define FRAM_MSG_SIZE     16
-volatile uint16_t FRAMWritePos = 0;
-volatile uint16_t FRAMReadPos  = 0;
-#define LOG_TEST_LENGTH 80
-char logText[LOG_TEST_LENGTH]; // To decode log text
-
+#include "uBS.h"
 
 // ADC related
 #define ADC_GRP1_NUM_CHANNELS 10
 #define ADC_GRP1_BUF_DEPTH    1
 static adcsample_t adcSamples[ADC_GRP1_NUM_CHANNELS * ADC_GRP1_BUF_DEPTH];
-
-// RTC related
-static RTCDateTime timespec;
-//static time_t unix_time;
-
-// time_t conversion
-union time_tag {
-  char   ch[4];
-  time_t val;
-} timeConv;
 
 // Zones alarm events
 #define ALARMEVENT_FIFO_SIZE 10
@@ -83,7 +62,6 @@ typedef struct {
 
 // Logger events
 #define LOGGER_FIFO_SIZE 20
-#define LOGGER_MSG_LENGTH 11
 typedef struct {
   time_t   timestamp;
   char     text[LOGGER_MSG_LENGTH];
@@ -103,8 +81,6 @@ volatile int8_t gprsReg = 4;
 volatile int8_t gprsStrength = 0;
 char gprsModemInfo[16];
 char gprsSmsText[120];
-
-
 
 // Semaphores
 binary_semaphore_t gprsSem;
@@ -132,41 +108,12 @@ typedef struct {
 // Sensor events
 #define SENSOR_FIFO_SIZE 10
 typedef struct {
-  char    type;     // = ' ';
-  uint8_t address;  //  = 0;
+  char    type;     // = 'S';
+  uint8_t address;  // = 0;
   char    function; // = ' ';
-  uint8_t number;   //= 0;
-  float   value;    //= 0;
+  uint8_t number;   // = 0;
+  float   value;    // = 0.0;
 } sensor_t;
-
-
-
-// Dynamic NODE_SIZE
-#define NODE_SIZE 10
-typedef struct {
-  char    type;    //= ' ';
-  uint8_t address; //= 0;
-  char    function;//= ' ';
-  uint8_t number;  //= 0;
-//                    |- MQTT publish
-//                    ||- Free
-//                    |||- Battery low flag, for battery type node
-//                    |||||||- Group number
-//                    |||||||- 0 .. 15
-//                    |||||||-
-//                    |||||||-
-//                    ||||||||-  Enabled
-//                    76543210
-  uint16_t setting;// = B00011110;  // 2 bytes to store also zone setting
-  float    value;  // = 0;
-  uint32_t last_OK;// = 0;
-  uint8_t  queue;  //   = 255; // No queue
-  char name[NAME_LENGTH]; // = "";
-} node_t;
-node_t node[NODE_SIZE] = {{0}};
-
-// Define debug console
-BaseSequentialStream* console = (BaseSequentialStream*)&SD3;
 
 /*
  * Mailboxes
@@ -200,18 +147,6 @@ static MEMORYPOOL_DECL(sensor_pool, sizeof(sensor_t), PORT_NATURAL_ALIGN, NULL);
 //static node_t          node_pool_queue[NODE_SIZE];
 //static MEMORYPOOL_DECL(node_pool, sizeof(node_t), PORT_NATURAL_ALIGN, NULL);
 
-
-/*
- * Functions
- */
-// Get time as Unix seconds
-time_t GetTimeUnixSec(void) {
-  struct tm timestamp;
-
-  rtcGetTime(&RTCD1, &timespec);
-  rtcConvertDateTimeToStructTm(&timespec, &timestamp, NULL);
-  return mktime(&timestamp);
-}
 
 //
 void pushToLog(char *what, uint8_t size) {
@@ -260,7 +195,7 @@ static THD_FUNCTION(ZoneThread, arg) {
       if (group[i].armDelay > 0) {
         group[i].armDelay--;
         if (group[i].armDelay == 0) {
-          //++ _resp = sendCmdToGrp(i, 15);  // send arm message to all NODE_SIZE
+          //++ _resp = sendCmdToGrp(i, 15);  // send arm message to all nodes
           //++ publishGroup(i, 'A');
           tmpLog[0] = 'G'; tmpLog[1] = 'S'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
         }
@@ -280,7 +215,7 @@ static THD_FUNCTION(ZoneThread, arg) {
       if (GET_CONF_ZONE_ENABLED(conf.zone[i])){
         // Remote zone
         if (GET_CONF_ZONE_IS_REMOTE(conf.zone[i])) {
-          // Switch battery zone back to OK after 2 seconds, as battery NODE_SIZE will not send OK
+          // Switch battery zone back to OK after 2 seconds, as battery nodes will not send OK
           if (((GET_CONF_ZONE_IS_BATTERY(conf.zone[i])) == 1) &&
              (zone[i].lastEvent != 'O') && (zone[i].lastPIR + 2 < GetTimeUnixSec())) {
             zone[i].lastEvent = 'O';
@@ -321,28 +256,28 @@ static THD_FUNCTION(ZoneThread, arg) {
             break;
           case ALARM_PIR_LOW ... ALARM_PIR_HI:
             //     zone not have alarm              group delay is 0
-            if (!((zone[i].setting >> 1) & 0b1) && (group[_group].armDelay == 0)){
+            if (!(GET_ZONE_ALARM(zone[i].setting)) && (group[_group].armDelay == 0)){
               // if group not enabled log error to log.
-              if (!(conf.group[_group] & 0b1)) {
-                if (!((group[_group].setting >> 7) & 0b1)) {
-                  group[_group].setting |= (1 << 7); // Set logged disabled bit On
+              if (!(GET_CONF_GROUP_ENABLED(conf.group[_group]))) {
+                if (!(GET_GROUP_DISABLED_FLAG(group[_group].setting))) {
+                  SET_GROUP_DISABLED_FLAG(group[_group].setting); // Set logged disabled bit On
                   tmpLog[0] = 'G'; tmpLog[1] = 'F'; tmpLog[2] = _group;  pushToLog(tmpLog, 3);
                 }
               } else {
-                //   group armed
-                if ((group[_group].setting & 0b1) && (zone[i].lastEvent == 'P')) {
+                // group armed
+                if (GET_GROUP_ARMED(group[_group].setting) && (zone[i].lastEvent == 'P')) {
                   alarmEvent_t *outMsg = chPoolAlloc(&alarmEvent_pool);
                   if (outMsg != MSG_OK) {
-                    if (!((zone[i].setting >> 7) & 0b1)) {
+                    if (!(GET_ZONE_FULL_FIFO(zone[i].setting))) {
                       tmpLog[0] = 'Z'; tmpLog[1] = 'P'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
                       pushToLogText("FA"); // Alarm queue is full
                     }
-                    zone[i].setting |= (1 << 7); // Set On Alarm queue is full
+                    SET_ZONE_FULL_FIFO(zone[i].setting); // Set On Alarm queue is full
                     continue; // Continue if no free space.
                   }
                   tmpLog[0] = 'Z'; tmpLog[1] = 'P'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
-                  zone[i].setting |=  (1 << 1); // Set alarm bit On
-                  zone[i].setting &= ~(1 << 7); // Set Off Alarm queue is full
+                  SET_ZONE_ALARM(zone[i].setting); // Set alarm bit On
+                  CLEAR_ZONE_FULL_FIFO(zone[i].setting); // Set Off Alarm queue is full
                   outMsg->zone = i; outMsg->type = zone[i].lastEvent;
                   msg = chMBPostTimeout(&alarmEvent_mb, (msg_t)outMsg, TIME_IMMEDIATE);
                   if (msg != MSG_OK) pushToLogText("FA"); // Alarm queue is full
@@ -357,27 +292,27 @@ static THD_FUNCTION(ZoneThread, arg) {
             break;
           default: // Line is cut or short or tamper, no difference to alarm event
             //  zone not have alarm
-            if (!((zone[i].setting >> 1) & 0b1)){
+            if (!(GET_ZONE_ALARM(zone[i].setting))){
               // if group not enabled log error to log.
-              if (!(conf.group[_group] & 0b1)) {
-                if (!((group[_group].setting >> 7) & 0b1)) {
-                  group[_group].setting |= (1 << 7); // Set logged disabled bit On
+              if (!(GET_CONF_GROUP_ENABLED(conf.group[_group]))) {
+                if (!(GET_GROUP_DISABLED_FLAG(group[_group].setting))) {
+                  SET_GROUP_DISABLED_FLAG(group[_group].setting); // Set logged disabled bit On
                   tmpLog[0] = 'G'; tmpLog[1] = 'F'; tmpLog[2] = _group;  pushToLog(tmpLog, 3);
                 }
               } else {
                 if (zone[i].lastEvent == 'T') {
                   alarmEvent_t *outMsg = chPoolAlloc(&alarmEvent_pool);
                   if (outMsg != MSG_OK) {
-                    if (!((zone[i].setting >> 7) & 0b1)) {
+                    if (!(GET_ZONE_FULL_FIFO(zone[i].setting))) {
                       tmpLog[0] = 'Z'; tmpLog[1] = 'T'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
                       pushToLogText("FA"); // Alarm queue is full
                     }
-                    zone[i].setting |= (1 << 7); // Set On Alarm queue is full
+                    SET_ZONE_FULL_FIFO(zone[i].setting); // Set On Alarm queue is full
                     continue; // Continue if no free space.
                   }
                   tmpLog[0] = 'Z'; tmpLog[1] = 'T'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
-                  zone[i].setting |=  (1 << 1); // Set alarm bit On
-                  zone[i].setting &= ~(1 << 7); // Set Off Alarm queue is full
+                  SET_ZONE_ALARM(zone[i].setting); // Set alarm bit On
+                  CLEAR_ZONE_FULL_FIFO(zone[i].setting); // Set Off Alarm queue is full
                   outMsg->zone = i; outMsg->type = zone[i].lastEvent;
                   msg = chMBPostTimeout(&alarmEvent_mb, (msg_t)outMsg, TIME_IMMEDIATE);
                   if (msg != MSG_OK) pushToLogText("FA"); // Alarm queue is full
@@ -429,33 +364,33 @@ static THD_FUNCTION(AEThread, arg) {
     msg = chMBFetchTimeout(&alarmEvent_mb, (msg_t*)&inMsg, TIME_INFINITE);
     if (msg == MSG_OK) {
       // Lookup group
-      _group = (conf.zone[inMsg->zone] >> 1) & 0b1111;
+      _group = GET_CONF_ZONE_GROUP(conf.zone[inMsg->zone]);
 
       // Group has alarm already nothing to do!
-      if ((group[_group].setting >> 1) & 0b1) {
+      if (GET_GROUP_ALARM(group[_group].setting)) {
         chPoolFree(&alarmEvent_pool, inMsg);
         continue;
       }
       // Set authentication On
-      group[_group].setting |= (1 << 2);
+      SET_GROUP_WAIT_ATUH(group[_group].setting);
       // Set wait time
-      if (inMsg->type == 'P') _wait = (conf.zone[inMsg->zone] >> 5) & 0b11;
+      if (inMsg->type == 'P') _wait = GET_CONF_ZONE_AUTH_TIME(conf.zone[inMsg->zone]);
       else                    _wait = 0; // Tamper has no wait time
       //       wait > 0    NOT group has alarm already                authentication On
-      while ((_wait > 0) && !((group[_group].setting >> 1) & 0b1) && (group[_group].setting >> 2 & 0b1)) {
+      while ((_wait > 0) && !(GET_GROUP_ALARM(group[_group].setting)) && (GET_GROUP_WAIT_ATUH(group[_group].setting))) {
         //++_resp = sendCmdToGrp(_group, 11 + _wait);
         _cnt = 0;
         //       Authentication On                    time of one alarm period      NOT group has alarm already
-        while ((group[_group].setting >> 2 & 0b1) && (_cnt < (10*conf.alarmTime)) && !((group[_group].setting >> 1) & 0b1)) {
+        while (GET_GROUP_WAIT_ATUH(group[_group].setting) && (_cnt < (10*conf.alarmTime)) && !(GET_GROUP_ALARM(group[_group].setting))) {
           chThdSleepMilliseconds(100);;
           _cnt++;
         }
         //  Authentication On
-        if (group[_group].setting >> 2 & 0b1) _wait--;
+        if (GET_GROUP_WAIT_ATUH(group[_group].setting)) _wait--;
       }
       //   wait = 0   NOT group has alarm already
-      if ((!_wait) && !((group[_group].setting >> 1) & 0b1)) {
-        group[_group].setting |= (1 << 1); // Set alarm bit On
+      if ((!_wait) && !(GET_GROUP_ALARM(group[_group].setting))) {
+        SET_GROUP_ALARM(group[_group].setting); // Set alarm bit On
         //++_resp = sendCmdToGrp(_group, 11);  // ALARM COMMAND
         // Combine alarms, so that next alarm will not disable ongoing one
         if (inMsg->type == 'P') {
@@ -537,6 +472,7 @@ static THD_FUNCTION(LoggerThread, arg) {
 int8_t sendCmd(uint8_t address, uint8_t command) {
   RS485Cmd_t rs485Cmd;
 
+  chprintf(console, "RS485 Send cmd: %d to address: %d\r\n", address, command);
   rs485Cmd.address = address;
   rs485Cmd.ctrl = RS485_FLAG_CMD;
   rs485Cmd.length = command;
@@ -562,21 +498,21 @@ int8_t getNodeFreeIndex(void){
   return -1;
 }
 
-void checkKey(uint8_t _node, uint8_t *key){
+void checkKey(uint8_t nodeIndex, uint8_t *key){
   uint8_t _group;
   // Check all keys
   for (uint8_t i=0; i < KEYS_SIZE; i++){
-    //chprintf(console, "Match :%d\r\n", i);
-    //for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, key[ii]); } chprintf(console, "\r\n");
-    //for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, conf.keyValue[i][ii]); } chprintf(console, "\r\n");
+    chprintf(console, "Match :%d\r\n", i);
+    for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, key[ii]); } chprintf(console, "\r\n");
+    for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, conf.keyValue[i][ii]); } chprintf(console, "\r\n");
     if (memcmp(key, &conf.keyValue[i], KEY_LENGTH) == 0) { // key matched
-      _group = (node[_node].setting >> 1) & 0b1111;
+      _group = GET_NODE_GROUP(node[nodeIndex].setting);
       chprintf(console, "Key matched, group: %d\r\n", _group);
       //  key enabled && (group = key_group || key = global)
-      if ((conf.keySetting[i] & 0b1) &&
-         ((_group == ((conf.keySetting[i] >> 1) & 0b1111)) || ((conf.keySetting[i] >> 5) & 0b1))) {
-        //     we have alarm                     or   group is armed
-        if  (((group[_group].setting) >> 1 & 0b1) || ((group[_group].setting) & 0b1)) {
+      if (GET_CONF_KEY_ENABLED(conf.keySetting[i]) &&
+         (_group == GET_CONF_KEY_GROUP(conf.keySetting[i]) || GET_CONF_KEY_IS_GLOBAL(conf.keySetting[i]))) {
+        // We have alarm or group is armed
+        if  (GET_GROUP_ALARM(group[_group].setting) || GET_GROUP_ARMED(group[_group].setting)) {
           tmpLog[0] = 'A'; tmpLog[1] = 'D'; tmpLog[2] = i;  pushToLog(tmpLog, 3); // Key
           //***disarmGroup(_group, _group); // Disarm group and all chained groups
         } else { // Just do arm
@@ -673,12 +609,11 @@ static THD_FUNCTION(RS485Thread, arg) {
               // Node index found
               if (nodeIndex != -1) {
                 node[nodeIndex].last_OK = GetTimeUnixSec(); // Update timestamp
-                checkKey(nodeIndex, &rs485Msg.data[3]);
                 //  Node is enabled
-                if (node[nodeIndex].setting & 0b1) {
+                if (GET_NODE_ENABLED(node[nodeIndex].setting)) {
                   checkKey(nodeIndex, &rs485Msg.data[3]);
                 } else {
-                  // log disabled remote NODE_SIZE
+                  // log disabled remote nodes
                   tmpLog[0] = 'N'; tmpLog[1] = 'F'; tmpLog[2] = rs485Msg.address; tmpLog[3] = rs485Msg.data[2]; tmpLog[4] = rs485Msg.data[0]; tmpLog[5] = rs485Msg.data[1];  pushToLog(tmpLog, 6);
                 }
               } else { // node not found
@@ -760,7 +695,6 @@ static THD_FUNCTION(SensorThread, arg) {
   uint8_t  lastNode = 255;
   uint32_t lastNodeTime = 0;
 
-
   while (true) {
     msg = chMBFetchTimeout(&sensor_mb, (msg_t*)&inMsg, TIME_INFINITE);
     if (msg == MSG_OK) {
@@ -768,20 +702,20 @@ static THD_FUNCTION(SensorThread, arg) {
       if (nodeIndex != -1) {
         chprintf(console, "Sensor data for node %c-%c\r\n", inMsg->type, inMsg->function);
         //  node enabled
-        if (node[nodeIndex].setting & 0b1) {
+        if (GET_NODE_ENABLED(node[nodeIndex].setting)) {
           node[nodeIndex].value   = inMsg->value;
           node[nodeIndex].last_OK = GetTimeUnixSec();  // Get timestamp
           //++publishNode(nodeIndex); // MQTT
           // Triggers
           //++processTriggers(node[nodeIndex].address, node[nodeIndex].type, node[nodeIndex].number, node[nodeIndex].value);
           // Global battery check
-          if ((node[nodeIndex].function == 'B') && !((node[nodeIndex].setting >> 5) & 0b1) && (node[nodeIndex].value < 3.6)){
-            node[nodeIndex].setting |= (1 << 5); // switch ON  battery low flag
+          if ((node[nodeIndex].function == 'B') && !(GET_NODE_BATT_LOW(node[nodeIndex].setting)) && (node[nodeIndex].value < 3.6)){
+            SET_NODE_BATT_LOW(node[nodeIndex].setting); // switch ON  battery low flag
             tmpLog[0] = 'R'; tmpLog[1] = 'A'; tmpLog[2] = 255; tmpLog[3] = nodeIndex; pushToLog(tmpLog, 4);
           }
-          if ((node[nodeIndex].function == 'B') && ((node[nodeIndex].setting >> 5) & 0b1) && (node[nodeIndex].value > 4.16)){
+          if ((node[nodeIndex].function == 'B') && (GET_NODE_BATT_LOW(node[nodeIndex].setting)) && (node[nodeIndex].value > 4.16)){
             tmpLog[0] = 'R'; tmpLog[1] = 'D'; tmpLog[2] = 255; tmpLog[3] = nodeIndex; pushToLog(tmpLog, 4);
-            node[nodeIndex].setting &= ~(1 << 5); // switch OFF battery low flag
+            CLEAR_NODE_BATT_LOW(node[nodeIndex].setting); // switch OFF battery low flag
           }
         } // node enabled
       } else {
@@ -833,7 +767,7 @@ static THD_FUNCTION(ModemThread, arg) {
         pushToLogText("MO");
       }
 
-      // Dummy query to initialize modem UART at start
+      // Dummy query to initialize modem UART at start, or first reply is null
       if ((counter == 25) && (gprsLastStatus == 255)) {
         resp = gprsSendCmd(AT_is_alive);
         chThdSleepMilliseconds(AT_DELAY);
@@ -926,29 +860,14 @@ static THD_FUNCTION(Thread1, arg) {
 /*
  * helper function
  */
+/*
 static void GetTimeTm(struct tm *timp) {
   rtcGetTime(&RTCD1, &timespec);
   rtcConvertDateTimeToStructTm(&timespec, timp, NULL);
 }
-
-/*
- * helper function
- */
-static void SetTimeUnixSec(time_t unix_time) {
-  struct tm tim;
-  struct tm *canary;
-
-  /* If the conversion is successful the function returns a pointer
-     to the object the result was written into.*/
-  canary = localtime_r(&unix_time, &tim);
-  osalDbgCheck(&tim == canary);
-
-  rtcConvertStructTmToDateTime(&tim, 0, &timespec);
-  rtcSetTime(&RTCD1, &timespec);
-}
+*/
 
 
-#include "ohs_shell.h"
 
 /*===========================================================================*/
 /* Command line related.                                                     */
@@ -1011,12 +930,12 @@ int main(void) {
   chBSemObjectInit(&gprsSem, false);
 
   sdStart(&SD3,  &ser_cfg); // Debug port
+  chprintf(console, "\r\nOHS start\r\n\n");
+
   gprsInit(&SD1); // GPRS modem
 
-  chprintf(console, "\r\nOHS start\r\n");
-
   rs485Start(&RS485D2, &ser_mpc_cfg);
-  chprintf(console, "RS485 timeout: %d/%d\r\n", RS485D2.oneByteTimeUS, RS485D2.oneByteTimeI);
+  chprintf(console, "RS485 timeout: %d(uS)/%d(tick)\r\n", RS485D2.oneByteTimeUS, RS485D2.oneByteTimeI);
 
   // Initializes a serial-over-USB CDC driver.
   sduObjectInit(&SDU1);
@@ -1089,6 +1008,7 @@ int main(void) {
     writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
   }
   setConfDefault(); // Load OHS default conf.
+  chprintf(console, "Size of conf: %d, group: %d\r\n", sizeof(conf), sizeof(group));
 
   // Read last group[] state
   readFromBkpRTC((uint8_t*)&group, sizeof(group), 0);
@@ -1102,8 +1022,6 @@ int main(void) {
   //sntp_setserver(0, "ntp1.sh.cvut.cz");
   sntp_init();
 
-    chprintf(console, "Size of conf: %d, group: %d\r\n", sizeof(conf), sizeof(group));
-
   //uint8_t data;
   //uint32_t data32;
   //uint8_t *baseAddress = (uint8_t *) BKPSRAM_BASE;
@@ -1111,6 +1029,11 @@ int main(void) {
   // for(uint16_t i = 0; i < 0x100; i++) { *(base_address + i) = 0x55; } //erase BKP_SRAM
   //for(uint16_t i = 0; i < 20; i++) { *(RTCBaseAddress + i) = (0x55 << 24) | (0x55 << 16) | (0x55 << 8) | (0x55 << 0);} // Erase RTC bkp
   //chprintf(console, "BRTC %d ", writeToBkpRTC((uint8_t*)&myStr, sizeof(myStr), 0));
+
+
+  // Start
+  startTime = GetTimeUnixSec();
+  pushToLogText("Ss");
 
   while (true) {
     if (SDU1.config->usbp->state == USB_ACTIVE) {

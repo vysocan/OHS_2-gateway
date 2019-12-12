@@ -120,6 +120,7 @@ CSRC = $(ALLCSRC) \
        $(CHIBIOS)/os/various/evtimer.c \
        $(CHIBIOS)/os/various/syscalls.c \
        gprs.c \
+       uBS.c \
        main.c
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
@@ -200,7 +201,8 @@ CPPWARN = -Wall -Wextra -Wundef
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS =
+# CHPRINTF_USE_FLOAT to support FLOAT
+UDEFS = -DCHPRINTF_USE_FLOAT=1
 
 # Define ASM defines here
 UADEFS =
