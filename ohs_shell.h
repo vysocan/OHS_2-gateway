@@ -125,6 +125,20 @@ const char text_power[]             = "power";
 const char text_monitoring[]        = "monitoring";
 const char text_Node[]              = "Node";
 const char text_Name[]              = "Name";
+const char text_MQTT[]              = "MQTT";
+const char text_Function[]          = "Function";
+const char text_Type[]              = "Type";
+const char text_publish[]           = "publish";
+const char text_Last[]              = "Last";
+const char text_message[]           = "message";
+const char text_Queued[]            = "Queued";
+const char text_Value[]             = "Value";
+const char text_Number[]            = "Number";
+const char text_Email[]             = "Email";
+const char text_Global[]            = "Global";
+const char text_Contact[]           = "Contact";
+const char text_all[]               = "all";
+const char text_Key[]               = "Key";
 
 
 void printNodeType(BaseSequentialStream *chp, const char type) {

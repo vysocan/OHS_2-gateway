@@ -72,6 +72,9 @@ const char html_tr_td[]             = "<tr><td>";
 const char html_e_td_td[]           = "</td><td>";
 const char html_e_td_e_tr[]         = "</td></tr>";
 const char html_e_td_e_tr_tr_td[]   = "</td></tr><tr><td>";
+const char html_tr_th[]             = "<tr><th>";
+const char html_e_th_th[]           = "</th><th>";
+const char html_e_th_e_tr[]         = "</th></tr>";
 const char html_select_submit[]     = "<select onchange='this.form.submit()' name='";
 const char html_e_tag[]             = "'>";
 const char html_e_select[]          = "</select>";
@@ -80,13 +83,22 @@ const char html_e_option[]          = "</option>";
 const char html_selected[]          = "' selected>";
 const char html_m_tag[]             = "' value='";
 const char html_id_tag[]            = "' id='";
-const char html_s_tag[]             = "<input type='text' name='";
-const char html_s_tag_s[]           = "<input type='text' maxlength='3' size='3' name='";
+const char html_s_tag_1[]           = "<input type='text' maxlength='";
+const char html_s_tag_2[]           = "' size='";
+const char html_s_tag_3[]           = "' name='";
 const char html_radio_s[]           = "<div class='rm'>";
 const char html_radio_sl[]          = "<div class='rml'>";
 const char html_radio_sb[]          = "<div class='rmb'>";
 const char html_div_e[]             = "</div>";
 const char html_select[]            = "<select name='";
+const char html_Apply[]             = "<input type='submit' name='A' value='Apply'/>";
+const char html_Save[]              = "<input type='submit' name='e' value='Save all'/>";
+const char html_Reregister[]        = "<input type='submit' name='R' value='Call registration'/>";
+const char html_e_table[]           = "</table>";
+const char html_table[]             = "<table>";
+const char html_e_form[]            = "</form>";
+const char html_form_1[]            = "<form action='";
+const char html_form_2[]            = "' method='post'>";
 
 const char html_cbPart1a[]          = "<div class='rc'><input type='radio' name='";
 const char html_cbPart1b[]          = "' id='";
@@ -99,17 +111,21 @@ const char html_cbPart5[]           = "</label></div>";
 const char html_cbJSen[]            = " onclick=\"en()\"";
 const char html_cbJSdis[]           = " onclick=\"dis()\"";
 
-
-#define HTML_SIZE  4096 // Change also in lwip opt.h MEM_SIZE
-#define HTML_PAGES 2
-const char webMenuLink[HTML_PAGES][12]  = {
+#define HTML_SIZE  8192 // Change also in lwip opt.h MEM_SIZE
+#define HTML_PAGES 3
+const char webMenuLink[HTML_PAGES][13]  = {
    "/index.html",
-   "/test.html"
+   "/test.html",
+   "/contact.html"
 };
-const char webMenuName[HTML_PAGES][12]  = {
+const char webMenuName[HTML_PAGES][10]  = {
    "Global",
-   "Test"
+   "Test",
+   "Contact"
 };
+
+static char postData[128];
+static char *pPostData;
 
 void printOkNok(BaseSequentialStream *chp, const uint8_t value) {
   value ? chprintf(chp, "%s", text_i_OK) : chprintf(chp, "%s", text_i_disabled);
@@ -138,7 +154,7 @@ void printOnOffButton(BaseSequentialStream *chp, const char *name, const uint8_t
 
 void printGroup(BaseSequentialStream *chp, const uint8_t value) {
   if (value < ALARM_GROUPS) {
-    chprintf(chp, "%u - %s", value + 1, conf.groupName[value]);
+    chprintf(chp, "%u. %s", value + 1, conf.groupName[value]);
   } else chprintf(chp, "%s", NOT_SET);
 }
 
@@ -148,16 +164,17 @@ void selectGroup(BaseSequentialStream *chp, uint8_t selected, char name) {
     chprintf(chp, "%s%u", html_option, i);
     if (selected == i) { chprintf(chp, "%s", html_selected); }
     else               { chprintf(chp, "%s", html_e_tag); }
-    chprintf(chp, "%u - %s - ", i + 1, conf.groupName[i]);
+    chprintf(chp, "%u. %s - ", i + 1, conf.groupName[i]);
     GET_CONF_GROUP_ENABLED(conf.group[i]) ? chprintf(chp, "%s", text_On) : chprintf(chp, "%s", text_Off);
     chprintf(chp, "%s", html_e_option);
   }
   chprintf(chp, "%s", html_e_select);
 }
+
 void printNodeValue(BaseSequentialStream *chp, const uint8_t index) {
   if (node[index].type != 'K') {
     switch(node[index].function){
-      case 'T': chprintf(chp, "%.2f °C", node[index].value); break;
+      case 'T': chprintf(chp, "%.2f ï¿½C", node[index].value); break;
       case 'H':
       case 'X': chprintf(chp, "%.2f %%", node[index].value); break;
       case 'P': chprintf(chp, "%.2f mBar", node[index].value); break;
@@ -169,21 +186,27 @@ void printNodeValue(BaseSequentialStream *chp, const uint8_t index) {
   }
 }
 
-void printTextInput(BaseSequentialStream *chp, const char name, const char *value, const uint8_t type){
-  if (type) chprintf(chp, "%s", html_s_tag);
-  else      chprintf(chp, "%s", html_s_tag_s);
+void printTextInput(BaseSequentialStream *chp, const char name, const char *value, const uint8_t size){
+  chprintf(chp, "%s%u%s%u%s", html_s_tag_1, size, html_s_tag_2, size, html_s_tag_3);
   chprintf(chp, "%c%s%s", name, html_m_tag, value);
   chprintf(chp, "%s%c%s", html_id_tag, name, html_e_tag);
 }
+
+void printKey(BaseSequentialStream *chp, const char *value, const uint8_t size){
+  for (uint8_t i = 0; i < size; ++i) {
+    chprintf(chp, "%02x", value[i]);
+  }
+}
+
 
 void genfiles_ex_init(void) {
   /* nothing to do here yet */
 }
 
-uint8_t webSens = 0;
+static uint8_t webNode = 0, webContact = 0, webKey = 0;
 int fs_open_custom(struct fs_file *file, const char *name){
-  for (uint8_t i = 0; i < HTML_PAGES; ++i) {
-    if (!strcmp(name, webMenuLink[i])) {
+  for (uint8_t htmlPage = 0; htmlPage < HTML_PAGES; ++htmlPage) {
+    if (!strcmp(name, webMenuLink[htmlPage])) {
       /* initialize fs_file correctly */
       memset(file, 0, sizeof(struct fs_file));
       file->pextension = mem_malloc(HTML_SIZE);
@@ -198,108 +221,204 @@ int fs_open_custom(struct fs_file *file, const char *name){
       chprintf(chp, "<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>Open home security</title>\r\n");
       chprintf(chp, "<link rel='stylesheet' href='/css/OHS.css'></head>\r\n");
       chprintf(chp, "<body onload=\"\"><div class='wrp'><div class='sb'>\r\n");
-      chprintf(chp, "<div class='tt'>OHS 2.0-%u.%u</div>\r\n", OHS_MAJOR, OHS_MINOR);
+      chprintf(chp, "<div class='tt'>OHS 2.0 - %u.%u</div>\r\n", OHS_MAJOR, OHS_MINOR);
       chprintf(chp, "<ul class='nav'>\r\n");
-      for (int j = 0; j < HTML_PAGES; ++j) {
-        if (i == j) chprintf(chp, "<li><a class='active' href='%s'>%s</a></li>\r\n", webMenuLink[j], webMenuName[j]);
-        else chprintf(chp, "<li><a href='%s'>%s</a></li>\r\n", webMenuLink[j], webMenuName[j]);
+      for (uint8_t i = 0; i < HTML_PAGES; ++i) {
+        if (htmlPage == i) chprintf(chp, "<li><a class='active' href='%s'>%s</a></li>\r\n", webMenuLink[i], webMenuName[i]);
+        else chprintf(chp, "<li><a href='%s'>%s</a></li>\r\n", webMenuLink[i], webMenuName[i]);
       }
-      chprintf(chp, "</ul></div><div class='mb'><h1>%s</h1>\r\n", webMenuName[i]);
+      chprintf(chp, "</ul></div><div class='mb'><h1>%s</h1>\r\n", webMenuName[htmlPage]);
 
       // Custom start
-      chprintf(chp, "<table><tr><th>#</th><th>Address</th><th>On</th><th>MQTT</th><th>Last Message</th><th>Queued</th>\r\n");
-      chprintf(chp, "<th>Type</th><th>Function</th><th>Value</th><th>Group</th></tr>\r\n");
-
-      for (uint8_t j = 0; j < NODE_SIZE; j++) {
-        if (node[j].address != 0) {
-          chprintf(chp, "%s%u.%s%s - ", html_tr_td, j + 1, html_e_td_td, node[j].name);
-          printNodeAddress(chp, node[j].address, node[j].number);
-          chprintf(chp, "%s", html_e_td_td);
-          printOkNok(chp, GET_NODE_ENABLED(node[j].setting));
-          chprintf(chp, "%s", html_e_td_td);
-          printOkNok(chp, GET_NODE_MQTT_PUB(node[j].setting));
-          chprintf(chp, "%s", html_e_td_td);
-          printFrmTimestamp(chp, &node[j].last_OK);
-          chprintf(chp, "%s", html_e_td_td);
-          // queued
-          chprintf(chp, "%s", html_e_td_td);
-          printNodeType(chp, node[j].type);
-          chprintf(chp, "%s", html_e_td_td);
-          printNodeFunction(chp, node[j].function);
-          chprintf(chp, "%s", html_e_td_td);
-          printNodeValue(chp, j);
-          chprintf(chp, "%s", html_e_td_td);
-          printGroup(chp, GET_NODE_GROUP(node[j].setting));
-          chprintf(chp, "%s", html_e_td_e_tr);
-        }
+      switch (htmlPage) {
+        case 0:
+          chprintf(chp, "%s%s#", html_table, html_tr_th);
+          chprintf(chp, "%s%s", html_e_th_th, text_Address);
+          chprintf(chp, "%s%s", html_e_th_th, text_On);
+          chprintf(chp, "%s%s", html_e_th_th, text_MQTT);
+          chprintf(chp, "%s%s %s", html_e_th_th, text_Last, text_message);
+          chprintf(chp, "%s%s", html_e_th_th, text_Queued);
+          chprintf(chp, "%s%s", html_e_th_th, text_Type);
+          chprintf(chp, "%s%s", html_e_th_th, text_Function);
+          chprintf(chp, "%s%s", html_e_th_th, text_Value);
+          chprintf(chp, "%s%s%s\r\n", html_e_th_th, text_Group, html_e_th_e_tr);
+          // Information table
+          for (uint8_t i = 0; i < NODE_SIZE; i++) {
+            if (node[i].address != 0) {
+              chprintf(chp, "%s%u.%s%s - ", html_tr_td, i + 1, html_e_td_td, node[i].name);
+              printNodeAddress(chp, node[i].address, node[i].number);
+              chprintf(chp, "%s", html_e_td_td);
+              printOkNok(chp, GET_NODE_ENABLED(node[i].setting));
+              chprintf(chp, "%s", html_e_td_td);
+              printOkNok(chp, GET_NODE_MQTT_PUB(node[i].setting));
+              chprintf(chp, "%s", html_e_td_td);
+              printFrmTimestamp(chp, &node[i].last_OK);
+              chprintf(chp, "%s", html_e_td_td);
+              // queued
+              chprintf(chp, "%s", html_e_td_td);
+              printNodeType(chp, node[i].type);
+              chprintf(chp, "%s", html_e_td_td);
+              printNodeFunction(chp, node[i].function);
+              chprintf(chp, "%s", html_e_td_td);
+              printNodeValue(chp, i);
+              chprintf(chp, "%s", html_e_td_td);
+              printGroup(chp, GET_NODE_GROUP(node[i].setting));
+              chprintf(chp, "%s", html_e_td_e_tr);
+            }
+          }
+          chprintf(chp, "%s", html_e_table);
+          // Form
+          chprintf(chp, "%s%s%s", html_form_1, webMenuLink[htmlPage], html_form_2);
+          chprintf(chp, "%s", html_table);
+          chprintf(chp, "%s%s%s", html_tr_td, text_Node, html_e_td_td);
+          chprintf(chp, "%sP%s", html_select_submit, html_e_tag);
+          for (uint8_t i = 0; i < NODE_SIZE; i++) {
+            if (node[i].address != 0) {
+              chprintf(chp, "%s%u", html_option, i);
+              if (webNode == i) { chprintf(chp, "%s", html_selected); }
+              else              { chprintf(chp, "%s", html_e_tag); }
+              chprintf(chp, "%u. %s%s", i + 1, node[i].name, html_e_option);
+            }
+          }
+          chprintf(chp, "%s%s", html_e_select, html_e_td_e_tr_tr_td);
+          chprintf(chp, "%s%s", text_Name, html_e_td_td);
+          printTextInput(chp, 'n', node[webNode].name, NAME_LENGTH);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Address, html_e_td_td);
+          printNodeAddress(chp, node[webNode].address, node[webNode].number);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Type, html_e_td_td);
+          printNodeType(chp, node[webNode].type);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Function, html_e_td_td);
+          printNodeFunction(chp, node[webNode].function);
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Node, text_is, html_e_td_td);
+          printOnOffButton(chp, "0", GET_NODE_ENABLED(node[webNode].setting), false);
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_MQTT, text_publish, html_e_td_td);
+          printOnOffButton(chp, "7", GET_NODE_MQTT_PUB(node[webNode].setting), false);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Group, html_e_td_td);
+          selectGroup(chp, GET_NODE_GROUP(node[webNode].setting), 'g');
+          chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
+          // Buttons
+          chprintf(chp, "%s%s%s%s", html_Apply, html_Save, html_Reregister, html_e_form);
+          break;
+        case 1:
+          chprintf(chp, "%s%s#", html_table, html_tr_th);
+          chprintf(chp, "%s%s", html_e_th_th, text_Name);
+          chprintf(chp, "%s%s", html_e_th_th, text_On);
+          chprintf(chp, "%s%s", html_e_th_th, text_Number);
+          chprintf(chp, "%s%s", html_e_th_th, text_Email);
+          chprintf(chp, "%s%s", html_e_th_th, text_Global);
+          chprintf(chp, "%s%s%s\r\n", html_e_th_th, text_Group, html_e_th_e_tr);
+          // Information table
+          for (uint8_t i = 0; i < CONTACTS_SIZE; i++) {
+            chprintf(chp, "%s%u.%s", html_tr_td, i + 1, html_e_td_td);
+            chprintf(chp, "%s%s", conf.contactName[i], html_e_td_td);
+            printOkNok(chp, GET_CONF_CONTACT_ENABLED(conf.contact[i]));
+            chprintf(chp, "%s%s", html_e_td_td, conf.contactPhone[i]);
+            chprintf(chp, "%s%s", html_e_td_td, conf.contactEmail[i]);
+            chprintf(chp, "%s", html_e_td_td);
+            printOkNok(chp, GET_CONF_CONTACT_IS_GLOBAL(conf.contact[i]));
+            chprintf(chp, "%s", html_e_td_td);
+            if (!GET_CONF_CONTACT_IS_GLOBAL(conf.contact[i])) printGroup(chp, GET_CONF_CONTACT_GROUP(conf.contact[i]));
+            else chprintf(chp, "%s", text_all);
+            chprintf(chp, "%s", html_e_td_e_tr);
+          }
+          chprintf(chp, "%s", html_e_table);
+          // Form
+          chprintf(chp, "%s%s%s", html_form_1, webMenuLink[htmlPage], html_form_2);
+          chprintf(chp, "%s", html_table);
+          chprintf(chp, "%s%s%s", html_tr_td, text_Contact, html_e_td_td);
+          chprintf(chp, "%sP%s", html_select_submit, html_e_tag);
+          for (uint8_t i = 0; i < CONTACTS_SIZE; i++) {
+            chprintf(chp, "%s%u", html_option, i);
+            if (webContact == i) { chprintf(chp, "%s", html_selected); }
+            else                 { chprintf(chp, "%s", html_e_tag); }
+            chprintf(chp, "%u. %s%s", i + 1, conf.contactName[i], html_e_option);
+          }
+          chprintf(chp, "%s%s", html_e_select, html_e_td_e_tr_tr_td);
+          chprintf(chp, "%s%s", text_Name, html_e_td_td);
+          printTextInput(chp, 'n', conf.contactName[webContact], NAME_LENGTH);
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Contact, text_is, html_e_td_td);
+          printOnOffButton(chp, "0", GET_CONF_CONTACT_ENABLED(conf.contact[webContact]), false);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Number, html_e_td_td);
+          printTextInput(chp, 'p', conf.contactPhone[webContact], PHONE_LENGTH);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Email, html_e_td_td);
+          printTextInput(chp, 'm', conf.contactEmail[webContact], EMAIL_LENGTH);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Global, html_e_td_td);
+          printOnOffButton(chp, "5", GET_CONF_CONTACT_IS_GLOBAL(conf.contact[webContact]), false);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Group, html_e_td_td);
+          selectGroup(chp, GET_CONF_CONTACT_GROUP(conf.contact[webContact]), 'g');
+          chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
+          // Buttons
+          chprintf(chp, "%s%s%s", html_Apply, html_Save, html_e_form);
+          break;
+        case 2:
+          chprintf(chp, "%s%s#", html_table, html_tr_th);
+          chprintf(chp, "%s%s", html_e_th_th, text_Name);
+          chprintf(chp, "%s%s", html_e_th_th, text_On);
+          chprintf(chp, "%s%s", html_e_th_th, text_Value);
+          chprintf(chp, "%s%s", html_e_th_th, text_Global);
+          chprintf(chp, "%s%s%s\r\n", html_e_th_th, text_Group, html_e_th_e_tr);
+          // Information table
+          for (uint8_t i = 0; i < KEYS_SIZE; i++) {
+            chprintf(chp, "%s%u.%s", html_tr_td, i + 1, html_e_td_td);
+            if (conf.keyContact[i] == 255) chprintf(chp, "%s", NOT_SET);
+            else chprintf(chp, "%s", conf.contactName[conf.keyContact[i]]);
+            chprintf(chp, "%s", html_e_td_td);
+            printOkNok(chp, GET_CONF_KEY_ENABLED(conf.keySetting[i]));
+            chprintf(chp, "%s", html_e_td_td);
+            printKey(chp, conf.keyValue[i], KEY_LENGTH);
+            chprintf(chp, "%s", html_e_td_td);
+            printOkNok(chp, GET_CONF_KEY_IS_GLOBAL(conf.keySetting[i]));
+            chprintf(chp, "%s", html_e_td_td);
+            if (!GET_CONF_KEY_IS_GLOBAL(conf.keySetting[i])) printGroup(chp, GET_CONF_KEY_GROUP(conf.keySetting[i]));
+            else chprintf(chp, "%s", text_all);
+            chprintf(chp, "%s", html_e_td_e_tr);
+          }
+          chprintf(chp, "%s", html_e_table);
+          // Form
+          chprintf(chp, "%s%s%s", html_form_1, webMenuLink[htmlPage], html_form_2);
+          chprintf(chp, "%s", html_table);
+          chprintf(chp, "%s%s%s", html_tr_td, text_Key, html_e_td_td);
+          chprintf(chp, "%sP%s", html_select_submit, html_e_tag);
+          for (uint8_t i = 0; i < KEYS_SIZE; i++) {
+            chprintf(chp, "%s%u", html_option, i);
+            if (webKey == i) { chprintf(chp, "%s", html_selected); }
+            else             { chprintf(chp, "%s", html_e_tag); }
+            chprintf(chp, "%u.%s", i + 1, html_e_option);
+          }
+          chprintf(chp, "%s%s", html_e_select, html_e_td_e_tr_tr_td);
+          chprintf(chp, "%s%s", text_Contact, html_e_td_td);
+          chprintf(chp, "%sc%s", html_select, html_e_tag);
+          for (uint8_t i = 0; i < CONTACTS_SIZE; i++) {
+            chprintf(chp, "%s%u", html_option, i);
+            if (conf.keyContact[webKey] == i) { chprintf(chp, "%s", html_selected); }
+            else                              { chprintf(chp, "%s", html_e_tag); }
+            chprintf(chp, "%u. %s%s", i + 1, conf.contactName[i], html_e_option);
+          }
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Key, text_is, html_e_td_td);
+          printOnOffButton(chp, "0", GET_CONF_KEY_ENABLED(conf.keySetting[webKey]), false);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Value, html_e_td_td);
+          printKey(chp, conf.keyValue[webKey], KEY_LENGTH);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Global, html_e_td_td);
+          printOnOffButton(chp, "5", GET_CONF_KEY_IS_GLOBAL(conf.keySetting[webKey]), false);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Group, html_e_td_td);
+          selectGroup(chp, GET_CONF_KEY_GROUP(conf.keySetting[webKey]), 'g');
+          chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
+          // Buttons
+          chprintf(chp, "%s%s%s", html_Apply, html_Save, html_e_form);
+          break;
+        default:
+          break;
       }
-      chprintf(chp, "</table>");
-
-      chprintf(chp, "<form action='%s' method='post'>\r\n", webMenuLink[i]);
-
-      chprintf(chp, "<table>");
-      // Form
-      chprintf(chp, "%s%s%s", html_tr_td, text_Node, html_e_td_td);
-      chprintf(chp, "%sP%s", html_select_submit, html_e_tag);
-      for (uint8_t j = 0; j < NODE_SIZE; j++) {
-        if (node[j].address != 0) {
-          chprintf(chp, "%s%u", html_option, j);
-          if (webSens == j) { chprintf(chp, "%s", html_selected); }
-          else              { chprintf(chp, "%s", html_e_tag); }
-          chprintf(chp, "%u - %s%s", j + 1, node[j].name, html_e_option);
-        }
-      }
-      chprintf(chp, "%s%s", html_e_select, html_e_td_e_tr);
-      chprintf(chp, "%s%s%s", html_tr_td, text_Address, html_e_td_td);
-      printNodeAddress(chp, node[webSens].address, node[webSens].number);
-      chprintf(chp, "%s", html_e_td_e_tr);
-      chprintf(chp, "%s%s%s", html_tr_td, text_Name, html_e_td_td);
-      printTextInput(chp, 'n', node[webSens].name, 1);
-      chprintf(chp, "%s", html_e_td_e_tr);
-      chprintf(chp, "%s%s %s%s", html_tr_td, text_Node, text_is, html_e_td_td);
-      printOnOffButton(chp, "0", GET_NODE_ENABLED(node[webSens].setting), false);
-      chprintf(chp, "%s", html_e_td_e_tr);
-
-      chprintf(chp, "%s%s %s%s", html_tr_td, text_Group, text_is, html_e_td_td);
-      selectGroup(chp, GET_NODE_GROUP(node[webSens].setting), 'g');
-      chprintf(chp, "%s", html_e_td_e_tr);
-
-      chprintf(chp, "</table></form>\r\n");
-      /*
-      <input type='text' name='n' value='Vstupni dvere' id='n'></td></tr>
-      <tr><td>Address</td><td>Domek - Vstupni dvere - W:1:0</td></tr>
-      <tr><td>Node is</td><td><div class='rm'>
-      <div class='rc'><input type='radio' name='0' id='01' value='1' checked ><label for='01'>On</label></div>
-      <div class='rc'><input type='radio' name='0' id='00' value='0'><label for='00'>Off</label></div>
-      </div></td></tr>
-      <tr><td>Type</td><td>Authentication:iButton</td></tr>
-      <tr><td>MQTT publish</td><td>
-      <div class='rm'><div class='rc'><input type='radio' name='7' id='71' value='1'><label for='71'>On</label></div>
-      <div class='rc'><input type='radio' name='7' id='70' value='0' checked ><label for='70'>Off</label></div>
-      </div></td></tr>
-      <tr><td>Group</td><td>
-      <select name='g'><option value='0' selected>1 - Domek - On</option>
-      <option value='1'>2 - Garaz - On</option>
-      </select></td></tr></table>
-
-      <input type='submit' name='A' value='Apply'/>
-      <input type='submit' name='e' value='Save all'/>
-      <input type='submit' name='R' value='Reregister'/>
-      */
-
-      chprintf(chp, "</table><input type='submit' name='l' value='Load last'/><input type='submit' name='r' value='Reset to default'/>\r\n");
 
       // Custom end
       chprintf(chp, "</div></div></body></html>\r\n");
 
 
       if (file->pextension != NULL) {
-        /* instead of doing memcpy, you would generate e.g. a JSON here */
-        //memcpy(file->pextension, generated_html, sizeof(generated_html));
         file->data = (const char *)file->pextension;
         file->len = ms.eos;
         file->index = file->len;
-        /* allow persisteng connections */
+        // allow persisteng connections
         file->flags = FS_FILE_FLAGS_HEADER_PERSISTENT;
         return 1;
       }
@@ -351,24 +470,20 @@ err_t httpd_post_begin(void *connection, const char *uri, const char *http_reque
   strcpy(current_uri, uri);
   strcpy(response_uri, uri);
   response_uri_len = strlen(response_uri);
+  memset(postData, 0 , sizeof(postData)); // Empty POST data buffer
+
   return ERR_OK;
 }
 
-bool readPostParam(struct pbuf *p, uint16_t *pos, char *name, uint8_t nameLen, char *value, uint8_t valueLen){
-  // assume name is at current place in stream
+bool readPostParam(char *name, uint8_t nameLen, char *value, uint8_t valueLen){
   uint8_t ch;
 
   // clear out name and value so they'll be NUL terminated
   memset(name, 0, nameLen);
   memset(value, 0, valueLen);
 
-  // decrement length so we don't write into NUL terminator
-  //--nameLen;
-  //--valueLen;
-  //chprintf((BaseSequentialStream*)&SD3, "pos: %u, len: %u\r\n", *pos, p->len);
-
-  while (*pos < p->len){
-    ch = pbuf_get_at(p, (*pos)++);
+  while (*pPostData != 0){
+    ch = *pPostData; pPostData++;
     if (ch == '+') {ch = ' ';}
     else if (ch == '=') {
       // that's end of name, so switch to storing in value
@@ -381,15 +496,14 @@ bool readPostParam(struct pbuf *p, uint16_t *pos, char *name, uint8_t nameLen, c
     }
     else if (ch == '%') {
       // handle URL encoded characters by converting back to original form
-      uint8_t ch1 = pbuf_get_at(p, (*pos)++);
-      uint8_t ch2 = pbuf_get_at(p, (*pos)++);
-      if (ch1 == 0 || ch2 == 0)
-        return false;
+      uint8_t ch1 = *pPostData; pPostData++;
+      uint8_t ch2 = *pPostData; pPostData++;
+      if (ch1 == 0 || ch2 == 0) return false;
       char hex[3] = { ch1, ch2, 0 };
       ch = strtoul(hex, NULL, 16);
     }
 
-    // check against 1 so we don't overwrite the final NUL
+    // check against 1 so we don't overwrite the final NULL
     if (nameLen > 1) {
       *name++ = ch;
       --nameLen;
@@ -399,51 +513,16 @@ bool readPostParam(struct pbuf *p, uint16_t *pos, char *name, uint8_t nameLen, c
         --valueLen;
       }
     }
-    //chprintf((BaseSequentialStream*)&SD3, "pos: %c-%u, %u, %u\r\n", ch, *pos, nameLen, valueLen);
   }
-  // if we get here, we hit the end-of-file, so POST is over and there are no more parameters
-  return false;
+  return false; // Null is end
 }
 
 err_t httpd_post_receive_data(void *connection, struct pbuf *p) {
   LWIP_UNUSED_ARG(connection);
 
-  uint16_t pos = 0;
-  uint8_t number;
-  char name[17];
-  char value[17];
-  bool repeat;
-
-  chprintf((BaseSequentialStream*)&SD3, "POST: %s\r\n", (char *)p->payload);
-  chprintf((BaseSequentialStream*)&SD3, "current_uri: %s\r\n", current_uri);
-  for (uint8_t i = 0; i < HTML_PAGES; ++i) {
-    if (!strcmp(current_uri, webMenuLink[i])) {
-      do{
-        repeat = readPostParam(p, &pos, name, 3, value, 17);
-        chprintf((BaseSequentialStream*)&SD3, "Parse: %s=%s<\r\n", name, value);
-        switch(name[0]){
-          case 'P':
-            number = strtol(value, NULL, 10);
-            if (number != webSens) { webSens = number; repeat = 0; }
-          break;
-          case 'n': // name
-            strncpy (node[webSens].name, value, NAME_LENGTH);
-          break;
-          case '0' ... '7': // Handle all single radio buttons for settings
-             if (value[0] == '0') node[webSens].setting &= ~(1 << (name[0]-48));
-             else                 node[webSens].setting |=  (1 << (name[0]-48));
-          break;
-          case 'g': // group
-            number = strtol(value, NULL, 10);
-            SET_NODE_GROUP(node[webSens].setting, number);
-            chprintf((BaseSequentialStream*)&SD3, "Group: %u=%u<\r\n", number,  GET_NODE_GROUP(node[webSens].setting));
-          break;
-          case 'e': break; // save
-        }
-
-      } while (repeat);
-    }
-  }
+  strncat(postData, (const char *)p->payload, sizeof(postData)-strlen(postData)-1); // Maximum size of postData and null
+  chprintf((BaseSequentialStream*)&SD3, "POST: %s\r\n", p->payload);
+  chprintf((BaseSequentialStream*)&SD3, "postData: %s\r\n", postData);
 
   return ERR_OK;
 }
@@ -451,6 +530,151 @@ err_t httpd_post_receive_data(void *connection, struct pbuf *p) {
 void httpd_post_finished(void *connection, char *response_uri, u16_t response_uri_len) {
   LWIP_UNUSED_ARG(connection);
   LWIP_UNUSED_ARG(response_uri_len);
+
+  uint8_t number;
+  int8_t resp;
+  char name[2];
+  uint8_t message[REGISTRATION_SIZE];
+  char value[EMAIL_LENGTH + 1];
+  bool repeat;
+
+  chprintf((BaseSequentialStream*)&SD3, "postData: %s\r\n", postData);
+  chprintf((BaseSequentialStream*)&SD3, "current_uri: %s\r\n", current_uri);
+
+  pPostData = &postData[0];
+
+  for (uint8_t htmlPage = 0; htmlPage < HTML_PAGES; ++htmlPage) {
+    if (!strcmp(current_uri, webMenuLink[htmlPage])) {
+      switch (htmlPage) {
+        case 0:
+          do{
+            repeat = readPostParam(name, sizeof(name), value, sizeof(value));
+            chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
+            switch(name[0]){
+              case 'P': // select
+                number = strtol(value, NULL, 10);
+                if (number != webNode) { webNode = number; repeat = 0; }
+              break;
+              case 'R': // Reregistration
+                resp = sendCmd(15, NODE_CMD_REGISTRATION); // call all to register
+              break;
+              case 'A': // Apply
+                message[0] = 'R';
+                message[1] = (uint8_t)node[webNode].type;
+                message[2] = (uint8_t)node[webNode].function;
+                message[3] = node[webNode].number;
+                message[4] = (uint8_t)((node[webNode].setting >> 8) & 0b11111111);;
+                message[5] = (uint8_t)(node[webNode].setting & 0b11111111);
+                memcpy(&message[6], node[webNode].name, NAME_LENGTH);
+                resp = sendData(node[webNode].address, message, REGISTRATION_SIZE);
+                /*
+                if (!sendData(node[webNode].address, message, REGISTRATION_SIZE)) {
+                  // look queue slot
+                  _found = 255;
+                  if (node[webNode].queue != 255) {
+                    _found = node[webNode].queue; // Replace last message in queue
+                  } else {
+                    // Look for empty queue slot
+                    for (uint8_t i = 0; i < NODE_QUEUE; i++) {
+                      if(node_queue[i].expire == 0) { _found = i; break; }
+                    }
+                  }
+                  if (_found != 255) {
+                    // Put message into queue
+                    node_queue[_found].address  = node[webNode].address;
+                    node_queue[_found].index    = webNode;
+                    node_queue[_found].expire   = timestamp.get() + SECS_PER_HOUR; // Message expires in 1 hour
+                    node_queue[_found].length   = REG_LEN;
+                    memcpy(node_queue[_found].msg, message, REG_LEN);
+                    node[webNode].queue         = _found; // Pointer to message queue
+                  } else {
+                    pushToLog("FM"); // Message queue is full
+                  }
+                }
+                */
+              break;
+              case 'n': // name
+                strncpy (node[webNode].name, value, NAME_LENGTH);
+              break;
+              case '0' ... '7': // Handle all single radio buttons for settings
+                if (value[0] == '0') node[webNode].setting &= ~(1 << (name[0]-48));
+                else                 node[webNode].setting |=  (1 << (name[0]-48));
+              break;
+              case 'g': // group
+                number = strtol(value, NULL, 10);
+                SET_NODE_GROUP(node[webNode].setting, number);
+              break;
+              case 'e': // save
+                writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+              break;
+            }
+          } while (repeat);
+          break;
+        case 1:
+          do{
+            repeat = readPostParam(name, sizeof(name), value, sizeof(value));
+            chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
+            switch(name[0]){
+              case 'P': // select
+                number = strtol(value, NULL, 10);
+                if (number != webContact) { webContact = number; repeat = 0; }
+              break;
+              case 'n': // name
+                strncpy (conf.contactName[webContact], value, NAME_LENGTH);
+              break;
+              case 'p': // phone number
+                strncpy (conf.contactPhone[webContact], value, PHONE_LENGTH);
+              break;
+              case 'm': // email
+                strncpy (conf.contactEmail[webContact], value, EMAIL_LENGTH);
+              break;
+              case '0' ... '7': // Handle all single radio buttons for settings
+                if (value[0] == '0') conf.contact[webContact] &= ~(1 << (name[0]-48));
+                else                 conf.contact[webContact] |=  (1 << (name[0]-48));
+              break;
+              case 'g': // group
+                number = strtol(value, NULL, 10);
+                SET_CONF_CONTACT_GROUP(conf.contact[webContact], number);
+              break;
+              case 'e': // save
+                writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+              break;
+            }
+          } while (repeat);
+          break;
+        case 2:
+          do{
+            repeat = readPostParam(name, sizeof(name), value, sizeof(value));
+            chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
+            switch(name[0]){
+              case 'P': // select
+                number = strtol(value, NULL, 10);
+                if (number != webKey) { webKey = number; repeat = 0; }
+              break;
+              case 'c': // Contact ID
+                conf.keyContact[webKey] = strtol(value, NULL, 10);
+              break;
+              case '0' ... '7': // Handle all single radio buttons for settings
+                if (value[0] == '0') conf.keySetting[webKey] &= ~(1 << (name[0]-48));
+                else                 conf.keySetting[webKey] |=  (1 << (name[0]-48));
+              break;
+              case 'g': // group
+                number = strtol(value, NULL, 10);
+                SET_CONF_KEY_GROUP(conf.keySetting[webKey], number);
+              break;
+              case 'e': // save
+                writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+              break;
+            }
+          } while (repeat);
+          break;
+        default:
+          break;
+      }
+
+    }
+  }
+
 
   strcpy(response_uri, current_uri);
   response_uri_len = strlen(response_uri);

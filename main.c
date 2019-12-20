@@ -29,12 +29,11 @@
 #include "chprintf.h"
 #include "usbcfg.h"
 
-// Conf related
-#include "ohs_conf.h"
-
 // Define debug console
 BaseSequentialStream* console = (BaseSequentialStream*)&SD3;
 
+#include "ohs_functions.h"
+#include "ohs_conf.h"
 #include "ohs_shell.h"
 
 // LWIP
@@ -44,7 +43,7 @@ BaseSequentialStream* console = (BaseSequentialStream*)&SD3;
 #include "ohs_httpdhandler.h"
 
 // GPRS
-#include "GPRS.h"
+#include "gprs.h"
 
 #include "uBS.h"
 
@@ -467,19 +466,7 @@ static THD_FUNCTION(LoggerThread, arg) {
   }
 }
 
-
-// Send a command to node
-int8_t sendCmd(uint8_t address, uint8_t command) {
-  RS485Cmd_t rs485Cmd;
-
-  chprintf(console, "RS485 Send cmd: %d to address: %d\r\n", address, command);
-  rs485Cmd.address = address;
-  rs485Cmd.ctrl = RS485_FLAG_CMD;
-  rs485Cmd.length = command;
-  return rs485SendCmdWithACK(&RS485D2, &rs485Cmd, 3);
-}
-
-int8_t getNodeIndex(char type, uint8_t address, char function, uint8_t number){
+int8_t getNodeIndex(uint8_t address, char type, char function, uint8_t number){
   for (uint8_t i=0; i < NODE_SIZE; i++) {
     //chprintf(console, "getNodeIndex: %d,T %d-%d,A %d-%d,F %d-%d,N %d-%d\r\n", i, type, node[i].type, address, node[i].address, function, node[i].function, number, node[i].number);
     if (node[i].type     == type &&
@@ -565,7 +552,7 @@ static THD_FUNCTION(RS485Thread, arg) {
       //chprintf(console, "ib %d, ob %d\r\n", RS485D2.ib[1], RS485D2.ob[1]);
       chprintf(console, "Data: ");
       for(uint8_t i = 0; i < rs485Msg.length; i++) {
-        chprintf(console, "%d-%x, ", i, rs485Msg.data[i]);
+        chprintf(console, "%d-%d, ", i, rs485Msg.data[i]);
       }
       chprintf(console, ".\r\n");
       //chThdSleepMilliseconds(100);
@@ -586,8 +573,8 @@ static THD_FUNCTION(RS485Thread, arg) {
                 registration_t *outMsg = chPoolAlloc(&registration_pool);
                 if (outMsg != NULL) {
                   // node setting
-                  outMsg->type     = rs485Msg.data[_pos];
                   outMsg->address  = rs485Msg.address;
+                  outMsg->type     = rs485Msg.data[_pos];
                   outMsg->function = rs485Msg.data[_pos+1];
                   outMsg->number   = (uint8_t)rs485Msg.data[_pos+2];
                   outMsg->setting  = ((uint8_t)rs485Msg.data[_pos+3] << 8) | ((uint8_t)rs485Msg.data[_pos+4]);
@@ -640,15 +627,22 @@ static THD_FUNCTION(RegistrationThread, arg) {
 
   while (true) {
     msg = chMBFetchTimeout(&registration_mb, (msg_t*)&inMsg, TIME_INFINITE);
+    //chThdSleepMilliseconds(100);
     if (msg == MSG_OK) {
       chprintf(console, "Registration for node %c-%c\r\n", inMsg->type, inMsg->function);
       switch(inMsg->type){
         case 'K':
         case 'S':
         case 'I':
-          nodeIndex = getNodeIndex(inMsg->type, inMsg->address, inMsg->function, inMsg->number);
-          // If node not present already
-          if (nodeIndex != 1) {
+          nodeIndex = getNodeIndex(inMsg->address, inMsg->type, inMsg->function, inMsg->number);
+          // Node exists
+          if (nodeIndex >= 0 ) {
+            node[nodeIndex].setting  = inMsg->setting;
+            node[nodeIndex].last_OK  = GetTimeUnixSec();
+            node[nodeIndex].value    = 0; // Reset value
+            memcpy(&node[nodeIndex].name, &inMsg->name, NAME_LENGTH); // node[nodeIndex].name[NAME_LENGTH-1] = 0;
+            chprintf(console, "Re-registred as: %d\r\n", nodeIndex);
+          } else {
             nodeIndex = getNodeFreeIndex(); // Find empty slot
             if (nodeIndex == -1) {
               pushToLogText("FN"); // No empty slot
@@ -663,13 +657,6 @@ static THD_FUNCTION(RegistrationThread, arg) {
               tmpLog[0] = 'N'; tmpLog[1] = 'R'; tmpLog[2] = inMsg->address; tmpLog[3] = inMsg->number; tmpLog[4] = inMsg->type; tmpLog[5] = inMsg->function;  pushToLog(tmpLog, 6);
               chprintf(console, "Registered as: %d\r\n", nodeIndex);
             }
-          } else {
-            // there is match already
-            node[nodeIndex].setting  = inMsg->setting;
-            node[nodeIndex].last_OK  = GetTimeUnixSec();
-            node[nodeIndex].value    = 0; // Reset value
-            memcpy(&node[nodeIndex].name, &inMsg->name, NAME_LENGTH); // node[nodeIndex].name[NAME_LENGTH-1] = 0;
-            chprintf(console, "Re-registred as: %d\r\n", nodeIndex);
           }
           break;
           default:
@@ -841,7 +828,7 @@ static THD_FUNCTION(ModemThread, arg) {
  * This is a periodic thread that does absolutely nothing except flashing
  * a LED.
  */
-static THD_WORKING_AREA(waThread1, 128);
+static THD_WORKING_AREA(waThread1, 512);
 static THD_FUNCTION(Thread1, arg) {
   chRegSetThreadName(arg);
   systime_t time;
@@ -866,8 +853,6 @@ static void GetTimeTm(struct tm *timp) {
   rtcConvertDateTimeToStructTm(&timespec, timp, NULL);
 }
 */
-
-
 
 /*===========================================================================*/
 /* Command line related.                                                     */
@@ -930,7 +915,7 @@ int main(void) {
   chBSemObjectInit(&gprsSem, false);
 
   sdStart(&SD3,  &ser_cfg); // Debug port
-  chprintf(console, "\r\nOHS start\r\n\n");
+  chprintf(console, "\r\nOHS start\r\n");
 
   gprsInit(&SD1); // GPRS modem
 
@@ -1007,7 +992,6 @@ int main(void) {
     writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
     writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
   }
-  setConfDefault(); // Load OHS default conf.
   chprintf(console, "Size of conf: %d, group: %d\r\n", sizeof(conf), sizeof(group));
 
   // Read last group[] state
@@ -1029,7 +1013,6 @@ int main(void) {
   // for(uint16_t i = 0; i < 0x100; i++) { *(base_address + i) = 0x55; } //erase BKP_SRAM
   //for(uint16_t i = 0; i < 20; i++) { *(RTCBaseAddress + i) = (0x55 << 24) | (0x55 << 16) | (0x55 << 8) | (0x55 << 0);} // Erase RTC bkp
   //chprintf(console, "BRTC %d ", writeToBkpRTC((uint8_t*)&myStr, sizeof(myStr), 0));
-
 
   // Start
   startTime = GetTimeUnixSec();
@@ -1097,5 +1080,6 @@ int main(void) {
     resp = rs485SendMsgWithACK(&RS485D2, &rs485Msg, 3);
     chprintf(console, "Sent: %d\r\n", resp);
     */
+
   }
 }

@@ -12,8 +12,8 @@
 #error "In mcuconf.h STM32_BKPRAM_ENABLE must be TRUE!"
 #endif
 
-#define OHS_MAJOR        0
-#define OHS_MINOR        0
+#define OHS_MAJOR        1
+#define OHS_MINOR        1
 
 #define BACKUP_SRAM_SIZE 0x1000 // 4kB SRAM size
 #define BACKUP_RTC_SIZE  80     // 80 bytes
@@ -37,6 +37,7 @@
 #define ALARM_TAMPER     0
 
 #define RADIO_UNIT_OFFSET 15
+#define REGISTRATION_SIZE 22
 
 #define NOT_SET          "not set"
 
@@ -205,7 +206,8 @@ typedef struct {
 
   uint8_t  keySetting[KEYS_SIZE];
   char     keyValue[KEYS_SIZE][KEY_LENGTH];
-  char     keyName[KEYS_SIZE][NAME_LENGTH];
+  //char     keyName[KEYS_SIZE][NAME_LENGTH];
+  uint8_t  keyContact[KEYS_SIZE];
 
 
 
@@ -397,7 +399,8 @@ void setConfDefault(void){
          conf.zoneAddress[i-HW_ZONES] = 0;
         break;
     }
-    strcpy(conf.zoneName[i], NOT_SET);
+    //strcpy(conf.zoneName[i], NOT_SET);
+    memset(&conf.zoneName[i][0], 0x00, NAME_LENGTH);
   }
 
   for(uint8_t i = 0; i < ALARM_GROUPS; i++) {
@@ -419,33 +422,37 @@ void setConfDefault(void){
     //                  ||||||||         ||||||||-  Enabled
     //                  54321098         76543210
     conf.group[i] = i << 12 | i << 8 | 0b00000000;
-    strcpy(conf.groupName[i], NOT_SET);
+    //strcpy(conf.groupName[i], NOT_SET);
+    memset(&conf.groupName[i][0], 0x00, NAME_LENGTH);
   }
 
   for(uint8_t i = 0; i < CONTACTS_SIZE; i++) {
     // group 16 and disabled
     conf.contact[i] = 0b00011110;
-    strcpy(conf.contactName[i], NOT_SET);
-    strcpy(conf.contactPhone[i], NOT_SET);
-    strcpy(conf.contactEmail[i], NOT_SET);
+    memset(&conf.contactName[i][0], 0x00, NAME_LENGTH);
+    memset(&conf.contactPhone[i][0], 0x00, PHONE_LENGTH);
+    memset(&conf.contactEmail[i][0], 0x00, EMAIL_LENGTH);
+    //strcpy(conf.contactName[i], NOT_SET);
+    //strcpy(conf.contactPhone[i], NOT_SET);
+    //strcpy(conf.contactEmail[i], NOT_SET);
   }
 
   for(uint8_t i = 1; i < KEYS_SIZE; i++) {
     // group 16 and disabled
     conf.keySetting[i] = 0b00011110;
-    strcpy(conf.keyName[i], NOT_SET);
+    //strcpy(conf.keyName[i], NOT_SET);
     memset(&conf.keyValue[i][0], 0xFF, KEY_LENGTH);  // Set key value to FF
+    conf.keyContact[i] = 255;
   }
 
       conf.keySetting[0] = 0b00100001;
-      strcpy(conf.keyName[0], "Adam");
-      conf.keyValue[0][0] = 0x1;
+      conf.keyValue[0][0] = 0x01;
       conf.keyValue[0][1] = 0x77;
       conf.keyValue[0][2] = 0x39;
       conf.keyValue[0][3] = 0x5A;
-      conf.keyValue[0][4] = 0x1;
-      conf.keyValue[0][5] = 0x0;
-      conf.keyValue[0][6] = 0x0;
+      conf.keyValue[0][4] = 0x01;
+      conf.keyValue[0][5] = 0x00;
+      conf.keyValue[0][6] = 0x00;
       conf.keyValue[0][7] = 0x3F;
 
   strcpy(conf.NTPAddress, "time.google.com");
