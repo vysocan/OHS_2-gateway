@@ -8,6 +8,11 @@
 #ifndef OHS_ADC_H_
 #define OHS_ADC_H_
 
+// ADC related
+#define ADC_GRP1_NUM_CHANNELS 10
+#define ADC_GRP1_BUF_DEPTH    1
+static adcsample_t adcSamples[ADC_GRP1_NUM_CHANNELS * ADC_GRP1_BUF_DEPTH];
+
 static void adcerrorcallback(ADCDriver *adcp, adcerror_t err) {
   (void)adcp;
   (void)err;

@@ -180,8 +180,91 @@
 #define CLEAR_NODE_BATT_LOW(x) x &= ~(1 << 5U)
 #define CLEAR_NODE_MQTT_PUB(x) x &= ~(1 << 7U)
 
-
+// Global vars
 char lastKey[KEY_LENGTH];
+char tmpLog[LOGGER_MSG_LENGTH]; // Temporary logger string
+// RTC related
+static RTCDateTime timespec;
+time_t startTime;  // OHS start timestamp variable
+
+// time_t conversion
+union time_tag {
+  char   ch[4];
+  time_t val;
+} timeConv;
+
+// Zones alarm events
+#define ALARMEVENT_FIFO_SIZE 10
+typedef struct {
+  uint16_t zone;
+  char     type;
+} alarmEvent_t;
+
+// Logger events
+#define LOGGER_FIFO_SIZE 20
+typedef struct {
+  time_t   timestamp;
+  char     text[LOGGER_MSG_LENGTH];
+} logger_t;
+
+
+// Registration events
+#define REG_FIFO_SIZE 6
+#define REG_PACKET_HEADER_SIZE 5
+#define REG_PACKET_SIZE 21
+typedef struct {
+  char     type;
+  uint8_t  address;
+  char     function;
+  uint8_t  number;
+  uint16_t setting;
+  char     name[NAME_LENGTH];
+  uint16_t dummyAlign;
+} registration_t;
+
+// Sensor events
+#define SENSOR_FIFO_SIZE 10
+typedef struct {
+  char    type;     // = 'S';
+  uint8_t address;  // = 0;
+  char    function; // = ' ';
+  uint8_t number;   // = 0;
+  float   value;    // = 0.0;
+} sensor_t;
+
+
+/*
+ * Mailboxes
+ */
+static msg_t        alarmEvent_mb_buffer[ALARMEVENT_FIFO_SIZE];
+static MAILBOX_DECL(alarmEvent_mb, alarmEvent_mb_buffer, ALARMEVENT_FIFO_SIZE);
+
+static msg_t        logger_mb_buffer[LOGGER_FIFO_SIZE];
+static MAILBOX_DECL(logger_mb, logger_mb_buffer, LOGGER_FIFO_SIZE);
+
+static msg_t        registration_mb_buffer[REG_FIFO_SIZE];
+static MAILBOX_DECL(registration_mb, registration_mb_buffer, REG_FIFO_SIZE);
+
+static msg_t        sensor_mb_buffer[SENSOR_FIFO_SIZE];
+static MAILBOX_DECL(sensor_mb, sensor_mb_buffer, SENSOR_FIFO_SIZE);
+/*
+ * Pools
+ */
+static alarmEvent_t   alarmEvent_pool_queue[ALARMEVENT_FIFO_SIZE];
+static MEMORYPOOL_DECL(alarmEvent_pool, sizeof(alarmEvent_t), PORT_NATURAL_ALIGN, NULL);
+
+static logger_t       logger_pool_queue[LOGGER_FIFO_SIZE];
+static MEMORYPOOL_DECL(logger_pool, sizeof(logger_t), PORT_NATURAL_ALIGN, NULL);
+
+static registration_t registration_pool_queue[REG_FIFO_SIZE];
+static MEMORYPOOL_DECL(registration_pool, sizeof(registration_t), PORT_NATURAL_ALIGN, NULL);
+
+static sensor_t       sensor_pool_queue[SENSOR_FIFO_SIZE];
+static MEMORYPOOL_DECL(sensor_pool, sizeof(sensor_t), PORT_NATURAL_ALIGN, NULL);
+
+//static node_t          node_pool_queue[NODE_SIZE];
+//static MEMORYPOOL_DECL(node_pool, sizeof(node_t), PORT_NATURAL_ALIGN, NULL);
+
 
 // Configuration struct
 typedef struct {
@@ -289,8 +372,8 @@ void initRuntimeGroups(void){
 }
 void initRuntimeZones(void){
   for(uint8_t i = 0; i < ALARM_ZONES; i++) {
-    zone[i].lastPIR   = 0;
-    zone[i].lastOK    = 0;
+    zone[i].lastPIR   = startTime;
+    zone[i].lastOK    = startTime;
     zone[i].lastEvent = 'N';
     //                     |- Full FIFO queue flag
     //                     ||- Message queue
@@ -365,7 +448,7 @@ void setConfDefault(void){
   conf.versionMajor   = OHS_MAJOR;
   conf.versionMinor   = OHS_MINOR;
   conf.logOffset      = 0;
-  conf.alarmTime      = 10;
+  conf.alarmTime      = 20;
   strcpy(conf.dateTimeFormat, "%T %a %F");
 
   for(uint8_t i = 0; i < ALARM_ZONES; i++) {

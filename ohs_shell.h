@@ -30,16 +30,6 @@ char logText[LOG_TEXT_LENGTH]; // To decode log text
 //#define LOG_TS_LENGTH 40
 //char logTimestamp[LOG_TS_LENGTH];
 
-// RTC related
-static RTCDateTime timespec;
-time_t startTime;  // OHS start timestamp variable
-
-// time_t conversion
-union time_tag {
-  char   ch[4];
-  time_t val;
-} timeConv;
-
 static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
   if (argc > 0) {
@@ -121,6 +111,10 @@ const char text_cosp[]              = ", ";
 const char text_Modem[]             = "Modem";
 const char text_On[]                = "On";
 const char text_Off[]               = "Off";
+const char text_1[]                 = "1";
+const char text_2[]                 = "2";
+const char text_3[]                 = "3";
+const char text_4[]                 = "4";
 const char text_power[]             = "power";
 const char text_monitoring[]        = "monitoring";
 const char text_Node[]              = "Node";
@@ -139,7 +133,22 @@ const char text_Global[]            = "Global";
 const char text_Contact[]           = "Contact";
 const char text_all[]               = "all";
 const char text_Key[]               = "Key";
-
+const char text_Open[]              = "Open";
+const char text_alarm[]             = "alarm";
+const char text_Alarm[]             = "Alarm";
+const char text_as[]                = "as";
+const char text_tamper[]            = "tamper";
+const char text_Delay[]             = "Delay";
+const char text_OK[]                = "OK";
+const char text_Status[]            = "Status";
+const char text_remote[]            = "remote";
+const char text_local[]             = "local";
+const char text_battery[]           = "battery";
+const char text_analog[]            = "analog";
+const char text_digital[]           = "digital";
+const char text_seconds[]           = "second(s)";
+const char text_Zone[]              = "Zone";
+const char text_delay[]             = "delay";
 
 void printNodeType(BaseSequentialStream *chp, const char type) {
   switch(type){

@@ -32,9 +32,10 @@
 // Define debug console
 BaseSequentialStream* console = (BaseSequentialStream*)&SD3;
 
-#include "ohs_functions.h"
 #include "ohs_conf.h"
 #include "ohs_shell.h"
+#include "ohs_adc.h"
+#include "ohs_functions.h"
 
 // LWIP
 #include "lwipthread.h"
@@ -44,28 +45,8 @@ BaseSequentialStream* console = (BaseSequentialStream*)&SD3;
 
 // GPRS
 #include "gprs.h"
-
+// uBS
 #include "uBS.h"
-
-// ADC related
-#define ADC_GRP1_NUM_CHANNELS 10
-#define ADC_GRP1_BUF_DEPTH    1
-static adcsample_t adcSamples[ADC_GRP1_NUM_CHANNELS * ADC_GRP1_BUF_DEPTH];
-
-// Zones alarm events
-#define ALARMEVENT_FIFO_SIZE 10
-typedef struct {
-  uint16_t zone;
-  char     type;
-} alarmEvent_t;
-
-// Logger events
-#define LOGGER_FIFO_SIZE 20
-typedef struct {
-  time_t   timestamp;
-  char     text[LOGGER_MSG_LENGTH];
-} logger_t;
-char tmpLog[LOGGER_MSG_LENGTH]; // Temporary logger string
 
 // GPRS
 typedef enum {
@@ -83,95 +64,6 @@ char gprsSmsText[120];
 
 // Semaphores
 binary_semaphore_t gprsSem;
-
-/*
- * OHS Includes
- */
-// OHS specific configuration for ADC
-#include "ohs_adc.h"
-
-// Registration events
-#define REG_FIFO_SIZE 6
-#define REG_PACKET_HEADER_SIZE 5
-#define REG_PACKET_SIZE 21
-typedef struct {
-  char     type;
-  uint8_t  address;
-  char     function;
-  uint8_t  number;
-  uint16_t setting;
-  char     name[NAME_LENGTH];
-  uint16_t dummyAlign;
-} registration_t;
-
-// Sensor events
-#define SENSOR_FIFO_SIZE 10
-typedef struct {
-  char    type;     // = 'S';
-  uint8_t address;  // = 0;
-  char    function; // = ' ';
-  uint8_t number;   // = 0;
-  float   value;    // = 0.0;
-} sensor_t;
-
-/*
- * Mailboxes
- */
-static msg_t        alarmEvent_mb_buffer[ALARMEVENT_FIFO_SIZE];
-static MAILBOX_DECL(alarmEvent_mb, alarmEvent_mb_buffer, ALARMEVENT_FIFO_SIZE);
-
-static msg_t        logger_mb_buffer[LOGGER_FIFO_SIZE];
-static MAILBOX_DECL(logger_mb, logger_mb_buffer, LOGGER_FIFO_SIZE);
-
-static msg_t        registration_mb_buffer[REG_FIFO_SIZE];
-static MAILBOX_DECL(registration_mb, registration_mb_buffer, REG_FIFO_SIZE);
-
-static msg_t        sensor_mb_buffer[SENSOR_FIFO_SIZE];
-static MAILBOX_DECL(sensor_mb, sensor_mb_buffer, SENSOR_FIFO_SIZE);
-/*
- * Pools
- */
-static alarmEvent_t   alarmEvent_pool_queue[ALARMEVENT_FIFO_SIZE];
-static MEMORYPOOL_DECL(alarmEvent_pool, sizeof(alarmEvent_t), PORT_NATURAL_ALIGN, NULL);
-
-static logger_t       logger_pool_queue[LOGGER_FIFO_SIZE];
-static MEMORYPOOL_DECL(logger_pool, sizeof(logger_t), PORT_NATURAL_ALIGN, NULL);
-
-static registration_t registration_pool_queue[REG_FIFO_SIZE];
-static MEMORYPOOL_DECL(registration_pool, sizeof(registration_t), PORT_NATURAL_ALIGN, NULL);
-
-static sensor_t       sensor_pool_queue[SENSOR_FIFO_SIZE];
-static MEMORYPOOL_DECL(sensor_pool, sizeof(sensor_t), PORT_NATURAL_ALIGN, NULL);
-
-//static node_t          node_pool_queue[NODE_SIZE];
-//static MEMORYPOOL_DECL(node_pool, sizeof(node_t), PORT_NATURAL_ALIGN, NULL);
-
-
-//
-void pushToLog(char *what, uint8_t size) {
-  logger_t *outMsg = chPoolAlloc(&logger_pool);
-  if (outMsg != NULL) {
-    memset(outMsg->text, 0, LOGGER_MSG_LENGTH);
-    if (size > LOGGER_MSG_LENGTH) size = LOGGER_MSG_LENGTH;
-
-    outMsg->timestamp = GetTimeUnixSec();  // Set timestamp
-    memcpy(&outMsg->text[0], what, size);  // Copy string
-    //chprintf(console, "L msg %s %d\r\n", outMsg->text, size);
-
-    msg_t msg = chMBPostTimeout(&logger_mb, (msg_t)outMsg, TIME_IMMEDIATE);
-    if (msg != MSG_OK) {
-      //chprintf(console, "MB full %d\r\n", temp);
-    }
-  } else {
-    chprintf(console, "L P full %d \r\n", outMsg);
-  }
-}
-
-void pushToLogText(char *what) {
-  uint8_t len = strlen(what);
-  if (len > LOGGER_MSG_LENGTH) len = LOGGER_MSG_LENGTH;
-  pushToLog(what, len);
-}
 
 /*
  * Zone thread
@@ -466,59 +358,6 @@ static THD_FUNCTION(LoggerThread, arg) {
   }
 }
 
-int8_t getNodeIndex(uint8_t address, char type, char function, uint8_t number){
-  for (uint8_t i=0; i < NODE_SIZE; i++) {
-    //chprintf(console, "getNodeIndex: %d,T %d-%d,A %d-%d,F %d-%d,N %d-%d\r\n", i, type, node[i].type, address, node[i].address, function, node[i].function, number, node[i].number);
-    if (node[i].type     == type &&
-        node[i].address  == address &&
-        node[i].function == function &&
-        node[i].number   == number) { return i; }
-  }
-  return -1;
-}
-
-int8_t getNodeFreeIndex(void){
-  for (uint8_t i=0; i < NODE_SIZE; i++) {
-    //chprintf(console, "getNodeFreeIndex: %d, %d\r\n", i, node[i].address);
-    if (node[i].address == 0) { return i; }
-  }
-  return -1;
-}
-
-void checkKey(uint8_t nodeIndex, uint8_t *key){
-  uint8_t _group;
-  // Check all keys
-  for (uint8_t i=0; i < KEYS_SIZE; i++){
-    chprintf(console, "Match :%d\r\n", i);
-    for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, key[ii]); } chprintf(console, "\r\n");
-    for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, conf.keyValue[i][ii]); } chprintf(console, "\r\n");
-    if (memcmp(key, &conf.keyValue[i], KEY_LENGTH) == 0) { // key matched
-      _group = GET_NODE_GROUP(node[nodeIndex].setting);
-      chprintf(console, "Key matched, group: %d\r\n", _group);
-      //  key enabled && (group = key_group || key = global)
-      if (GET_CONF_KEY_ENABLED(conf.keySetting[i]) &&
-         (_group == GET_CONF_KEY_GROUP(conf.keySetting[i]) || GET_CONF_KEY_IS_GLOBAL(conf.keySetting[i]))) {
-        // We have alarm or group is armed
-        if  (GET_GROUP_ALARM(group[_group].setting) || GET_GROUP_ARMED(group[_group].setting)) {
-          tmpLog[0] = 'A'; tmpLog[1] = 'D'; tmpLog[2] = i;  pushToLog(tmpLog, 3); // Key
-          //***disarmGroup(_group, _group); // Disarm group and all chained groups
-        } else { // Just do arm
-          tmpLog[0] = 'A'; tmpLog[1] = 'A'; tmpLog[2] = i; pushToLog(tmpLog, 3);
-          //***armGroup(_group, _group); // Arm group and all chained groups
-        }
-        break; // no need to try other
-      } else { // key is not enabled
-        tmpLog[0] = 'A'; tmpLog[1] = 'F'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
-      }
-    } // key matched
-    else if (i == KEYS_SIZE-1) {
-      // Log unknown keys
-      tmpLog[0] = 'A'; tmpLog[1] = 'U'; memcpy(&tmpLog[2], key, KEY_LENGTH); pushToLog(tmpLog, 10);
-      memcpy(&lastKey[0], key, KEY_LENGTH); // store last unknown key
-    }
-  } // for
-}
-
 /*
  * RS485 thread
  */
@@ -574,10 +413,10 @@ static THD_FUNCTION(RS485Thread, arg) {
                 if (outMsg != NULL) {
                   // node setting
                   outMsg->address  = rs485Msg.address;
-                  outMsg->type     = rs485Msg.data[_pos];
-                  outMsg->function = rs485Msg.data[_pos+1];
-                  outMsg->number   = (uint8_t)rs485Msg.data[_pos+2];
-                  outMsg->setting  = ((uint8_t)rs485Msg.data[_pos+3] << 8) | ((uint8_t)rs485Msg.data[_pos+4]);
+                  outMsg->type     = (char)rs485Msg.data[_pos];
+                  outMsg->function = (char)rs485Msg.data[_pos+1];
+                  outMsg->number   = rs485Msg.data[_pos+2];
+                  outMsg->setting  = (rs485Msg.data[_pos+3] << 8) | (rs485Msg.data[_pos+4]);
                   memcpy(&outMsg->name[0], &rs485Msg.data[_pos+5], NAME_LENGTH);  // Copy string
 
                   msg_t msg = chMBPostTimeout(&registration_mb, (msg_t)outMsg, TIME_IMMEDIATE);
@@ -591,7 +430,7 @@ static THD_FUNCTION(RS485Thread, arg) {
               } while (_pos < rs485Msg.length);
               break;
             case 'K': // iButtons keys
-              nodeIndex = getNodeIndex(rs485Msg.data[0], rs485Msg.address, rs485Msg.data[1], rs485Msg.data[2]);
+              nodeIndex = getNodeIndex(rs485Msg.address, rs485Msg.data[0], rs485Msg.data[1], rs485Msg.data[2]);
               chprintf(console, "Received Key, node index: %d\r\n", nodeIndex);
               // Node index found
               if (nodeIndex != -1) {
@@ -685,7 +524,7 @@ static THD_FUNCTION(SensorThread, arg) {
   while (true) {
     msg = chMBFetchTimeout(&sensor_mb, (msg_t*)&inMsg, TIME_INFINITE);
     if (msg == MSG_OK) {
-      nodeIndex = getNodeIndex(inMsg->type, inMsg->address, inMsg->function, inMsg->number);
+      nodeIndex = getNodeIndex(inMsg->address, inMsg->type, inMsg->function, inMsg->number);
       if (nodeIndex != -1) {
         chprintf(console, "Sensor data for node %c-%c\r\n", inMsg->type, inMsg->function);
         //  node enabled
@@ -821,14 +660,11 @@ static THD_FUNCTION(ModemThread, arg) {
   }
 }
 
-
-
-
 /*
  * This is a periodic thread that does absolutely nothing except flashing
  * a LED.
  */
-static THD_WORKING_AREA(waThread1, 512);
+static THD_WORKING_AREA(waThread1, 256);
 static THD_FUNCTION(Thread1, arg) {
   chRegSetThreadName(arg);
   systime_t time;
@@ -854,22 +690,9 @@ static void GetTimeTm(struct tm *timp) {
 }
 */
 
-/*===========================================================================*/
-/* Command line related.                                                     */
-/*===========================================================================*/
-
 /*
- *
+ * Peripheral configurations
  */
-static SerialConfig ser_cfg = {
-    115200,
-    0,
-    0,
-    0,
-    NULL, NULL, NULL, NULL
-};
-
-
 // Peripherial Clock 42MHz SPI2 SPI3
 // Peripherial Clock 84MHz SPI1                                SPI1        SPI2/3
 #define SPI_BaudRatePrescaler_2         ((uint16_t)0x0000) //  42 MHz      21 MHZ
@@ -890,6 +713,14 @@ const SPIConfig spi1cfg = {
   GPIOD_SPI1_CS, // CS PIN
   SPI_BaudRatePrescaler_4,
   0
+};
+
+static SerialConfig ser_cfg = {
+    115200,
+    0,
+    0,
+    0,
+    NULL, NULL, NULL, NULL
 };
 
 static RS485Config ser_mpc_cfg = {
@@ -915,7 +746,7 @@ int main(void) {
   chBSemObjectInit(&gprsSem, false);
 
   sdStart(&SD3,  &ser_cfg); // Debug port
-  chprintf(console, "\r\nOHS start\r\n");
+  chprintf(console, "\r\nOHS v.%u.%u start\r\n", OHS_MAJOR, OHS_MINOR);
 
   gprsInit(&SD1); // GPRS modem
 
@@ -940,7 +771,7 @@ int main(void) {
   // Creating the mailboxes.
   //chMBObjectInit(&alarmEvent_mb, alarmEvent_mb_buffer, ALARMEVENT_FIFO_SIZE);
 
-  /* Pools */
+  // Pools
   chPoolObjectInit(&alarmEvent_pool, sizeof(alarmEvent_t), NULL);
   chPoolObjectInit(&logger_pool, sizeof(logger_t), NULL);
   chPoolObjectInit(&registration_pool, sizeof(registration_t), NULL);
@@ -953,19 +784,10 @@ int main(void) {
   for(uint8_t i = 0; i < SENSOR_FIFO_SIZE; i++) { chPoolFree(&sensor_pool, &sensor_pool_queue[i]); }
   //for(uint8_t i = 0; i < NODE_SIZE; i++) { chPoolFree(&node_pool, &node_pool_queue[i]); }
 
-  //i2cStart(&I2CD1, &i2cfg1); // I2C
   spiStart(&SPID1, &spi1cfg);  // SPI
   adcStart(&ADCD1, NULL);      // Activates the ADC1 driver
 
-  /*
-  palClearPad(GPIOE, GPIOE_ETH_RESET);
-  chThdSleepMilliseconds(200);
-  palSetPad(GPIOE, GPIOE_ETH_RESET);
-  */
-
-  /*
-   * Create thread(s).
-   */
+  // Create thread(s).
   chThdCreateStatic(waZoneThread, sizeof(waZoneThread), NORMALPRIO, ZoneThread, (void*)"Zone");
   chThdCreateStatic(waAEThread1, sizeof(waAEThread1), NORMALPRIO, AEThread, (void*)"AET 1");
   chThdCreateStatic(waAEThread2, sizeof(waAEThread2), NORMALPRIO, AEThread, (void*)"AET 2");
@@ -978,30 +800,9 @@ int main(void) {
   chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, (void*)"LED");
 //  shellInit();
   //chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg1);
+
+  // Ethernet
   lwipInit(NULL);
-
-  /*
-   * Conf. and runtime initialization.
-   */
-  // Read conf.
-  readFromBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
-  // Check if we have new major version update
-  if (conf.versionMajor != OHS_MAJOR) {
-    setConfDefault(); // Load OHS default conf.
-    initRuntimeGroups(); // Initialize runtime variables
-    writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
-    writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
-  }
-  chprintf(console, "Size of conf: %d, group: %d\r\n", sizeof(conf), sizeof(group));
-
-  // Read last group[] state
-  readFromBkpRTC((uint8_t*)&group, sizeof(group), 0);
-  // Initialize zone state
-  initRuntimeZones();
-
-  /*
-   * Ethernet
-   */
   httpd_init();           // Starts the HTTP server
   //sntp_setserver(0, "ntp1.sh.cvut.cz");
   sntp_init();
@@ -1017,6 +818,21 @@ int main(void) {
   // Start
   startTime = GetTimeUnixSec();
   pushToLogText("Ss");
+
+  // Read last group[] state
+  readFromBkpRTC((uint8_t*)&group, sizeof(group), 0);
+  // Initialize zone state
+  initRuntimeZones();
+  // Read conf.
+  readFromBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+  // Check if we have new major version update
+  if (conf.versionMajor != OHS_MAJOR) {
+    setConfDefault(); // Load OHS default conf.
+    initRuntimeGroups(); // Initialize runtime variables
+    writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+    writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
+  }
+  chprintf(console, "Size of conf: %d, group: %d\r\n", sizeof(conf), sizeof(group));
 
   while (true) {
     if (SDU1.config->usbp->state == USB_ACTIVE) {
