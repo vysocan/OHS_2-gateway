@@ -68,13 +68,13 @@ binary_semaphore_t gprsSem;
 /*
  * Zone thread
  */
-static THD_WORKING_AREA(waZoneThread, 128);
+static THD_WORKING_AREA(waZoneThread, 256);
 static THD_FUNCTION(ZoneThread, arg) {
   chRegSetThreadName(arg);
 
   msg_t    msg;
   uint16_t val;
-  uint8_t  _group = 255;
+  uint8_t  groupNum = 255;
 
   chThdSleepMilliseconds(250);
   pushToLogText("SS");
@@ -134,7 +134,7 @@ static THD_FUNCTION(ZoneThread, arg) {
         //    alarm as tamper                            is PIR                                        make it tamper
         if ((GET_CONF_ZONE_PIR_AS_TMP(conf.zone[i])) && (val >= ALARM_PIR_LOW && val <= ALARM_PIR_HI)) val = ALARM_TAMPER;
         // get current zone group
-        _group = GET_CONF_ZONE_GROUP(conf.zone[i]);
+        groupNum = GET_CONF_ZONE_GROUP(conf.zone[i]);
 
         // Decide zone state
         switch((uint16_t)(val)){
@@ -147,16 +147,16 @@ static THD_FUNCTION(ZoneThread, arg) {
             break;
           case ALARM_PIR_LOW ... ALARM_PIR_HI:
             //     zone not have alarm              group delay is 0
-            if (!(GET_ZONE_ALARM(zone[i].setting)) && (group[_group].armDelay == 0)){
+            if (!(GET_ZONE_ALARM(zone[i].setting)) && (group[groupNum].armDelay == 0)){
               // if group not enabled log error to log.
-              if (!(GET_CONF_GROUP_ENABLED(conf.group[_group]))) {
-                if (!(GET_GROUP_DISABLED_FLAG(group[_group].setting))) {
-                  SET_GROUP_DISABLED_FLAG(group[_group].setting); // Set logged disabled bit On
-                  tmpLog[0] = 'G'; tmpLog[1] = 'F'; tmpLog[2] = _group;  pushToLog(tmpLog, 3);
+              if (!(GET_CONF_GROUP_ENABLED(conf.group[groupNum]))) {
+                if (!(GET_GROUP_DISABLED_FLAG(group[groupNum].setting))) {
+                  SET_GROUP_DISABLED_FLAG(group[groupNum].setting); // Set logged disabled bit On
+                  tmpLog[0] = 'G'; tmpLog[1] = 'F'; tmpLog[2] = groupNum;  pushToLog(tmpLog, 3);
                 }
               } else {
                 // group armed
-                if (GET_GROUP_ARMED(group[_group].setting) && (zone[i].lastEvent == 'P')) {
+                if (GET_GROUP_ARMED(group[groupNum].setting) && (zone[i].lastEvent == 'P')) {
                   alarmEvent_t *outMsg = chPoolAlloc(&alarmEvent_pool);
                   if (outMsg != MSG_OK) {
                     if (!(GET_ZONE_FULL_FIFO(zone[i].setting))) {
@@ -185,10 +185,10 @@ static THD_FUNCTION(ZoneThread, arg) {
             //  zone not have alarm
             if (!(GET_ZONE_ALARM(zone[i].setting))){
               // if group not enabled log error to log.
-              if (!(GET_CONF_GROUP_ENABLED(conf.group[_group]))) {
-                if (!(GET_GROUP_DISABLED_FLAG(group[_group].setting))) {
-                  SET_GROUP_DISABLED_FLAG(group[_group].setting); // Set logged disabled bit On
-                  tmpLog[0] = 'G'; tmpLog[1] = 'F'; tmpLog[2] = _group;  pushToLog(tmpLog, 3);
+              if (!(GET_CONF_GROUP_ENABLED(conf.group[groupNum]))) {
+                if (!(GET_GROUP_DISABLED_FLAG(group[groupNum].setting))) {
+                  SET_GROUP_DISABLED_FLAG(group[groupNum].setting); // Set logged disabled bit On
+                  tmpLog[0] = 'G'; tmpLog[1] = 'F'; tmpLog[2] = groupNum;  pushToLog(tmpLog, 3);
                 }
               } else {
                 if (zone[i].lastEvent == 'T') {
@@ -249,51 +249,51 @@ static THD_FUNCTION(AEThread, arg) {
   chRegSetThreadName(arg);
   msg_t msg;
   alarmEvent_t *inMsg;
-  uint8_t _group, _wait, _resp, _cnt;
+  uint8_t groupNum, _wait, _resp, _cnt;
 
   while (true) {
     msg = chMBFetchTimeout(&alarmEvent_mb, (msg_t*)&inMsg, TIME_INFINITE);
     if (msg == MSG_OK) {
       // Lookup group
-      _group = GET_CONF_ZONE_GROUP(conf.zone[inMsg->zone]);
+      groupNum = GET_CONF_ZONE_GROUP(conf.zone[inMsg->zone]);
 
       // Group has alarm already nothing to do!
-      if (GET_GROUP_ALARM(group[_group].setting)) {
+      if (GET_GROUP_ALARM(group[groupNum].setting)) {
         chPoolFree(&alarmEvent_pool, inMsg);
         continue;
       }
       // Set authentication On
-      SET_GROUP_WAIT_ATUH(group[_group].setting);
+      SET_GROUP_WAIT_ATUH(group[groupNum].setting);
       // Set wait time
       if (inMsg->type == 'P') _wait = GET_CONF_ZONE_AUTH_TIME(conf.zone[inMsg->zone]);
       else                    _wait = 0; // Tamper has no wait time
       //       wait > 0    NOT group has alarm already                authentication On
-      while ((_wait > 0) && !(GET_GROUP_ALARM(group[_group].setting)) && (GET_GROUP_WAIT_ATUH(group[_group].setting))) {
-        //++_resp = sendCmdToGrp(_group, 11 + _wait);
+      while ((_wait > 0) && !(GET_GROUP_ALARM(group[groupNum].setting)) && (GET_GROUP_WAIT_ATUH(group[groupNum].setting))) {
+        //++_resp = sendCmdToGrp(groupNum, 11 + _wait);
         _cnt = 0;
         //       Authentication On                    time of one alarm period      NOT group has alarm already
-        while (GET_GROUP_WAIT_ATUH(group[_group].setting) && (_cnt < (10*conf.alarmTime)) && !(GET_GROUP_ALARM(group[_group].setting))) {
+        while (GET_GROUP_WAIT_ATUH(group[groupNum].setting) && (_cnt < (10*conf.armDelay)) && !(GET_GROUP_ALARM(group[groupNum].setting))) {
           chThdSleepMilliseconds(100);;
           _cnt++;
         }
         //  Authentication On
-        if (GET_GROUP_WAIT_ATUH(group[_group].setting)) _wait--;
+        if (GET_GROUP_WAIT_ATUH(group[groupNum].setting)) _wait--;
       }
       //   wait = 0   NOT group has alarm already
-      if ((!_wait) && !(GET_GROUP_ALARM(group[_group].setting))) {
-        SET_GROUP_ALARM(group[_group].setting); // Set alarm bit On
-        //++_resp = sendCmdToGrp(_group, 11);  // ALARM COMMAND
+      if ((!_wait) && !(GET_GROUP_ALARM(group[groupNum].setting))) {
+        SET_GROUP_ALARM(group[groupNum].setting); // Set alarm bit On
+        //++_resp = sendCmdToGrp(groupNum, 11);  // ALARM COMMAND
         // Combine alarms, so that next alarm will not disable ongoing one
         if (inMsg->type == 'P') {
-          //++OUTs = ((((conf.group[_group] >> 4) & B1) | (OUTs >> 0) & B1) | (((conf.group[_group] >> 3) & B1) | (OUTs >> 1) & B1) << 1);
+          //++OUTs = ((((conf.group[groupNum] >> 4) & B1) | (OUTs >> 0) & B1) | (((conf.group[groupNum] >> 3) & B1) | (OUTs >> 1) & B1) << 1);
         } else {
-          //++OUTs = ((((conf.group[_group] >> 2) & B1) | (OUTs >> 0) & B1) | (((conf.group[_group] >> 1) & B1) | (OUTs >> 1) & B1) << 1);
+          //++OUTs = ((((conf.group[groupNum] >> 2) & B1) | (OUTs >> 0) & B1) | (((conf.group[groupNum] >> 1) & B1) | (OUTs >> 1) & B1) << 1);
         }
         // Trigger OUT 1 & 2
         //++pinOUT1.write(((OUTs >> 0) & B1));
         //++pinOUT2.write(((OUTs >> 1) & B1));
-        //++publishGroup(_group, 'T');
-        tmpLog[0] = 'S'; tmpLog[1] = 'X';  tmpLog[2] = _group;  pushToLog(tmpLog, 3); // ALARM no auth.
+        //++publishGroup(groupNum, 'T');
+        tmpLog[0] = 'S'; tmpLog[1] = 'X';  tmpLog[2] = groupNum;  pushToLog(tmpLog, 3); // ALARM no auth.
       }
     } else {
       chprintf(console, "%s -> ERROR\r\n", arg);
@@ -311,16 +311,29 @@ static THD_FUNCTION(LoggerThread, arg) {
   msg_t    msg;
   logger_t *inMsg;
   char     buffer[FRAM_MSG_SIZE+3];
+  uint8_t  flag;
 
   while (true) {
     msg = chMBFetchTimeout(&logger_mb, (msg_t*)&inMsg, TIME_INFINITE);
     if (msg == MSG_OK) {
+      // Check for alerts and set flag
+      flag = 0;
+      for (uint8_t i = 0; i < ALERT_SIZE; i++) {
+        if (memcmp(&inMsg->text[0], alertDef[i], strlen(alertDef[i])) == 0) {
+          for(uint8_t j = 0; j < ALERT_TYPE_SIZE; j++) {
+            // Combine all alerts flags into flag(uint8_t) as bits
+            flag |= (((conf.alert[j] >> i) & 0b1) << j);
+          }
+        }
+      }
       /*
       chprintf(console, "Log %d", inMsg);
       chprintf(console, ", T %d", inMsg->timestamp);
       chprintf(console, ", %s", inMsg->text);
-      chprintf(console, "\r\n");
+      chprintf(console, ", %u\r\n", flag);
       */
+
+      // SPI
       spiAcquireBus(&SPID1);
 
       spiSelect(&SPID1);
@@ -335,7 +348,7 @@ static THD_FUNCTION(LoggerThread, arg) {
       timeConv.val = inMsg->timestamp;
       memcpy(&buffer[3], &timeConv.ch[0], sizeof(timeConv.ch)); // Copy time to buffer
       memcpy(&buffer[7], &inMsg->text[0], LOGGER_MSG_LENGTH);   // Copy text to buffer
-      buffer[FRAM_MSG_SIZE+2] = 0xFF;                           // Set flag
+      buffer[FRAM_MSG_SIZE+2] = flag;                           // Set flag
 
       /*
       chprintf(console, ">%s\r\n", &buffer[7]);
@@ -351,6 +364,23 @@ static THD_FUNCTION(LoggerThread, arg) {
       spiReleaseBus(&SPID1);
 
       FRAMWritePos += FRAM_MSG_SIZE; // uint16_t will overflow by itself or FRAM address registers are ignored
+
+      // Alerts
+      if (flag > 0) {
+        alert_t *outMsg = chPoolAlloc(&alert_pool);
+        if (outMsg != NULL) {
+          memcpy(&outMsg->text[0], &inMsg->text[0], LOGGER_MSG_LENGTH);  // Copy string
+          outMsg->flag = flag;
+
+          msg_t msg = chMBPostTimeout(&alert_mb, (msg_t)outMsg, TIME_IMMEDIATE);
+          if (msg != MSG_OK) {
+            //chprintf(console, "MB full %d\r\n", temp);
+          }
+        } else {
+          chprintf(console, "Alert FIFO full %d \r\n", outMsg);
+        }
+      }
+
     } else {
       chprintf(console, "Log ERROR\r\n");
     }
@@ -661,6 +691,30 @@ static THD_FUNCTION(ModemThread, arg) {
 }
 
 /*
+ * Alert handling thread
+ */
+static THD_WORKING_AREA(waAlertThread, 256);
+static THD_FUNCTION(AlertThread, arg) {
+  chRegSetThreadName(arg);
+    msg_t msg;
+    alert_t *inMsg;
+    char tmpLogText[LOG_TEXT_LENGTH]; // To decode log text
+
+    while (true) {
+      msg = chMBFetchTimeout(&alert_mb, (msg_t*)&inMsg, TIME_INFINITE);
+      if (msg == MSG_OK) {
+        chprintf(console, "Alert: %s-%u-", inMsg->text, inMsg->flag);
+        decodeLog(inMsg->text, tmpLogText);
+        chprintf(console, "%s\r\n", tmpLogText);
+      }else {
+        chprintf(console, "Alert ERROR\r\n");
+      }
+      chPoolFree(&alert_pool, inMsg);
+    }
+}
+
+
+/*
  * This is a periodic thread that does absolutely nothing except flashing
  * a LED.
  */
@@ -776,12 +830,14 @@ int main(void) {
   chPoolObjectInit(&logger_pool, sizeof(logger_t), NULL);
   chPoolObjectInit(&registration_pool, sizeof(registration_t), NULL);
   chPoolObjectInit(&sensor_pool, sizeof(sensor_t), NULL);
+  chPoolObjectInit(&alert_pool, sizeof(alert_t), NULL);
   //chPoolObjectInit(&node_pool, sizeof(node_t), NULL);
   //chPoolLoadArray(&alarmEvent_pool, alarmEvent_pool_queue, ALARMEVENT_FIFO_SIZE);
   for(uint8_t i = 0; i < ALARMEVENT_FIFO_SIZE; i++) { chPoolFree(&alarmEvent_pool, &alarmEvent_pool_queue[i]); }
   for(uint8_t i = 0; i < LOGGER_FIFO_SIZE; i++) { chPoolFree(&logger_pool, &logger_pool_queue[i]); }
   for(uint8_t i = 0; i < REG_FIFO_SIZE; i++) { chPoolFree(&registration_pool, &registration_pool_queue[i]); }
   for(uint8_t i = 0; i < SENSOR_FIFO_SIZE; i++) { chPoolFree(&sensor_pool, &sensor_pool_queue[i]); }
+  for(uint8_t i = 0; i < ALERT_FIFO_SIZE; i++) { chPoolFree(&alert_pool, &alert_pool_queue[i]); }
   //for(uint8_t i = 0; i < NODE_SIZE; i++) { chPoolFree(&node_pool, &node_pool_queue[i]); }
 
   spiStart(&SPID1, &spi1cfg);  // SPI
@@ -797,6 +853,7 @@ int main(void) {
   chThdCreateStatic(waRegistrationThread, sizeof(waRegistrationThread), NORMALPRIO, RegistrationThread, (void*)"Registration");
   chThdCreateStatic(waSensorThread, sizeof(waSensorThread), NORMALPRIO, SensorThread, (void*)"Sensor");
   chThdCreateStatic(waModemThread, sizeof(waModemThread), NORMALPRIO, ModemThread, (void*)"Modem");
+  chThdCreateStatic(waAlertThread, sizeof(waAlertThread), NORMALPRIO, AlertThread, (void*)"Alert");
   chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, (void*)"LED");
 //  shellInit();
   //chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg1);
@@ -832,13 +889,16 @@ int main(void) {
     writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
     writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
   }
+  //setConfDefault(); // Load OHS default conf.
   chprintf(console, "Size of conf: %d, group: %d\r\n", sizeof(conf), sizeof(group));
 
   while (true) {
+    /*
     if (SDU1.config->usbp->state == USB_ACTIVE) {
       thread_t *shelltp = chThdCreateFromHeap(NULL, SHELL_WA_SIZE,"shell", NORMALPRIO + 1, shellThread, (void *)&shell_cfg1);
-      chThdWait(shelltp);               /* Waiting termination.             */
+      chThdWait(shelltp);               // Waiting termination.
     }
+    */
 
     chThdSleepMilliseconds(10000);
 

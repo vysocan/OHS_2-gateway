@@ -27,8 +27,9 @@ volatile uint16_t FRAMWritePos = 0;
 volatile uint16_t FRAMReadPos  = 0;
 #define LOG_TEXT_LENGTH 80
 char logText[LOG_TEXT_LENGTH]; // To decode log text
-//#define LOG_TS_LENGTH 40
-//char logTimestamp[LOG_TS_LENGTH];
+// FRAM buffers for decode
+static char rxBuffer[FRAM_MSG_SIZE];
+static char txBuffer[3];
 
 static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
@@ -149,6 +150,20 @@ const char text_digital[]           = "digital";
 const char text_seconds[]           = "second(s)";
 const char text_Zone[]              = "Zone";
 const char text_delay[]             = "delay";
+const char text_SMS[]               = "SMS";
+const char text_Page[]              = "Page";
+const char text_disarmed[]          = "disarmed";
+const char text_armed[]             = "armed";
+const char text_auto[]              = "auto";
+const char text_open[]              = "open";
+const char text_allowed[]           = "allowed";
+const char text_matched[]           = "matched";
+const char text_re[]                = "re";
+const char text_Date[]              = "Date";
+const char text_Entry[]             = "Entry";
+const char text_Alert[]             = "Alert";
+const char text_key[]               = "key";
+const char text_value[]             = "value";
 
 void printNodeType(BaseSequentialStream *chp, const char type) {
   switch(type){
@@ -214,6 +229,12 @@ time_t GetTimeUnixSec(void) {
   return mktime(&timestamp);
 }
 
+void printKey(BaseSequentialStream *chp, const char *value, const uint8_t size){
+  for (uint8_t i = 0; i < size; ++i) {
+    chprintf(chp, "%02x", value[i]);
+  }
+}
+
 /*
  * Decode log entries to string
  */
@@ -238,7 +259,7 @@ static void decodeLog(char *in, char *out){
         default:  chprintf(chp, "%s", text_unknown); break; // unknown
       }
     break;
-    case 'N': // remote nodes
+    case 'N': // Remote nodes
       printNodeType(chp, in[4]); chprintf(chp, ":");
       printNodeFunction(chp, in[5]);
       chprintf(chp, " %s ", text_address);
@@ -247,7 +268,7 @@ static void decodeLog(char *in, char *out){
       switch(in[1]){
         case 'F' : chprintf(chp, "%s", text_disabled); break;
         case 'R' : chprintf(chp, "%s", text_registered); break;
-        case 'r' : chprintf(chp, "%s", text_removed); break;
+        case 'r' : chprintf(chp, "%s%s", text_re, text_registered); break;
         default : chprintf(chp, "%s %s", text_registration, text_error); break; // 'E'
       }
     break;
@@ -273,40 +294,85 @@ static void decodeLog(char *in, char *out){
         }
       }
     break;
+    case 'G': // Group related
+      chprintf(chp, "%s %u. %s ", text_Group, in[2], conf.groupName[(uint8_t)in[2]]);
+      switch(in[1]){
+        case 'F': chprintf(chp, "%s", text_disabled); break;
+        case 'S': chprintf(chp, "%s", text_armed); break;
+        case 'D': chprintf(chp, "%s", text_disarmed); break;
+        case 'A': chprintf(chp, "%s %s", text_auto, text_armed); break;
+        default: chprintf(chp, "%s", text_unknown); break;
+      }
+    break;
+    case 'Z': // Zone
+      chprintf(chp, "%s %u. %s ", text_Zone, in[2], conf.groupName[(uint8_t)in[2]]);
+      if ((uint8_t)in[2] < ALARM_ZONES) {
+        chprintf(chp, "%s ", conf.zoneName[(uint8_t)in[2]]);
+      }
+      switch(in[1]){
+        case 'P': chprintf(chp, "%s", text_alarm); break;
+        case 'T': chprintf(chp, "%s", text_tamper); break;
+        case 'O': chprintf(chp, "%s", text_open); break;
+        case 'R': chprintf(chp, "%s", text_registered); break;
+        case 'r': chprintf(chp, "%s%s", text_re, text_registered); break;
+        case 'E': chprintf(chp, "%s %s", text_registration, text_error); break;
+        case 'e': chprintf(chp, "%s %s ", text_error, text_not);
+          switch(in[3]){
+            case 'M': chprintf(chp, "%s", text_matched); break;
+            default : chprintf(chp, "%s", text_allowed); break;
+          }
+        break;
+        default: chprintf(chp, "%s", text_unknown); break;
+      }
+    break;
+    case 'A': // Authentication
+      chprintf(chp, "%s %s ", text_Authentication, text_key);
+      if (in[1] != 'U') {
+        if (conf.keyContact[(uint8_t)in[2]] == 255) chprintf(chp, "%s ", NOT_SET);
+        else chprintf(chp, "%u. %s ", (uint8_t)(conf.keyContact[in[2]])+1, conf.contactName[(uint8_t)(conf.keyContact[in[2]])]);
+      }
+      switch(in[1]){
+        case 'D': chprintf(chp, "%s", text_disarmed); break;
+        case 'A': chprintf(chp, "%s", text_armed); break;
+        case 'U': chprintf(chp, "%s: ", text_unknown);
+          printKey(chp, &in[2], KEY_LENGTH);
+          break;
+        case 'F': chprintf(chp, "%s %s", text_is, text_disabled); break;
+        default : chprintf(chp, "%s", text_unknown); break;
+      }
+    break;
     default: chprintf(chp, "%s", text_Undefined);
       for(uint16_t ii = 0; ii < LOGGER_MSG_LENGTH; ii++) {
-        chprintf(chp, ", %c-%x", in[ii], in[ii]);
+        chprintf(chp, "-%x", in[ii], in[ii]);
       }
     break; // unknown
   }
-  chprintf(chp, "."); // "." as end
+  //chprintf(chp, "."); // "." as end
 }
 
 /*
  * Console applet to show log entries
  */
-#define LOGGER_OUTPUT_LEN 15
+#define LOGGER_OUTPUT_LEN 20
 static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
-
-  char   rxBuffer[FRAM_MSG_SIZE];
-  char   txBuffer[3];
+  //char   rxBuffer[FRAM_MSG_SIZE];
+  //char   txBuffer[3];
 
   if (argc > 1)  { goto ERROR; }
   if (argc == 1) { FRAMReadPos = (atoi(argv[0]) - LOGGER_OUTPUT_LEN + 1) * FRAM_MSG_SIZE; }
   if (argc == 0) { FRAMReadPos = FRAMWritePos - (FRAM_MSG_SIZE * LOGGER_OUTPUT_LEN); }
 
+  spiAcquireBus(&SPID1);              // Acquire ownership of the bus.
   for(uint16_t i = 0; i < LOGGER_OUTPUT_LEN; i++) {
     txBuffer[0] = CMD_25AA_READ;
     txBuffer[1] = (FRAMReadPos >> 8) & 0xFF;
     txBuffer[2] = FRAMReadPos & 0xFF;
 
-    spiAcquireBus(&SPID1);              // Acquire ownership of the bus.
     spiSelect(&SPID1);                  // Slave Select assertion.
     spiSend(&SPID1, 3, txBuffer);       // Send read command
     spiReceive(&SPID1, FRAM_MSG_SIZE, rxBuffer);
     spiUnselect(&SPID1);                // Slave Select de-assertion.
-    spiReleaseBus(&SPID1);              // Ownership release.
 
     memcpy(&timeConv.ch[0], &rxBuffer[0], sizeof(timeConv.ch)); // Prepare timestamp
     decodeLog(&rxBuffer[4], logText);
@@ -319,6 +385,7 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
 
     FRAMReadPos+=FRAM_MSG_SIZE; // Advance for next read
   }
+  spiReleaseBus(&SPID1);              // Ownership release.
   return;
 
 ERROR:

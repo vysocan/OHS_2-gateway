@@ -103,12 +103,15 @@ const char html_select[]            = "<select name='";
 const char html_Apply[]             = "<input type='submit' name='A' value='Apply'/>";
 const char html_Save[]              = "<input type='submit' name='e' value='Save all'/>";
 const char html_Reregister[]        = "<input type='submit' name='R' value='Call registration'/>";
+const char html_Now[]               = "<input type='submit' name='N' value='Now'/>";
+const char html_FR[]                = "<input type='submit' name='R' value='<<'/>";
+const char html_FF[]                = "<input type='submit' name='F' value='>>'/>";
 const char html_e_table[]           = "</table>";
 const char html_table[]             = "<table>";
 const char html_e_form[]            = "</form>";
 const char html_form_1[]            = "<form action='";
 const char html_form_2[]            = "' method='post'>";
-
+// Radio buttons
 const char html_cbPart1a[]          = "<div class='rc'><input type='radio' name='";
 const char html_cbPart1b[]          = "' id='";
 const char html_cbPart2[]           = "' value='";
@@ -121,18 +124,22 @@ const char html_cbJSen[]            = " onclick=\"en()\"";
 const char html_cbJSdis[]           = " onclick=\"dis()\"";
 
 #define HTML_SIZE  12000 // Change also in lwip opt.h MEM_SIZE
-#define HTML_PAGES 4
+#define HTML_PAGES 6
 const char webMenuLink[HTML_PAGES][13]  = {
    "/index.html",
-   "/test.html",
+   "/global.html",
    "/contact.html",
-   "/zone.html"
+   "/zone.html",
+   "/alerts.html",
+   "/log.html"
 };
 const char webMenuName[HTML_PAGES][10]  = {
-   "Global",
-   "Test",
-   "Contact",
-   "Zone"
+   "Nodes",
+   "Contacts",
+   "Keys",
+   "Zones",
+   "Alerts",
+   "Log"
 };
 
 static char postData[128];
@@ -195,7 +202,7 @@ void selectGroup(BaseSequentialStream *chp, uint8_t selected, char name) {
 void printNodeValue(BaseSequentialStream *chp, const uint8_t index) {
   if (node[index].type != 'K') {
     switch(node[index].function){
-      case 'T': chprintf(chp, "%.2f �C", node[index].value); break;
+      case 'T': chprintf(chp, "%.2f °C", node[index].value); break;
       case 'H':
       case 'X': chprintf(chp, "%.2f %%", node[index].value); break;
       case 'P': chprintf(chp, "%.2f mBar", node[index].value); break;
@@ -213,19 +220,16 @@ void printTextInput(BaseSequentialStream *chp, const char name, const char *valu
   chprintf(chp, "%s%c%s", html_id_tag, name, html_e_tag);
 }
 
-void printKey(BaseSequentialStream *chp, const char *value, const uint8_t size){
-  for (uint8_t i = 0; i < size; ++i) {
-    chprintf(chp, "%02x", value[i]);
-  }
-}
-
-
 void genfiles_ex_init(void) {
   /* nothing to do here yet */
 }
 
 static uint8_t webNode = 0, webContact = 0, webKey = 0, webZone = 0;
+static uint16_t webLog = 0;
 int fs_open_custom(struct fs_file *file, const char *name){
+  char temp[3] = "";
+  uint16_t logAddress;
+
   for (uint8_t htmlPage = 0; htmlPage < HTML_PAGES; ++htmlPage) {
     if (!strcmp(name, webMenuLink[htmlPage])) {
       /* initialize fs_file correctly */
@@ -248,12 +252,12 @@ int fs_open_custom(struct fs_file *file, const char *name){
         if (htmlPage == i) chprintf(chp, "<li><a class='active' href='%s'>%s</a></li>\r\n", webMenuLink[i], webMenuName[i]);
         else chprintf(chp, "<li><a href='%s'>%s</a></li>\r\n", webMenuLink[i], webMenuName[i]);
       }
-      chprintf(chp, "</ul></div><div class='mb'><h1>%s</h1>\r\n", webMenuName[htmlPage]);
+      chprintf(chp, "</ul></div><div class='mb'><h1>%s</h1>\r\n%s", webMenuName[htmlPage], html_table);
 
       // Custom start
       switch (htmlPage) {
         case 0:
-          chprintf(chp, "%s%s#", html_table, html_tr_th);
+          chprintf(chp, "%s#", html_tr_th);
           chprintf(chp, "%s%s", html_e_th_th, text_Address);
           chprintf(chp, "%s%s", html_e_th_th, text_On);
           chprintf(chp, "%s%s", html_e_th_th, text_MQTT);
@@ -321,7 +325,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s%s%s", html_Apply, html_Save, html_Reregister, html_e_form);
           break;
         case 1:
-          chprintf(chp, "%s%s#", html_table, html_tr_th);
+          chprintf(chp, "%s#", html_tr_th);
           chprintf(chp, "%s%s", html_e_th_th, text_Name);
           chprintf(chp, "%s%s", html_e_th_th, text_On);
           chprintf(chp, "%s%s", html_e_th_th, text_Number);
@@ -372,7 +376,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s%s", html_Apply, html_Save, html_e_form);
           break;
         case 2:
-          chprintf(chp, "%s%s#", html_table, html_tr_th);
+          chprintf(chp, "%s#", html_tr_th);
           chprintf(chp, "%s%s", html_e_th_th, text_Name);
           chprintf(chp, "%s%s", html_e_th_th, text_On);
           chprintf(chp, "%s%s", html_e_th_th, text_Value);
@@ -431,7 +435,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s%s", html_Apply, html_Save, html_e_form);
           break;
         case 3:
-          chprintf(chp, "%s%s#", html_table, html_tr_th);
+          chprintf(chp, "%s#", html_tr_th);
           chprintf(chp, "%s%s", html_e_th_th, text_Name);
           chprintf(chp, "%s%s", html_e_th_th, text_On);
           chprintf(chp, "%s%s", html_e_th_th, text_Type);
@@ -457,7 +461,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
               chprintf(chp, "%s", html_e_td_td);
               printOkNok(chp, GET_CONF_ZONE_PIR_AS_TMP(conf.zone[i]));
               chprintf(chp, "%s", html_e_td_td);
-              chprintf(chp, "%u %s%s", GET_CONF_ZONE_AUTH_TIME(conf.zone[i])*conf.alarmTime, text_seconds, html_e_td_td);
+              chprintf(chp, "%u %s%s", GET_CONF_ZONE_AUTH_TIME(conf.zone[i])*conf.armDelay, text_seconds, html_e_td_td);
               printFrmTimestamp(chp, &zone[i].lastPIR);
               chprintf(chp, "%s", html_e_td_td);
               printFrmTimestamp(chp, &zone[i].lastOK);
@@ -505,6 +509,72 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           // Buttons
           chprintf(chp, "%s%s%s", html_Apply, html_Save, html_e_form);
+          break;
+        case 4:
+          chprintf(chp, "%s#", html_tr_th);
+          chprintf(chp, "%s%s", html_e_th_th, text_Name);
+          for (uint8_t j = 0; j < ALERT_TYPE_SIZE; j++) {
+            chprintf(chp, "%s%s", html_e_th_th, alertType[j].name);
+          }
+          chprintf(chp, "%s\r\n", html_e_th_e_tr);
+          // Form
+          chprintf(chp, "%s%s%s", html_form_1, webMenuLink[htmlPage], html_form_2);
+          // Information table
+          for (uint8_t i = 0; i < ALERT_SIZE; i++) {
+            chprintf(chp, "%s%u.%s", html_tr_td, i + 1, html_e_td_td);
+            decodeLog((char*)alertDef[i], logText);
+            chprintf(chp, "%s%s", logText, html_e_td_td);
+            for (uint8_t j = 0; j < ALERT_TYPE_SIZE; j++) {
+              temp[0] = '0' + j;
+              temp[1] = 'A' + i;
+              printOnOffButton(chp, temp, (conf.alert[j] >> i) & 0b1, false);
+              if (j < (ALERT_TYPE_SIZE - 1)) chprintf(chp, "%s", html_e_td_td);
+            }
+            chprintf(chp, "%s", html_e_td_e_tr);
+          }
+          chprintf(chp, "%s", html_e_table);
+          // Buttons
+          chprintf(chp, "%s%s%s", html_Apply, html_Save, html_e_form);
+          break;
+        case 5:
+          chprintf(chp, "%s#", html_tr_th);
+          chprintf(chp, "%s%s", html_e_th_th, text_Date);
+          chprintf(chp, "%s%s", html_e_th_th, text_Entry);
+          chprintf(chp, "%s%s%s\r\n", html_e_th_th, text_Alert, html_e_th_e_tr);
+
+          // Information table
+          spiAcquireBus(&SPID1);              // Acquire ownership of the bus.
+          for (uint8_t i = 0; i < LOGGER_OUTPUT_LEN; i++) {
+            logAddress = webLog + (i * FRAM_MSG_SIZE);
+            chprintf(chp, "%s%u.%s", html_tr_td, (logAddress / FRAM_MSG_SIZE) + 1 , html_e_td_td);
+
+            txBuffer[0] = CMD_25AA_READ;
+            txBuffer[1] = (logAddress >> 8) & 0xFF;
+            txBuffer[2] = logAddress & 0xFF;
+
+            spiSelect(&SPID1);                  // Slave Select assertion.
+            spiSend(&SPID1, 3, txBuffer);       // Send read command
+            spiReceive(&SPID1, FRAM_MSG_SIZE, rxBuffer);
+            spiUnselect(&SPID1);                // Slave Select de-assertion.
+
+            memcpy(&timeConv.ch[0], &rxBuffer[0], sizeof(timeConv.ch)); // Prepare timestamp
+            decodeLog(&rxBuffer[4], logText);
+
+            printFrmTimestamp(chp, &timeConv.val);
+            chprintf(chp, "%s%s.", html_e_td_td, logText);
+            chprintf(chp, "%s", html_e_td_td);
+            for (uint8_t j = 0; j < ALERT_TYPE_SIZE; j++) {
+              if (((uint8_t)rxBuffer[FRAM_MSG_SIZE-1] >> j) & 0b1 == 1) chprintf(chp, "%s ", alertType[j].name);
+            }
+            chprintf(chp, "%s", html_e_td_e_tr);
+          }
+          spiReleaseBus(&SPID1);              // Ownership release.
+
+          chprintf(chp, "%s", html_e_table);
+          // Form
+          chprintf(chp, "%s%s%s", html_form_1, webMenuLink[htmlPage], html_form_2);
+          // Buttons
+          chprintf(chp, "%s%s%s", html_FR, html_Now, html_FF, html_e_form);
           break;
         default:
           break;
@@ -622,7 +692,6 @@ err_t httpd_post_receive_data(void *connection, struct pbuf *p) {
 
   strncat(postData, (const char *)p->payload, sizeof(postData)-strlen(postData)-1); // Maximum size of postData and null
   chprintf((BaseSequentialStream*)&SD3, "POST: %s\r\n", p->payload);
-  chprintf((BaseSequentialStream*)&SD3, "postData: %s\r\n", postData);
 
   return ERR_OK;
 }
@@ -633,7 +702,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
 
   uint8_t number;
   int8_t resp;
-  char name[2];
+  char name[3];
   uint8_t message[REGISTRATION_SIZE];
   char value[EMAIL_LENGTH + 1];
   bool repeat;
@@ -804,6 +873,38 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
               break;
               case 'e': // save
                 writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+              break;
+            }
+          } while (repeat);
+          break;
+        case 4:
+          do{
+            repeat = readPostParam(name, sizeof(name), value, sizeof(value));
+            chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
+            switch(name[0]){
+              case '0' ... ('0' + ALERT_TYPE_SIZE): // Handle all radio buttons in groups 0 .. #, A .. #
+                if (value[0] == '0') conf.alert[name[0]-48] &= ~(1 << (name[1]-65));
+                else conf.alert[name[0]-48] |= (1 << (name[1]-65));
+              break;
+              case 'e': // save
+                writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+              break;
+            }
+          } while (repeat);
+          break;
+        case 5:
+          do{
+            repeat = readPostParam(name, sizeof(name), value, sizeof(value));
+            chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
+            switch(name[0]){
+              case 'N': // Now
+                webLog = FRAMWritePos - (LOGGER_OUTPUT_LEN * FRAM_MSG_SIZE);
+              break;
+              case 'R': // Reverse
+                webLog -= LOGGER_OUTPUT_LEN * FRAM_MSG_SIZE;
+              break;
+              case 'F': // Forward
+                webLog += LOGGER_OUTPUT_LEN * FRAM_MSG_SIZE;
               break;
             }
           } while (repeat);

@@ -203,9 +203,16 @@ typedef struct {
 // Logger events
 #define LOGGER_FIFO_SIZE 20
 typedef struct {
-  time_t   timestamp;
-  char     text[LOGGER_MSG_LENGTH];
+  time_t timestamp;
+  char   text[LOGGER_MSG_LENGTH];
 } logger_t;
+
+// Alert events
+#define ALERT_FIFO_SIZE 5
+typedef struct {
+  char    text[LOGGER_MSG_LENGTH];
+  uint8_t flag;
+} alert_t;
 
 
 // Registration events
@@ -232,6 +239,25 @@ typedef struct {
   float   value;    // = 0.0;
 } sensor_t;
 
+// Alerts
+// Logger keeps info about this as flag, so max value is sizeof(uint8_t)
+#define ALERT_TYPE_SIZE 3
+typedef struct {
+  char    name[6];
+  uint8_t number;
+} alertType_t;
+const alertType_t alertType[ALERT_TYPE_SIZE] = {
+  { "SMS", 0 },
+  { "Email", 1 },
+  { "Page", 2 }
+};
+#define ALERT_SIZE sizeof(alertDef)/sizeof(alertDef[0])
+//#define ALERT_SIZE 2 // List of alerts max is sizeof(uint32_t)
+// Logger message text to match alert
+const char alertDef[][3] = {
+  "SS",
+  "SA"
+};
 
 /*
  * Mailboxes
@@ -247,6 +273,9 @@ static MAILBOX_DECL(registration_mb, registration_mb_buffer, REG_FIFO_SIZE);
 
 static msg_t        sensor_mb_buffer[SENSOR_FIFO_SIZE];
 static MAILBOX_DECL(sensor_mb, sensor_mb_buffer, SENSOR_FIFO_SIZE);
+
+static msg_t        alert_mb_buffer[ALERT_FIFO_SIZE];
+static MAILBOX_DECL(alert_mb, alert_mb_buffer, ALERT_FIFO_SIZE);
 /*
  * Pools
  */
@@ -262,6 +291,9 @@ static MEMORYPOOL_DECL(registration_pool, sizeof(registration_t), PORT_NATURAL_A
 static sensor_t       sensor_pool_queue[SENSOR_FIFO_SIZE];
 static MEMORYPOOL_DECL(sensor_pool, sizeof(sensor_t), PORT_NATURAL_ALIGN, NULL);
 
+static alert_t        alert_pool_queue[ALERT_FIFO_SIZE];
+static MEMORYPOOL_DECL(alert_pool, sizeof(alert_t), PORT_NATURAL_ALIGN, NULL);
+
 //static node_t          node_pool_queue[NODE_SIZE];
 //static MEMORYPOOL_DECL(node_pool, sizeof(node_t), PORT_NATURAL_ALIGN, NULL);
 
@@ -272,7 +304,7 @@ typedef struct {
   uint8_t  versionMinor;
 
   uint16_t logOffset;
-  uint8_t  alarmTime;
+  uint8_t  armDelay;
   char     dateTimeFormat[NAME_LENGTH];
 
   uint16_t zone[ALARM_ZONES];
@@ -292,7 +324,7 @@ typedef struct {
   //char     keyName[KEYS_SIZE][NAME_LENGTH];
   uint8_t  keyContact[KEYS_SIZE];
 
-
+  uint32_t alert[3];
 
   char     NTPAddress[32];
   uint8_t  time_std_week;   //First, Second, Third, Fourth, or Last week of the month
@@ -448,7 +480,7 @@ void setConfDefault(void){
   conf.versionMajor   = OHS_MAJOR;
   conf.versionMinor   = OHS_MINOR;
   conf.logOffset      = 0;
-  conf.alarmTime      = 20;
+  conf.armDelay       = 20;
   strcpy(conf.dateTimeFormat, "%T %a %F");
 
   for(uint8_t i = 0; i < ALARM_ZONES; i++) {
@@ -520,7 +552,7 @@ void setConfDefault(void){
     //strcpy(conf.contactEmail[i], NOT_SET);
   }
 
-  for(uint8_t i = 1; i < KEYS_SIZE; i++) {
+  for(uint8_t i = 0; i < KEYS_SIZE; i++) {
     // group 16 and disabled
     conf.keySetting[i] = 0b00011110;
     //strcpy(conf.keyName[i], NOT_SET);
@@ -537,6 +569,10 @@ void setConfDefault(void){
       conf.keyValue[0][5] = 0x00;
       conf.keyValue[0][6] = 0x00;
       conf.keyValue[0][7] = 0x3F;
+
+  for(uint8_t i = 0; i < ALERT_TYPE_SIZE; i++) {
+    conf.alert[i] = 0b11111111;
+  }
 
   strcpy(conf.NTPAddress, "time.google.com");
   conf.time_std_week = 0;     //First, Second, Third, Fourth, or Last week of the month

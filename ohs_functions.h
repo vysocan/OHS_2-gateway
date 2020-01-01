@@ -78,27 +78,54 @@ int8_t getNodeFreeIndex(void){
   return -1;
 }
 
+// Arm a group
+void armGroup(uint8_t groupNum, uint8_t master, uint8_t hop) {
+  uint8_t resp = 0;
+
+  // if group enabled arm group or log error to log.
+  if (GET_CONF_GROUP_ENABLED(groupNum)){
+    // Group not armed already
+    if (!GET_GROUP_ARMED(groupNum)){
+      SET_GROUP_ARMED(groupNum); // arm group
+      group[groupNum].armDelay = conf.armDelay; // set arm delay
+      //+++resp = sendCmdToGrp(groupNum, NODE_CMD_ARM); // send arming message to all nodes
+      //+++publishGroup(groupNum, 'P');
+    }
+  }
+  else { tmpLog[0] = 'G'; tmpLog[1] = 'F'; tmpLog[2] = groupNum;  pushToLog(tmpLog, 3); }
+  // If Arm another group is set and another group is not original(_master)
+  // and hop is lower then ALR_GROUPS
+  resp = GET_CONF_GROUP_ARM_CHAIN(groupNum); // Temp variable
+  if ((resp != groupNum) &&
+      (resp != master) &&
+      (master !=  255) &&
+      (hop <= ALARM_GROUPS)) {
+    hop++; // Increase hop; not working directly in armGroup()
+    armGroup(resp, master, hop);
+  }
+}
+
 // Check key value to saved keys
 void checkKey(uint8_t nodeIndex, uint8_t *key){
-  uint8_t _group;
+  uint8_t groupNum;
   // Check all keys
   for (uint8_t i=0; i < KEYS_SIZE; i++){
     chprintf(console, "Match :%d\r\n", i);
     //for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, key[ii]); } chprintf(console, "\r\n");
     //for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, conf.keyValue[i][ii]); } chprintf(console, "\r\n");
     if (memcmp(key, &conf.keyValue[i], KEY_LENGTH) == 0) { // key matched
-      _group = GET_NODE_GROUP(node[nodeIndex].setting);
-      chprintf(console, "Key matched, group: %d\r\n", _group);
+      groupNum = GET_NODE_GROUP(node[nodeIndex].setting);
+      chprintf(console, "Key matched, group: %d\r\n", groupNum);
       //  key enabled && (group = key_group || key = global)
       if (GET_CONF_KEY_ENABLED(conf.keySetting[i]) &&
-         (_group == GET_CONF_KEY_GROUP(conf.keySetting[i]) || GET_CONF_KEY_IS_GLOBAL(conf.keySetting[i]))) {
+         (groupNum == GET_CONF_KEY_GROUP(conf.keySetting[i]) || GET_CONF_KEY_IS_GLOBAL(conf.keySetting[i]))) {
         // We have alarm or group is armed
-        if  (GET_GROUP_ALARM(group[_group].setting) || GET_GROUP_ARMED(group[_group].setting)) {
+        if  (GET_GROUP_ALARM(group[groupNum].setting) || GET_GROUP_ARMED(group[groupNum].setting)) {
           tmpLog[0] = 'A'; tmpLog[1] = 'D'; tmpLog[2] = i; pushToLog(tmpLog, 3); // Key
-          //***disarmGroup(_group, _group); // Disarm group and all chained groups
+          //***disarmGroup(groupNum, groupNum, 0); // Disarm group and all chained groups
         } else { // Just do arm
           tmpLog[0] = 'A'; tmpLog[1] = 'A'; tmpLog[2] = i; pushToLog(tmpLog, 3);
-          //***armGroup(_group, _group); // Arm group and all chained groups
+          armGroup(groupNum, groupNum, 0); // Arm group and all chained groups
         }
         break; // no need to try other
       } else { // key is not enabled
@@ -112,7 +139,5 @@ void checkKey(uint8_t nodeIndex, uint8_t *key){
     }
   } // for
 }
-
-
 
 #endif /* OHS_FUNCTIONS_H_ */
