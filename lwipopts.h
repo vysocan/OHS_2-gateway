@@ -80,7 +80,7 @@
 #define SNTP_SERVER_DNS 1
 #define SNTP_SERVER_ADDRESS "195.113.144.201"
 //#define SNTP_SERVER_ADDRESS "10.10.10.254"
-#define SNTP_UPDATE_DELAY 90000 // SNTP update every 90 seconds
+#define SNTP_UPDATE_DELAY 900000 // SNTP update every 90 seconds
 
 #define MEMP_NUM_SYS_TIMEOUT 6
 #define MEMP_NUM_UDP_PCB 6

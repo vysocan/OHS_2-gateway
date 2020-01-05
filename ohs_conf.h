@@ -53,12 +53,12 @@
 #define NODE_CMD_PING         2
 #define NODE_CMD_PONG         3
 
-#define NODE_CMD_ARM          10
-#define NODE_CMD_AUTH_0       11
+#define NODE_CMD_ARMING       10
+#define NODE_CMD_ALARM        11
 #define NODE_CMD_AUTH_1       12
 #define NODE_CMD_AUTH_2       13
 #define NODE_CMD_AUTH_3       14
-#define NODE_CMD_AUTH_4       15
+#define NODE_CMD_ARMED        15
 #define NODE_CMD_DISARM       16
 
 
@@ -131,13 +131,13 @@
 
 
 #define GET_CONF_KEY_ENABLED(x)     ((x) & 0b1)
-#define GET_CONF_KEY_GROUP(x)       ((x >> 1U) & 0b1111)
-#define GET_CONF_KEY_IS_GLOBAL(x)   ((x >> 5U) & 0b1)
+//#define GET_CONF_KEY_GROUP(x)       ((x >> 1U) & 0b1111)
+//#define GET_CONF_KEY_IS_GLOBAL(x)   ((x >> 5U) & 0b1)
 #define SET_CONF_KEY_ENABLED(x)     x |= 1
-#define SET_CONF_KEY_GROUP(x,y)     x = (((x)&(0b11100001))|(((y & 0b1111) << 1U)&(0b00011110)))
-#define SET_CONF_KEY_IS_GLOBAL(x)   x |= (1 << 5U)
+//#define SET_CONF_KEY_GROUP(x,y)     x = (((x)&(0b11100001))|(((y & 0b1111) << 1U)&(0b00011110)))
+//#define SET_CONF_KEY_IS_GLOBAL(x)   x |= (1 << 5U)
 #define CLEAR_CONF_KEY_ENABLED(x)   x &= ~1
-#define CLEAR_CONF_KEY_IS_GLOBAL(x) x &= ~(1 << 5U)
+//#define CLEAR_CONF_KEY_IS_GLOBAL(x) x &= ~(1 << 5U)
 
 #define GET_ZONE_ALARM(x)     ((x >> 1U) & 0b1)
 #define GET_ZONE_ERROR(x)     ((x >> 5U) & 0b1)
@@ -154,17 +154,17 @@
 
 #define GET_GROUP_ARMED(x)         ((x) & 0b1)
 #define GET_GROUP_ALARM(x)         ((x >> 1U) & 0b1)
-#define GET_GROUP_WAIT_ATUH(x)     ((x >> 2U) & 0b1)
+#define GET_GROUP_WAIT_AUTH(x)     ((x >> 2U) & 0b1)
 #define GET_GROUP_ARMED_HOME(x)    ((x >> 3U) & 0b1)
 #define GET_GROUP_DISABLED_FLAG(x) ((x >> 7U) & 0b1)
 #define SET_GROUP_ARMED(x)         x |= 1
 #define SET_GROUP_ALARM(x)         x |= (1 << 1U)
-#define SET_GROUP_WAIT_ATUH(x)     x |= (1 << 2U)
+#define SET_GROUP_WAIT_AUTH(x)     x |= (1 << 2U)
 #define SET_GROUP_ARMED_HOME(x)    x |= (1 << 3U)
 #define SET_GROUP_DISABLED_FLAG(x) x |= (1 << 7U)
 #define CLEAR_GROUP_ARMED(x)         x &= ~1
 #define CLEAR_GROUP_ALARM(x)         x &= ~(1 << 1U)
-#define CLEAR_GROUP_WAIT_ATUH(x)     x &= ~(1 << 2U)
+#define CLEAR_GROUP_WAIT_AUTH(x)     x &= ~(1 << 2U)
 #define CLEAR_GROUP_ARMED_HOME(x)    x &= ~(1 << 3U)
 #define CLEAR_GROUP_DISABLED_FLAG(x) x &= ~(1 << 7U)
 
@@ -179,6 +179,8 @@
 #define CLEAR_NODE_ENABLED(x)  x &= ~1
 #define CLEAR_NODE_BATT_LOW(x) x &= ~(1 << 5U)
 #define CLEAR_NODE_MQTT_PUB(x) x &= ~(1 << 7U)
+
+#define ARRAY_SIZE(x) sizeof(x)/sizeof(x[0])
 
 // Global vars
 char lastKey[KEY_LENGTH];
@@ -240,7 +242,7 @@ typedef struct {
 } sensor_t;
 
 // Alerts
-// Logger keeps info about this as flag, so max value is sizeof(uint8_t)
+// Logger keeps info about this as bit flags, so max value is sizeof(uint8_t)
 #define ALERT_TYPE_SIZE 3
 typedef struct {
   char    name[6];
@@ -251,12 +253,12 @@ const alertType_t alertType[ALERT_TYPE_SIZE] = {
   { "Email", 1 },
   { "Page", 2 }
 };
-#define ALERT_SIZE sizeof(alertDef)/sizeof(alertDef[0])
 //#define ALERT_SIZE 2 // List of alerts max is sizeof(uint32_t)
 // Logger message text to match alert
 const char alertDef[][3] = {
   "SS",
-  "SA"
+  "SA",
+  "SX"
 };
 
 /*
@@ -384,7 +386,7 @@ typedef struct {
   uint8_t  queue;  //   = 255; // No queue
   char name[NAME_LENGTH]; // = "";
 } node_t;
-node_t node[NODE_SIZE] = {{0}};
+node_t node[NODE_SIZE] = {{ ' ', 0, ' ', 0, 0b00011110, 0, 0, 255, ""}};
 
 // Set default to runtime structs
 void initRuntimeGroups(void){
@@ -536,7 +538,7 @@ void setConfDefault(void){
     //                  ||||||||         |||||||-  Tamper signal output 2
     //                  ||||||||         ||||||||-  Enabled
     //                  54321098         76543210
-    conf.group[i] = i << 12 | i << 8 | 0b00000000;
+    conf.group[i] = 0b11111111 << 8 | 0b00000000;
     //strcpy(conf.groupName[i], NOT_SET);
     memset(&conf.groupName[i][0], 0x00, NAME_LENGTH);
   }
@@ -553,25 +555,15 @@ void setConfDefault(void){
   }
 
   for(uint8_t i = 0; i < KEYS_SIZE; i++) {
-    // group 16 and disabled
-    conf.keySetting[i] = 0b00011110;
+    // disabled
+    conf.keySetting[i] = 0b00000000;
     //strcpy(conf.keyName[i], NOT_SET);
     memset(&conf.keyValue[i][0], 0xFF, KEY_LENGTH);  // Set key value to FF
     conf.keyContact[i] = 255;
   }
 
-      conf.keySetting[0] = 0b00100001;
-      conf.keyValue[0][0] = 0x01;
-      conf.keyValue[0][1] = 0x77;
-      conf.keyValue[0][2] = 0x39;
-      conf.keyValue[0][3] = 0x5A;
-      conf.keyValue[0][4] = 0x01;
-      conf.keyValue[0][5] = 0x00;
-      conf.keyValue[0][6] = 0x00;
-      conf.keyValue[0][7] = 0x3F;
-
   for(uint8_t i = 0; i < ALERT_TYPE_SIZE; i++) {
-    conf.alert[i] = 0b11111111;
+    conf.alert[i] = 0;
   }
 
   strcpy(conf.NTPAddress, "time.google.com");

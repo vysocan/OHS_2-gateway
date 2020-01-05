@@ -86,7 +86,8 @@ static THD_FUNCTION(ZoneThread, arg) {
       if (group[i].armDelay > 0) {
         group[i].armDelay--;
         if (group[i].armDelay == 0) {
-          //++ _resp = sendCmdToGrp(i, 15);  // send arm message to all nodes
+          SET_GROUP_ARMED(group[i].setting); // Arm group
+          sendCmdToGrp(i, NODE_CMD_ARMED, 'K');  // Send arm message to all nodes
           //++ publishGroup(i, 'A');
           tmpLog[0] = 'G'; tmpLog[1] = 'S'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
         }
@@ -146,7 +147,7 @@ static THD_FUNCTION(ZoneThread, arg) {
             }
             break;
           case ALARM_PIR_LOW ... ALARM_PIR_HI:
-            //     zone not have alarm              group delay is 0
+            //     zone not have alarm                 group delay is 0
             if (!(GET_ZONE_ALARM(zone[i].setting)) && (group[groupNum].armDelay == 0)){
               // if group not enabled log error to log.
               if (!(GET_CONF_GROUP_ENABLED(conf.group[groupNum]))) {
@@ -157,21 +158,26 @@ static THD_FUNCTION(ZoneThread, arg) {
               } else {
                 // group armed
                 if (GET_GROUP_ARMED(group[groupNum].setting) && (zone[i].lastEvent == 'P')) {
-                  alarmEvent_t *outMsg = chPoolAlloc(&alarmEvent_pool);
-                  if (outMsg != MSG_OK) {
-                    if (!(GET_ZONE_FULL_FIFO(zone[i].setting))) {
-                      tmpLog[0] = 'Z'; tmpLog[1] = 'P'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
-                      pushToLogText("FA"); // Alarm queue is full
+                  // Group is not armed home or is armed gome and also is flaged as home zone
+                  if ((!GET_GROUP_ARMED_HOME(group[groupNum].setting)) ||
+                      ((GET_GROUP_ARMED_HOME(group[groupNum].setting)) &&
+                       (GET_CONF_ZONE_ARM_HOME(conf.zone[i])))) {
+                    alarmEvent_t *outMsg = chPoolAlloc(&alarmEvent_pool);
+                    if (outMsg == NULL) {
+                      if (!(GET_ZONE_FULL_FIFO(zone[i].setting))) {
+                        tmpLog[0] = 'Z'; tmpLog[1] = 'P'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
+                        pushToLogText("FA"); // Alarm queue is full
+                      }
+                      SET_ZONE_FULL_FIFO(zone[i].setting); // Set On Alarm queue is full
+                      continue; // Continue if no free space.
                     }
-                    SET_ZONE_FULL_FIFO(zone[i].setting); // Set On Alarm queue is full
-                    continue; // Continue if no free space.
+                    tmpLog[0] = 'Z'; tmpLog[1] = 'P'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
+                    SET_ZONE_ALARM(zone[i].setting); // Set alarm bit On
+                    CLEAR_ZONE_FULL_FIFO(zone[i].setting); // Set Off Alarm queue is full
+                    outMsg->zone = i; outMsg->type = zone[i].lastEvent;
+                    msg = chMBPostTimeout(&alarmEvent_mb, (msg_t)outMsg, TIME_IMMEDIATE);
+                    if (msg != MSG_OK) pushToLogText("FA"); // Alarm queue is full
                   }
-                  tmpLog[0] = 'Z'; tmpLog[1] = 'P'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
-                  SET_ZONE_ALARM(zone[i].setting); // Set alarm bit On
-                  CLEAR_ZONE_FULL_FIFO(zone[i].setting); // Set Off Alarm queue is full
-                  outMsg->zone = i; outMsg->type = zone[i].lastEvent;
-                  msg = chMBPostTimeout(&alarmEvent_mb, (msg_t)outMsg, TIME_IMMEDIATE);
-                  if (msg != MSG_OK) pushToLogText("FA"); // Alarm queue is full
                 }
               }
             }
@@ -193,7 +199,7 @@ static THD_FUNCTION(ZoneThread, arg) {
               } else {
                 if (zone[i].lastEvent == 'T') {
                   alarmEvent_t *outMsg = chPoolAlloc(&alarmEvent_pool);
-                  if (outMsg != MSG_OK) {
+                  if (outMsg == NULL) {
                     if (!(GET_ZONE_FULL_FIFO(zone[i].setting))) {
                       tmpLog[0] = 'Z'; tmpLog[1] = 'T'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
                       pushToLogText("FA"); // Alarm queue is full
@@ -249,7 +255,7 @@ static THD_FUNCTION(AEThread, arg) {
   chRegSetThreadName(arg);
   msg_t msg;
   alarmEvent_t *inMsg;
-  uint8_t groupNum, _wait, _resp, _cnt;
+  uint8_t groupNum, wait, count;
 
   while (true) {
     msg = chMBFetchTimeout(&alarmEvent_mb, (msg_t*)&inMsg, TIME_INFINITE);
@@ -263,26 +269,26 @@ static THD_FUNCTION(AEThread, arg) {
         continue;
       }
       // Set authentication On
-      SET_GROUP_WAIT_ATUH(group[groupNum].setting);
+      SET_GROUP_WAIT_AUTH(group[groupNum].setting);
       // Set wait time
-      if (inMsg->type == 'P') _wait = GET_CONF_ZONE_AUTH_TIME(conf.zone[inMsg->zone]);
-      else                    _wait = 0; // Tamper has no wait time
-      //       wait > 0    NOT group has alarm already                authentication On
-      while ((_wait > 0) && !(GET_GROUP_ALARM(group[groupNum].setting)) && (GET_GROUP_WAIT_ATUH(group[groupNum].setting))) {
-        //++_resp = sendCmdToGrp(groupNum, 11 + _wait);
-        _cnt = 0;
+      if (inMsg->type == 'P') wait = GET_CONF_ZONE_AUTH_TIME(conf.zone[inMsg->zone]);
+      else                    wait = 0; // Tamper has no wait time
+      //      wait > 0    NOT group has alarm already                authentication On
+      while ((wait > 0) && !(GET_GROUP_ALARM(group[groupNum].setting)) && (GET_GROUP_WAIT_AUTH(group[groupNum].setting))) {
+        sendCmdToGrp(groupNum, NODE_CMD_ALARM + wait, 'K');
+        count = 0;
         //       Authentication On                    time of one alarm period      NOT group has alarm already
-        while (GET_GROUP_WAIT_ATUH(group[groupNum].setting) && (_cnt < (10*conf.armDelay)) && !(GET_GROUP_ALARM(group[groupNum].setting))) {
-          chThdSleepMilliseconds(100);;
-          _cnt++;
+        while (GET_GROUP_WAIT_AUTH(group[groupNum].setting) && (count < (10*conf.armDelay)) && !(GET_GROUP_ALARM(group[groupNum].setting))) {
+          chThdSleepMilliseconds(100);
+          count++;
         }
         //  Authentication On
-        if (GET_GROUP_WAIT_ATUH(group[groupNum].setting)) _wait--;
+        if (GET_GROUP_WAIT_AUTH(group[groupNum].setting)) wait--;
       }
       //   wait = 0   NOT group has alarm already
-      if ((!_wait) && !(GET_GROUP_ALARM(group[groupNum].setting))) {
+      if ((!wait) && !(GET_GROUP_ALARM(group[groupNum].setting))) {
         SET_GROUP_ALARM(group[groupNum].setting); // Set alarm bit On
-        //++_resp = sendCmdToGrp(groupNum, 11);  // ALARM COMMAND
+        sendCmdToGrp(groupNum, NODE_CMD_ALARM, 'K');
         // Combine alarms, so that next alarm will not disable ongoing one
         if (inMsg->type == 'P') {
           //++OUTs = ((((conf.group[groupNum] >> 4) & B1) | (OUTs >> 0) & B1) | (((conf.group[groupNum] >> 3) & B1) | (OUTs >> 1) & B1) << 1);
@@ -292,8 +298,8 @@ static THD_FUNCTION(AEThread, arg) {
         // Trigger OUT 1 & 2
         //++pinOUT1.write(((OUTs >> 0) & B1));
         //++pinOUT2.write(((OUTs >> 1) & B1));
-        //++publishGroup(groupNum, 'T');
         tmpLog[0] = 'S'; tmpLog[1] = 'X';  tmpLog[2] = groupNum;  pushToLog(tmpLog, 3); // ALARM no auth.
+        //++publishGroup(groupNum, 'T');
       }
     } else {
       chprintf(console, "%s -> ERROR\r\n", arg);
@@ -318,7 +324,7 @@ static THD_FUNCTION(LoggerThread, arg) {
     if (msg == MSG_OK) {
       // Check for alerts and set flag
       flag = 0;
-      for (uint8_t i = 0; i < ALERT_SIZE; i++) {
+      for (uint8_t i = 0; i < ARRAY_SIZE(alertDef); i++) {
         if (memcmp(&inMsg->text[0], alertDef[i], strlen(alertDef[i])) == 0) {
           for(uint8_t j = 0; j < ALERT_TYPE_SIZE; j++) {
             // Combine all alerts flags into flag(uint8_t) as bits
@@ -460,14 +466,16 @@ static THD_FUNCTION(RS485Thread, arg) {
               } while (_pos < rs485Msg.length);
               break;
             case 'K': // iButtons keys
-              nodeIndex = getNodeIndex(rs485Msg.address, rs485Msg.data[0], rs485Msg.data[1], rs485Msg.data[2]);
+              nodeIndex = getNodeIndex(rs485Msg.address, rs485Msg.data[0],
+                                       rs485Msg.data[1], rs485Msg.data[2] - (rs485Msg.data[2] % 2));
               chprintf(console, "Received Key, node index: %d\r\n", nodeIndex);
               // Node index found
               if (nodeIndex != -1) {
                 node[nodeIndex].last_OK = GetTimeUnixSec(); // Update timestamp
                 //  Node is enabled
                 if (GET_NODE_ENABLED(node[nodeIndex].setting)) {
-                  checkKey(nodeIndex, &rs485Msg.data[3]);
+                  checkKey(GET_NODE_GROUP(node[nodeIndex].setting), (rs485Msg.data[2] % 2),
+                           &rs485Msg.data[3]);
                 } else {
                   // log disabled remote nodes
                   tmpLog[0] = 'N'; tmpLog[1] = 'F'; tmpLog[2] = rs485Msg.address; tmpLog[3] = rs485Msg.data[2]; tmpLog[4] = rs485Msg.data[0]; tmpLog[5] = rs485Msg.data[1];  pushToLog(tmpLog, 6);
@@ -696,21 +704,35 @@ static THD_FUNCTION(ModemThread, arg) {
 static THD_WORKING_AREA(waAlertThread, 256);
 static THD_FUNCTION(AlertThread, arg) {
   chRegSetThreadName(arg);
-    msg_t msg;
-    alert_t *inMsg;
-    char tmpLogText[LOG_TEXT_LENGTH]; // To decode log text
+  msg_t msg;
+  alert_t *inMsg;
+  char tmpLogText[LOG_TEXT_LENGTH]; // To decode log text
 
-    while (true) {
-      msg = chMBFetchTimeout(&alert_mb, (msg_t*)&inMsg, TIME_INFINITE);
-      if (msg == MSG_OK) {
-        chprintf(console, "Alert: %s-%u-", inMsg->text, inMsg->flag);
-        decodeLog(inMsg->text, tmpLogText);
-        chprintf(console, "%s\r\n", tmpLogText);
-      }else {
-        chprintf(console, "Alert ERROR\r\n");
-      }
-      chPoolFree(&alert_pool, inMsg);
+  while (true) {
+    msg = chMBFetchTimeout(&alert_mb, (msg_t*)&inMsg, TIME_INFINITE);
+    if (msg == MSG_OK) {
+      chprintf(console, "Alert: %s-%u-", inMsg->text, inMsg->flag);
+      decodeLog(inMsg->text, tmpLogText, false);
+      chprintf(console, "%s\r\n", tmpLogText);
+    }else {
+      chprintf(console, "Alert ERROR\r\n");
     }
+    chPoolFree(&alert_pool, inMsg);
+  }
+}
+
+/*
+ * Service thread
+ */
+static THD_WORKING_AREA(waServiceThread, 256);
+static THD_FUNCTION(ServiceThread, arg) {
+  chRegSetThreadName(arg);
+
+  while (true) {
+    chThdSleepMilliseconds(1000);
+
+
+  }
 }
 
 
@@ -844,18 +866,24 @@ int main(void) {
   adcStart(&ADCD1, NULL);      // Activates the ADC1 driver
 
   // Create thread(s).
-  chThdCreateStatic(waZoneThread, sizeof(waZoneThread), NORMALPRIO, ZoneThread, (void*)"Zone");
-  chThdCreateStatic(waAEThread1, sizeof(waAEThread1), NORMALPRIO, AEThread, (void*)"AET 1");
-  chThdCreateStatic(waAEThread2, sizeof(waAEThread2), NORMALPRIO, AEThread, (void*)"AET 2");
-  chThdCreateStatic(waAEThread3, sizeof(waAEThread3), NORMALPRIO, AEThread, (void*)"AET 3");
-  chThdCreateStatic(waLoggerThread, sizeof(waLoggerThread), NORMALPRIO, LoggerThread, (void*)"Logger");
+  chThdCreateStatic(waZoneThread, sizeof(waZoneThread), NORMALPRIO, ZoneThread, (void*)"zone");
+  chThdCreateStatic(waAEThread1, sizeof(waAEThread1), NORMALPRIO, AEThread, (void*)"alarm 1");
+  chThdCreateStatic(waAEThread2, sizeof(waAEThread2), NORMALPRIO, AEThread, (void*)"alarm 2");
+  chThdCreateStatic(waAEThread3, sizeof(waAEThread3), NORMALPRIO, AEThread, (void*)"alarm 3");
+  chThdCreateStatic(waLoggerThread, sizeof(waLoggerThread), NORMALPRIO, LoggerThread, (void*)"logger");
   chThdCreateStatic(waRS485Thread, sizeof(waRS485Thread), NORMALPRIO, RS485Thread, (void*)"RS485");
-  chThdCreateStatic(waRegistrationThread, sizeof(waRegistrationThread), NORMALPRIO, RegistrationThread, (void*)"Registration");
-  chThdCreateStatic(waSensorThread, sizeof(waSensorThread), NORMALPRIO, SensorThread, (void*)"Sensor");
-  chThdCreateStatic(waModemThread, sizeof(waModemThread), NORMALPRIO, ModemThread, (void*)"Modem");
-  chThdCreateStatic(waAlertThread, sizeof(waAlertThread), NORMALPRIO, AlertThread, (void*)"Alert");
-  chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, (void*)"LED");
-//  shellInit();
+  chThdCreateStatic(waRegistrationThread, sizeof(waRegistrationThread), NORMALPRIO, RegistrationThread, (void*)"registration");
+  chThdCreateStatic(waSensorThread, sizeof(waSensorThread), NORMALPRIO, SensorThread, (void*)"sensor");
+  chThdCreateStatic(waModemThread, sizeof(waModemThread), NORMALPRIO, ModemThread, (void*)"modem");
+  chThdCreateStatic(waAlertThread, sizeof(waAlertThread), NORMALPRIO, AlertThread, (void*)"alert");
+  chThdCreateStatic(waServiceThread, sizeof(waServiceThread), NORMALPRIO, ServiceThread, (void*)"service");
+  chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, (void*)"heartbeat");
+  /*
+  static THD_WORKING_AREA(waShell, 2048);
+  chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO + 1, shellThread, (void *)&shell_cfg1);
+  */
+
+  //  shellInit();
   //chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg1);
 
   // Ethernet

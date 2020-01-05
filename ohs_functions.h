@@ -57,6 +57,20 @@ int8_t sendCmd(uint8_t address, uint8_t command) {
   return rs485SendCmdWithACK(&RS485D2, &rs485Cmd, 3);
 }
 
+// Send a command to all members of a group
+void sendCmdToGrp(uint8_t groupNum, uint8_t command, char type) {
+
+  // Go through all nodes
+  for (int8_t i=0; i < NODE_SIZE; i++){
+    if (GET_NODE_ENABLED(node[i].setting)) {
+      // Auth. node belong to group           type of node = 'Key'
+      if ((GET_NODE_GROUP(node[i].setting) == groupNum) && (type == node[i].type)) {
+        sendCmd(node[i].address, command);
+      }
+    }
+  }
+}
+
 // Find existing node index
 int8_t getNodeIndex(uint8_t address, char type, char function, uint8_t number){
   for (uint8_t i=0; i < NODE_SIZE; i++) {
@@ -79,53 +93,96 @@ int8_t getNodeFreeIndex(void){
 }
 
 // Arm a group
-void armGroup(uint8_t groupNum, uint8_t master, uint8_t hop) {
+void armGroup(uint8_t groupNum, uint8_t master, uint8_t armType, uint8_t hop) {
   uint8_t resp = 0;
 
   // if group enabled arm group or log error to log.
-  if (GET_CONF_GROUP_ENABLED(groupNum)){
+  if (GET_CONF_GROUP_ENABLED(conf.group[groupNum])){
     // Group not armed already
-    if (!GET_GROUP_ARMED(groupNum)){
-      SET_GROUP_ARMED(groupNum); // arm group
-      group[groupNum].armDelay = conf.armDelay; // set arm delay
-      //+++resp = sendCmdToGrp(groupNum, NODE_CMD_ARM); // send arming message to all nodes
+    if (!GET_GROUP_ARMED(group[groupNum].setting)){
+      if (armType == 0) {
+        group[groupNum].armDelay = conf.armDelay * 4; // set arm delay * 0.250 seconds
+      } else {
+        SET_GROUP_ARMED_HOME(group[groupNum].setting);
+        group[groupNum].armDelay = 8; // just 1 second to indicate arm home
+      }
+      sendCmdToGrp(groupNum, NODE_CMD_ARMING, 'K'); // Send arm cmd to all Key nodes
       //+++publishGroup(groupNum, 'P');
     }
   }
   else { tmpLog[0] = 'G'; tmpLog[1] = 'F'; tmpLog[2] = groupNum;  pushToLog(tmpLog, 3); }
-  // If Arm another group is set and another group is not original(_master)
+  // If Arm another group is set and another group is not original(master)
   // and hop is lower then ALR_GROUPS
-  resp = GET_CONF_GROUP_ARM_CHAIN(groupNum); // Temp variable
-  if ((resp != groupNum) &&
+  resp = GET_CONF_GROUP_ARM_CHAIN(conf.group[groupNum]); // Temp variable
+  if ((resp != 15) &&
       (resp != master) &&
-      (master !=  255) &&
+      (master != 255) &&
       (hop <= ALARM_GROUPS)) {
-    hop++; // Increase hop; not working directly in armGroup()
-    armGroup(resp, master, hop);
+    hop++; // Increase hop
+    armGroup(resp, master, armType, hop);
+  }
+}
+
+void disarmGroup(uint8_t groupNum, uint8_t master, uint8_t hop) {
+  uint8_t resp = 0;
+
+  // we have alarm
+  if (GET_GROUP_ALARM(group[groupNum].setting)) {
+    CLEAR_GROUP_ALARM(group[groupNum].setting); // Set this group alarm off
+    /* *** ToDo: add bitwise reset of OUTs instead of full reset ? */
+    //+++OUTs = 0; // Reset outs
+    //+++pinOUT1.write(LOW); pinOUT2.write(LOW); // Turn off OUT 1 & 2
+  }
+  // Set each member zone of this group
+  for (uint8_t j=0; j < ALARM_ZONES; j++){
+    if (GET_CONF_ZONE_GROUP(conf.zone[j]) == groupNum) {
+      CLEAR_ZONE_ALARM(zone[j].setting); // Zone alarm off
+    }
+  }
+  CLEAR_GROUP_ARMED(group[groupNum].setting);     // disarm group
+  CLEAR_GROUP_ARMED_HOME(group[groupNum].setting);// disarm group
+  CLEAR_GROUP_WAIT_AUTH(group[groupNum].setting); // Set auth bit off
+  group[groupNum].armDelay = 0;    // Reset arm delay
+  sendCmdToGrp(groupNum, NODE_CMD_DISARM, 'K'); // Send disarm cmd to all Key nodes
+  //+++if (publish == 1) publishGroup(_group, 'D');
+  tmpLog[0] = 'G'; tmpLog[1] = 'D'; tmpLog[2] = groupNum; pushToLog(tmpLog, 3); // Group disarmed
+  // If Disarm another group is set and another group is not original(master)
+  // and hop is lower then ALR_GROUPS
+  resp = GET_CONF_GROUP_DISARM_CHAIN(conf.group[groupNum]); // Temp variable
+  if ((resp != 15) &&
+      (resp != master) &&
+      (master != 255) &&
+      (hop <= ALARM_GROUPS)) {
+    hop++; // Increase hop
+    disarmGroup(resp, master, hop);
   }
 }
 
 // Check key value to saved keys
-void checkKey(uint8_t nodeIndex, uint8_t *key){
-  uint8_t groupNum;
+void checkKey(uint8_t groupNum, uint8_t armType, uint8_t *key){
   // Check all keys
   for (uint8_t i=0; i < KEYS_SIZE; i++){
-    chprintf(console, "Match :%d\r\n", i);
+    chprintf(console, "Key match: %d", i);
     //for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, key[ii]); } chprintf(console, "\r\n");
     //for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, conf.keyValue[i][ii]); } chprintf(console, "\r\n");
     if (memcmp(key, &conf.keyValue[i], KEY_LENGTH) == 0) { // key matched
-      groupNum = GET_NODE_GROUP(node[nodeIndex].setting);
-      chprintf(console, "Key matched, group: %d\r\n", groupNum);
-      //  key enabled && (group = key_group || key = global)
+      chprintf(console, ", group: %d\r\n", groupNum);
+      //  key enabled && (group = contact_group || contact_key = global)
       if (GET_CONF_KEY_ENABLED(conf.keySetting[i]) &&
-         (groupNum == GET_CONF_KEY_GROUP(conf.keySetting[i]) || GET_CONF_KEY_IS_GLOBAL(conf.keySetting[i]))) {
-        // We have alarm or group is armed
-        if  (GET_GROUP_ALARM(group[groupNum].setting) || GET_GROUP_ARMED(group[groupNum].setting)) {
+         (groupNum == GET_CONF_CONTACT_GROUP(conf.contact[conf.keyContact[i]]) ||
+          GET_CONF_CONTACT_IS_GLOBAL(conf.contact[conf.keyContact[i]]))) {
+        // We have alarm or group is armed or arming
+        if  (GET_GROUP_ALARM(group[groupNum].setting) ||
+             GET_GROUP_ARMED(group[groupNum].setting) ||
+             group[groupNum].armDelay > 0) {
           tmpLog[0] = 'A'; tmpLog[1] = 'D'; tmpLog[2] = i; pushToLog(tmpLog, 3); // Key
-          //***disarmGroup(groupNum, groupNum, 0); // Disarm group and all chained groups
+          disarmGroup(groupNum, groupNum, 0); // Disarm group and all chained groups
         } else { // Just do arm
-          tmpLog[0] = 'A'; tmpLog[1] = 'A'; tmpLog[2] = i; pushToLog(tmpLog, 3);
-          armGroup(groupNum, groupNum, 0); // Arm group and all chained groups
+          tmpLog[0] = 'A';
+          if (armType == 1) tmpLog[1] = 'H';
+          else tmpLog[1] = 'A';
+          tmpLog[2] = i; pushToLog(tmpLog, 3);
+          armGroup(groupNum, groupNum, armType, 0); // Arm group and all chained groups
         }
         break; // no need to try other
       } else { // key is not enabled

@@ -132,6 +132,7 @@ const char text_Number[]            = "Number";
 const char text_Email[]             = "Email";
 const char text_Global[]            = "Global";
 const char text_Contact[]           = "Contact";
+const char text_User[]              = "User";
 const char text_all[]               = "all";
 const char text_Key[]               = "Key";
 const char text_Open[]              = "Open";
@@ -164,6 +165,17 @@ const char text_Entry[]             = "Entry";
 const char text_Alert[]             = "Alert";
 const char text_key[]               = "key";
 const char text_value[]             = "value";
+const char text_Armed[]             = "Armed";
+const char text_Arm[]               = "Arm";
+const char text_arm[]               = "arm";
+const char text_Disarm[]            = "Disarm";
+const char text_chain[]             = "chain";
+const char text_trigger[]           = "trigger";
+const char text_Auto[]              = "Auto";
+const char text_Tamper[]            = "Tamper";
+const char text_relay[]             = "relay";
+const char text_home[]              = "home";
+
 
 void printNodeType(BaseSequentialStream *chp, const char type) {
   switch(type){
@@ -237,8 +249,9 @@ void printKey(BaseSequentialStream *chp, const char *value, const uint8_t size){
 
 /*
  * Decode log entries to string
+ * full: decode full string
  */
-static void decodeLog(char *in, char *out){
+static void decodeLog(char *in, char *out, bool full){
   memset(&out[0], 0x0, LOG_TEXT_LENGTH);
 
   MemoryStream ms;
@@ -256,6 +269,9 @@ static void decodeLog(char *in, char *out){
       switch(in[1]){
         case 's': chprintf(chp, "%s", text_started); break; // boot
         case 'S': chprintf(chp, "%s %s", text_monitoring, text_started); break; // Zone thread start
+        case 'X': chprintf(chp, "%s", text_alarm);
+          if (full) chprintf(chp, "! %s %u.%s", text_Group, (uint8_t)in[2], conf.groupName[(uint8_t)in[2]]);
+          break;
         default:  chprintf(chp, "%s", text_unknown); break; // unknown
       }
     break;
@@ -295,9 +311,9 @@ static void decodeLog(char *in, char *out){
       }
     break;
     case 'G': // Group related
-      chprintf(chp, "%s %u. %s ", text_Group, in[2], conf.groupName[(uint8_t)in[2]]);
+      chprintf(chp, "%s %u. %s ", text_Group, (uint8_t)in[2] + 1, conf.groupName[(uint8_t)in[2]]);
       switch(in[1]){
-        case 'F': chprintf(chp, "%s", text_disabled); break;
+        case 'F': chprintf(chp, "%s %s", text_is, text_disabled); break;
         case 'S': chprintf(chp, "%s", text_armed); break;
         case 'D': chprintf(chp, "%s", text_disarmed); break;
         case 'A': chprintf(chp, "%s %s", text_auto, text_armed); break;
@@ -305,7 +321,7 @@ static void decodeLog(char *in, char *out){
       }
     break;
     case 'Z': // Zone
-      chprintf(chp, "%s %u. %s ", text_Zone, in[2], conf.groupName[(uint8_t)in[2]]);
+      chprintf(chp, "%s %u. ", text_Zone, (uint8_t)in[2] + 1);
       if ((uint8_t)in[2] < ALARM_ZONES) {
         chprintf(chp, "%s ", conf.zoneName[(uint8_t)in[2]]);
       }
@@ -326,14 +342,16 @@ static void decodeLog(char *in, char *out){
       }
     break;
     case 'A': // Authentication
-      chprintf(chp, "%s %s ", text_Authentication, text_key);
+      chprintf(chp, "%s ", text_Key);
       if (in[1] != 'U') {
+        chprintf(chp, "#%u, ", (uint8_t)in[2] + 1);
         if (conf.keyContact[(uint8_t)in[2]] == 255) chprintf(chp, "%s ", NOT_SET);
-        else chprintf(chp, "%u. %s ", (uint8_t)(conf.keyContact[in[2]])+1, conf.contactName[(uint8_t)(conf.keyContact[in[2]])]);
+        else chprintf(chp, "%s ", conf.contactName[(conf.keyContact[(uint8_t)in[2]])]);
       }
       switch(in[1]){
         case 'D': chprintf(chp, "%s", text_disarmed); break;
         case 'A': chprintf(chp, "%s", text_armed); break;
+        case 'H': chprintf(chp, "%s %s", text_armed, text_home); break;
         case 'U': chprintf(chp, "%s: ", text_unknown);
           printKey(chp, &in[2], KEY_LENGTH);
           break;
@@ -375,7 +393,7 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
     spiUnselect(&SPID1);                // Slave Select de-assertion.
 
     memcpy(&timeConv.ch[0], &rxBuffer[0], sizeof(timeConv.ch)); // Prepare timestamp
-    decodeLog(&rxBuffer[4], logText);
+    decodeLog(&rxBuffer[4], logText, true);
 
     chprintf(chp, "#%d\t", (FRAMReadPos/FRAM_MSG_SIZE));
     printFrmTimestamp(chp, &timeConv.val);
@@ -461,9 +479,7 @@ static void cmd_debug(BaseSequentialStream *chp, int argc, char *argv[]) {
   }
 }
 
-/*
- *
- */
+// Commands
 static const ShellCommand commands[] = {
   {"date",  cmd_date},
   {"log",  cmd_log},
@@ -472,9 +488,7 @@ static const ShellCommand commands[] = {
   {NULL, NULL}
 };
 
-/*
- *
- */
+
 /*static const ShellConfig shell_cfg1 = {
   (BaseSequentialStream  *)&SD3,
   commands
@@ -484,12 +498,5 @@ static const ShellConfig shell_cfg1 = {
   (BaseSequentialStream *)&SDU1,
   commands
 };
-
-/*
- * working area for shell thread
- */
-#define SHELL_WA_SIZE   THD_WORKING_AREA_SIZE(2048)
-//static THD_WORKING_AREA(waShell, 2048);
-
 
 #endif /* OHS_SHELL_H_ */
