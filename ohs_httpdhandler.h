@@ -9,7 +9,6 @@
 #define OHS_HTTPDHANDLER_H_
 
 #include "lwip/opt.h"
-#include "genfiles_example.h"
 
 #include "lwip/apps/fs.h"
 #include "lwip/def.h"
@@ -93,38 +92,43 @@ const char html_cbPart5[]           = "</label></div>";
 const char html_cbJSen[]            = " onclick=\"en()\"";
 const char html_cbJSdis[]           = " onclick=\"dis()\"";
 // JavaScript related
-const char JSonLoad[]               = "<script onload=\"";
-const char JSonLoadEnd[]            = "\">(0);</script>";
 const char JSen[]                   = "en()";
 const char JSdis[]                  = "dis()";
-const char JScl[]                   = "cl()";
 const char JSContact[]              = "<script>"
                                       "var x=document.querySelectorAll(\"#g\");"
-                                      "var y=document.querySelectorAll(\"#XX\");";
+                                      "var y=document.querySelectorAll(\"#xx\");"
+                                      "</script>";
 const char JSTrigger[]              = "<script>"
                                       "var x=document.querySelectorAll(\"#XX\");"
-                                      "var y=document.querySelectorAll(\"#F0,#F1,#C0,#C1,#m0,#m1,#m2,#r,#l0,#l1,#l2,#l3,#t,#c,#f\");";
+                                      "var y=document.querySelectorAll(\"#F0,#F1,#C0,#C1,#m0,#m1,#m2,#r,#l0,#l1,#l2,#l3,#t,#c,#f\");"
+                                      "</script>";
 const char JSTimer[]                = "<script>"
                                       "var x=document.querySelectorAll(\"#p,#l0,#l1,#l2,#l3\");"
-                                      "var y=document.querySelectorAll(\"#D0,#D1,#E0,#E1,#F0,#F1,#G0,#G1,#H0,#H1,#I0,#I1,#J0,#J1\");";
-const char JSEnDis[]                = "function en(){"
-                                      "for(var i=0;i<x.length;i++){x[i].disabled=true;}"
-                                      "for(var i=0;i<y.length;i++){y[i].disabled=false;}"
-                                      "}function dis(){"
-                                      "for(var i=0;i<x.length;i++){x[i].disabled=false;}"
-                                      "for(var i=0;i<y.length;i++){y[i].disabled=true;}"
-                                      "}</script>";
+                                      "var y=document.querySelectorAll(\"#D0,#D1,#E0,#E1,#F0,#F1,#G0,#G1,#H0,#H1,#I0,#I1,#J0,#J1\");"
+                                      "</script>";
 
-#define HTML_SIZE  12000 // Change also in lwip opt.h MEM_SIZE
+#define HTML_PAGE_SIZE 12000 // Change also in lwip opt.h MEM_SIZE
+
+// Pages
+#define PAGE_NODE   0
+#define PAGE_USER   1
+#define PAGE_KEY    2
+#define PAGE_ZONE   3
+#define PAGE_ALERT  4
+#define PAGE_LOG    5
+#define PAGE_GROUP  6
+#define PAGE_HOME   7
+
 const char webMenuLink[][13]  = {
 // 12345678901234567890
-  "/index.html",
+  "/node.html",
   "/global.html",
   "/user.html",
   "/zone.html",
   "/alert.html",
   "/log.html",
-  "/group.html"
+  "/group.html",
+  "/index.html"
 };
 const char webMenuName[][8]  = {
 // 12345678901234567890
@@ -134,7 +138,8 @@ const char webMenuName[][8]  = {
   "Zones",
   "Alerts",
   "Log",
-  "Groups"
+  "Groups",
+  "System"
 };
 
 static char postData[128];
@@ -144,27 +149,26 @@ void printOkNok(BaseSequentialStream *chp, const uint8_t value) {
   value ? chprintf(chp, "%s", text_i_OK) : chprintf(chp, "%s", text_i_disabled);
 }
 
-void printRadioButton(BaseSequentialStream *chp, const char *name, const uint8_t val,
+void printRadioButton(BaseSequentialStream *chp, const char *name, const uint8_t value,
                  const char *label, bool selected, bool enableJS) {
   chprintf(chp, "%s%s%s", html_cbPart1a, name, html_cbPart1b);
-  chprintf(chp, "%s%u%s%u", name, val, html_cbPart2, val);
-  if (selected) chprintf(chp, "%s", html_cbChecked);
-  else          chprintf(chp, "%s", html_cbPart3);
+  chprintf(chp, "%s%u%s%u", name, value, html_cbPart2, value);
+  selected ? chprintf(chp, "%s", html_cbChecked) : chprintf(chp, "%s", html_cbPart3);
   if (enableJS) {
-    if (val) chprintf(chp, "%s", html_cbJSen);
-    else     chprintf(chp, "%s", html_cbJSdis);
+    value ? chprintf(chp, "%s", html_cbJSen) : chprintf(chp, "%s", html_cbJSdis);
   }
-  chprintf(chp, "%s%s%u", html_cbPart4a, name, val);
+  chprintf(chp, "%s%s%u", html_cbPart4a, name, value);
   chprintf(chp, "%s%s%s", html_cbPart4b, label, html_cbPart5);
 }
 
 #define GET_BUTTON_STATE(x,y) (x==y)
-void printFourButton(BaseSequentialStream *chp, const char *name, const uint8_t state, const bool enableJS) {
+void printFourButton(BaseSequentialStream *chp, const char *name, const uint8_t state, const bool enableJS,
+                     const char *text1, const char *text2, const char *text3, const char *text4) {
   chprintf(chp, "%s", html_radio_sl);
-  printRadioButton(chp, name, 0, text_1, GET_BUTTON_STATE(state, 0), enableJS);
-  printRadioButton(chp, name, 1, text_2, GET_BUTTON_STATE(state, 1), enableJS);
-  printRadioButton(chp, name, 2, text_3, GET_BUTTON_STATE(state, 2), enableJS);
-  printRadioButton(chp, name, 3, text_4, GET_BUTTON_STATE(state, 3), enableJS);
+  printRadioButton(chp, name, 0, text1, GET_BUTTON_STATE(state, 0), enableJS);
+  printRadioButton(chp, name, 1, text2, GET_BUTTON_STATE(state, 1), enableJS);
+  printRadioButton(chp, name, 2, text3, GET_BUTTON_STATE(state, 2), enableJS);
+  printRadioButton(chp, name, 3, text4, GET_BUTTON_STATE(state, 3), enableJS);
   chprintf(chp, "%s", html_div_e);
 }
 
@@ -173,12 +177,6 @@ void  printOnOffButton(BaseSequentialStream *chp, const char *name, const uint8_
   printRadioButton(chp, name, 1, text_On, state, enableJS);
   printRadioButton(chp, name, 0, text_Off, !state, enableJS);
   chprintf(chp, "%s", html_div_e);
-}
-
-void printGroup(BaseSequentialStream *chp, const uint8_t value) {
-  if (value < ALARM_GROUPS) {
-    chprintf(chp, "%u. %s", value + 1, conf.groupName[value]);
-  } else chprintf(chp, "%s", NOT_SET);
 }
 
 void selectGroup(BaseSequentialStream *chp, uint8_t selected, char name) {
@@ -233,18 +231,25 @@ int fs_open_custom(struct fs_file *file, const char *name){
     if (!strcmp(name, webMenuLink[htmlPage])) {
       /* initialize fs_file correctly */
       memset(file, 0, sizeof(struct fs_file));
-      file->pextension = mem_malloc(HTML_SIZE);
+      file->pextension = mem_malloc(HTML_PAGE_SIZE);
 
       MemoryStream ms;
       BaseSequentialStream *chp;
       // Memory stream object to be used as a string writer, reserving one byte for the final zero.
-      msObjectInit(&ms, (uint8_t *)file->pextension, HTML_SIZE-1, 0);
+      msObjectInit(&ms, (uint8_t *)file->pextension, HTML_PAGE_SIZE-1, 0);
       // Performing the print operation using the common code.
       chp = (BaseSequentialStream *)(void *)&ms;
 
       chprintf(chp, "<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>Open home security</title>\r\n");
-      chprintf(chp, "<link rel='stylesheet' href='/css/OHS.css'></head>\r\n");
-      chprintf(chp, "<body onload=\"\"><div class='wrp'><div class='sb'>\r\n");
+      chprintf(chp, "<link rel='stylesheet' href='/css/OHS.css'>\r\n");
+      chprintf(chp, "<script type='text/javascript' src='/js/EnDis.js'></script></head>\r\n<body onload=\"");
+      // JavaScript enable/disable on body load
+      switch (htmlPage) {
+        case PAGE_USER:
+          GET_CONF_CONTACT_IS_GLOBAL(conf.contact[webContact]) ? chprintf(chp, JSen) : chprintf(chp, JSdis);
+          break;
+      }
+      chprintf(chp, "\"><div class='wrp'><div class='sb'>\r\n");
       chprintf(chp, "<div class='tt'>OHS 2.0 - %u.%u</div>\r\n", OHS_MAJOR, OHS_MINOR);
       chprintf(chp, "<ul class='nav'>\r\n");
       for (uint8_t i = 0; i < ARRAY_SIZE(webMenuLink); ++i) {
@@ -255,7 +260,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
       chprintf(chp, "%s%s%s%s", html_form_1, webMenuLink[htmlPage], html_form_2, html_table);
       // Custom start
       switch (htmlPage) {
-        case 0:
+        case PAGE_NODE:
           chprintf(chp, "%s#", html_tr_th);
           chprintf(chp, "%s%s", html_e_th_th, text_Address);
           chprintf(chp, "%s%s", html_e_th_th, text_On);
@@ -321,7 +326,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           // Buttons
           chprintf(chp, "%s%s%s", html_Apply, html_Save, html_Reregister);
           break;
-        case 1:
+        case PAGE_USER:
           chprintf(chp, "%s#", html_tr_th);
           chprintf(chp, "%s%s", html_e_th_th, text_Name);
           chprintf(chp, "%s%s", html_e_th_th, text_On);
@@ -376,13 +381,13 @@ int fs_open_custom(struct fs_file *file, const char *name){
           selectGroup(chp, GET_CONF_CONTACT_GROUP(conf.contact[webContact]), 'g');
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           // JavaScript
-          chprintf(chp, "%s%s", JSContact, JSEnDis);
+          chprintf(chp, "%s", JSContact);
           // Buttons
           chprintf(chp, "%s%s", html_Apply, html_Save);
           break;
-        case 2:
+        case PAGE_KEY:
           chprintf(chp, "%s#", html_tr_th);
-          chprintf(chp, "%s%s", html_e_th_th, text_Name);
+          chprintf(chp, "%s%s", html_e_th_th, text_User);
           chprintf(chp, "%s%s", html_e_th_th, text_On);
           chprintf(chp, "%s%s%s\r\n", html_e_th_th, text_Value, html_e_th_e_tr);
           //chprintf(chp, "%s%s", html_e_th_th, text_Value);
@@ -415,7 +420,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
             chprintf(chp, "%u.%s", i + 1, html_e_option);
           }
           chprintf(chp, "%s%s", html_e_select, html_e_td_e_tr_tr_td);
-          chprintf(chp, "%s%s", text_Contact, html_e_td_td);
+          chprintf(chp, "%s%s", text_User, html_e_td_td);
           chprintf(chp, "%sc%s", html_select, html_e_tag);
           for (uint8_t i = 0; i < CONTACTS_SIZE; i++) {
             chprintf(chp, "%s%u", html_option, i);
@@ -438,7 +443,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           // Buttons
           chprintf(chp, "%s%s", html_Apply, html_Save);
           break;
-        case 3:
+        case PAGE_ZONE:
           chprintf(chp, "%s#", html_tr_th);
           chprintf(chp, "%s%s", html_e_th_th, text_Name);
           chprintf(chp, "%s%s", html_e_th_th, text_On);
@@ -510,14 +515,14 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s %s %s%s", html_e_td_e_tr_tr_td,  text_Alarm, text_as, text_tamper, html_e_td_td);
           printOnOffButton(chp, "9", GET_CONF_ZONE_PIR_AS_TMP(conf.zone[webZone]), false);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Authentication, text_delay, html_e_td_td);
-          printFourButton(chp, "d", GET_CONF_ZONE_AUTH_TIME(conf.zone[webZone]), false);
+          printFourButton(chp, "d", GET_CONF_ZONE_AUTH_TIME(conf.zone[webZone]), false, text_0x, text_1x, text_2x, text_3x);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Group, html_e_td_td);
           selectGroup(chp, GET_CONF_ZONE_GROUP(conf.zone[webZone]), 'g');
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           // Buttons
           chprintf(chp, "%s%s", html_Apply, html_Save);
           break;
-        case 4:
+        case PAGE_ALERT:
           chprintf(chp, "%s#", html_tr_th);
           chprintf(chp, "%s%s", html_e_th_th, text_Name);
           for (uint8_t j = 0; j < ALERT_TYPE_SIZE; j++) {
@@ -535,13 +540,12 @@ int fs_open_custom(struct fs_file *file, const char *name){
               printOnOffButton(chp, temp, (conf.alert[j] >> i) & 0b1, false);
               if (j < (ALERT_TYPE_SIZE - 1)) chprintf(chp, "%s", html_e_td_td);
             }
-            chprintf(chp, "%s", html_e_td_e_tr);
           }
-          chprintf(chp, "%s", html_e_table);
+          chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           // Buttons
           chprintf(chp, "%s%s", html_Apply, html_Save);
           break;
-        case 5:
+        case PAGE_LOG:
           chprintf(chp, "%s#", html_tr_th);
           chprintf(chp, "%s%s", html_e_th_th, text_Date);
           chprintf(chp, "%s%s", html_e_th_th, text_Entry);
@@ -571,15 +575,13 @@ int fs_open_custom(struct fs_file *file, const char *name){
             for (uint8_t j = 0; j < ALERT_TYPE_SIZE; j++) {
               if ((((uint8_t)rxBuffer[FRAM_MSG_SIZE-1] >> j) & 0b1) == 1) chprintf(chp, "%s ", alertType[j].name);
             }
-            chprintf(chp, "%s", html_e_td_e_tr);
           }
           spiReleaseBus(&SPID1);              // Ownership release.
-
-          chprintf(chp, "%s", html_e_table);
+          chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           // Buttons
           chprintf(chp, "%s%s%s", html_FR, html_Now, html_FF);
           break;
-        case 6:
+        case PAGE_GROUP:
           chprintf(chp, "%s#", html_tr_th);
           chprintf(chp, "%s%s", html_e_th_th, text_Name);
           chprintf(chp, "%s%s", html_e_th_th, text_On);
@@ -678,14 +680,50 @@ int fs_open_custom(struct fs_file *file, const char *name){
           printOnOffButton(chp, "4", GET_CONF_GROUP_PIR1(conf.group[webGroup]), false);
           chprintf(chp, "%s%s %ss %s 1%s", html_e_td_e_tr_tr_td,  text_Alarm, text_trigger, text_relay, html_e_td_td);
           printOnOffButton(chp, "3", GET_CONF_GROUP_PIR2(conf.group[webGroup]), false);
-          chprintf(chp, "%s%s %ss %s 1%s", html_e_td_e_tr_tr_td,  text_Tamper, text_trigger, text_relay, html_e_td_td);
+          chprintf(chp, "%s%s %ss %s 2%s", html_e_td_e_tr_tr_td,  text_Tamper, text_trigger, text_relay, html_e_td_td);
           printOnOffButton(chp, "2", GET_CONF_GROUP_TAMPER1(conf.group[webGroup]), false);
-          chprintf(chp, "%s%s %ss %s 1%s", html_e_td_e_tr_tr_td,  text_Tamper, text_trigger, text_relay, html_e_td_td);
+          chprintf(chp, "%s%s %ss %s 2%s", html_e_td_e_tr_tr_td,  text_Tamper, text_trigger, text_relay, html_e_td_td);
           printOnOffButton(chp, "1", GET_CONF_GROUP_TAMPER2(conf.group[webGroup]), false);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Group, html_e_td_td);
           selectGroup(chp, GET_CONF_GROUP_ARM_CHAIN(conf.group[webGroup]), 'a');
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Group, html_e_td_td);
           selectGroup(chp, GET_CONF_GROUP_DISARM_CHAIN(conf.group[webGroup]), 'd');
+          chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
+          // Buttons
+          chprintf(chp, "%s%s", html_Apply, html_Save);
+          break;
+        case PAGE_HOME:
+          // Information table
+          chprintf(chp, "%s%s%s", html_tr_td, text_Time, html_e_td_td);
+          tempTime = GetTimeUnixSec(); printFrmTimestamp(chp, &tempTime);
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Start, text_time, html_e_td_td);
+          printFrmTimestamp(chp, &startTime);
+          chprintf(chp, "%s%s%s%s", html_e_td_e_tr_tr_td, text_Up, text_time, html_e_td_td);
+          tempTime -= startTime; printFrmUpTime(chp, &tempTime);
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_AC, text_power, html_e_td_td);
+          //
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Battery, html_e_td_td);
+          //
+          chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
+          chprintf(chp, "<h1>%s</h1>\r\n", text_Modem);
+          chprintf(chp, "%s%s", html_table, html_tr_td);
+          chprintf(chp, "%s%s%s", text_Type, html_e_td_td, gprsModemInfo);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_On, html_e_td_td);
+          printOkNok(chp, palReadPad(GPIOC, GPIOC_RX6));
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Alive, html_e_td_td);
+          printOkNok(chp, gprsIsAlive);
+          chprintf(chp, "%s%sed%s", html_e_td_e_tr_tr_td, text_Register, html_e_td_td);
+          switch(gprsReg){
+            case 0 : chprintf(chp, "%s", text_i_OK); break;
+            case 1 : chprintf(chp, "%s", text_i_home); break;
+            case 2 : chprintf(chp, "%s", text_i_starting); break;
+            case 3 : chprintf(chp, "%s %s", text_registration, text_denied); break;
+            case 5 : chprintf(chp, "%s", text_roaming); break;
+            default : chprintf(chp, "%s", text_i_question);; break; // case 4
+          }
+          chprintf(chp, "%s%s %s%s%u%%", html_e_td_e_tr_tr_td, text_Signal, text_strength, html_e_td_td, gprsStrength);
+
+
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           // Buttons
           chprintf(chp, "%s%s", html_Apply, html_Save);
@@ -727,47 +765,52 @@ err_t httpd_post_begin(void *connection, const char *uri, const char *http_reque
   LWIP_UNUSED_ARG(http_request_len);
   LWIP_UNUSED_ARG(content_len);
   LWIP_UNUSED_ARG(post_auto_wnd);
-  LWIP_UNUSED_ARG(response_uri_len);
 
-  //chprintf((BaseSequentialStream*)&SD3, "connection: %X\r\n", (uint32_t *)connection);
-  //chprintf((BaseSequentialStream*)&SD3, "response_uri: %s\r\n", (char *)response_uri);
-  //chprintf((BaseSequentialStream*)&SD3, "uri: %s\r\n", (char *)uri);
-  //chprintf((BaseSequentialStream*)&SD3, "http_request: %s\r\n", (char *)http_request);
+  //chprintf((BaseSequentialStream*)&SD3, "-PB-connection: %u\r\n", (uint32_t *)connection);
+  //chprintf((BaseSequentialStream*)&SD3, "-PB-uri: %s\r\n", (char *)uri);
+  //chprintf((BaseSequentialStream*)&SD3, "-PB-http_request: %s\r\n", (char *)http_request);
+  //chprintf((BaseSequentialStream*)&SD3, "-PB-http_request_len: %u\r\n", http_request_len);
+  //chprintf((BaseSequentialStream*)&SD3, "-PB-content_len: %u\r\n", content_len);
+  //chprintf((BaseSequentialStream*)&SD3, "-PB-response_uri: %s\r\n", (char *)response_uri);
+  //chprintf((BaseSequentialStream*)&SD3, "-PB-response_uri_len: %u\r\n", response_uri_len);
+  //chprintf((BaseSequentialStream*)&SD3, "-PB-post_auto_wnd: %u\r\n", *post_auto_wnd);
 
-  strcpy(current_uri, uri);
-  strcpy(response_uri, uri);
-  response_uri_len = strlen(response_uri);
-  memset(postData, 0 , sizeof(postData)); // Empty POST data buffer
-
-  return ERR_OK;
+  if (current_connection != connection) {
+    current_connection = connection;
+    chsnprintf(response_uri, response_uri_len, uri);
+    chsnprintf(current_uri, response_uri_len, uri);
+    memset(postData, 0 , sizeof(postData)); // Empty POST data buffer
+    return ERR_OK;
+  }
+  return ERR_VAL;
 }
 
 bool readPostParam(char *name, uint8_t nameLen, char *value, uint8_t valueLen){
-  uint8_t ch;
+  uint8_t ch, ch1, ch2;
 
-  // clear out name and value so they'll be NUL terminated
+  // clear out name and value so they'll be NULL terminated
   memset(name, 0, nameLen);
   memset(value, 0, valueLen);
 
   while (*pPostData != 0){
     ch = *pPostData; pPostData++;
-    if (ch == '+') {ch = ' ';}
-    else if (ch == '=') {
-      // that's end of name, so switch to storing in value
-      nameLen = 0;
-      continue;
-    }
-    else if (ch == '&') {
-      // that's end of pair, go away
-      return true;
-    }
-    else if (ch == '%') {
-      // handle URL encoded characters by converting back to original form
-      uint8_t ch1 = *pPostData; pPostData++;
-      uint8_t ch2 = *pPostData; pPostData++;
-      if (ch1 == 0 || ch2 == 0) return false;
-      char hex[3] = { ch1, ch2, 0 };
-      ch = strtoul(hex, NULL, 16);
+    switch (ch) {
+      case '+': ch = ' ';
+        break;
+      case '=': // that's end of name, switch to storing value
+        nameLen = 0;
+        continue; // do not store '='
+        break;
+      case '&': // that's end of pair, go away
+        return true;
+        break;
+      case '%':  // handle URL encoded characters by converting back to original form
+        ch1 = *pPostData; pPostData++;
+        ch2 = *pPostData; pPostData++;
+        if (ch1 == 0 || ch2 == 0) return false;
+        char hex[3] = { ch1, ch2, 0 };
+        ch = strtoul(hex, NULL, 16);
+        break;
     }
 
     // check against 1 so we don't overwrite the final NULL
@@ -785,12 +828,32 @@ bool readPostParam(char *name, uint8_t nameLen, char *value, uint8_t valueLen){
 }
 
 err_t httpd_post_receive_data(void *connection, struct pbuf *p) {
-  LWIP_UNUSED_ARG(connection);
 
-  strncat(postData, (const char *)p->payload, sizeof(postData)-strlen(postData)-1); // Maximum size of postData and null
-  chprintf((BaseSequentialStream*)&SD3, "POST: %s\r\n", p->payload);
+  //chprintf((BaseSequentialStream*)&SD3, "-PD-connection: %u\r\n", (uint32_t *)connection);
+  if (current_connection == connection) {
+    //chprintf((BaseSequentialStream*)&SD3, "p->payload: %s\r\n", p->payload);
+    //chprintf((BaseSequentialStream*)&SD3, "p->ref: %u\r\n", p->ref);
+    //chprintf((BaseSequentialStream*)&SD3, "p->next: %u\r\n", p->next);
+    //chprintf((BaseSequentialStream*)&SD3, "p->tot_len: %u\r\n", p->tot_len);
 
-  return ERR_OK;
+    //chprintf((BaseSequentialStream*)&SD3, "strlen(postData): %u\r\n", strlen(postData));
+    // Append payload to buffer, maximum size of postData and null
+    strncat(postData, (const char *)p->payload, LWIP_MIN(p->tot_len, (sizeof(postData)-strlen(postData))));
+
+    //pPostData = &postData[strlen(postData)];
+    //pPostData = (char *)pbuf_get_contiguous(p, postData, sizeof(postData)-strlen(postData),
+                //LWIP_MIN(p->tot_len,sizeof(postData)-strlen(postData)), 0);
+    //chprintf((BaseSequentialStream*)&SD3, "postData: %s\r\n", postData);
+    //chprintf((BaseSequentialStream*)&SD3, "pPostData: %s\r\n", pPostData);
+    //--u8_t buf[32];
+    //--u8_t ptr = (u8_t)pbuf_get_contiguous(p, buf, sizeof(buf), LWIP_MIN(option_len, sizeof(buf)), offset);
+
+    //chprintf((BaseSequentialStream*)&SD3, "strlen(postData): %u\r\n", strlen(postData));
+    pbuf_free(p);
+    return ERR_OK;
+  }
+  pbuf_free(p);
+  return ERR_VAL;
 }
 
 void httpd_post_finished(void *connection, char *response_uri, u16_t response_uri_len) {
@@ -804,250 +867,251 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
   char value[EMAIL_LENGTH + 1];
   bool repeat;
 
-  chprintf((BaseSequentialStream*)&SD3, "postData: %s\r\n", postData);
-  chprintf((BaseSequentialStream*)&SD3, "current_uri: %s\r\n", current_uri);
+  //chprintf((BaseSequentialStream*)&SD3, "-PE-connection: %u\r\n", (uint32_t *)connection);
+  chprintf((BaseSequentialStream*)&SD3, "-PE-postData: %s\r\n", postData);
 
-  pPostData = &postData[0];
+  if (current_connection == connection) {
+    pPostData = &postData[0];
 
-  for (uint8_t htmlPage = 0; htmlPage < ARRAY_SIZE(webMenuLink); ++htmlPage) {
-    if (!strcmp(current_uri, webMenuLink[htmlPage])) {
-      switch (htmlPage) {
-        case 0:
-          do{
-            repeat = readPostParam(name, sizeof(name), value, sizeof(value));
-            chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
-            switch(name[0]){
-              case 'P': // select
-                number = strtol(value, NULL, 10);
-                if (number != webNode) { webNode = number; repeat = 0; }
-              break;
-              case 'R': // Reregistration
-                resp = sendCmd(15, NODE_CMD_REGISTRATION); // call all to register
-              break;
-              case 'A': // Apply
-                message[0] = 'R';
-                message[1] = (uint8_t)node[webNode].type;
-                message[2] = (uint8_t)node[webNode].function;
-                message[3] = node[webNode].number;
-                message[4] = (uint8_t)((node[webNode].setting >> 8) & 0b11111111);;
-                message[5] = (uint8_t)(node[webNode].setting & 0b11111111);
-                memcpy(&message[6], node[webNode].name, NAME_LENGTH);
-                resp = sendData(node[webNode].address, message, REGISTRATION_SIZE);
-                /*
-                if (!sendData(node[webNode].address, message, REGISTRATION_SIZE)) {
-                  // look queue slot
-                  _found = 255;
-                  if (node[webNode].queue != 255) {
-                    _found = node[webNode].queue; // Replace last message in queue
-                  } else {
-                    // Look for empty queue slot
-                    for (uint8_t i = 0; i < NODE_QUEUE; i++) {
-                      if(node_queue[i].expire == 0) { _found = i; break; }
+    for (uint8_t htmlPage = 0; htmlPage < ARRAY_SIZE(webMenuLink); ++htmlPage) {
+      if (!strcmp(current_uri, webMenuLink[htmlPage])) {
+        switch (htmlPage) {
+          case PAGE_NODE:
+            do{
+              repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
+              chprintf((BaseSequentialStream*)&SD3, "Parse: %s=%s<\r\n", name, value);
+              switch(name[0]){
+                case 'P': // select
+                  number = strtol(value, NULL, 10);
+                  if (number != webNode) { webNode = number; repeat = 0; }
+                break;
+                case 'R': // Reregistration
+                  resp = sendCmd(15, NODE_CMD_REGISTRATION); // call all to register
+                break;
+                case 'A': // Apply
+                  message[0] = 'R';
+                  message[1] = (uint8_t)node[webNode].type;
+                  message[2] = (uint8_t)node[webNode].function;
+                  message[3] = node[webNode].number;
+                  message[4] = (uint8_t)((node[webNode].setting >> 8) & 0b11111111);;
+                  message[5] = (uint8_t)(node[webNode].setting & 0b11111111);
+                  memcpy(&message[6], node[webNode].name, NAME_LENGTH);
+                  resp = sendData(node[webNode].address, message, REGISTRATION_SIZE);
+                  /*
+                  if (!sendData(node[webNode].address, message, REGISTRATION_SIZE)) {
+                    // look queue slot
+                    _found = 255;
+                    if (node[webNode].queue != 255) {
+                      _found = node[webNode].queue; // Replace last message in queue
+                    } else {
+                      // Look for empty queue slot
+                      for (uint8_t i = 0; i < NODE_QUEUE; i++) {
+                        if(node_queue[i].expire == 0) { _found = i; break; }
+                      }
+                    }
+                    if (_found != 255) {
+                      // Put message into queue
+                      node_queue[_found].address  = node[webNode].address;
+                      node_queue[_found].index    = webNode;
+                      node_queue[_found].expire   = timestamp.get() + SECS_PER_HOUR; // Message expires in 1 hour
+                      node_queue[_found].length   = REG_LEN;
+                      memcpy(node_queue[_found].msg, message, REG_LEN);
+                      node[webNode].queue         = _found; // Pointer to message queue
+                    } else {
+                      pushToLog("FM"); // Message queue is full
                     }
                   }
-                  if (_found != 255) {
-                    // Put message into queue
-                    node_queue[_found].address  = node[webNode].address;
-                    node_queue[_found].index    = webNode;
-                    node_queue[_found].expire   = timestamp.get() + SECS_PER_HOUR; // Message expires in 1 hour
-                    node_queue[_found].length   = REG_LEN;
-                    memcpy(node_queue[_found].msg, message, REG_LEN);
-                    node[webNode].queue         = _found; // Pointer to message queue
-                  } else {
-                    pushToLog("FM"); // Message queue is full
+                  */
+                break;
+                case 'n': // name
+                  strncpy (node[webNode].name, value, NAME_LENGTH);
+                break;
+                case '0' ... '7': // Handle all single radio buttons for settings
+                  if (value[0] == '0') node[webNode].setting &= ~(1 << (name[0]-48));
+                  else                 node[webNode].setting |=  (1 << (name[0]-48));
+                break;
+                case 'g': // group
+                  number = strtol(value, NULL, 10);
+                  SET_NODE_GROUP(node[webNode].setting, number);
+                break;
+                case 'e': // save
+                  writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+                break;
+              }
+            } while (repeat);
+            break;
+          case PAGE_USER:
+            do{
+              repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
+              chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
+              switch(name[0]){
+                case 'P': // select
+                  number = strtol(value, NULL, 10);
+                  if (number != webContact) { webContact = number; repeat = 0; }
+                break;
+                case 'n': // name
+                  strncpy (conf.contactName[webContact], value, NAME_LENGTH);
+                break;
+                case 'p': // phone number
+                  strncpy (conf.contactPhone[webContact], value, PHONE_LENGTH);
+                break;
+                case 'm': // email
+                  strncpy (conf.contactEmail[webContact], value, EMAIL_LENGTH);
+                break;
+                case '0' ... '7': // Handle all single radio buttons for settings
+                  if (value[0] == '0') conf.contact[webContact] &= ~(1 << (name[0]-48));
+                  else                 conf.contact[webContact] |=  (1 << (name[0]-48));
+                break;
+                case 'g': // group
+                  number = strtol(value, NULL, 10);
+                  SET_CONF_CONTACT_GROUP(conf.contact[webContact], number);
+                break;
+                case 'e': // save
+                  writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+                break;
+              }
+            } while (repeat);
+            break;
+          case PAGE_KEY:
+            do{
+              repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
+              chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
+              switch(name[0]){
+                case 'P': // select
+                  number = strtol(value, NULL, 10);
+                  if (number != webKey) { webKey = number; repeat = 0; }
+                break;
+                case 'c': // Contact ID
+                  conf.keyContact[webKey] = strtol(value, NULL, 10);
+                break;
+                case 'k': // key
+                  for (uint8_t j = 0; j < KEY_LENGTH; j++) {
+                    if (value[j*2] > '9') value[j*2] = value[j*2] - 'A' + 10;
+                    else value[j*2] = value[j*2] - '0';
+                    if (value[j*2+1] > '9') value[j*2+1] = value[j*2+1] - 'A' + 10;
+                    else value[j*2+1] = value[j*2+1] - '0';
+                    conf.keyValue[webKey][j] = 16*value[j*2] + value[j*2+1];
                   }
-                }
-                */
-              break;
-              case 'n': // name
-                strncpy (node[webNode].name, value, NAME_LENGTH);
-              break;
-              case '0' ... '7': // Handle all single radio buttons for settings
-                if (value[0] == '0') node[webNode].setting &= ~(1 << (name[0]-48));
-                else                 node[webNode].setting |=  (1 << (name[0]-48));
-              break;
-              case 'g': // group
-                number = strtol(value, NULL, 10);
-                SET_NODE_GROUP(node[webNode].setting, number);
-              break;
-              case 'e': // save
-                writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
-              break;
-            }
-          } while (repeat);
-          break;
-        case 1:
-          do{
-            repeat = readPostParam(name, sizeof(name), value, sizeof(value));
-            chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
-            switch(name[0]){
-              case 'P': // select
-                number = strtol(value, NULL, 10);
-                if (number != webContact) { webContact = number; repeat = 0; }
-              break;
-              case 'n': // name
-                strncpy (conf.contactName[webContact], value, NAME_LENGTH);
-              break;
-              case 'p': // phone number
-                strncpy (conf.contactPhone[webContact], value, PHONE_LENGTH);
-              break;
-              case 'm': // email
-                strncpy (conf.contactEmail[webContact], value, EMAIL_LENGTH);
-              break;
-              case '0' ... '7': // Handle all single radio buttons for settings
-                if (value[0] == '0') conf.contact[webContact] &= ~(1 << (name[0]-48));
-                else                 conf.contact[webContact] |=  (1 << (name[0]-48));
-              break;
-              case 'g': // group
-                number = strtol(value, NULL, 10);
-                SET_CONF_CONTACT_GROUP(conf.contact[webContact], number);
-              break;
-              case 'e': // save
-                writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
-              break;
-            }
-          } while (repeat);
-          break;
-        case 2:
-          do{
-            repeat = readPostParam(name, sizeof(name), value, sizeof(value));
-            chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
-            switch(name[0]){
-              case 'P': // select
-                number = strtol(value, NULL, 10);
-                if (number != webKey) { webKey = number; repeat = 0; }
-              break;
-              case 'c': // Contact ID
-                conf.keyContact[webKey] = strtol(value, NULL, 10);
-              break;
-              case 'k': // key
-                for (uint8_t j = 0; j < KEY_LENGTH; j++) {
-                  if (value[j*2] > '9') value[j*2] = value[j*2] - 'A' + 10;
-                  else value[j*2] = value[j*2] - '0';
-                  if (value[j*2+1] > '9') value[j*2+1] = value[j*2+1] - 'A' + 10;
-                  else value[j*2+1] = value[j*2+1] - '0';
-                  conf.keyValue[webKey][j] = 16*value[j*2] + value[j*2+1];
-                }
-              break;
-              case '0' ... '7': // Handle all single radio buttons for settings
-                if (value[0] == '0') conf.keySetting[webKey] &= ~(1 << (name[0]-48));
-                else                 conf.keySetting[webKey] |=  (1 << (name[0]-48));
-              break;
-              //case 'g': // group
-                //number = strtol(value, NULL, 10);
-                //SET_CONF_KEY_GROUP(conf.keySetting[webKey], number);
-              //break;
-              case 'e': // save
-                writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
-              break;
-            }
-          } while (repeat);
-          break;
-        case 3:
-          do{
-            repeat = readPostParam(name, sizeof(name), value, sizeof(value));
-            chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
-            switch(name[0]){
-              case 'P': // select
-                number = strtol(value, NULL, 10);
-                if (number != webZone) { webZone = number; repeat = 0; }
-              break;
-              case 'A': // Apply
-              break;
-              case 'n': // name
-                strncpy (conf.zoneName[webZone], value, NAME_LENGTH);
-              break;
-              case 'd': // delay
-                SET_CONF_ZONE_AUTH_TIME(conf.zone[webKey], (value[0] - 48));
-              break;
-              case '0' ... '9': // Handle all single radio buttons for settings
-                if (value[0] == '0') conf.zone[webZone] &= ~(1 << (name[0]-48));
-                else                 conf.zone[webZone] |=  (1 << (name[0]-48));
-              break;
-              case 'g': // group
-                number = strtol(value, NULL, 10);
-                SET_CONF_ZONE_GROUP(conf.zone[webZone], number);
-              break;
-              case 'e': // save
-                writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
-              break;
-            }
-          } while (repeat);
-          break;
-        case 4:
-          do{
-            repeat = readPostParam(name, sizeof(name), value, sizeof(value));
-            chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
-            switch(name[0]){
-              case '0' ... ('0' + ALERT_TYPE_SIZE): // Handle all radio buttons in groups 0 .. #, A .. #
-                if (value[0] == '0') conf.alert[name[0]-48] &= ~(1 << (name[1]-65));
-                else conf.alert[name[0]-48] |= (1 << (name[1]-65));
-              break;
-              case 'e': // save
-                writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
-              break;
-            }
-          } while (repeat);
-          break;
-        case 5:
-          do{
-            repeat = readPostParam(name, sizeof(name), value, sizeof(value));
-            chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
-            switch(name[0]){
-              case 'N': // Now
-                webLog = FRAMWritePos - (LOGGER_OUTPUT_LEN * FRAM_MSG_SIZE);
-              break;
-              case 'R': // Reverse
-                webLog -= LOGGER_OUTPUT_LEN * FRAM_MSG_SIZE;
-              break;
-              case 'F': // Forward
-                webLog += LOGGER_OUTPUT_LEN * FRAM_MSG_SIZE;
-              break;
-            }
-          } while (repeat);
-          break;
-        case 6:
-          do{
-            repeat = readPostParam(name, sizeof(name), value, sizeof(value));
-            chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
-            switch(name[0]){
-              case 'P': // select
-                number = strtol(value, NULL, 10);
-                if (number != webGroup) { webGroup = number; repeat = 0; }
-              break;
-              case 'A': // Apply
-              break;
-              case 'n': // name
-                strncpy (conf.groupName[webGroup], value, NAME_LENGTH);
-              break;
-              case '0' ... '7': // Handle all single radio buttons for settings
-                if (value[0] == '0') conf.group[webGroup] &= ~(1 << (name[0]-48));
-                else                 conf.group[webGroup] |=  (1 << (name[0]-48));
-              break;
-              case 'a': // arm chain
-                number = strtol(value, NULL, 10);
-                SET_CONF_GROUP_ARM_CHAIN(conf.group[webGroup], number);
-              break;
-              case 'd': // disarm chain
-                number = strtol(value, NULL, 10);
-                SET_CONF_GROUP_DISARM_CHAIN(conf.group[webGroup], number);
-              break;
-              case 'e': // save
-                writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
-              break;
-            }
-          } while (repeat);
-          break;
-        default:
-          break;
+                break;
+                case '0' ... '7': // Handle all single radio buttons for settings
+                  if (value[0] == '0') conf.keySetting[webKey] &= ~(1 << (name[0]-48));
+                  else                 conf.keySetting[webKey] |=  (1 << (name[0]-48));
+                break;
+                //case 'g': // group
+                  //number = strtol(value, NULL, 10);
+                  //SET_CONF_KEY_GROUP(conf.keySetting[webKey], number);
+                //break;
+                case 'e': // save
+                  writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+                break;
+              }
+            } while (repeat);
+            break;
+          case PAGE_ZONE:
+            do{
+              repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
+              chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
+              switch(name[0]){
+                case 'P': // select
+                  number = strtol(value, NULL, 10);
+                  if (number != webZone) { webZone = number; repeat = 0; }
+                break;
+                case 'A': // Apply
+                break;
+                case 'n': // name
+                  strncpy (conf.zoneName[webZone], value, NAME_LENGTH);
+                break;
+                case 'd': // delay
+                  SET_CONF_ZONE_AUTH_TIME(conf.zone[webKey], (value[0] - 48));
+                break;
+                case '0' ... '9': // Handle all single radio buttons for settings
+                  if (value[0] == '0') conf.zone[webZone] &= ~(1 << (name[0]-48));
+                  else                 conf.zone[webZone] |=  (1 << (name[0]-48));
+                break;
+                case 'g': // group
+                  number = strtol(value, NULL, 10);
+                  SET_CONF_ZONE_GROUP(conf.zone[webZone], number);
+                break;
+                case 'e': // save
+                  writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+                break;
+              }
+            } while (repeat);
+            break;
+          case PAGE_ALERT:
+            do{
+              repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
+              chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
+              switch(name[0]){
+                case '0' ... ('0' + ALERT_TYPE_SIZE): // Handle all radio buttons in groups 0 .. #, A .. #
+                  if (value[0] == '0') conf.alert[name[0]-48] &= ~(1 << (name[1]-65));
+                  else conf.alert[name[0]-48] |= (1 << (name[1]-65));
+                break;
+                case 'e': // save
+                  writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+                break;
+              }
+            } while (repeat);
+            break;
+          case PAGE_LOG:
+            do{
+              repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
+              chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
+              switch(name[0]){
+                case 'N': // Now
+                  webLog = FRAMWritePos - (LOGGER_OUTPUT_LEN * FRAM_MSG_SIZE);
+                break;
+                case 'R': // Reverse
+                  webLog -= LOGGER_OUTPUT_LEN * FRAM_MSG_SIZE;
+                break;
+                case 'F': // Forward
+                  webLog += LOGGER_OUTPUT_LEN * FRAM_MSG_SIZE;
+                break;
+              }
+            } while (repeat);
+            break;
+          case PAGE_GROUP:
+            do{
+              repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
+              chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
+              switch(name[0]){
+                case 'P': // select
+                  number = strtol(value, NULL, 10);
+                  if (number != webGroup) { webGroup = number; repeat = 0; }
+                break;
+                case 'A': // Apply
+                break;
+                case 'n': // name
+                  strncpy (conf.groupName[webGroup], value, NAME_LENGTH);
+                break;
+                case '0' ... '7': // Handle all single radio buttons for settings
+                  if (value[0] == '0') conf.group[webGroup] &= ~(1 << (name[0]-48));
+                  else                 conf.group[webGroup] |=  (1 << (name[0]-48));
+                break;
+                case 'a': // arm chain
+                  number = strtol(value, NULL, 10);
+                  SET_CONF_GROUP_ARM_CHAIN(conf.group[webGroup], number);
+                break;
+                case 'd': // disarm chain
+                  number = strtol(value, NULL, 10);
+                  SET_CONF_GROUP_DISARM_CHAIN(conf.group[webGroup], number);
+                break;
+                case 'e': // save
+                  writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+                break;
+              }
+            } while (repeat);
+            break;
+          default:
+            break;
+        }
       }
-
     }
+
+    chsnprintf(response_uri, response_uri_len, current_uri);
+    chprintf((BaseSequentialStream*)&SD3, "-PE-response_uri: %s\r\n", response_uri);
+    current_connection = NULL;
   }
-
-
-  strcpy(response_uri, current_uri);
-  response_uri_len = strlen(response_uri);
 }
 
 #endif /* OHS_HTTPDHANDLER_H_ */

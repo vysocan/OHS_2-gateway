@@ -45,6 +45,10 @@
 
 #define LOGGER_MSG_LENGTH 11
 
+#define SECONDS_PER_DAY    86400
+#define SECONDS_PER_HOUR   3600
+#define SECONDS_PER_MINUTE 60
+
 /**
  * @name    Node commands
  */
@@ -188,12 +192,19 @@ char tmpLog[LOGGER_MSG_LENGTH]; // Temporary logger string
 // RTC related
 static RTCDateTime timespec;
 time_t startTime;  // OHS start timestamp variable
+time_t tempTime;   // Temp time
 
 // time_t conversion
 union time_tag {
   char   ch[4];
   time_t val;
 } timeConv;
+
+// float conversion
+union float_tag {
+  uint8_t byte[4];
+  float val;
+} floatConv;
 
 // Zones alarm events
 #define ALARMEVENT_FIFO_SIZE 10
@@ -233,6 +244,7 @@ typedef struct {
 
 // Sensor events
 #define SENSOR_FIFO_SIZE 10
+#define SENSOR_PACKET_SIZE 7
 typedef struct {
   char    type;     // = 'S';
   uint8_t address;  // = 0;
@@ -367,8 +379,8 @@ flags_t flags;
 
 // Dynamic nodes
 typedef struct {
-  char    type;    //= 'K/S/I';
   uint8_t address; //= 0;
+  char    type;    //= 'K/S/I';
   char    function;//= ' ';
   uint8_t number;  //= 0;
    //                    |- MQTT publish
@@ -382,11 +394,11 @@ typedef struct {
    //                    76543210
   uint16_t setting;// = B00011110;  // 2 bytes to store also zone setting
   float    value;  // = 0;
-  time_t last_OK;// = 0;
+  time_t last_OK;  // = 0;
   uint8_t  queue;  //   = 255; // No queue
   char name[NAME_LENGTH]; // = "";
 } node_t;
-node_t node[NODE_SIZE] = {{ ' ', 0, ' ', 0, 0b00011110, 0, 0, 255, ""}};
+node_t node[NODE_SIZE] = {{ 0, '\0', '\0', 0, 0b00011110, 0, 0, 255, ""}};
 
 // Set default to runtime structs
 void initRuntimeGroups(void){

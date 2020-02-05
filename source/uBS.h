@@ -24,7 +24,9 @@
 
 void uBSReadBlock(uint32_t address);
 void uBSWriteBlock(uint32_t address, uint8_t* data);
-void uBSInit();
+void uBSInit(void);
+void uBSFormat(void);
+uint16_t uBSGetFreeSpace(void);
 int8_t uBSGetFreeBlock(uint32_t* address);
 int8_t uBSWrite(void* filename, void *data, uint16_t size);
 

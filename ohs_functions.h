@@ -160,41 +160,47 @@ void disarmGroup(uint8_t groupNum, uint8_t master, uint8_t hop) {
 
 // Check key value to saved keys
 void checkKey(uint8_t groupNum, uint8_t armType, uint8_t *key){
-  // Check all keys
-  for (uint8_t i=0; i < KEYS_SIZE; i++){
-    chprintf(console, "Key match: %d", i);
-    //for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, key[ii]); } chprintf(console, "\r\n");
-    //for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, conf.keyValue[i][ii]); } chprintf(console, "\r\n");
-    if (memcmp(key, &conf.keyValue[i], KEY_LENGTH) == 0) { // key matched
-      chprintf(console, ", group: %d\r\n", groupNum);
-      //  key enabled && (group = contact_group || contact_key = global)
-      if (GET_CONF_KEY_ENABLED(conf.keySetting[i]) &&
-         (groupNum == GET_CONF_CONTACT_GROUP(conf.contact[conf.keyContact[i]]) ||
-          GET_CONF_CONTACT_IS_GLOBAL(conf.contact[conf.keyContact[i]]))) {
-        // We have alarm or group is armed or arming
-        if  (GET_GROUP_ALARM(group[groupNum].setting) ||
-             GET_GROUP_ARMED(group[groupNum].setting) ||
-             group[groupNum].armDelay > 0) {
-          tmpLog[0] = 'A'; tmpLog[1] = 'D'; tmpLog[2] = i; pushToLog(tmpLog, 3); // Key
-          disarmGroup(groupNum, groupNum, 0); // Disarm group and all chained groups
-        } else { // Just do arm
-          tmpLog[0] = 'A';
-          if (armType == 1) tmpLog[1] = 'H';
-          else tmpLog[1] = 'A';
-          tmpLog[2] = i; pushToLog(tmpLog, 3);
-          armGroup(groupNum, groupNum, armType, 0); // Arm group and all chained groups
+  // Group is allowed and enabled
+  chprintf(console, "Check key for group: %u, arm tupe: %u\r\n", groupNum, armType);
+  if ((groupNum < ALARM_GROUPS) && (GET_CONF_GROUP_ENABLED(conf.group[groupNum]))) {
+    // Check all keys
+    for (uint8_t i=0; i < KEYS_SIZE; i++){
+      chprintf(console, "Key match: %d", i);
+      //for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, key[ii]); } chprintf(console, "\r\n");
+      //for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, conf.keyValue[i][ii]); } chprintf(console, "\r\n");
+      if (memcmp(key, &conf.keyValue[i], KEY_LENGTH) == 0) { // key matched
+        chprintf(console, ", group: %d\r\n", groupNum);
+        //  key enabled && (group = contact_group || contact_key = global)
+        if (GET_CONF_KEY_ENABLED(conf.keySetting[i]) &&
+           (groupNum == GET_CONF_CONTACT_GROUP(conf.contact[conf.keyContact[i]]) ||
+            GET_CONF_CONTACT_IS_GLOBAL(conf.contact[conf.keyContact[i]]))) {
+          // We have alarm or group is armed or arming
+          if  (GET_GROUP_ALARM(group[groupNum].setting) ||
+               GET_GROUP_ARMED(group[groupNum].setting) ||
+               group[groupNum].armDelay > 0) {
+            tmpLog[0] = 'A'; tmpLog[1] = 'D'; tmpLog[2] = i; pushToLog(tmpLog, 3); // Key
+            disarmGroup(groupNum, groupNum, 0); // Disarm group and all chained groups
+          } else { // Just do arm
+            tmpLog[0] = 'A';
+            if (armType == 1) tmpLog[1] = 'H';
+            else tmpLog[1] = 'A';
+            tmpLog[2] = i; pushToLog(tmpLog, 3);
+            armGroup(groupNum, groupNum, armType, 0); // Arm group and all chained groups
+          }
+          break; // no need to try other
+        } else { // key is not enabled
+          tmpLog[0] = 'A'; tmpLog[1] = 'F'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
         }
-        break; // no need to try other
-      } else { // key is not enabled
-        tmpLog[0] = 'A'; tmpLog[1] = 'F'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
+      } // key matched
+      else if (i == KEYS_SIZE-1) {
+        // Log unknown keys
+        tmpLog[0] = 'A'; tmpLog[1] = 'U'; memcpy(&tmpLog[2], key, KEY_LENGTH); pushToLog(tmpLog, 10);
+        memcpy(&lastKey[0], key, KEY_LENGTH); // store last unknown key
       }
-    } // key matched
-    else if (i == KEYS_SIZE-1) {
-      // Log unknown keys
-      tmpLog[0] = 'A'; tmpLog[1] = 'U'; memcpy(&tmpLog[2], key, KEY_LENGTH); pushToLog(tmpLog, 10);
-      memcpy(&lastKey[0], key, KEY_LENGTH); // store last unknown key
-    }
-  } // for
+    } // for
+  } else {
+    tmpLog[0] = 'G'; tmpLog[1] = 'F'; tmpLog[2] = groupNum;  pushToLog(tmpLog, 3);
+  }
 }
 
 #endif /* OHS_FUNCTIONS_H_ */

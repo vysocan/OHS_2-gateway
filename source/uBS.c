@@ -29,7 +29,7 @@
 #define UBS_BLOCK_SIZE       32U
 #define UBS_BLOCK_COUNT      64U
 #define UBS_NAME_SIZE        10U
-#define UBS_START_ADDRESS    0U
+#define UBS_START_ADDRESS    16384U
 // Fixed
 #define UBS_END_ADDRESS      (UBS_START_ADDRESS + (UBS_BLOCK_SIZE * UBS_BLOCK_COUNT))
 #define UBS_POINTER_SIZE     2U
@@ -57,12 +57,11 @@
 #define UBS_RSLT_OK        (1)
 #define UBS_RSLT_NOK       (-1)
 #define UBS_RSLT_TOO_LARGE (-2)
-#define UBS_NO_SAPCE       (-3)
+#define UBS_RSLT_NO_SAPCE  (-3)
 
 static uint8_t uBSWriteBuf[UBS_BLOCK_SIZE + 3];
 static uint8_t uBSReadBuf[UBS_BLOCK_SIZE];
 static uint16_t uBSFreeSpace = 0;
-
 
 void uBSReadBlock(uint32_t address) {
   uBSWriteBuf[0] = CMD_25AA_READ;
@@ -71,7 +70,7 @@ void uBSReadBlock(uint32_t address) {
 
   spiAcquireBus(&SPID1);              // Acquire ownership of the bus.
   spiSelect(&SPID1);                  // Slave Select assertion.
-  spiSend(&SPID1, 3, uBSWriteBuf);  // Send read command
+  spiSend(&SPID1, 3, uBSWriteBuf);    // Send read command
   spiReceive(&SPID1, UBS_BLOCK_SIZE, uBSReadBuf);
   spiUnselect(&SPID1);                // Slave Select de-assertion.
   spiReleaseBus(&SPID1);              // Ownership release.
@@ -92,29 +91,45 @@ void uBSWriteBlock(uint32_t address, uint8_t* data) {
   spiSelect(&SPID1);
   spiSend(&SPID1, UBS_BLOCK_SIZE, uBSWriteBuf);
   spiUnselect(&SPID1);
+
   spiReleaseBus(&SPID1);
 }
 
-void uBSInit() {
+void uBSInit(void) {
   uint16_t address = UBS_START_ADDRESS;
 
   // Calculate free space on start
-  do {
+  while (address < UBS_END_ADDRESS) {
     uBSReadBlock(address);
-    if (UBS_GET_BLOCK_DATA_SIZE(uBSReadBuf[0])) uBSFreeSpace += UBS_DATA_SIZE;
+    if (UBS_GET_BLOCK_DATA_SIZE(uBSReadBuf[0]) == 0) uBSFreeSpace += UBS_BLOCK_SIZE;
+    //chprintf((BaseSequentialStream*)&SD3, "uBS, %u:%u:%u\r\n", address, UBS_GET_BLOCK_DATA_SIZE(uBSReadBuf[0]), uBSFreeSpace);
     address += UBS_BLOCK_SIZE;
-  } while (address < UBS_END_ADDRESS);
-  if (uBSFreeSpace > 0) uBSFreeSpace -= UBS_HEADER_SIZE - UBS_NAME_SIZE; // Remove one name size of master block
+  }
+  //if (uBSFreeSpace > 0) uBSFreeSpace -= UBS_HEADER_SIZE - UBS_NAME_SIZE; // Remove one name size of master block
+}
+
+uint16_t uBSGetFreeSpace(void) {
+  return uBSFreeSpace;
+}
+
+void uBSFormat(void) {
+  uint16_t address = UBS_START_ADDRESS;
+  uint8_t block[UBS_BLOCK_SIZE];
+
+  while (address < UBS_END_ADDRESS) {
+    uBSWriteBlock(address, &block[0]);
+    address += UBS_BLOCK_SIZE;
+  }
 }
 
 int8_t uBSGetFreeBlock(uint32_t* address) {
   *address = UBS_START_ADDRESS;
   do {
     uBSReadBlock(*address);
+    if (UBS_GET_BLOCK_DATA_SIZE(uBSReadBuf[0]) == 0) return UBS_RSLT_OK;
     *address += UBS_BLOCK_SIZE;
-  } while ((UBS_GET_BLOCK_DATA_SIZE(uBSReadBuf[0])) & (*address < UBS_END_ADDRESS));
-  if (*address < UBS_END_ADDRESS) return UBS_RSLT_OK;
-  else return UBS_RSLT_NOK;
+  } while (*address < UBS_END_ADDRESS);
+  return UBS_RSLT_NOK;
 }
 
 int8_t uBSWrite(void* blockname, void *data, uint16_t size) {
@@ -125,14 +140,22 @@ int8_t uBSWrite(void* blockname, void *data, uint16_t size) {
   if (blockname == NULL) return UBS_RSLT_NOK;
   if (strlen(blockname) > UBS_NAME_SIZE) return UBS_RSLT_NOK;
   if (size > UBS_MAX_DATA_SIZE) return UBS_RSLT_TOO_LARGE;
-  if (size > uBSFreeSpace) return UBS_NO_SAPCE;
+
+  if (size > UBS_MASTER_DATA_SIZE) {
+    // Multiple block size
+    dataStored = size; // temp size
+    dataStored -= UBS_MASTER_DATA_SIZE;
+    currentSize = ((dataStored / UBS_DATA_SIZE) + 1) * UBS_BLOCK_SIZE;
+  } else {
+    // One block size
+    currentSize = UBS_BLOCK_SIZE;
+  }
+  if (currentSize > uBSFreeSpace) return UBS_RSLT_NO_SAPCE;
 
   // Master block
   memset(&block[0], 0x0, UBS_BLOCK_SIZE);
-
   if (size > UBS_MASTER_DATA_SIZE) currentSize = UBS_MASTER_DATA_SIZE;
   else currentSize = size;
-
   block[0] = 1 | (currentSize << 1);
   block[UBS_HEADER_SIZE] = strlen(blockname);
   memcpy(&block[UBS_HEADER_SIZE + UBS_HEADER_SIZE], blockname, strlen(blockname));

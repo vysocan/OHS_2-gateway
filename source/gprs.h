@@ -46,13 +46,13 @@ void gprsInitRingBuffer(gprsRingBuffer_t *what);
 void gprsInit(SerialDriver *sdp);
 void gprsFlushRX(void);
 uint8_t gprsRead(void);
-uint8_t gprsReadMsg(uint8_t *where);
+uint8_t gprsReadMsg(uint8_t *where, uint8_t response_len);
 uint8_t gprsWaitMsgSpec(uint16_t wait);
 uint8_t gprsWaitMsg(void);
 uint8_t gprsIsMsg(void);
 int8_t gprsSendCmd(char *what);
-int8_t gprsSendCmdWR(char *what, uint8_t *response);
-int8_t gprsSendCmdWRI(char *what, uint8_t *response, uint8_t index);
+int8_t gprsSendCmdWR(char *what, uint8_t *response, uint8_t response_len);
+int8_t gprsSendCmdWRI(char *what, uint8_t *response, uint8_t response_len, uint8_t index);
 int8_t gprsSendSMSBegin(char *number);
 int8_t gprsSendSMSEnd(char *what);
 

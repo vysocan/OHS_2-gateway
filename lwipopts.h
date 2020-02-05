@@ -67,24 +67,36 @@
  * LWIP DEBUG
  */
 
-#define LWIP_DEBUG LWIP_DBG_ON
+//#define LWIP_DEBUG   LWIP_DBG_ON
+//#define HTTPD_DEBUG  LWIP_DBG_ON
 //#define ETHARP_DEBUG LWIP_DBG_ON
-//#define NETIF_DEBUG LWIP_DBG_ON
+//#define NETIF_DEBUG  LWIP_DBG_ON
 //#define ICMP_DEBUG LWIP_DBG_ON
 //#define IP_DEBUG LWIP_DBG_ON
 
 
 /* SNTP */
-//#define SNTP_DEBUG LWIP_DBG_ON
+#define SNTP_DEBUG LWIP_DBG_ON
 
 #define SNTP_SERVER_DNS 1
 #define SNTP_SERVER_ADDRESS "195.113.144.201"
 //#define SNTP_SERVER_ADDRESS "10.10.10.254"
-#define SNTP_UPDATE_DELAY 900000 // SNTP update every 90 seconds
+#define SNTP_UPDATE_DELAY 900000 // SNTP update every *900 seconds
 
-#define MEMP_NUM_SYS_TIMEOUT 6
+#define MEMP_NUM_SYS_TIMEOUT (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 3)
 #define MEMP_NUM_UDP_PCB 6
+#define MEMP_NUM_TCP_PCB 6
+#define MEMP_NUM_TCP_PCB_LISTEN 10
+#define MEMP_NUM_PBUF 20
+#define MEMP_NUM_RAW_PCB 6
+#define MEMP_NUM_TCP_SEG 12
+#define PBUF_POOL_SIZE 16
 
+// Maximum segment size
+#define TCP_MSS 1024
+
+// Number of rx pbufs to enqueue to parse an incoming request (up to the first newline)
+#define LWIP_HTTPD_REQ_QUEUELEN 7
 
 //ChibiOS RTC drivers
 /* old

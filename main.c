@@ -37,18 +37,8 @@ BaseSequentialStream* console = (BaseSequentialStream*)&SD3;
 #include "ohs_adc.h"
 #include "ohs_functions.h"
 
-// LWIP
-#include "lwipthread.h"
-#include "lwip/apps/httpd.h"
-#include "lwip/apps/sntp.h"
-#include "ohs_httpdhandler.h"
-
 // GPRS
 #include "gprs.h"
-// uBS
-#include "uBS.h"
-
-// GPRS
 typedef enum {
   gprs_NOK,
   gprs_OK,
@@ -57,10 +47,19 @@ typedef enum {
 volatile gprsStatus_t gsmStatus = gprs_NOK;
 volatile int8_t gprsIsAlive = 0;
 volatile int8_t gprsSetSMS = 0;
-volatile int8_t gprsReg = 4;
+volatile int8_t gprsReg = 2;
 volatile int8_t gprsStrength = 0;
 char gprsModemInfo[16];
 char gprsSmsText[120];
+
+// LWIP
+#include "lwipthread.h"
+#include "lwip/apps/httpd.h"
+#include "lwip/apps/sntp.h"
+#include "ohs_httpdhandler.h"
+
+// uBS
+//#include "uBS.h"
 
 // Semaphores
 binary_semaphore_t gprsSem;
@@ -338,7 +337,6 @@ static THD_FUNCTION(LoggerThread, arg) {
       chprintf(console, ", %s", inMsg->text);
       chprintf(console, ", %u\r\n", flag);
       */
-
       // SPI
       spiAcquireBus(&SPID1);
 
@@ -355,14 +353,6 @@ static THD_FUNCTION(LoggerThread, arg) {
       memcpy(&buffer[3], &timeConv.ch[0], sizeof(timeConv.ch)); // Copy time to buffer
       memcpy(&buffer[7], &inMsg->text[0], LOGGER_MSG_LENGTH);   // Copy text to buffer
       buffer[FRAM_MSG_SIZE+2] = flag;                           // Set flag
-
-      /*
-      chprintf(console, ">%s\r\n", &buffer[7]);
-      for(uint8_t i = 0; i < FRAM_MSG_SIZE+3; i++) {
-         chprintf(console, "%x %c-", buffer[i], buffer[i]);
-      }
-      chprintf(console, "\r\n");
-      */
 
       spiSelect(&SPID1);
       spiSend(&SPID1, FRAM_MSG_SIZE+3, buffer);
@@ -416,18 +406,18 @@ static THD_FUNCTION(RS485Thread, arg) {
     (void)evt;
 
     eventflags_t flags = chEvtGetAndClearFlags(&serialListener);
-    chprintf(console, "RS485: %d, %d-%d\r\n", flags, RS485D2.trcState, RS485D2.ibHead);
+    chprintf(console, "RS485: %u, %u-%u\r\n", flags, RS485D2.trcState, RS485D2.ibHead);
     //resp = chBSemWait(&RS485D2.received);
     if (flags & RS485_MSG_RECEIVED){
       resp = rs485GetMsg(&RS485D2, &rs485Msg);
-      chprintf(console, "RS485 received: %d, ", resp);
-      chprintf(console, "from %d, ", rs485Msg.address);
-      chprintf(console, "ctrl %d, ", rs485Msg.ctrl);
-      chprintf(console, "length %d\r\n", rs485Msg.length);
+      chprintf(console, "RS485 received: %u, ", resp);
+      chprintf(console, "from %u, ", rs485Msg.address);
+      chprintf(console, "ctrl %u, ", rs485Msg.ctrl);
+      chprintf(console, "length %u\r\n", rs485Msg.length);
       //chprintf(console, "ib %d, ob %d\r\n", RS485D2.ib[1], RS485D2.ob[1]);
       chprintf(console, "Data: ");
       for(uint8_t i = 0; i < rs485Msg.length; i++) {
-        chprintf(console, "%d-%d, ", i, rs485Msg.data[i]);
+        chprintf(console, "%u-%x, ", i, rs485Msg.data[i]);
       }
       chprintf(console, ".\r\n");
       //chThdSleepMilliseconds(100);
@@ -439,6 +429,16 @@ static THD_FUNCTION(RS485Thread, arg) {
       */
 
       if (resp == MSG_OK) {
+        if (rs485Msg.ctrl == RS485_FLAG_CMD) {
+          switch(rs485Msg.length) {
+            case NODE_CMD_PING: // Nodes should do periodic ping to stay alive/registered
+              for (uint8_t nodeIndex=0; nodeIndex < NODE_SIZE; nodeIndex++) {
+                if (node[nodeIndex].address == rs485Msg.address)
+                  node[nodeIndex].last_OK = GetTimeUnixSec();
+              }
+            break;
+          }
+        }
         if (rs485Msg.ctrl == RS485_FLAG_DTA) {
           switch(rs485Msg.data[0]) {
             case 'R': // Registration
@@ -462,7 +462,7 @@ static THD_FUNCTION(RS485Thread, arg) {
                 } else {
                   pushToLogText("FR"); // Registration queue is full
                 }
-                _pos+=REG_PACKET_SIZE;
+                _pos += REG_PACKET_SIZE;
               } while (_pos < rs485Msg.length);
               break;
             case 'K': // iButtons keys
@@ -474,16 +474,41 @@ static THD_FUNCTION(RS485Thread, arg) {
                 node[nodeIndex].last_OK = GetTimeUnixSec(); // Update timestamp
                 //  Node is enabled
                 if (GET_NODE_ENABLED(node[nodeIndex].setting)) {
-                  checkKey(GET_NODE_GROUP(node[nodeIndex].setting), (rs485Msg.data[2] % 2),
-                           &rs485Msg.data[3]);
+                  checkKey(GET_NODE_GROUP(node[nodeIndex].setting), (rs485Msg.data[2] % 2), &rs485Msg.data[3]);
                 } else {
                   // log disabled remote nodes
-                  tmpLog[0] = 'N'; tmpLog[1] = 'F'; tmpLog[2] = rs485Msg.address; tmpLog[3] = rs485Msg.data[2]; tmpLog[4] = rs485Msg.data[0]; tmpLog[5] = rs485Msg.data[1];  pushToLog(tmpLog, 6);
+                  tmpLog[0] = 'N'; tmpLog[1] = 'F'; tmpLog[2] = rs485Msg.address;
+                  tmpLog[3] = rs485Msg.data[2]; tmpLog[4] = rs485Msg.data[0];
+                  tmpLog[5] = rs485Msg.data[1];  pushToLog(tmpLog, 6);
                 }
               } else { // node not found
                 chThdSleepMilliseconds(5);  // This is needed for sleeping battery nodes, or they wont see reg. command.
                 resp = sendCmd(rs485Msg.address, NODE_CMD_REGISTRATION); // call this address to register
               }
+              break;
+            case 'S': // Sensor data
+              _pos = 0;
+              do {
+                sensor_t *outMsg = chPoolAlloc(&sensor_pool);
+                if (outMsg != NULL) {
+                  // node setting
+                  outMsg->address  = rs485Msg.address;
+                  outMsg->type     = (char)rs485Msg.data[_pos];
+                  outMsg->function = (char)rs485Msg.data[_pos+1];
+                  outMsg->number   = rs485Msg.data[_pos+2];
+                  floatConv.byte[0] = rs485Msg.data[_pos+3]; floatConv.byte[1] = rs485Msg.data[_pos+4];
+                  floatConv.byte[2] = rs485Msg.data[_pos+5]; floatConv.byte[3] = rs485Msg.data[_pos+6];
+                  outMsg->value = floatConv.val;
+
+                  msg_t msg = chMBPostTimeout(&sensor_mb, (msg_t)outMsg, TIME_IMMEDIATE);
+                  if (msg != MSG_OK) {
+                    //chprintf(console, "S-MB full %d\r\n", temp);
+                  }
+                } else {
+                  pushToLogText("FS"); // Sensor queue is full
+                }
+                _pos += SENSOR_PACKET_SIZE;
+              } while (_pos < rs485Msg.length);
               break;
           } // switch case
         } // data
@@ -504,7 +529,6 @@ static THD_FUNCTION(RegistrationThread, arg) {
 
   while (true) {
     msg = chMBFetchTimeout(&registration_mb, (msg_t*)&inMsg, TIME_INFINITE);
-    //chThdSleepMilliseconds(100);
     if (msg == MSG_OK) {
       chprintf(console, "Registration for node %c-%c\r\n", inMsg->type, inMsg->function);
       switch(inMsg->type){
@@ -585,6 +609,7 @@ static THD_FUNCTION(SensorThread, arg) {
       } else {
         // Let's call same unknown node for re-registrtion only once a while or we send many packets if multiple sensor data come in
         if ((lastNode != inMsg->address) || (GetTimeUnixSec() > lastNodeTime)) {
+          chprintf(console, "Unregistered sensor\r\n");
           chThdSleepMilliseconds(5);  // This is needed for sleeping battery nodes, or they wont see reg. command.
           nodeIndex = sendCmd(inMsg->address, NODE_CMD_REGISTRATION); // call this address to register
           lastNode = inMsg->address;
@@ -646,12 +671,12 @@ static THD_FUNCTION(ModemThread, arg) {
             gprsSetSMS = gprsSendCmd(AT_set_sms_to_text);                      // Set modem to text SMS format
             //chprintf(console, "AT_set_sms_to_text: %d\r\n", gprsSetSMS);
             if (gprsSetSMS == 1) gprsSetSMS = gprsSendCmd(AT_set_sms_receive); // Set modem to dump SMS to serial
-            resp = gprsSendCmdWR(AT_modem_info, (uint8_t*)gprsModemInfo);      // Get modem version
+            resp = gprsSendCmdWR(AT_modem_info, (uint8_t*)gprsModemInfo, sizeof(gprsModemInfo));      // Get modem version
           }
-          resp = gprsSendCmdWRI(AT_registered, tempText, 3);
+          resp = gprsSendCmdWRI(AT_registered, tempText, sizeof(tempText), 3);
           gprsReg = strtol((char*)tempText, NULL, 10);
           //chprintf(console, "gprsReg: %d\r\n", gprsReg);
-          resp = gprsSendCmdWRI(AT_signal_strength, tempText, 2);
+          resp = gprsSendCmdWRI(AT_signal_strength, tempText, sizeof(tempText), 2);
           gprsStrength = (strtol((char*)tempText, NULL, 10)) * 3;
           //chprintf(console, "gprsStrength: %d\r\n", gprsStrength);
         } else {
@@ -686,7 +711,7 @@ static THD_FUNCTION(ModemThread, arg) {
 
       // Read incoming SMS or missed messages
       while(gprsIsMsg()) {
-        resp = gprsReadMsg((uint8_t*)gprsSmsText);
+        resp = gprsReadMsg((uint8_t*)gprsSmsText, sizeof(gprsSmsText));
         chprintf(console, "Modem: %s(%d)\r\n", gprsSmsText, resp);
       }
 
@@ -730,7 +755,31 @@ static THD_FUNCTION(ServiceThread, arg) {
 
   while (true) {
     chThdSleepMilliseconds(1000);
+    // Remove zombie nodes
+    for (uint8_t nodeIndex=0; nodeIndex < NODE_SIZE; nodeIndex++) {
+      if ((node[nodeIndex].address != 0) &&
+          (node[nodeIndex].last_OK + SECONDS_PER_HOUR < GetTimeUnixSec())) {
+        chprintf(console, "Zombie node: %u,A %u,T %u,F %u,N %u\r\n", nodeIndex, node[nodeIndex].address,
+                 node[nodeIndex].type, node[nodeIndex].function, node[nodeIndex].number);
+        tmpLog[0] = 'N'; tmpLog[1] = 'Z'; tmpLog[2] = node[nodeIndex].address;
+        tmpLog[3] = node[nodeIndex].number; tmpLog[4] = node[nodeIndex].type;
+        tmpLog[5] = node[nodeIndex].function; pushToLog(tmpLog, 6);
+        // Set whole struct to 0
+        memset(&node[nodeIndex].type, 0, sizeof(node_t));
+        //0, '\0', '\0', 0, 0b00011110, 0, 0, 255, ""
+        //node[nodeIndex].address  = 0;
+        //node[nodeIndex].type     = '\0';
+        //node[nodeIndex].function = '\0';
+        //node[nodeIndex].number   = 0;
+        //node[nodeIndex].setting  = 0;
+        //node[nodeIndex].value    = 0;
+        //node[nodeIndex].last_OK  = 0;
+        node[nodeIndex].queue    = 255;
+        //memset(&node[nodeIndex].name, 0, NAME_LENGTH);
+      }
+    }
 
+    //
 
   }
 }
@@ -807,7 +856,6 @@ static RS485Config ser_mpc_cfg = {
 };
 
 msg_t resp;
-time_t temptime;
 struct tm *ptm;
 
 /*
@@ -910,6 +958,7 @@ int main(void) {
   initRuntimeZones();
   // Read conf.
   readFromBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+  chprintf(console, "Size of conf: %u, group: %u\r\n", sizeof(conf), sizeof(group));
   // Check if we have new major version update
   if (conf.versionMajor != OHS_MAJOR) {
     setConfDefault(); // Load OHS default conf.
@@ -918,7 +967,13 @@ int main(void) {
     writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
   }
   //setConfDefault(); // Load OHS default conf.
-  chprintf(console, "Size of conf: %d, group: %d\r\n", sizeof(conf), sizeof(group));
+
+  /*
+  uint16_t uBSaddress;
+  uBSInit();
+  uBSGetFreeBlock(&uBSaddress);
+  chprintf(console, "uBS, free space: %u, First block: %u\r\n", uBSGetFreeSpace(), uBSaddress);
+  */
 
   while (true) {
     /*

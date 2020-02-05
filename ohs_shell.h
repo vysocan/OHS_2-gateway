@@ -116,6 +116,10 @@ const char text_1[]                 = "1";
 const char text_2[]                 = "2";
 const char text_3[]                 = "3";
 const char text_4[]                 = "4";
+const char text_0x[]                = "0x";
+const char text_1x[]                = "1x";
+const char text_2x[]                = "2x";
+const char text_3x[]                = "3x";
 const char text_power[]             = "power";
 const char text_monitoring[]        = "monitoring";
 const char text_Node[]              = "Node";
@@ -175,6 +179,15 @@ const char text_Auto[]              = "Auto";
 const char text_Tamper[]            = "Tamper";
 const char text_relay[]             = "relay";
 const char text_home[]              = "home";
+const char text_Time[]              = "Time";
+const char text_time[]              = "time";
+const char text_Start[]             = "Start";
+const char text_Up[]                = "Up";
+const char text_AC[]                = "AC";
+const char text_Register[]          = "Register";
+const char text_Signal[]            = "Signal";
+const char text_Alive[]             = "Alive";
+
 
 
 void printNodeType(BaseSequentialStream *chp, const char type) {
@@ -218,6 +231,17 @@ void printFrmTimestamp(BaseSequentialStream *chp, time_t *value) {
   else chprintf(chp, "%s", text_unknown);
 }
 
+void printFrmUpTime(BaseSequentialStream *chp, time_t *value) {
+  uint16_t days    = *value / (time_t)SECONDS_PER_DAY;
+  *value -= (days * (time_t)SECONDS_PER_DAY);
+  uint8_t  hours   = *value / (time_t)SECONDS_PER_HOUR;
+  *value -= (hours * (time_t)SECONDS_PER_HOUR);
+  uint8_t  minutes = *value / (time_t)SECONDS_PER_MINUTE;
+  *value -= (minutes * (time_t)SECONDS_PER_MINUTE);
+
+  chprintf(chp, "%u day(s), %02u:%02u:%02u", days, hours, minutes, (uint32_t)*value);
+}
+
 /*
  * helper function
  */
@@ -245,6 +269,12 @@ void printKey(BaseSequentialStream *chp, const char *value, const uint8_t size){
   for (uint8_t i = 0; i < size; ++i) {
     chprintf(chp, "%02x", value[i]);
   }
+}
+
+void printGroup(BaseSequentialStream *chp, const uint8_t value) {
+  if (value < ALARM_GROUPS) {
+    chprintf(chp, "%u. %s ", value + 1, conf.groupName[value]);
+  } else chprintf(chp, "%s ", NOT_SET);
 }
 
 /*
@@ -282,6 +312,7 @@ static void decodeLog(char *in, char *out, bool full){
       printNodeAddress(chp, (uint8_t)in[2], (uint8_t)in[3]);
       if (in[1] != 'E') {chprintf(chp, "%s ", text_is);}
       switch(in[1]){
+        case 'Z' : chprintf(chp, "%s", text_removed); break;
         case 'F' : chprintf(chp, "%s", text_disabled); break;
         case 'R' : chprintf(chp, "%s", text_registered); break;
         case 'r' : chprintf(chp, "%s%s", text_re, text_registered); break;
@@ -311,7 +342,8 @@ static void decodeLog(char *in, char *out, bool full){
       }
     break;
     case 'G': // Group related
-      chprintf(chp, "%s %u. %s ", text_Group, (uint8_t)in[2] + 1, conf.groupName[(uint8_t)in[2]]);
+      chprintf(chp, "%s ", text_Group);
+      printGroup(chp, (uint8_t)in[2]);
       switch(in[1]){
         case 'F': chprintf(chp, "%s %s", text_is, text_disabled); break;
         case 'S': chprintf(chp, "%s", text_armed); break;
