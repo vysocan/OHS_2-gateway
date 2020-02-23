@@ -281,17 +281,16 @@ void printGroup(BaseSequentialStream *chp, const uint8_t value) {
  * Decode log entries to string
  * full: decode full string
  */
-static void decodeLog(char *in, char *out, bool full){
+static uint8_t decodeLog(char *in, char *out, bool full){
+  uint8_t groupNum = 255;
   memset(&out[0], 0x0, LOG_TEXT_LENGTH);
-
   MemoryStream ms;
   BaseSequentialStream *chp;
-  /* Memory stream object to be used as a string writer, reserving one
-     byte for the final zero.*/
+  // Memory stream object to be used as a string writer, reserving one byte for the final zero.
   msObjectInit(&ms, (uint8_t *)out, LOG_TEXT_LENGTH-1, 0);
-  /* Performing the print operation using the common code.*/
+  // Performing the print operation using the common code.
   chp = (BaseSequentialStream *)(void *)&ms;
-  //out = (char *)&ms.buffer; -- not needed to reroute
+
 
   switch(in[0]){
     case 'S': // System
@@ -300,7 +299,8 @@ static void decodeLog(char *in, char *out, bool full){
         case 's': chprintf(chp, "%s", text_started); break; // boot
         case 'S': chprintf(chp, "%s %s", text_monitoring, text_started); break; // Zone thread start
         case 'X': chprintf(chp, "%s", text_alarm);
-          if (full) chprintf(chp, "! %s %u.%s", text_Group, (uint8_t)in[2], conf.groupName[(uint8_t)in[2]]);
+          if (full) chprintf(chp, "! %s %u.%s", text_Group, (uint8_t)in[2] + 1, conf.groupName[(uint8_t)in[2]]);
+          groupNum = (uint8_t)in[2];
           break;
         default:  chprintf(chp, "%s", text_unknown); break; // unknown
       }
@@ -337,7 +337,7 @@ static void decodeLog(char *in, char *out, bool full){
         switch(in[1]){
           case 'O' : chprintf(chp, "%s", text_On); break;
           case 'F' : chprintf(chp, "%s", text_Off); break;
-          default : chprintf(chp, "%s", text_unknown); break;
+          default : chprintf(chp, "%s", text_error); break;
         }
       }
     break;
@@ -351,6 +351,7 @@ static void decodeLog(char *in, char *out, bool full){
         case 'A': chprintf(chp, "%s %s", text_auto, text_armed); break;
         default: chprintf(chp, "%s", text_unknown); break;
       }
+      groupNum = (uint8_t)in[2];
     break;
     case 'Z': // Zone
       chprintf(chp, "%s %u. ", text_Zone, (uint8_t)in[2] + 1);
@@ -398,6 +399,8 @@ static void decodeLog(char *in, char *out, bool full){
     break; // unknown
   }
   //chprintf(chp, "."); // "." as end
+
+  return groupNum;
 }
 
 /*

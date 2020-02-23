@@ -20,7 +20,9 @@
 #define AT_CLIP_OFF        "AT+CLIP=0" // Set CLI Off
 #define AT_D               "ATD"       // Dial number
 #define AT_H               "ATH"       // Hang up
-#define AT_modem_info      "ATI"       //
+#define AT_modem_info      "ATI"       // Full modem info
+#define AT_model_info      "AT+CGMM"   // Modem model identification
+#define AT_set_ATD         "AT+CVHU=0" // Set ATD to end up voice call
 #define AT_GET_DATA        "AT+HTTPREAD" //
 // Replies
 #define AT_OK              "OK"        //
@@ -47,9 +49,7 @@ void gprsInit(SerialDriver *sdp);
 void gprsFlushRX(void);
 uint8_t gprsRead(void);
 uint8_t gprsReadMsg(uint8_t *where, uint8_t response_len);
-uint8_t gprsWaitMsgSpec(uint16_t wait);
-uint8_t gprsWaitMsg(void);
-uint8_t gprsIsMsg(void);
+uint8_t gprsWaitAndReadMsg(uint8_t *where, uint8_t response_len, uint16_t wait);
 int8_t gprsSendCmd(char *what);
 int8_t gprsSendCmdWR(char *what, uint8_t *response, uint8_t response_len);
 int8_t gprsSendCmdWRI(char *what, uint8_t *response, uint8_t response_len, uint8_t index);

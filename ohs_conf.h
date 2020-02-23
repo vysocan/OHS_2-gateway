@@ -44,7 +44,7 @@
 #define NODE_SIZE        10     // Number of nodes
 
 #define LOGGER_MSG_LENGTH 11
-
+// Time related
 #define SECONDS_PER_DAY    86400
 #define SECONDS_PER_HOUR   3600
 #define SECONDS_PER_MINUTE 60
@@ -254,7 +254,7 @@ typedef struct {
 } sensor_t;
 
 // Alerts
-// Logger keeps info about this as bit flags, so max value is sizeof(uint8_t)
+// Logger keeps info about this as bit flags, so max value is 8 for uint8_t
 #define ALERT_TYPE_SIZE 3
 typedef struct {
   char    name[6];
@@ -262,8 +262,8 @@ typedef struct {
 } alertType_t;
 const alertType_t alertType[ALERT_TYPE_SIZE] = {
   { "SMS", 0 },
-  { "Email", 1 },
-  { "Page", 2 }
+  { "Page", 1 },
+  { "Email", 2 }
 };
 //#define ALERT_SIZE 2 // List of alerts max is sizeof(uint32_t)
 // Logger message text to match alert
@@ -495,7 +495,7 @@ void setConfDefault(void){
   conf.versionMinor   = OHS_MINOR;
   conf.logOffset      = 0;
   conf.armDelay       = 20;
-  strcpy(conf.dateTimeFormat, "%T %a %F");
+  strcpy(conf.dateTimeFormat, "%T %a %d.%m.%Y");
 
   for(uint8_t i = 0; i < ALARM_ZONES; i++) {
     // Zones setup

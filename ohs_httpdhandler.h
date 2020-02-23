@@ -145,8 +145,9 @@ const char webMenuName[][8]  = {
 static char postData[128];
 static char *pPostData;
 
-void printOkNok(BaseSequentialStream *chp, const uint8_t value) {
-  value ? chprintf(chp, "%s", text_i_OK) : chprintf(chp, "%s", text_i_disabled);
+void printOkNok(BaseSequentialStream *chp, const int8_t value) {
+  if (value == 1) chprintf(chp, "%s", text_i_OK);
+  else            chprintf(chp, "%s", text_i_disabled);
 }
 
 void printRadioButton(BaseSequentialStream *chp, const char *name, const uint8_t value,
@@ -324,7 +325,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           selectGroup(chp, GET_NODE_GROUP(node[webNode].setting), 'g');
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           // Buttons
-          chprintf(chp, "%s%s%s", html_Apply, html_Save, html_Reregister);
+          chprintf(chp, "%s%s", html_Apply, html_Reregister);
           break;
         case PAGE_USER:
           chprintf(chp, "%s#", html_tr_th);
@@ -701,15 +702,15 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s%s%s", html_e_td_e_tr_tr_td, text_Up, text_time, html_e_td_td);
           tempTime -= startTime; printFrmUpTime(chp, &tempTime);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_AC, text_power, html_e_td_td);
-          //
+          printOkNok(chp, palReadPad(GPIOD, GPIOD_AC_OFF));
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Battery, html_e_td_td);
-          //
+          printOkNok(chp, palReadPad(GPIOD, GPIOD_BAT_OK));
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           chprintf(chp, "<h1>%s</h1>\r\n", text_Modem);
           chprintf(chp, "%s%s", html_table, html_tr_td);
           chprintf(chp, "%s%s%s", text_Type, html_e_td_td, gprsModemInfo);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_On, html_e_td_td);
-          printOkNok(chp, palReadPad(GPIOC, GPIOC_RX6));
+          printOkNok(chp, !palReadPad(GPIOD, GPIOD_GSM_STATUS));
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Alive, html_e_td_td);
           printOkNok(chp, gprsIsAlive);
           chprintf(chp, "%s%sed%s", html_e_td_e_tr_tr_td, text_Register, html_e_td_td);
