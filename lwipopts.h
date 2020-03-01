@@ -56,12 +56,11 @@
 #endif
 
 /* DNS */
-
 #define LWIP_RAND() ((uint32_t)rand())
 #define LWIP_DNS 1
 
 
-//#define LWIP_DHCP 1
+#define LWIP_DHCP 1
 
 /*
  * LWIP DEBUG
@@ -74,16 +73,13 @@
 //#define ICMP_DEBUG LWIP_DBG_ON
 //#define IP_DEBUG LWIP_DBG_ON
 //#define DNS_DEBUG LWIP_DBG_ON
-
-
 // SNTP
 #define SNTP_DEBUG LWIP_DBG_ON
 // SMTP
 #define SMTP_DEBUG LWIP_DBG_ON
 
 #define SNTP_SERVER_DNS 1
-#define SNTP_SERVER_ADDRESS "195.113.144.201"
-//#define SNTP_SERVER_ADDRESS "10.10.10.254"
+//#define SNTP_SERVER_ADDRESS "195.113.144.201"
 #define SNTP_UPDATE_DELAY 900000 // SNTP update every *900 seconds
 
 #define MEMP_NUM_SYS_TIMEOUT (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 3)

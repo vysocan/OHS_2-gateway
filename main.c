@@ -1,7 +1,6 @@
 /*
-  OHS v 2.0
+  OHS gateway code for HW v 2.0.x
   Adam Baron 2020
-
 
 */
 
@@ -23,9 +22,10 @@
 // Define debug console
 BaseSequentialStream* console = (BaseSequentialStream*)&SD3;
 
+// OHS includes
 #include "ohs_conf.h"
 #include "ohs_shell.h"
-#include "ohs_peripheral.h" // peripheral
+#include "ohs_peripheral.h"
 #include "ohs_functions.h"
 
 // GPRS
@@ -180,19 +180,22 @@ int main(void) {
   //chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg1);
 
   // Ethernet
-  lwipInit(NULL);
-  httpd_init();           // Starts the HTTP server
-  //sntp_setserver(0, "ntp1.sh.cvut.cz");
+  macAddr[0] = LWIP_ETHADDR_0;
+  macAddr[1] = LWIP_ETHADDR_1;
+  macAddr[2] = LWIP_ETHADDR_2;
+  macAddr[3] = STM32_UUID[0] & 0xff;
+  macAddr[4] = (STM32_UUID[0] >> 8) & 0xff;
+  macAddr[5] = (STM32_UUID[0] >> 16) & 0xff;
+  struct lwipthread_opts lwip_opts =
+  { &macAddr[0], 0, 0, 0, NET_ADDRESS_DHCP
+    #if LWIP_NETIF_HOSTNAME
+      , 0
+    #endif
+  };
+
+  lwipInit(&lwip_opts);
+  httpd_init();
   sntp_init();
-
-  smtp_set_server_addr("mail.smtp2go.com"); //mail.smtp2go.com 176.58.103.10
-  smtp_set_server_port(2525);
-  smtp_set_auth("vysocan76@gmail.com","abc12abc");
-
-  ip_addr_t dnsserver;
-  IP_ADDR4( &dnsserver, 8, 8, 8, 8);
-  dns_setserver(0, &dnsserver);
-
 
   //uint8_t data;
   //uint32_t data32;
@@ -220,7 +223,13 @@ int main(void) {
     writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
     writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
   }
-  //setConfDefault(); // Load OHS default conf.
+  setConfDefault(); // Load OHS default conf.
+  // SMTP
+  smtp_set_server_addr(conf.SMTPAddress);
+  smtp_set_server_port(2525);
+  smtp_set_auth("vysocan76@gmail.com","abc12abc");
+  // SNTP
+  sntp_setservername(0, conf.SNTPAddress);
 
   /*
   uint16_t uBSaddress;

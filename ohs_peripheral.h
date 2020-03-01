@@ -11,6 +11,8 @@
 /*
  * Peripheral configurations
  */
+
+// SPI macros
 // Peripherial Clock 42MHz SPI2 SPI3
 // Peripherial Clock 84MHz SPI1                                SPI1        SPI2/3
 #define SPI_BaudRatePrescaler_2         ((uint16_t)0x0000) //  42 MHz      21 MHZ

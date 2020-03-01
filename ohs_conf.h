@@ -12,6 +12,8 @@
 #error "In mcuconf.h STM32_BKPRAM_ENABLE must be TRUE!"
 #endif
 
+#define STM32_UUID ((uint32_t *)UID_BASE) // STM32 UID
+
 #define OHS_MAJOR        1
 #define OHS_MINOR        1
 
@@ -38,6 +40,8 @@
 
 #define RADIO_UNIT_OFFSET 15
 #define REGISTRATION_SIZE 22
+
+#define URL_LENGTH        32
 
 #define NOT_SET          "not set"
 
@@ -193,6 +197,8 @@ char tmpLog[LOGGER_MSG_LENGTH]; // Temporary logger string
 static RTCDateTime timespec;
 time_t startTime;  // OHS start timestamp variable
 time_t tempTime;   // Temp time
+// Ethernet
+uint8_t macAddr[6];
 
 // time_t conversion
 union time_tag {
@@ -340,7 +346,7 @@ typedef struct {
 
   uint32_t alert[3];
 
-  char     NTPAddress[32];
+  char     SNTPAddress[URL_LENGTH];
   uint8_t  time_std_week;   //First, Second, Third, Fourth, or Last week of the month
   uint8_t  time_std_dow;    //day of week, 1=Sun, 2=Mon, ... 7=Sat
   uint8_t  time_std_month;  //1=Jan, 2=Feb, ... 12=Dec
@@ -352,6 +358,13 @@ typedef struct {
   uint8_t  time_dst_month;  //1=Jan, 2=Feb, ... 12=Dec
   uint8_t  time_dst_hour;   //0-23
   int16_t  time_dst_offset; //offset from UTC in minutes
+
+  char     SMTPAddress[URL_LENGTH];
+  uint16_t SMTPPort;
+  char     SMTPUser[EMAIL_LENGTH];
+  char     SMTPPassword[NAME_LENGTH];
+
+
 } config_t;
 config_t conf;
 
@@ -578,7 +591,7 @@ void setConfDefault(void){
     conf.alert[i] = 0;
   }
 
-  strcpy(conf.NTPAddress, "time.google.com");
+  strcpy(conf.SNTPAddress, "time.google.com");
   conf.time_std_week = 0;     //First, Second, Third, Fourth, or Last week of the month
   conf.time_std_dow = 0;      //day of week, 0=Sun, 1=Mon, ... 6=Sat
   conf.time_std_month = 10;   //1=Jan, 2=Feb, ... 12=Dec
@@ -589,6 +602,11 @@ void setConfDefault(void){
   conf.time_dst_month = 3;    //1=Jan, 2=Feb, ... 12=Dec
   conf.time_dst_hour = 2;     //0-23
   conf.time_dst_offset = 120; //offset from UTC in minutes
+
+  strcpy(conf.SMTPAddress, "mail.smtp2go.com");
+  conf.SMTPPort = 2525;
+  strcpy(conf.SMTPUser, NOT_SET);
+  strcpy(conf.SMTPPassword, NOT_SET);
 }
 
 //Year = 20**
