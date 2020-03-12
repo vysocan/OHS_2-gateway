@@ -35,9 +35,9 @@ static THD_FUNCTION(AlertThread, arg) {
       chprintf(console, "%s\r\n", gprsSmsText);
 
       // Do alerts by type
-      for(uint8_t i = 0; i < ALERT_TYPE_SIZE; i++) {
-        if (((inMsg->flag >> alertType[i].number) & 0b1) == 1) {
-          switch (alertType[i].number) {
+      for(uint8_t i = 0; i < ARRAY_SIZE(alertType); i++) {
+        if (((inMsg->flag >> i) & 0b1) == 1) {
+          switch (i) {
             case 0: // SMS
               for (uint8_t j = 0; j < CONTACTS_SIZE; j++) {
                 if (GET_CONF_CONTACT_ENABLED(conf.contact[j]) &&

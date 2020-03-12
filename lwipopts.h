@@ -55,17 +55,18 @@
 #define LWIP_THREAD_PRIORITY            (LOWPRIO)
 #endif
 
-/* DNS */
+// DNS
 #define LWIP_RAND() ((uint32_t)rand())
 #define LWIP_DNS 1
-
-
+// DHCP
 #define LWIP_DHCP 1
+// MDNS
+#define LWIP_IGMP 1
+#define LWIP_MDNS_RESPONDER 1
+#define LWIP_NUM_NETIF_CLIENT_DATA 1 // +1 MDSN
 
-/*
- * LWIP DEBUG
- */
 
+// LWIP DEBUG
 #define LWIP_DEBUG   LWIP_DBG_ON
 //#define HTTPD_DEBUG  LWIP_DBG_ON
 //#define ETHARP_DEBUG LWIP_DBG_ON
@@ -74,16 +75,20 @@
 //#define IP_DEBUG LWIP_DBG_ON
 //#define DNS_DEBUG LWIP_DBG_ON
 // SNTP
-#define SNTP_DEBUG LWIP_DBG_ON
+//#define SNTP_DEBUG LWIP_DBG_ON
 // SMTP
 #define SMTP_DEBUG LWIP_DBG_ON
+#define IGMP_DEBUG LWIP_DBG_ON
+#define MDNS_DEBUG LWIP_DBG_ON
 
+//SNTP
 #define SNTP_SERVER_DNS 1
-//#define SNTP_SERVER_ADDRESS "195.113.144.201"
 #define SNTP_UPDATE_DELAY 900000 // SNTP update every *900 seconds
+//#define SNTP_SERVER_ADDRESS "195.113.144.201"
+
 
 #define MEMP_NUM_SYS_TIMEOUT (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 3)
-#define MEMP_NUM_UDP_PCB 6
+#define MEMP_NUM_UDP_PCB 7 // , +1 MDSN
 #define MEMP_NUM_TCP_PCB 6
 #define MEMP_NUM_TCP_PCB_LISTEN 10
 #define MEMP_NUM_PBUF 20

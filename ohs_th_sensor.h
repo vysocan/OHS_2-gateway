@@ -30,7 +30,7 @@ static THD_FUNCTION(SensorThread, arg) {
         //  node enabled
         if (GET_NODE_ENABLED(node[nodeIndex].setting)) {
           node[nodeIndex].value   = inMsg->value;
-          node[nodeIndex].last_OK = GetTimeUnixSec();  // Get timestamp
+          node[nodeIndex].last_OK = getTimeUnixSec();  // Get timestamp
           //++publishNode(nodeIndex); // MQTT
           // Triggers
           //++processTriggers(node[nodeIndex].address, node[nodeIndex].type, node[nodeIndex].number, node[nodeIndex].value);
@@ -46,12 +46,12 @@ static THD_FUNCTION(SensorThread, arg) {
         } // node enabled
       } else {
         // Let's call same unknown node for re-registrtion only once a while or we send many packets if multiple sensor data come in
-        if ((lastNode != inMsg->address) || (GetTimeUnixSec() > lastNodeTime)) {
+        if ((lastNode != inMsg->address) || (getTimeUnixSec() > lastNodeTime)) {
           chprintf(console, "Unregistered sensor\r\n");
           chThdSleepMilliseconds(5);  // This is needed for sleeping battery nodes, or they wont see reg. command.
           nodeIndex = sendCmd(inMsg->address, NODE_CMD_REGISTRATION); // call this address to register
           lastNode = inMsg->address;
-          lastNodeTime = GetTimeUnixSec() + 1; // add 1-2 second(s)
+          lastNodeTime = getTimeUnixSec() + 1; // add 1-2 second(s)
         }
       }
     }else {

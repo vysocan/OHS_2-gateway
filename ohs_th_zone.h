@@ -54,21 +54,26 @@ static THD_FUNCTION(ZoneThread, arg) {
       if (GET_CONF_ZONE_ENABLED(conf.zone[i])){
         // Remote zone
         if (GET_CONF_ZONE_IS_REMOTE(conf.zone[i])) {
-          // Switch battery zone back to OK after 2 seconds, as battery nodes will not send OK
-          if (((GET_CONF_ZONE_IS_BATTERY(conf.zone[i])) == 1) &&
-             (zone[i].lastEvent != 'O') && (zone[i].lastPIR + 2 < GetTimeUnixSec())) {
+          // Switch battery zone back to OK after 2 seconds, as battery nodes may not send OK
+          if ((GET_CONF_ZONE_IS_BATTERY(conf.zone[i])) &&
+              (zone[i].lastEvent != 'O') && (zone[i].lastPIR + 2 < getTimeUnixSec())) {
             zone[i].lastEvent = 'O';
-            zone[i].lastOK = GetTimeUnixSec();    // update current timestamp
+            zone[i].lastOK = getTimeUnixSec();    // update current timestamp
           }
           switch(zone[i].lastEvent) {
             case 'O': val = ALARM_OK; break;
             case 'P': val = ALARM_PIR; break;
             default:  val = 0; break;
           }
-        // Local HW
-        } else {
-          if (GET_CONF_ZONE_TYPE(conf.zone[i])){ // Digital 0/ Analog 1
+        } else { // Local HW
+          // Digital 0, Analog 1
+          if (GET_CONF_ZONE_TYPE(conf.zone[i])){
             val = adcSamples[i];
+            // Force unbalanced for analog zones
+            if (!GET_CONF_ZONE_BALANCED(conf.zone[i])){
+              if (val < ALARM_UNBALANCED) val = ALARM_OK;
+              else                        val = ALARM_PIR;
+            }
           } else {
             switch(i) {
               case 10: if (palReadPad(GPIOE, GPIOE_DIN_BOX)) val = ALARM_PIR;
@@ -81,6 +86,7 @@ static THD_FUNCTION(ZoneThread, arg) {
 
         //    alarm as tamper                            is PIR                                        make it tamper
         if ((GET_CONF_ZONE_PIR_AS_TMP(conf.zone[i])) && (val >= ALARM_PIR_LOW && val <= ALARM_PIR_HI)) val = ALARM_TAMPER;
+
         // get current zone group
         groupNum = GET_CONF_ZONE_GROUP(conf.zone[i]);
 
@@ -90,7 +96,7 @@ static THD_FUNCTION(ZoneThread, arg) {
             // Battery node, they will not send OK only PIR and Tamper
             if (GET_CONF_ZONE_IS_BATTERY(conf.zone[i]) != 1) {
               zone[i].lastEvent = 'O';
-              zone[i].lastOK = GetTimeUnixSec();    // update current timestamp
+              zone[i].lastOK = getTimeUnixSec();    // update current timestamp
             }
             break;
           case ALARM_PIR_LOW ... ALARM_PIR_HI:
@@ -131,7 +137,7 @@ static THD_FUNCTION(ZoneThread, arg) {
             // Battery node, they will not send OK only PIR and Tamper
             if (GET_CONF_ZONE_IS_BATTERY(conf.zone[i]) != 1) {
               zone[i].lastEvent = 'P';
-              zone[i].lastPIR = GetTimeUnixSec();    // update current timestamp
+              zone[i].lastPIR = getTimeUnixSec();    // update current timestamp
             }
             break;
           default: // Line is cut or short or tamper, no difference to alarm event
@@ -166,7 +172,7 @@ static THD_FUNCTION(ZoneThread, arg) {
             // Battery node, they will not send OK only PIR and Tamper
             if (GET_CONF_ZONE_IS_BATTERY(conf.zone[i]) != 1) {
               zone[i].lastEvent = 'T';
-              zone[i].lastPIR = GetTimeUnixSec();    // update current timestamp
+              zone[i].lastPIR = getTimeUnixSec();    // update current timestamp
             }
             break;
         }

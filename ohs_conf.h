@@ -37,30 +37,30 @@
 #define ALARM_OK_LOW     1500
 #define ALARM_OK_HI      2100
 #define ALARM_TAMPER     0
+#define ALARM_UNBALANCED 500
 
 #define RADIO_UNIT_OFFSET 15
 #define REGISTRATION_SIZE 22
 
 #define URL_LENGTH        32
 
-#define NOT_SET          "not set"
+#define NOT_SET           "not set"
 
-#define NODE_SIZE        10     // Number of nodes
+#define ARM_GROUP_CHAIN_NONE 255
+
+#define NODE_SIZE          10    // Number of nodes
 
 #define LOGGER_MSG_LENGTH 11
 // Time related
-#define SECONDS_PER_DAY    86400
-#define SECONDS_PER_HOUR   3600
-#define SECONDS_PER_MINUTE 60
+#define SECONDS_PER_DAY    86400U
+#define SECONDS_PER_HOUR   3600U
+#define SECONDS_PER_MINUTE 60U
 
-/**
- * @name    Node commands
- */
+// Node commands
 #define NODE_CMD_ACK          0
 #define NODE_CMD_REGISTRATION 1
 #define NODE_CMD_PING         2
 #define NODE_CMD_PONG         3
-
 #define NODE_CMD_ARMING       10
 #define NODE_CMD_ALARM        11
 #define NODE_CMD_AUTH_1       12
@@ -69,16 +69,14 @@
 #define NODE_CMD_ARMED        15
 #define NODE_CMD_DISARM       16
 
-
-/*
- * Bit wise macros for various settings
- */
+// Bit wise macros for various settings
 #define GET_CONF_ZONE_ENABLED(x)     ((x) & 0b1)
 #define GET_CONF_ZONE_GROUP(x)       ((x >> 1U) & 0b1111)
 #define GET_CONF_ZONE_AUTH_TIME(x)   ((x >> 5U) & 0b11)
 #define GET_CONF_ZONE_ARM_HOME(x)    ((x >> 7U) & 0b1)
-#define GET_CONF_ZONE_STILL_OPEN(x)  ((x >> 8U) & 0b1)
+#define GET_CONF_ZONE_OPEN_ALARM(x)  ((x >> 8U) & 0b1)
 #define GET_CONF_ZONE_PIR_AS_TMP(x)  ((x >> 9U) & 0b1)
+#define GET_CONF_ZONE_BALANCED(x)    ((x >> 10U) & 0b1)
 #define GET_CONF_ZONE_IS_BATTERY(x)  ((x >> 11U) & 0b1)
 #define GET_CONF_ZONE_IS_REMOTE(x)   ((x >> 12U) & 0b1)
 #define GET_CONF_ZONE_IS_PRESENT(x)  ((x >> 14U) & 0b1)
@@ -87,8 +85,9 @@
 #define SET_CONF_ZONE_GROUP(x,y)     x = (((x)&(0b1111111111100001))|(((y & 0b1111) << 1U)&(0b0000000000011110)))
 #define SET_CONF_ZONE_AUTH_TIME(x,y) x = (((x)&(0b1111111110011111))|(((y & 0b11) << 5U)&(0b0000000001100000)))
 #define SET_CONF_ZONE_ARM_HOME(x)    x |= (1 << 7U)
-#define SET_CONF_ZONE_STILL_OPEN(x)  x |= (1 << 8U)
+#define SET_CONF_ZONE_OPEN_ALARM(x)  x |= (1 << 8U)
 #define SET_CONF_ZONE_PIR_AS_TMP(x)  x |= (1 << 9U)
+#define SET_CONF_ZONE_BALANCED(x)    x |= (1 << 10U)
 #define SET_CONF_ZONE_IS_BATTERY(x)  x |= (1 << 11U)
 #define SET_CONF_ZONE_IS_REMOTE(x)   x |= (1 << 12U)
 #define SET_CONF_ZONE_IS_PRESENT(x)  x |= (1 << 14U)
@@ -97,6 +96,7 @@
 #define CLEAR_CONF_ZONE_ARM_HOME(x)    x &= ~(1 << 7U)
 #define CLEAR_CONF_ZONE_STILL_OPEN(x)  x &= ~(1 << 8U)
 #define CLEAR_CONF_ZONE_PIR_AS_TMP(x)  x &= ~(1 << 9U)
+#define CLEAR_CONF_ZONE_BALANCED(x)    x &= ~(1 << 10U)
 #define CLEAR_CONF_ZONE_IS_BATTERY(x)  x &= ~(1 << 11U)
 #define CLEAR_CONF_ZONE_IS_REMOTE(x)   x &= ~(1 << 12U)
 #define CLEAR_CONF_ZONE_IS_PRESENT(x)  x &= ~(1 << 14U)
@@ -260,23 +260,20 @@ typedef struct {
 } sensor_t;
 
 // Alerts
-// Logger keeps info about this as bit flags, so max value is 8 for uint8_t
-#define ALERT_TYPE_SIZE 3
 typedef struct {
   char    name[6];
-  uint8_t number;
+//  uint8_t number;
 } alertType_t;
-const alertType_t alertType[ALERT_TYPE_SIZE] = {
-  { "SMS", 0 },
-  { "Page", 1 },
-  { "Email", 2 }
+// Logger keeps info about this as bit flags of uint8_t, maximum number of alert types is 8.
+const alertType_t alertType[] = {
+  { "SMS" },
+  { "Page" },
+  { "Email" }
 };
-//#define ALERT_SIZE 2 // List of alerts max is sizeof(uint32_t)
-// Logger message text to match alert
+// Logger message text to match alert, maximum number of alerts is number of bits in uint32_t
 const char alertDef[][3] = {
-  "SS",
-  "SA",
-  "SX"
+  "SS", "SA", "SX", "GS", "GD", "GA", "ZP", "ZT", "ZO", "AA",
+  "AH", "AD", "AU", "AF"
 };
 
 /*
@@ -323,8 +320,10 @@ typedef struct {
   uint8_t  versionMajor;
   uint8_t  versionMinor;
 
-  uint16_t logOffset;
+  uint16_t logOffset; // FRAM position
   uint8_t  armDelay;
+  uint8_t  autoArm; // minutes
+  uint8_t  openAlarm; // minutes
   char     dateTimeFormat[NAME_LENGTH];
 
   uint16_t zone[ALARM_ZONES];
@@ -344,26 +343,28 @@ typedef struct {
   //char     keyName[KEYS_SIZE][NAME_LENGTH];
   uint8_t  keyContact[KEYS_SIZE];
 
-  uint32_t alert[3];
+  uint32_t alert[ARRAY_SIZE(alertType)];
 
   char     SNTPAddress[URL_LENGTH];
-  uint8_t  time_std_week;   //First, Second, Third, Fourth, or Last week of the month
-  uint8_t  time_std_dow;    //day of week, 1=Sun, 2=Mon, ... 7=Sat
-  uint8_t  time_std_month;  //1=Jan, 2=Feb, ... 12=Dec
-  uint8_t  time_std_hour;   //0-23
-  int16_t  time_std_offset; //offset from UTC in minutes
+  uint8_t  timeStdWeekNum;//First, Second, Third, Fourth, or Last week of the month
+  uint8_t  timeStdDow;    //day of week, 1=Sun, 2=Mon, ... 7=Sat
+  uint8_t  timeStdMonth;  //1=Jan, 2=Feb, ... 12=Dec
+  uint8_t  timeStdHour;   //0-23
+  int16_t  timeStdOffset; //offset from UTC in minutes
 
-  uint8_t  time_dst_week;   //First, Second, Third, Fourth, or Last week of the month
-  uint8_t  time_dst_dow;    //day of week, 1=Sun, 2=Mon, ... 7=Sat
-  uint8_t  time_dst_month;  //1=Jan, 2=Feb, ... 12=Dec
-  uint8_t  time_dst_hour;   //0-23
-  int16_t  time_dst_offset; //offset from UTC in minutes
+  uint8_t  timeDstWeekNum;//First, Second, Third, Fourth, or Last week of the month
+  uint8_t  timeDstDow;    //day of week, 1=Sun, 2=Mon, ... 7=Sat
+  uint8_t  timeDstMonth;  //1=Jan, 2=Feb, ... 12=Dec
+  uint8_t  timeDstHour;   //0-23
+  int16_t  timeDstOffset; //offset from UTC in minutes
 
   char     SMTPAddress[URL_LENGTH];
   uint16_t SMTPPort;
   char     SMTPUser[EMAIL_LENGTH];
   char     SMTPPassword[NAME_LENGTH];
 
+  char     user[NAME_LENGTH];
+  char     password[NAME_LENGTH];
 
 } config_t;
 config_t conf;
@@ -447,7 +448,6 @@ void initRuntimeZones(void){
   }
 }
 
-
 /*
  * SRAM/RTC backup related functions
  */
@@ -508,16 +508,17 @@ void setConfDefault(void){
   conf.versionMinor   = OHS_MINOR;
   conf.logOffset      = 0;
   conf.armDelay       = 20;
+  conf.autoArm        = 1;
   strcpy(conf.dateTimeFormat, "%T %a %d.%m.%Y");
 
   for(uint8_t i = 0; i < ALARM_ZONES; i++) {
     // Zones setup
-    //                    |- Digital 0/ Analog 1
+    //                    |- HW type Digital 0/ Analog 1
     //                    ||- Present - connected
     //                    |||- ~ Free ~
     //                    ||||- Remote zone
     //                    |||||- Battery powered zone, they don't send OK, only PIR or Tamper.
-    //                    ||||||- Free
+    //                    ||||||- Logical type balanced 1/ unbalanced 0
     //                    |||||||- PIR as Tamper
     //                    ||||||||- Still open alarm
     //                    ||||||||         |- Arm Home zone
@@ -531,7 +532,7 @@ void setConfDefault(void){
     //                    54321098         76543210
     switch(i){
       case  0 ...  9:
-         conf.zone[i] = 0b11000000 << 8 | 0b00011110; // Analog sensor
+         conf.zone[i] = 0b11000100 << 8 | 0b00011110; // Analog sensor
         break;
       case  10      :
          conf.zone[i] = 0b01000010 << 8 | 0b00011110; // Tamper
@@ -582,69 +583,34 @@ void setConfDefault(void){
   for(uint8_t i = 0; i < KEYS_SIZE; i++) {
     // disabled
     conf.keySetting[i] = 0b00000000;
-    //strcpy(conf.keyName[i], NOT_SET);
     memset(&conf.keyValue[i][0], 0xFF, KEY_LENGTH);  // Set key value to FF
     conf.keyContact[i] = 255;
   }
 
-  for(uint8_t i = 0; i < ALERT_TYPE_SIZE; i++) {
+  for(uint8_t i = 0; i < ARRAY_SIZE(alertType); i++) {
     conf.alert[i] = 0;
   }
 
   strcpy(conf.SNTPAddress, "time.google.com");
-  conf.time_std_week = 0;     //First, Second, Third, Fourth, or Last week of the month
-  conf.time_std_dow = 0;      //day of week, 0=Sun, 1=Mon, ... 6=Sat
-  conf.time_std_month = 10;   //1=Jan, 2=Feb, ... 12=Dec
-  conf.time_std_hour = 3;     //0-23
-  conf.time_std_offset = 60;  //offset from UTC in minutes
-  conf.time_dst_week = 0;     //First, Second, Third, Fourth, or Last week of the month
-  conf.time_dst_dow = 0;      //day of week, 0=Sun, 1=Mon, ... 6=Sat
-  conf.time_dst_month = 3;    //1=Jan, 2=Feb, ... 12=Dec
-  conf.time_dst_hour = 2;     //0-23
-  conf.time_dst_offset = 120; //offset from UTC in minutes
+  conf.timeStdWeekNum = 0;  //First, Second, Third, Fourth, or Last week of the month
+  conf.timeStdDow = 0;      //day of week, 0=Sun, 1=Mon, ... 6=Sat
+  conf.timeStdMonth = 10;   //1=Jan, 2=Feb, ... 12=Dec
+  conf.timeStdHour = 3;     //0-23
+  conf.timeStdOffset = 60;  //offset from UTC in minutes
+  conf.timeDstWeekNum = 0;  //First, Second, Third, Fourth, or Last week of the month
+  conf.timeDstDow = 0;      //day of week, 0=Sun, 1=Mon, ... 6=Sat
+  conf.timeDstMonth = 3;    //1=Jan, 2=Feb, ... 12=Dec
+  conf.timeDstHour = 2;     //0-23
+  conf.timeDstOffset = 120; //offset from UTC in minutes
 
   strcpy(conf.SMTPAddress, "mail.smtp2go.com");
   conf.SMTPPort = 2525;
   strcpy(conf.SMTPUser, NOT_SET);
   strcpy(conf.SMTPPassword, NOT_SET);
-}
 
-//Year = 20**
-//1=First,2=Second,3=Third,4=Fourth, or 0=Last week of the month
-//day of week, 0=Sun, 1=Mon, ... 6=Sat
-//1=Jan, 2=Feb, ... 12=Dec
-//0-23=hour
+  strcpy(conf.user, "admin");
+  strcpy(conf.password, "pass");
 
-#define SECS_PER_DAY 86400UL
-time_t calculateDST(uint16_t year, uint8_t month, uint8_t week, uint8_t dow,  uint8_t hour){
-  struct tm* ptm;
-  time_t rawtime;
-  uint8_t _month = month, _week = week;  //temp copies of month and week
-
-  ptm = gmtime(0);
-
-  if (_week == 0) {       //Last week = 0
-    if (_month++ > 12) {  //for "Last", go to the next month
-      _month = 1;  year++;
-    }
-    _week = 1;            //and treat as first week of next month, subtract 7 days later
-  }
-  //first day of the month, or first day of next month for "Last" rules
-  ptm->tm_year = year - 1900;
-  ptm->tm_mon = _month - 1;
-  ptm->tm_mday = 1;
-  ptm->tm_hour = hour;
-  ptm->tm_min = 0;
-  ptm->tm_sec = 0;
-  // Do DST
-  rawtime = mktime(ptm) + ((7 * (_week - 1) + (dow - ptm->tm_wday + 7) % 7) * SECS_PER_DAY);
-
-  //back up a week if this is a "Last" rule
-  if (week == 0) {
-    rawtime = rawtime - (7 * SECS_PER_DAY);
-  }
-
-  return rawtime;
 }
 
 #endif /* OHS_CONF_H_ */

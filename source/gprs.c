@@ -98,7 +98,7 @@ uint8_t gprsWaitAndReadMsg(uint8_t *where, uint8_t response_len, uint16_t wait) 
     while ((gprsRingBuffer.message == 0) && (atWait < wait)) {
       chThdSleepMilliseconds(AT_DELAY);
       atWait++;
-      chprintf((BaseSequentialStream*)&SD3, "+");
+      //chprintf((BaseSequentialStream*)&SD3, "+");
     }
     if (atWait == wait) return 0; // no message
     // Get message
@@ -130,18 +130,18 @@ int8_t gprsSendCmd(char *what){
   gprsFlushRX();
 
   chprintf(gprs, "%s\r", what);
-  chprintf((BaseSequentialStream*)&SD3, "*>%s\r\n", (char*)what);
+  //chprintf((BaseSequentialStream*)&SD3, "*>%s\r\n", (char*)what);
 
   // Echo
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
-  chprintf((BaseSequentialStream*)&SD3, "1>%s<\r\n", (char*)gprsATreply);
+  //chprintf((BaseSequentialStream*)&SD3, "1>%s<\r\n", (char*)gprsATreply);
   if (resp == 0) return -11;                     // timeout reached
   if (resp != strlen(what)) return -21;          // echo not match
   if (memcmp(what, gprsATreply, resp) != 0) return -1; // compare echo
 
   // Get OK / ERROR
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
-  chprintf((BaseSequentialStream*)&SD3, "2>%s\r\n", (char*)gprsATreply);
+  //chprintf((BaseSequentialStream*)&SD3, "2>%s\r\n", (char*)gprsATreply);
   if (resp == 0) return -12;                    // timeout reached
   if (resp != strlen(AT_OK)) return -22;        // 'OK' size
   if (memcmp(AT_OK, gprsATreply, resp) != 0) return -2; // compare OK
@@ -163,11 +163,11 @@ int8_t gprsSendCmdWR(char *what, uint8_t *response, uint8_t response_len) {
   gprsFlushRX();
 
   chprintf(gprs, "%s\r", what);
-  chprintf((BaseSequentialStream*)&SD3, "*>%s\r\n", (char*)what);
+  //chprintf((BaseSequentialStream*)&SD3, "*>%s\r\n", (char*)what);
 
   // Echo
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
-  chprintf((BaseSequentialStream*)&SD3, "1>%s<\r\n", (char*)gprsATreply);
+  //chprintf((BaseSequentialStream*)&SD3, "1>%s<\r\n", (char*)gprsATreply);
   if (resp == 0) return -11;                     // timeout reached
   if (resp != strlen(what)) return -21;          // echo not match
   if (memcmp(what, gprsATreply, resp) != 0) return -1; // compare echo
@@ -175,12 +175,12 @@ int8_t gprsSendCmdWR(char *what, uint8_t *response, uint8_t response_len) {
   // Get output
   ret = gprsWaitAndReadMsg(response, response_len, AT_WAIT);
   response[ret] = 0;                            // terminate the response by null
-  chprintf((BaseSequentialStream*)&SD3, "2>%s<\r\n", (char*)response);
+  //chprintf((BaseSequentialStream*)&SD3, "2>%s<\r\n", (char*)response);
   if (resp == 0) return -12;                    // timeout reached
 
   // Get OK / ERROR
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
-  chprintf((BaseSequentialStream*)&SD3, "3>%s\r\n", (char*)gprsATreply);
+  //chprintf((BaseSequentialStream*)&SD3, "3>%s\r\n", (char*)gprsATreply);
   if (resp == 0) return -13;                    // timeout reached
   if (resp != strlen(AT_OK)) return -23;        // 'OK' size
   if (memcmp(AT_OK, gprsATreply, resp) != 0) return -3; // compare OK
@@ -203,11 +203,11 @@ int8_t gprsSendCmdWRI(char *what, uint8_t *response, uint8_t response_len, uint8
   gprsFlushRX();
 
   chprintf(gprs, "%s\r", what);
-  chprintf((BaseSequentialStream*)&SD3, "*>%s\r\n", (char*)what);
+  //chprintf((BaseSequentialStream*)&SD3, "*>%s\r\n", (char*)what);
 
   // Echo
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
-  chprintf((BaseSequentialStream*)&SD3, "1>%s<\r\n", (char*)gprsATreply);
+  //chprintf((BaseSequentialStream*)&SD3, "1>%s<\r\n", (char*)gprsATreply);
   if (resp == 0) return -11;                     // timeout reached
   if (resp != strlen(what)) return -21;          // echo not match
   if (memcmp(what, gprsATreply, resp) != 0) return -1; // compare echo
@@ -215,7 +215,7 @@ int8_t gprsSendCmdWRI(char *what, uint8_t *response, uint8_t response_len, uint8
   // Get output
   ret = gprsWaitAndReadMsg(response, response_len, AT_WAIT);
   response[ret] = 0;                            // terminate the response by null
-  chprintf((BaseSequentialStream*)&SD3, "2>%s<\r\n", (char*)response);
+  //chprintf((BaseSequentialStream*)&SD3, "2>%s<\r\n", (char*)response);
   if (resp == 0) return -12;                    // timeout reached
 
   // Get index
@@ -229,11 +229,11 @@ int8_t gprsSendCmdWRI(char *what, uint8_t *response, uint8_t response_len, uint8
   }
   strncpy((char*)response, pch, response_len);
   response[response_len] = 0;                    // NULL terminate
-  chprintf((BaseSequentialStream*)&SD3, "3>%s<\r\n", (char*)response);
+  //chprintf((BaseSequentialStream*)&SD3, "3>%s<\r\n", (char*)response);
 
   // Get OK / ERROR
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
-  chprintf((BaseSequentialStream*)&SD3, "4>%s\r\n", (char*)gprsATreply);
+  //chprintf((BaseSequentialStream*)&SD3, "4>%s\r\n", (char*)gprsATreply);
   if (resp == 0) return -13;                    // timeout reached
   if (resp != strlen(AT_OK)) return -23;        // 'OK' size
   if (memcmp(AT_OK, gprsATreply, resp) != 0) return -3; // compare OK
@@ -254,7 +254,7 @@ int8_t gprsSendSMSBegin(char *number) {
 
   // Echo
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
-  chprintf((BaseSequentialStream*)&SD3, "sms-b>%s\r\n", (char*)gprsATreply);
+  //chprintf((BaseSequentialStream*)&SD3, "sms-b>%s\r\n", (char*)gprsATreply);
   if (resp == 0) return -11; // timeout reached
   if (memcmp(AT_send_sms, gprsATreply, strlen(AT_send_sms)) != 0) return -1; // compare only command part, echo not match
 
@@ -274,13 +274,13 @@ int8_t gprsSendSMSEnd(char *what) {
 
   // Wait for SMS reply
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT*10);
-  chprintf((BaseSequentialStream*)&SD3, "sms-e1>%s\r\n", (char*)gprsATreply);
+  //chprintf((BaseSequentialStream*)&SD3, "sms-e1>%s\r\n", (char*)gprsATreply);
   if (resp == 0) return -11; // timeout reached, waiting for network ACK
   if (memcmp(AT_send_sms_reply, gprsATreply, strlen(AT_send_sms_reply)) != 0) return -1; // compare strlen
 
   // Get OK / ERROR
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
-  chprintf((BaseSequentialStream*)&SD3, "sms-e2>%s\r\n", (char*)gprsATreply);
+  //chprintf((BaseSequentialStream*)&SD3, "sms-e2>%s\r\n", (char*)gprsATreply);
   if (resp == 0) return -12;                            // timeout reached
   if (resp != strlen(AT_OK)) return -22;                // 'OK' size
   if (memcmp(AT_OK, gprsATreply, resp) != 0) return -2; // compare OK

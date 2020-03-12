@@ -15,7 +15,7 @@ void pushToLog(char *what, uint8_t size) {
     memset(outMsg->text, 0, LOGGER_MSG_LENGTH);
     if (size > LOGGER_MSG_LENGTH) size = LOGGER_MSG_LENGTH;
 
-    outMsg->timestamp = GetTimeUnixSec();  // Set timestamp
+    outMsg->timestamp = getTimeUnixSec();  // Set timestamp
     memcpy(&outMsg->text[0], what, size);  // Copy string
     //chprintf(console, "L msg %s %d\r\n", outMsg->text, size);
 
@@ -92,19 +92,23 @@ int8_t getNodeFreeIndex(void){
   return -1;
 }
 
+typedef enum {
+  armAway = 0,
+  armHome = 1
+} armType_t;
 // Arm a group
-void armGroup(uint8_t groupNum, uint8_t master, uint8_t armType, uint8_t hop) {
+void armGroup(uint8_t groupNum, uint8_t master, armType_t armType, uint8_t hop) {
   uint8_t resp = 0;
 
   // if group enabled arm group or log error to log.
   if (GET_CONF_GROUP_ENABLED(conf.group[groupNum])){
     // Group not armed already
     if (!GET_GROUP_ARMED(group[groupNum].setting)){
-      if (armType == 0) {
+      if (armType == armAway) {
         group[groupNum].armDelay = conf.armDelay * 4; // set arm delay * 0.250 seconds
       } else {
         SET_GROUP_ARMED_HOME(group[groupNum].setting);
-        group[groupNum].armDelay = 8; // just 1 second to indicate arm home
+        group[groupNum].armDelay = 8; // Just 2 seconds to indicate arm home
       }
       sendCmdToGrp(groupNum, NODE_CMD_ARMING, 'K'); // Send arm cmd to all Key nodes
       //+++publishGroup(groupNum, 'P');
@@ -116,7 +120,7 @@ void armGroup(uint8_t groupNum, uint8_t master, uint8_t armType, uint8_t hop) {
   resp = GET_CONF_GROUP_ARM_CHAIN(conf.group[groupNum]); // Temp variable
   if ((resp != 15) &&
       (resp != master) &&
-      (master != 255) &&
+      (master != ARM_GROUP_CHAIN_NONE) &&
       (hop <= ALARM_GROUPS)) {
     hop++; // Increase hop
     armGroup(resp, master, armType, hop);
@@ -159,7 +163,7 @@ void disarmGroup(uint8_t groupNum, uint8_t master, uint8_t hop) {
 }
 
 // Check key value to saved keys
-void checkKey(uint8_t groupNum, uint8_t armType, uint8_t *key){
+void checkKey(uint8_t groupNum, armType_t armType, uint8_t *key){
   // Group is allowed and enabled
   chprintf(console, "Check key for group: %u, arm tupe: %u\r\n", groupNum, armType);
   if ((groupNum < ALARM_GROUPS) && (GET_CONF_GROUP_ENABLED(conf.group[groupNum]))) {
@@ -182,8 +186,8 @@ void checkKey(uint8_t groupNum, uint8_t armType, uint8_t *key){
             disarmGroup(groupNum, groupNum, 0); // Disarm group and all chained groups
           } else { // Just do arm
             tmpLog[0] = 'A';
-            if (armType == 1) tmpLog[1] = 'H';
-            else tmpLog[1] = 'A';
+            if (armType == armAway) tmpLog[1] = 'A';
+            else                    tmpLog[1] = 'H';
             tmpLog[2] = i; pushToLog(tmpLog, 3);
             armGroup(groupNum, groupNum, armType, 0); // Arm group and all chained groups
           }

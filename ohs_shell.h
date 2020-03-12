@@ -75,6 +75,31 @@ static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
   chprintf(chp, "\r\n");
 }
 
+const char weekNumber[][7] = {
+// 12345678901234567890
+  "Last",
+  "First",
+  "Second",
+  "Third",
+  "Fourth"
+};
+
+const char weekDay[][10] = {
+// 12345678901234567890
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday"
+};
+
+const char monthName[][4] = {
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+};
+
 const char text_System[]            = "System";
 const char text_started[]           = "started";
 const char text_Undefined[]         = "Undefined";
@@ -83,6 +108,7 @@ const char text_disabled[]          = "disabled";
 const char text_address[]           = "address";
 const char text_Address[]           = "Address";
 const char text_Group[]             = "Group";
+const char text_group[]             = "group";
 const char text_registration[]      = "registration";
 const char text_error[]             = "error";
 const char text_registered[]        = "registered";
@@ -187,8 +213,25 @@ const char text_AC[]                = "AC";
 const char text_Register[]          = "Register";
 const char text_Signal[]            = "Signal";
 const char text_Alive[]             = "Alive";
-
-
+const char text_Admin[]             = "Admin";
+const char text_user[]              = "user";
+const char text_Password[]          = "Password";
+const char text_SMTP[]              = "SMTP";
+const char text_NTP[]               = "NTP";
+const char text_Server[]            = "Server";
+const char text_Port[]              = "Port";
+const char text_of[]                = "of";
+const char text_at[]                = "at";
+const char text_offset[]            = "offset";
+const char text_end[]               = "end";
+const char text_start[]             = "start";
+const char text_DS[]                = "Daylight saving";
+const char text_Standard[]          = "Standard";
+const char text_minutes[]           = "minute(s)";
+const char text_format[]            = "format";
+const char text_oclock[]            = "o'clock";
+const char text_Balanced[]          = "Balanced";
+const char text_balanced[]          = "balanced";
 
 void printNodeType(BaseSequentialStream *chp, const char type) {
   switch(type){
@@ -232,20 +275,17 @@ void printFrmTimestamp(BaseSequentialStream *chp, time_t *value) {
 }
 
 void printFrmUpTime(BaseSequentialStream *chp, time_t *value) {
-  uint16_t days    = *value / (time_t)SECONDS_PER_DAY;
+  uint16_t days = *value / (time_t)SECONDS_PER_DAY;
   *value -= (days * (time_t)SECONDS_PER_DAY);
-  uint8_t  hours   = *value / (time_t)SECONDS_PER_HOUR;
+  uint8_t hours = *value / (time_t)SECONDS_PER_HOUR;
   *value -= (hours * (time_t)SECONDS_PER_HOUR);
-  uint8_t  minutes = *value / (time_t)SECONDS_PER_MINUTE;
+  uint8_t minutes = *value / (time_t)SECONDS_PER_MINUTE;
   *value -= (minutes * (time_t)SECONDS_PER_MINUTE);
 
   chprintf(chp, "%u day(s), %02u:%02u:%02u", days, hours, minutes, (uint32_t)*value);
 }
 
-/*
- * helper function
- */
-void SetTimeUnixSec(time_t unix_time) {
+void setTimeUnixSec(time_t unix_time) {
   struct tm tim;
   struct tm *canary;
 
@@ -257,12 +297,55 @@ void SetTimeUnixSec(time_t unix_time) {
   rtcConvertStructTmToDateTime(&tim, 0, &timespec);
   rtcSetTime(&RTCD1, &timespec);
 }
-time_t GetTimeUnixSec(void) {
+
+//Year - 1900
+//1=First,2=Second,3=Third,4=Fourth, or 0=Last week of the month
+//day of week, 0=Sun, 1=Mon, ... 6=Sat
+//1=Jan, 2=Feb, ... 12=Dec
+//0-23=hour
+time_t calculateDST(uint16_t year, uint8_t month, uint8_t week, uint8_t dow, uint8_t hour){
+  struct tm* ptm;
+  time_t rawtime;
+  uint8_t _month = month, _week = week;  //temp copies of month and week
+
+  ptm = gmtime(0);
+
+  if (_week == 0) {       //Last week = 0
+    if (_month++ > 12) {  //for "Last", go to the next month
+      _month = 1;  year++;
+    }
+    _week = 1;            //and treat as first week of next month, subtract 7 days later
+  }
+  //first day of the month, or first day of next month for "Last" rules
+  ptm->tm_year = year ;
+  ptm->tm_mon = _month - 1;
+  ptm->tm_mday = 1;
+  ptm->tm_hour = hour;
+  ptm->tm_min = 0;
+  ptm->tm_sec = 0;
+  // Do DST
+  rawtime = mktime(ptm) + ((7 * (_week - 1) + (dow - ptm->tm_wday + 7) % 7) * SECONDS_PER_DAY);
+
+  //back up a week if this is a "Last" rule
+  if (week == 0) {
+    rawtime = rawtime - (7 * SECONDS_PER_DAY);
+  }
+
+  return rawtime;
+}
+
+time_t getTimeUnixSec(void) {
   struct tm timestamp;
+  time_t timeSec, dsts, dste;
 
   rtcGetTime(&RTCD1, &timespec);
   rtcConvertDateTimeToStructTm(&timespec, &timestamp, NULL);
-  return mktime(&timestamp);
+  timeSec = mktime(&timestamp);
+  dsts = calculateDST(timestamp.tm_year, conf.timeDstMonth, conf.timeDstWeekNum, conf.timeDstDow, conf.timeDstHour);
+  dste = calculateDST(timestamp.tm_year, conf.timeStdMonth, conf.timeStdWeekNum, conf.timeStdDow, conf.timeStdHour);
+  if ((timeSec >= dsts) && (timeSec <= dste)) timeSec += conf.timeDstOffset * SECONDS_PER_MINUTE;
+  else timeSec += conf.timeStdOffset * SECONDS_PER_MINUTE;
+  return timeSec;
 }
 
 void printKey(BaseSequentialStream *chp, const char *value, const uint8_t size){
@@ -343,7 +426,9 @@ static uint8_t decodeLog(char *in, char *out, bool full){
     break;
     case 'G': // Group related
       chprintf(chp, "%s ", text_Group);
-      printGroup(chp, (uint8_t)in[2]);
+      if (full) {
+        printGroup(chp, (uint8_t)in[2]);
+      }
       switch(in[1]){
         case 'F': chprintf(chp, "%s %s", text_is, text_disabled); break;
         case 'S': chprintf(chp, "%s", text_armed); break;
@@ -354,9 +439,13 @@ static uint8_t decodeLog(char *in, char *out, bool full){
       groupNum = (uint8_t)in[2];
     break;
     case 'Z': // Zone
-      chprintf(chp, "%s %u. ", text_Zone, (uint8_t)in[2] + 1);
-      if ((uint8_t)in[2] < ALARM_ZONES) {
-        chprintf(chp, "%s ", conf.zoneName[(uint8_t)in[2]]);
+      chprintf(chp, "%s ", text_Zone);
+      if (full) {
+        if ((uint8_t)in[2] < ALARM_ZONES) {
+          chprintf(chp, "%u. %s ", (uint8_t)in[2] + 1, conf.zoneName[(uint8_t)in[2]]);
+        } else {
+          chprintf(chp, "%s ", text_unknown);
+        }
       }
       switch(in[1]){
         case 'P': chprintf(chp, "%s", text_alarm); break;
@@ -373,24 +462,30 @@ static uint8_t decodeLog(char *in, char *out, bool full){
         break;
         default: chprintf(chp, "%s", text_unknown); break;
       }
+      groupNum = GET_CONF_ZONE_GROUP((uint8_t)in[2]);
     break;
     case 'A': // Authentication
       chprintf(chp, "%s ", text_Key);
-      if (in[1] != 'U') {
-        chprintf(chp, "#%u, ", (uint8_t)in[2] + 1);
-        if (conf.keyContact[(uint8_t)in[2]] == 255) chprintf(chp, "%s ", NOT_SET);
-        else chprintf(chp, "%s ", conf.contactName[(conf.keyContact[(uint8_t)in[2]])]);
+      if (full) {
+        if (in[1] != 'U') {
+          chprintf(chp, "#%u, ", (uint8_t)in[2] + 1);
+          if (conf.keyContact[(uint8_t)in[2]] == 255) chprintf(chp, "%s ", NOT_SET);
+          else chprintf(chp, "%s ", conf.contactName[(conf.keyContact[(uint8_t)in[2]])]);
+        }
       }
       switch(in[1]){
         case 'D': chprintf(chp, "%s", text_disarmed); break;
         case 'A': chprintf(chp, "%s", text_armed); break;
         case 'H': chprintf(chp, "%s %s", text_armed, text_home); break;
-        case 'U': chprintf(chp, "%s: ", text_unknown);
-          printKey(chp, &in[2], KEY_LENGTH);
+        case 'U': chprintf(chp, "%s ", text_unknown);
+          if (full) {
+            printKey(chp, &in[2], KEY_LENGTH);
+          }
           break;
         case 'F': chprintf(chp, "%s %s", text_is, text_disabled); break;
         default : chprintf(chp, "%s", text_unknown); break;
       }
+      groupNum = GET_CONF_CONTACT_GROUP(conf.keyContact[(uint8_t)in[2]]);
     break;
     default: chprintf(chp, "%s", text_Undefined);
       for(uint16_t ii = 0; ii < LOGGER_MSG_LENGTH; ii++) {
@@ -457,7 +552,7 @@ static void cmd_date(BaseSequentialStream *chp, int argc, char *argv[]) {
   time_t unix_time;
 
   if (argc == 0) {
-    unix_time = GetTimeUnixSec();
+    unix_time = getTimeUnixSec();
 
     if (unix_time == -1){
       chprintf(chp, "Incorrect time in RTC cell.\r\n");
@@ -474,7 +569,7 @@ static void cmd_date(BaseSequentialStream *chp, int argc, char *argv[]) {
   if ((argc == 2) && (strcmp(argv[0], "set") == 0)){
     unix_time = atol(argv[1]);
     if (unix_time > 0){
-      SetTimeUnixSec(unix_time);
+      setTimeUnixSec(unix_time);
       return;
     }
     else{

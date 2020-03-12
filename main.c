@@ -106,7 +106,6 @@ struct tm *ptm;
  * Application entry point.
  */
 int main(void) {
-
   halInit();
   chSysInit();
 
@@ -196,23 +195,10 @@ int main(void) {
   lwipInit(&lwip_opts);
   httpd_init();
   sntp_init();
-
-  //uint8_t data;
-  //uint32_t data32;
-  //uint8_t *baseAddress = (uint8_t *) BKPSRAM_BASE;
-  //volatile uint32_t *RTCBaseAddress = &(RTC->BKP0R);
-  // for(uint16_t i = 0; i < 0x100; i++) { *(base_address + i) = 0x55; } //erase BKP_SRAM
-  //for(uint16_t i = 0; i < 20; i++) { *(RTCBaseAddress + i) = (0x55 << 24) | (0x55 << 16) | (0x55 << 8) | (0x55 << 0);} // Erase RTC bkp
-  //chprintf(console, "BRTC %d ", writeToBkpRTC((uint8_t*)&myStr, sizeof(myStr), 0));
-
-  // Start
-  startTime = GetTimeUnixSec();
-  pushToLogText("Ss");
+  mdns_resp_init();
 
   // Read last group[] state
   readFromBkpRTC((uint8_t*)&group, sizeof(group), 0);
-  // Initialize zone state
-  initRuntimeZones();
   // Read conf.
   readFromBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
   chprintf(console, "Size of conf: %u, group: %u\r\n", sizeof(conf), sizeof(group));
@@ -223,11 +209,11 @@ int main(void) {
     writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
     writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
   }
-  setConfDefault(); // Load OHS default conf.
+  //setConfDefault(); // Load OHS default conf.
   // SMTP
   smtp_set_server_addr(conf.SMTPAddress);
-  smtp_set_server_port(2525);
-  smtp_set_auth("vysocan76@gmail.com","abc12abc");
+  smtp_set_server_port(conf.SMTPPort);
+  smtp_set_auth(conf.SMTPUser, conf.SMTPPassword);
   // SNTP
   sntp_setservername(0, conf.SNTPAddress);
 
@@ -237,6 +223,12 @@ int main(void) {
   uBSGetFreeBlock(&uBSaddress);
   chprintf(console, "uBS, free space: %u, First block: %u\r\n", uBSGetFreeSpace(), uBSaddress);
   */
+
+  // Start
+  startTime = getTimeUnixSec();
+  pushToLogText("Ss");
+  // Initialize zones state
+  initRuntimeZones();
 
   // Idle runner
   while (true) {

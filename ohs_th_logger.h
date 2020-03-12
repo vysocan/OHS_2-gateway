@@ -27,7 +27,7 @@ static THD_FUNCTION(LoggerThread, arg) {
       flag = 0;
       for (uint8_t i = 0; i < ARRAY_SIZE(alertDef); i++) {
         if (memcmp(&inMsg->text[0], alertDef[i], strlen(alertDef[i])) == 0) {
-          for(uint8_t j = 0; j < ALERT_TYPE_SIZE; j++) {
+          for(uint8_t j = 0; j < ARRAY_SIZE(alertType); j++) {
             // Combine all alerts flags into flag(uint8_t) as bits
             flag |= (((conf.alert[j] >> i) & 0b1) << j);
           }
