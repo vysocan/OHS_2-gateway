@@ -76,6 +76,12 @@ const char html_Reregister[]        = "<input type='submit' name='R' value='Call
 const char html_Now[]               = "<input type='submit' name='N' value='Now'/>";
 const char html_FR[]                = "<input type='submit' name='R' value='<<'/>";
 const char html_FF[]                = "<input type='submit' name='F' value='>>'/>";
+const char html_textarea_1[]        = "<textarea name='";
+const char html_textarea_2[]        = "' id='";
+const char html_textarea_3[]        = "' rows='";
+const char html_textarea_4[]        = "' cols='";
+const char html_textarea_5[]        = "' maxlength='";
+const char html_textarea_e[]        = "</textarea>";
 const char html_e_table[]           = "</table>";
 const char html_table[]             = "<table>";
 const char html_e_form[]            = "</form>";
@@ -233,6 +239,13 @@ void printIntInput(BaseSequentialStream *chp, const char name, const int16_t val
   chprintf(chp, "%s%c%s", html_id_tag, name, html_e_tag);
 }
 
+void printTextArea(BaseSequentialStream *chp, const char name, const char *value, const uint16_t size,
+                   const uint8_t rows, const uint8_t cols){
+  chprintf(chp, "%s%c%s%c%s%u", html_textarea_1, name, html_textarea_2, name, html_textarea_3, rows);
+  chprintf(chp, "%s%u%s%u%s", html_textarea_4, cols, html_textarea_5, size, html_e_tag);
+  chprintf(chp, "%s%s", value, html_textarea_e);
+}
+
 
 void genfiles_ex_init(void) {
   /* nothing to do here yet */
@@ -243,6 +256,7 @@ static uint16_t webLog = 0;
 int fs_open_custom(struct fs_file *file, const char *name){
   char temp[3] = "";
   uint16_t logAddress;
+  float tmpFloat;
 
   for (uint8_t htmlPage = 0; htmlPage < ARRAY_SIZE(webPage); ++htmlPage) {
     if (!strcmp(name, webPage[htmlPage].link)) {
@@ -549,15 +563,14 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s", html_Apply, html_Save);
           break;
         case PAGE_ALERT:
-          chprintf(chp, "%s#", html_tr_th);
-          chprintf(chp, "%s%s", html_e_th_th, text_Name);
+          chprintf(chp, "%s%s", html_tr_th, text_Name);
           for (uint8_t j = 0; j < ARRAY_SIZE(alertType); j++) {
             chprintf(chp, "%s%s", html_e_th_th, alertType[j].name);
           }
           chprintf(chp, "%s\r\n", html_e_th_e_tr);
           // Information table
           for (uint8_t i = 0; i < ARRAY_SIZE(alertDef); i++) {
-            chprintf(chp, "%s%u.%s", html_tr_td, i + 1, html_e_td_td);
+            chprintf(chp, "%s", html_tr_td);
             decodeLog((char*)alertDef[i], logText, false);
             chprintf(chp, "%s%s", logText, html_e_td_td);
             for (uint8_t j = 0; j < ARRAY_SIZE(alertType); j++) {
@@ -730,6 +743,11 @@ int fs_open_custom(struct fs_file *file, const char *name){
           printOkNok(chp, palReadPad(GPIOD, GPIOD_AC_OFF));
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Battery, html_e_td_td);
           printOkNok(chp, palReadPad(GPIOD, GPIOD_BAT_OK));
+          chprintf(chp, "%s%s %s%", html_e_td_e_tr_tr_td, text_RTC, text_battery);
+          // VBAT does not measure under 1 V
+          if (adcSamples[10] < 700) tmpFloat = 0;
+          else tmpFloat = (float)adcSamples[10] * ADC_SCALING_VBAT;
+          chprintf(chp, "%s%.2f V", html_e_td_td, tmpFloat);
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           chprintf(chp, "<h1>%s</h1>\r\n", text_Modem);
           chprintf(chp, "%s%s", html_table, html_tr_td);
@@ -748,9 +766,10 @@ int fs_open_custom(struct fs_file *file, const char *name){
             default : chprintf(chp, "%s", text_i_question);; break; // case 4
           }
           chprintf(chp, "%s%s %s%s%u%%", html_e_td_e_tr_tr_td, text_Signal, text_strength, html_e_td_td, gprsStrength);
-
-
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
+
+          printTextArea(chp, 's', tclCmd, 120, 5, 60);
+
           // Buttons
           chprintf(chp, "%s%s", html_Apply, html_Save);
           break;
@@ -998,7 +1017,8 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
   int8_t resp;
   char name[3];
   uint8_t message[REGISTRATION_SIZE];
-  char value[URL_LENGTH + 1];
+  //char value[URL_LENGTH + 1];
+  char value[121];
   bool repeat;
 
   //chprintf((BaseSequentialStream*)&SD3, "-PE-connection: %u\r\n", (uint32_t *)connection);
@@ -1311,6 +1331,19 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
 
                 case 'e': // save
                   writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+                break;
+              }
+            } while (repeat);
+            break;
+          case PAGE_HOME:
+            do{
+              repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
+              chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
+              switch(name[0]){
+                case 'A': // Apply
+                break;
+                case 's': // name
+                  strncpy(tclCmd, value, 120);
                 break;
               }
             } while (repeat);

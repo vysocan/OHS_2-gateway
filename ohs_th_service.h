@@ -8,7 +8,6 @@
 #ifndef OHS_TH_SERVICE_H_
 #define OHS_TH_SERVICE_H_
 
-
 /*
  * Service thread
  * Perform various housekeeping services
@@ -17,6 +16,8 @@ static THD_WORKING_AREA(waServiceThread, 256);
 static THD_FUNCTION(ServiceThread, arg) {
   chRegSetThreadName(arg);
   time_t tempTime;
+  uint8_t counterAC = 0;
+  int8_t resp;
 
   while (true) {
     chThdSleepMilliseconds(1000);
@@ -42,6 +43,41 @@ static THD_FUNCTION(ServiceThread, arg) {
         node[nodeIndex].queue    = 255;
         //memset(&node[nodeIndex].name, 0, NAME_LENGTH);
       }
+    }
+
+    // Battery check
+    if (palReadPad(GPIOD, GPIOD_BAT_OK) == 0) { // The signal is "Low" when the voltage of battery is under 11V
+      pushToLogText("SBL"); // Battery low
+      pushToLogText("SCP"); // Configuration saved
+      // Wait for alert mb to be empty
+      do {
+        chThdSleepMilliseconds(100);
+      } while (chMBGetFreeCountI(&alert_mb) != ALERT_FIFO_SIZE);
+      // Backup
+      writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+      writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
+      // Lock RTOS
+      chSysLock();
+      // Battery is at low level but it might oscillate, so we wait for AC start
+      while (palReadPad(GPIOD, GPIOD_AC_OFF)) { // The signal turns to be "High" when the power supply turns OFF
+        // do nothing, wait for power supply shutdown
+      }
+      // Power is restored we go on
+      chSysUnlock();
+      pushToLogText("SBH"); // Battery high
+    }
+
+    // AC power check - The signal turns to be "High" when the power supply turns OFF
+    resp = palReadPad(GPIOD, GPIOD_AC_OFF);
+    if (!resp && counterAC > 1) counterAC--;
+    if (!resp && counterAC == 1) {
+      counterAC--;
+      pushToLogText("SAH"); // AC ON
+    }
+    if (resp && counterAC < AC_POWER_DELAY) counterAC++;
+    if (resp && counterAC == AC_POWER_DELAY) {
+      counterAC++;
+      pushToLogText("SAL"); // AC OFF
     }
 
     // Group auto arm

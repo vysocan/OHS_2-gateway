@@ -63,7 +63,7 @@ static THD_FUNCTION(ZoneThread, arg) {
           switch(zone[i].lastEvent) {
             case 'O': val = ALARM_OK; break;
             case 'P': val = ALARM_PIR; break;
-            default:  val = 0; break;
+            default:  val = ALARM_TAMPER; break;
           }
         } else { // Local HW
           // Digital 0, Analog 1

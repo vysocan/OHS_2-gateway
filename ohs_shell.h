@@ -121,7 +121,9 @@ const char text_Temperature[]       = "Temperature";
 const char text_Humidity[]          = "Humidity";
 const char text_Pressure[]          = "Pressure";
 const char text_Voltage[]           = "Voltage";
+const char text_voltage[]           = "voltage";
 const char text_Battery[]           = "Battery";
+const char text_RTC[]               = "RTC";
 const char text_Digital[]           = "Digital";
 const char text_Analog[]            = "Analog";
 const char text_Float[]             = "Float";
@@ -232,6 +234,8 @@ const char text_format[]            = "format";
 const char text_oclock[]            = "o'clock";
 const char text_Balanced[]          = "Balanced";
 const char text_balanced[]          = "balanced";
+const char text_low[]               = "low";
+const char text_state[]             = "state";
 
 void printNodeType(BaseSequentialStream *chp, const char type) {
   switch(type){
@@ -362,7 +366,7 @@ void printGroup(BaseSequentialStream *chp, const uint8_t value) {
 
 /*
  * Decode log entries to string
- * full: decode full string
+ * full: decode full string or just short version for alerts.html
  */
 static uint8_t decodeLog(char *in, char *out, bool full){
   uint8_t groupNum = 255;
@@ -385,7 +389,27 @@ static uint8_t decodeLog(char *in, char *out, bool full){
           if (full) chprintf(chp, "! %s %u.%s", text_Group, (uint8_t)in[2] + 1, conf.groupName[(uint8_t)in[2]]);
           groupNum = (uint8_t)in[2];
           break;
-        default:  chprintf(chp, "%s", text_unknown); break; // unknown
+        case 'B': chprintf(chp, "%s ", text_battery);
+          if (full) {
+            switch(in[2]){
+              case 'L': chprintf(chp, "%s", text_low); break;
+              default:  chprintf(chp, "%s", text_OK); break;
+            }
+          } else {
+            chprintf(chp, " %s", text_state);
+          }
+          break;
+        case 'A': chprintf(chp, "%s ", text_power);
+          if (full) {
+            switch(in[2]){
+              case 'L': chprintf(chp, "%s", text_Off); break;
+              default:  chprintf(chp, "%s", text_On); break;
+            }
+          } else {
+            chprintf(chp, " %s", text_state);
+          }
+          break;
+        default: chprintf(chp, "%s", text_unknown); break; // unknown
       }
     break;
     case 'N': // Remote nodes
@@ -471,13 +495,14 @@ static uint8_t decodeLog(char *in, char *out, bool full){
           chprintf(chp, "#%u, ", (uint8_t)in[2] + 1);
           if (conf.keyContact[(uint8_t)in[2]] == 255) chprintf(chp, "%s ", NOT_SET);
           else chprintf(chp, "%s ", conf.contactName[(conf.keyContact[(uint8_t)in[2]])]);
+          groupNum = GET_CONF_CONTACT_GROUP(conf.keyContact[(uint8_t)in[2]]);
         }
       }
       switch(in[1]){
         case 'D': chprintf(chp, "%s", text_disarmed); break;
         case 'A': chprintf(chp, "%s", text_armed); break;
         case 'H': chprintf(chp, "%s %s", text_armed, text_home); break;
-        case 'U': chprintf(chp, "%s ", text_unknown);
+        case 'U': chprintf(chp, "%s %s ", text_is, text_unknown);
           if (full) {
             printKey(chp, &in[2], KEY_LENGTH);
           }
@@ -485,7 +510,7 @@ static uint8_t decodeLog(char *in, char *out, bool full){
         case 'F': chprintf(chp, "%s %s", text_is, text_disabled); break;
         default : chprintf(chp, "%s", text_unknown); break;
       }
-      groupNum = GET_CONF_CONTACT_GROUP(conf.keyContact[(uint8_t)in[2]]);
+
     break;
     default: chprintf(chp, "%s", text_Undefined);
       for(uint16_t ii = 0; ii < LOGGER_MSG_LENGTH; ii++) {
@@ -537,8 +562,7 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
   return;
 
 ERROR:
-  chprintf(chp, "Usage: log\r\n");
-  chprintf(chp, "       log N - where N is log last entry point\r\n");
+  shellUsage(chp, "log\r\n       log N - where N is log last entry point");
   return;
 }
 
@@ -560,7 +584,7 @@ static void cmd_date(BaseSequentialStream *chp, int argc, char *argv[]) {
     else{
       ptm = gmtime(&unix_time);
       strftime(dateTime, 30, conf.dateTimeFormat, ptm); // Format date time as needed
-      chprintf(chp, "Current: %d\t", unix_time);
+      chprintf(chp, "Current: %d %s,", unix_time, text_seconds);
       chprintf(chp, "%s\r\n", dateTime);
     }
     return;
@@ -594,7 +618,7 @@ static void cmd_debug(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
 
   if (argc != 1) {
-    chprintf(chp, "Usage: debug on/off\r\n");
+    shellUsage(chp, "debug on/off");
     return;
   }
   // Reroute all console to USB

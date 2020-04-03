@@ -19,7 +19,7 @@ static THD_FUNCTION(RS485Thread, arg) {
   eventmask_t evt;
   msg_t resp;
   RS485Msg_t rs485Msg;
-  uint8_t _pos;
+  uint8_t pos;
   int8_t nodeIndex;
 
   // Register
@@ -67,18 +67,18 @@ static THD_FUNCTION(RS485Thread, arg) {
         if (rs485Msg.ctrl == RS485_FLAG_DTA) {
           switch(rs485Msg.data[0]) {
             case 'R': // Registration
-              _pos = 0;
+              pos = 0;
               do {
-                _pos++; // Skip 'R'
+                pos++; // Skip 'R'
                 registration_t *outMsg = chPoolAlloc(&registration_pool);
                 if (outMsg != NULL) {
                   // node setting
                   outMsg->address  = rs485Msg.address;
-                  outMsg->type     = (char)rs485Msg.data[_pos];
-                  outMsg->function = (char)rs485Msg.data[_pos+1];
-                  outMsg->number   = rs485Msg.data[_pos+2];
-                  outMsg->setting  = (rs485Msg.data[_pos+3] << 8) | (rs485Msg.data[_pos+4]);
-                  memcpy(&outMsg->name[0], &rs485Msg.data[_pos+5], NAME_LENGTH);  // Copy string
+                  outMsg->type     = (char)rs485Msg.data[pos];
+                  outMsg->function = (char)rs485Msg.data[pos+1];
+                  outMsg->number   = rs485Msg.data[pos+2];
+                  outMsg->setting  = (rs485Msg.data[pos+3] << 8) | (rs485Msg.data[pos+4]);
+                  memcpy(&outMsg->name[0], &rs485Msg.data[pos+5], NAME_LENGTH);  // Copy string
 
                   msg_t msg = chMBPostTimeout(&registration_mb, (msg_t)outMsg, TIME_IMMEDIATE);
                   if (msg != MSG_OK) {
@@ -87,8 +87,8 @@ static THD_FUNCTION(RS485Thread, arg) {
                 } else {
                   pushToLogText("FR"); // Registration queue is full
                 }
-                _pos += REG_PACKET_SIZE;
-              } while (_pos < rs485Msg.length);
+                pos += REG_PACKET_SIZE;
+              } while (pos < rs485Msg.length);
               break;
             case 'K': // iButtons keys
               nodeIndex = getNodeIndex(rs485Msg.address, rs485Msg.data[0],
@@ -112,17 +112,17 @@ static THD_FUNCTION(RS485Thread, arg) {
               }
               break;
             case 'S': // Sensor data
-              _pos = 0;
+              pos = 0;
               do {
                 sensor_t *outMsg = chPoolAlloc(&sensor_pool);
                 if (outMsg != NULL) {
                   // node setting
                   outMsg->address  = rs485Msg.address;
-                  outMsg->type     = (char)rs485Msg.data[_pos];
-                  outMsg->function = (char)rs485Msg.data[_pos+1];
-                  outMsg->number   = rs485Msg.data[_pos+2];
-                  floatConv.byte[0] = rs485Msg.data[_pos+3]; floatConv.byte[1] = rs485Msg.data[_pos+4];
-                  floatConv.byte[2] = rs485Msg.data[_pos+5]; floatConv.byte[3] = rs485Msg.data[_pos+6];
+                  outMsg->type     = (char)rs485Msg.data[pos];
+                  outMsg->function = (char)rs485Msg.data[pos+1];
+                  outMsg->number   = rs485Msg.data[pos+2];
+                  floatConv.byte[0] = rs485Msg.data[pos+3]; floatConv.byte[1] = rs485Msg.data[pos+4];
+                  floatConv.byte[2] = rs485Msg.data[pos+5]; floatConv.byte[3] = rs485Msg.data[pos+6];
                   outMsg->value = floatConv.val;
 
                   msg_t msg = chMBPostTimeout(&sensor_mb, (msg_t)outMsg, TIME_IMMEDIATE);
@@ -132,8 +132,8 @@ static THD_FUNCTION(RS485Thread, arg) {
                 } else {
                   pushToLogText("FS"); // Sensor queue is full
                 }
-                _pos += SENSOR_PACKET_SIZE;
-              } while (_pos < rs485Msg.length);
+                pos += SENSOR_PACKET_SIZE;
+              } while (pos < rs485Msg.length);
               break;
           } // switch case
         } // data

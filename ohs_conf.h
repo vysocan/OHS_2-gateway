@@ -21,7 +21,7 @@
 #define BACKUP_RTC_SIZE  80     // 80 bytes
 
 #define ALARM_ZONES      30     // Maximum zones
-#define ALARM_GROUPS     8      // Maximum groups
+#define ALARM_GROUPS     10     // Maximum groups
 #define HW_ZONES         11     // # of hardware zones on gateway
 #define CONTACTS_SIZE    10     // Maximum contacts
 #define KEYS_SIZE        20     // Maximum keys
@@ -29,6 +29,8 @@
 #define NAME_LENGTH      16     //
 #define PHONE_LENGTH     14     //
 #define EMAIL_LENGTH     30     //
+#define URL_LENGTH       32
+#define NOT_SET          "not set"
 
 #define ALARM_PIR        3400   //(3380 = 15.2V)
 #define ALARM_PIR_LOW    3050
@@ -41,16 +43,14 @@
 
 #define RADIO_UNIT_OFFSET 15
 #define REGISTRATION_SIZE 22
-
-#define URL_LENGTH        32
-
-#define NOT_SET           "not set"
+#define NODE_SIZE         50    // Number of nodes
 
 #define ARM_GROUP_CHAIN_NONE 255
 
-#define NODE_SIZE          10    // Number of nodes
+#define AC_POWER_DELAY    60    // seconds
 
 #define LOGGER_MSG_LENGTH 11
+
 // Time related
 #define SECONDS_PER_DAY    86400U
 #define SECONDS_PER_HOUR   3600U
@@ -139,13 +139,8 @@
 
 
 #define GET_CONF_KEY_ENABLED(x)     ((x) & 0b1)
-//#define GET_CONF_KEY_GROUP(x)       ((x >> 1U) & 0b1111)
-//#define GET_CONF_KEY_IS_GLOBAL(x)   ((x >> 5U) & 0b1)
 #define SET_CONF_KEY_ENABLED(x)     x |= 1
-//#define SET_CONF_KEY_GROUP(x,y)     x = (((x)&(0b11100001))|(((y & 0b1111) << 1U)&(0b00011110)))
-//#define SET_CONF_KEY_IS_GLOBAL(x)   x |= (1 << 5U)
 #define CLEAR_CONF_KEY_ENABLED(x)   x &= ~1
-//#define CLEAR_CONF_KEY_IS_GLOBAL(x) x &= ~(1 << 5U)
 
 #define GET_ZONE_ALARM(x)     ((x >> 1U) & 0b1)
 #define GET_ZONE_ERROR(x)     ((x >> 5U) & 0b1)
@@ -272,8 +267,10 @@ const alertType_t alertType[] = {
 };
 // Logger message text to match alert, maximum number of alerts is number of bits in uint32_t
 const char alertDef[][3] = {
-  "SS", "SA", "SX", "GS", "GD", "GA", "ZP", "ZT", "ZO", "AA",
-  "AH", "AD", "AU", "AF"
+  "SS", "SX", "SB", "SA",
+  "GS", "GD", "GA",
+  "ZP", "ZT", "ZO",
+  "AA", "AH", "AD", "AU", "AF"
 };
 
 /*

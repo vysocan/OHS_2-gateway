@@ -35,7 +35,16 @@ const SPIConfig spi1cfg = {
   0
 };
 
-static SerialConfig ser_cfg = {
+const SPIConfig spi3cfg = {
+  false,
+  NULL,
+  GPIOD, // CS PORT
+  GPIOD_SPI3_CS, // CS PIN
+  SPI_BaudRatePrescaler_32,
+  0
+};
+
+static SerialConfig serialCfg = {
   115200,
   0,
   0,
@@ -43,7 +52,7 @@ static SerialConfig ser_cfg = {
   NULL, NULL, NULL, NULL
 };
 
-static RS485Config ser_mpc_cfg = {
+static RS485Config rs485cfg = {
   19200,          // speed
   0,              // address
   GPIOD,          // port
@@ -52,8 +61,9 @@ static RS485Config ser_mpc_cfg = {
 
 
 // ADC related
-#define ADC_GRP1_NUM_CHANNELS 10
+#define ADC_GRP1_NUM_CHANNELS 11
 #define ADC_GRP1_BUF_DEPTH    1
+#define ADC_SCALING_VBAT      (0.0016f) // 3.3V/4095*2
 static adcsample_t adcSamples[ADC_GRP1_NUM_CHANNELS * ADC_GRP1_BUF_DEPTH];
 
 static void adcerrorcallback(ADCDriver *adcp, adcerror_t err) {
@@ -75,7 +85,8 @@ static const ADCConversionGroup adcgrpcfg1 = {
   ADC_CR2_SWSTART,          /* CR2 */
   ADC_SMPR1_SMP_AN10(ADC_SAMPLE_15) |
   ADC_SMPR1_SMP_AN12(ADC_SAMPLE_15) |
-  ADC_SMPR1_SMP_AN13(ADC_SAMPLE_15) , /* Sample times for channels 10-18 */
+  ADC_SMPR1_SMP_AN13(ADC_SAMPLE_15) |
+  ADC_SMPR1_SMP_VBAT(ADC_SAMPLE_15), /* Sample times for channels 10-18 */
   ADC_SMPR2_SMP_AN0(ADC_SAMPLE_15) |
   ADC_SMPR2_SMP_AN3(ADC_SAMPLE_15) |
   ADC_SMPR2_SMP_AN4(ADC_SAMPLE_15) |
@@ -87,7 +98,8 @@ static const ADCConversionGroup adcgrpcfg1 = {
   ADC_SQR2_SQ7_N(ADC_CHANNEL_IN10)  |
   ADC_SQR2_SQ8_N(ADC_CHANNEL_IN12) |
   ADC_SQR2_SQ9_N(ADC_CHANNEL_IN8) |
-  ADC_SQR2_SQ10_N(ADC_CHANNEL_IN9) , /* SQR2 Conversion sequence 7-12 */
+  ADC_SQR2_SQ10_N(ADC_CHANNEL_IN9) |
+  ADC_SQR2_SQ11_N(ADC_CHANNEL_VBAT), /* SQR2 Conversion sequence 7-12 */
   ADC_SQR3_SQ6_N(ADC_CHANNEL_IN13) |
   ADC_SQR3_SQ5_N(ADC_CHANNEL_IN0) |
   ADC_SQR3_SQ4_N(ADC_CHANNEL_IN3) |

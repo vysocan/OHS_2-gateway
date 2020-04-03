@@ -28,6 +28,15 @@ BaseSequentialStream* console = (BaseSequentialStream*)&SD3;
 #include "ohs_peripheral.h"
 #include "ohs_functions.h"
 
+
+char tclCmd[120] = "set x 1;"
+                "while {< $x 5} {"
+                  "puts \"x is $x\";"
+                  "set x [+ $x 1];"
+                "};";
+
+char *s = &tclCmd[0];
+
 // GPRS
 #include "gprs.h"
 typedef enum {
@@ -54,6 +63,13 @@ char gprsSmsText[120];
 // uBS
 //#include "uBS.h"
 
+
+// RFM69
+#include "rfm69.h"
+
+// TCL
+#include "tcl.h"
+
 // Semaphores
 binary_semaphore_t gprsSem;
 binary_semaphore_t emailSem;
@@ -68,6 +84,7 @@ binary_semaphore_t emailSem;
 #include "ohs_th_modem.h"
 #include "ohs_th_alert.h"
 #include "ohs_th_service.h"
+#include "ohs_th_radio.h"
 
 /*
  * This is a periodic thread that does absolutely nothing except flashing
@@ -99,6 +116,18 @@ static void GetTimeTm(struct tm *timp) {
 }
 */
 
+// RFM69
+rfm69Config_t rfm69cfg = {
+  &SPID3,
+  &spi3cfg,
+  LINE_RADIO_IRQ,
+  true,
+  RF69_868MHZ,
+  91,
+  100,
+  31
+};
+
 msg_t resp;
 struct tm *ptm;
 
@@ -113,12 +142,12 @@ int main(void) {
   chBSemObjectInit(&gprsSem, false);
   chBSemObjectInit(&emailSem, false);
 
-  sdStart(&SD3,  &ser_cfg); // Debug port
+  sdStart(&SD3,  &serialCfg); // Debug port
   chprintf(console, "\r\nOHS v.%u.%u start\r\n", OHS_MAJOR, OHS_MINOR);
 
   gprsInit(&SD6); // GPRS modem
 
-  rs485Start(&RS485D2, &ser_mpc_cfg);
+  rs485Start(&RS485D2, &rs485cfg);
   chprintf(console, "RS485 timeout: %d(uS)/%d(tick)\r\n", RS485D2.oneByteTimeUS, RS485D2.oneByteTimeI);
 
   // Initializes a serial-over-USB CDC driver.
@@ -155,7 +184,13 @@ int main(void) {
   //for(uint8_t i = 0; i < NODE_SIZE; i++) { chPoolFree(&node_pool, &node_pool_queue[i]); }
 
   spiStart(&SPID1, &spi1cfg);  // SPI
+  rfm69Start(&rfm69cfg);       // RFM69
+  rfm69SetHighPower(true);
+  rfm69Encrypt("ABCDABCDABCDABCD");
+
   adcStart(&ADCD1, NULL);      // Activates the ADC1 driver
+  adcSTM32EnableTSVREFE();     // Enable
+  adcSTM32EnableVBATE();       // Enable VBAT pin
 
   // Create thread(s).
   chThdCreateStatic(waZoneThread, sizeof(waZoneThread), NORMALPRIO, ZoneThread, (void*)"zone");
@@ -169,14 +204,11 @@ int main(void) {
   chThdCreateStatic(waModemThread, sizeof(waModemThread), NORMALPRIO, ModemThread, (void*)"modem");
   chThdCreateStatic(waAlertThread, sizeof(waAlertThread), NORMALPRIO, AlertThread, (void*)"alert");
   chThdCreateStatic(waServiceThread, sizeof(waServiceThread), NORMALPRIO, ServiceThread, (void*)"service");
+  chThdCreateStatic(waRadioThread, sizeof(waRadioThread), NORMALPRIO, RadioThread, (void*)"radio");
   chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, (void*)"heartbeat");
-  /*
+
   static THD_WORKING_AREA(waShell, 2048);
   chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO + 1, shellThread, (void *)&shell_cfg1);
-  */
-
-  //  shellInit();
-  //chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg1);
 
   // Ethernet
   macAddr[0] = LWIP_ETHADDR_0;
@@ -230,8 +262,47 @@ int main(void) {
   // Initialize zones state
   initRuntimeZones();
 
+  // TCL
+  smalloc_init();
+
+  struct tcl tcl;
+  //const char *s = "set x 4; puts [+ [* $x 10] 2]";
+  //const char *s = "if {> 1 2} {puts A} {puts B};";
+  /*
+  const char *s = "set a 1; ;"
+                  "while {<= $a 10} {"
+                   "if {== $a 5} { puts {Missing five!}; set a [+ $a 1]; continue;}"
+                   " puts \"I can compute that $a[]x$a = [square $a]\" ; set a [+ $a 1]};";
+                   */
+
+
+  char mes[] = { 'S', 'T', 0, 0, 0, 0, 0};
+
+  chThdSleepMilliseconds(10000);
+
   // Idle runner
   while (true) {
+    chprintf(console, "---\r\n");
+
+    //rfm69SendWithAck(1, mes, 7);
+    chprintf(console, "Send: %u %u\r\n\r\n", rfm69Send(1, mes, 7, true), chVTGetSystemTimeX());
+
+    chThdSleepMilliseconds(10000);
+
+    //chprintf(console, "RFM69 temp: %d\r\n", rfm69ReadTemperature(0));
+
+    //rfm69ReadAllRegs();
+
+    /*
+    tcl_init(&tcl);
+    if (tcl_eval(&tcl, s, strlen(s)) != FERROR) {
+      chprintf(console, ">>>%.*s\r\n", tcl_length(tcl.result), tcl_string(tcl.result));
+    } else {
+      chprintf(console, ">>>TCL error\r\n");
+    }
+    tcl_destroy(&tcl);
+    */
+
     /*
     if (SDU1.config->usbp->state == USB_ACTIVE) {
       thread_t *shelltp = chThdCreateFromHeap(NULL, SHELL_WA_SIZE,"shell", NORMALPRIO + 1, shellThread, (void *)&shell_cfg1);
@@ -239,7 +310,7 @@ int main(void) {
     }
     */
 
-    chThdSleepMilliseconds(10000);
+
 
     /*
     temptime = calculateDST(2019, 3, 0, 0, 2);
