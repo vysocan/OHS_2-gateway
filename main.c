@@ -121,11 +121,9 @@ rfm69Config_t rfm69cfg = {
   &SPID3,
   &spi3cfg,
   LINE_RADIO_IRQ,
-  true,
   RF69_868MHZ,
   91,
-  100,
-  31
+  100
 };
 
 msg_t resp;
@@ -186,6 +184,7 @@ int main(void) {
   spiStart(&SPID1, &spi1cfg);  // SPI
   rfm69Start(&rfm69cfg);       // RFM69
   rfm69SetHighPower(true);
+  rfm69AutoPower(-90);
   rfm69Encrypt("ABCDABCDABCDABCD");
 
   adcStart(&ADCD1, NULL);      // Activates the ADC1 driver
@@ -285,7 +284,7 @@ int main(void) {
     chprintf(console, "---\r\n");
 
     //rfm69SendWithAck(1, mes, 7);
-    chprintf(console, "Send: %u %u\r\n\r\n", rfm69Send(1, mes, 7, true), chVTGetSystemTimeX());
+    chprintf(console, "Send: %d , time %u\r\n\r\n", rfm69Send(1, mes, 7, true), chVTGetSystemTimeX());
 
     chThdSleepMilliseconds(10000);
 

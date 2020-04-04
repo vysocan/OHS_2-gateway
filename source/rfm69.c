@@ -2,7 +2,15 @@
  * rfm69.c
  *
  *  Created on: 26. 3. 2020
- *      Author: adam
+ *      Author: vysocan76
+ *
+ *  ChibiOS specific driver for RFM69
+ *
+ * Created to be compatible with:
+ ************************************************************************************
+ * Driver definition for HopeRF RFM69W/RFM69HW/RFM69CW/RFM69HCW, Semtech SX1231/1231H
+ * Copyright LowPowerLab LLC 2018, https://www.LowPowerLab.com/contact
+ ************************************************************************************
  */
 
 #include <rfm69.h>
@@ -14,7 +22,16 @@
 rfm69Config_t rfm69Config;
 rfm69data_t rfm69Data;
 
-volatile bool haveData;
+uint8_t  rfm69PowerLevel; // 0 - 31
+bool     rfm69IsHW;
+
+int8_t   rfm69TargetRssi = 0; // 0 disabled
+
+uint32_t rfm69PacketSent;
+uint32_t rfm69PacketReceived;
+uint32_t rfm69PacketAckFailed;
+
+
 rfm69Transceiver_t transceiverMode;
 
 // Semaphores
@@ -58,22 +75,29 @@ void rfm69WriteRegister(uint8_t address, uint8_t value) {
   spiReleaseBus(rfm69Config.spidp);
 }
 
-void rfm69SetHighPowerRegs(bool onOff) {
-  rfm69WriteRegister(REG_TESTPA1, onOff ? 0x5D : 0x55);
-  rfm69WriteRegister(REG_TESTPA2, onOff ? 0x7C : 0x70);
+/*
+ * Set *transmit/TX* output power: 0=min, 31=max.
+ * The power configurations are explained in the SX1231H datasheet (Table 10 on p21; RegPaLevel p66): http://www.semtech.com/images/datasheet/sx1231h.pdf
+ * This results in a "weaker" transmitted signal, and directly results in a lower RSSI at the receiver.
+ * Valid powerLevel parameter values are 0-31 and result in a directly proportional effect on the output/transmission power.
+ * This function implements 2 modes as follows:
+ *       - for RFM69W the range is from 0-31 [-18dBm to 13dBm] (PA0 only on RFIO pin)
+ *       - for RFM69HW the range is from 0-31 [5dBm to 20dBm]  (PA1 & PA2 on PA_BOOST pin & high Power PA settings - see section 3.3.7 in datasheet, p22)
+ */
+void rfm69SetPowerLevel(uint8_t powerLevel) {
+  rfm69PowerLevel = (powerLevel > 31 ? 31 : powerLevel);
+  if (rfm69IsHW) powerLevel /= 2;
+  rfm69WriteRegister(REG_PALEVEL, (rfm69ReadRegister(REG_PALEVEL) & 0xE0) | powerLevel);
 }
 
 /*
- * for RFM69HW only: you must call setHighPower(true) after initialize() or else transmission won't work
+ * Set High power registers
+ *
+ * @parm onOff HW or W
  */
-void rfm69SetHighPower(bool onOff) {
-  rfm69Config.isRfm69HW = onOff;
-  rfm69WriteRegister(REG_OCP, rfm69Config.isRfm69HW ? RF_OCP_OFF : RF_OCP_ON);
-
-  if (rfm69Config.isRfm69HW) // turning ON
-    rfm69WriteRegister(REG_PALEVEL, (rfm69ReadRegister(REG_PALEVEL) & 0x1F) | RF_PALEVEL_PA1_ON | RF_PALEVEL_PA2_ON); // enable P1 & P2 amplifier stages
-  else
-    rfm69WriteRegister(REG_PALEVEL, RF_PALEVEL_PA0_ON | RF_PALEVEL_PA1_OFF | RF_PALEVEL_PA2_OFF | rfm69Config.powerLevel); // enable P0 only
+void rfm69SetHighPowerRegs(bool onOff) {
+  rfm69WriteRegister(REG_TESTPA1, onOff ? 0x5D : 0x55);
+  rfm69WriteRegister(REG_TESTPA2, onOff ? 0x7C : 0x70);
 }
 
 /*
@@ -88,12 +112,15 @@ void rfm69SetMode(uint8_t newMode) {
     case RF69_MODE_TX_ACK:
     case RF69_MODE_TX_WAIT_ACK:
       rfm69WriteRegister(REG_OPMODE, (rfm69ReadRegister(REG_OPMODE) & 0xE3) | RF_OPMODE_TRANSMITTER);
-      if (rfm69Config.isRfm69HW) rfm69SetHighPowerRegs(true);
+      if (rfm69IsHW) rfm69SetHighPowerRegs(true);
+      if (rfm69TargetRssi) rfm69SetPowerLevel(rfm69PowerLevel);
       break;
     case RF69_MODE_RX:
     case RF69_MODE_RX_WAIT_ACK:
       rfm69WriteRegister(REG_OPMODE, (rfm69ReadRegister(REG_OPMODE) & 0xE3) | RF_OPMODE_RECEIVER);
-      if (rfm69Config.isRfm69HW) rfm69SetHighPowerRegs(false);
+      if (rfm69IsHW) rfm69SetHighPowerRegs(false);
+      // Avoid RX deadlocks
+      rfm69WriteRegister(REG_PACKETCONFIG2, (rfm69ReadRegister(REG_PACKETCONFIG2) & 0xFB) | RF_PACKET2_RXRESTART);
       break;
     case RF69_MODE_SYNTH:
       rfm69WriteRegister(REG_OPMODE, (rfm69ReadRegister(REG_OPMODE) & 0xE3) | RF_OPMODE_SYNTHESIZER);
@@ -108,9 +135,11 @@ void rfm69SetMode(uint8_t newMode) {
       return;
   }
 
-  // we are using packet mode, so this check is not really needed
-  // but waiting for mode ready is necessary when going from sleep because the FIFO may not be immediately available from previous mode
-  // wait for ModeReady
+  /* We are using packet mode, so this check is not really needed.
+   * But waiting for mode ready is necessary when going from sleep,
+   * because the FIFO may not be immediately available from previous mode
+   * wait for ModeReady.
+   */
   while ((transceiverMode == RF69_MODE_SLEEP) &&
          ((rfm69ReadRegister(REG_IRQFLAGS1) & RF_IRQFLAGS1_MODEREADY) == 0x00));
 
@@ -119,127 +148,35 @@ void rfm69SetMode(uint8_t newMode) {
 }
 
 /*
- * Get temperature
- *
- * @return Centigrade
- */
-int8_t rfm69ReadTemperature(uint8_t calFactor) {
-  rfm69SetMode(RF69_MODE_STANDBY);
-  rfm69WriteRegister(REG_TEMP1, RF_TEMP1_MEAS_START);
-  while ((rfm69ReadRegister(REG_TEMP1) & RF_TEMP1_MEAS_RUNNING));
-  // 'complement' corrects the slope, rising temp = rising val
-  return ~rfm69ReadRegister(REG_TEMP2) + COURSE_TEMP_COEF + calFactor;
-}
-
-/*
- * Put transceiver in sleep mode to save battery.
- * To wake or resume receiving just call receiveDone()
- */
-void rfm69Sleep(void) {
-  rfm69SetMode(RF69_MODE_SLEEP);
-}
-
-/*
- * Set *transmit/TX* output power: 0=min, 31=max.
- * The power configurations are explained in the SX1231H datasheet (Table 10 on p21; RegPaLevel p66): http://www.semtech.com/images/datasheet/sx1231h.pdf
- * This results in a "weaker" transmitted signal, and directly results in a lower RSSI at the receiver.
- * Valid powerLevel parameter values are 0-31 and result in a directly proportional effect on the output/transmission power.
- * This function implements 2 modes as follows:
- *       - for RFM69W the range is from 0-31 [-18dBm to 13dBm] (PA0 only on RFIO pin)
- *       - for RFM69HW the range is from 0-31 [5dBm to 20dBm]  (PA1 & PA2 on PA_BOOST pin & high Power PA settings - see section 3.3.7 in datasheet, p22)
- */
-void SetPowerLevel(uint8_t powerLevel) {
-  rfm69Config.powerLevel = (powerLevel > 31 ? 31 : powerLevel);
-  if (rfm69Config.isRfm69HW) powerLevel /= 2;
-  rfm69WriteRegister(REG_PALEVEL, (rfm69ReadRegister(REG_PALEVEL) & 0xE0) | powerLevel);
-}
-
-/*
- * To enable encryption: radio.encrypt("ABCDEFGHIJKLMNOP");
- * To disable encryption: radio.encrypt(null) or radio.encrypt(0)
- * KEY HAS TO BE 16 bytes !!!
- */
-void rfm69Encrypt(const char* key) {
-  uint8_t txBuffer[17];
-
-  rfm69SetMode(RF69_MODE_STANDBY);
-  if (key != 0) {
-    txBuffer[0] = REG_AESKEY1 | 0x80;
-    memcpy(&txBuffer[1], key, 16);   // Copy text to buffer
-
-    spiAcquireBus(rfm69Config.spidp);
-    spiSelect(rfm69Config.spidp);
-    spiSend(rfm69Config.spidp, 17, txBuffer);
-    spiUnselect(rfm69Config.spidp);
-    spiReleaseBus(rfm69Config.spidp);
-  }
-  rfm69WriteRegister(REG_PACKETCONFIG2, (rfm69ReadRegister(REG_PACKETCONFIG2) & 0xFE) | (key ? 1 : 0));
-}
-
-/*
  * Get the received signal strength indicator (RSSI)
  * @return RSSI
  */
-int16_t rfm69ReadRSSI(void) {
+int8_t rfm69ReadRSSI(void) {
   int16_t rssi = 0;
 
   // *** missing force trigger part
   rssi = -rfm69ReadRegister(REG_RSSIVALUE);
   rssi >>= 1;
-  return rssi;
-}
-
-bool rfm69CanSend(void) {
-  // if signal stronger than -100dBm is detected assume channel activity
-  chprintf((BaseSequentialStream*)&SD3, "RFM CanSend: mode %u, pl %u, rssi %d\r\n",
-           transceiverMode, rfm69Data.payloadLength, rfm69ReadRSSI());
-  if ((transceiverMode == RF69_MODE_RX) &&
-      (rfm69Data.payloadLength == 0) &&
-      (rfm69ReadRSSI() < CSMA_LIMIT)) {
-    rfm69SetMode(RF69_MODE_STANDBY);
-
-    return true;
-  }
-  return false;
+  return (int8_t)rssi;
 }
 
 /*
+ * Send data or ACK frame.
  *
- */
-void rfm69ReceiveBegin(void) {
-  rfm69Data.length = 0;
-  rfm69Data.senderId = 0;
-  rfm69Data.targetId = 0;
-  rfm69Data.payloadLength = 0;
-  rfm69Data.ackRequested = 0;
-  rfm69Data.ackReceived = 0;
-  rfm69Data.rssi = 0;
-  haveData = false; //*** Added
-
-  if (rfm69ReadRegister(REG_IRQFLAGS2) & RF_IRQFLAGS2_PAYLOADREADY) {
-    // avoid RX deadlocks
-    rfm69WriteRegister(REG_PACKETCONFIG2, (rfm69ReadRegister(REG_PACKETCONFIG2) & 0xFB) | RF_PACKET2_RXRESTART);
-  }
-  // set DIO0 to "PAYLOADREADY" in receive mode
-  rfm69WriteRegister(REG_DIOMAPPING1, RF_DIOMAPPING1_DIO0_01);
-  if (transceiverMode == RF69_MODE_TX_WAIT_ACK) rfm69SetMode(RF69_MODE_RX_WAIT_ACK);
-  else if(transceiverMode != RF69_MODE_RX_WAIT_ACK) rfm69SetMode(RF69_MODE_RX);
-}
-
-/*
- *
+ * @@return RF69_RSLT_BUSY - Line is busy.
+ *          RF69_RSLT_OK - Sent.
  */
 #define RFM69_SEND_HEADER_SIZE 5
-int8_t rfm69SendFrame(uint16_t toAddress, const void* buffer, uint8_t bufferSize, bool requestACK, bool sendACK) {
+int8_t rfm69SendFrame(uint16_t toAddress, const void* buffer, uint8_t bufferSize,
+                      bool requestACK, bool sendACK, bool sendRssi) {
   uint8_t CTLbyte;
   uint16_t temp;
-  uint8_t txBuffer[RFM69_SEND_HEADER_SIZE];
+  uint8_t txBuffer[RFM69_SEND_HEADER_SIZE + 1]; // +1 for ATC, to send RSSI
+  uint8_t txBufferSize = RFM69_SEND_HEADER_SIZE;
 
   chprintf((BaseSequentialStream*)&SD3, "RFM SendFrame start\r\n");
 
   rfm69SetMode(RF69_MODE_RX);
-  // avoid RX deadlocks
-  rfm69WriteRegister(REG_PACKETCONFIG2, (rfm69ReadRegister(REG_PACKETCONFIG2) & 0xFB) | RF_PACKET2_RXRESTART);
   // Wait for clear line
   while ((rfm69ReadRSSI() > CSMA_LIMIT) && ((temp * 1) < RF69_CSMA_LIMIT_MS)) {
     chThdSleepMilliseconds(1);
@@ -265,12 +202,15 @@ int8_t rfm69SendFrame(uint16_t toAddress, const void* buffer, uint8_t bufferSize
   if (toAddress == RF69_BROADCAST_ADDR) {
     requestACK = false;
     sendACK = false;
+    sendRssi = false;
   }
 
   // control byte
   CTLbyte = 0x00;
-  if (sendACK)         CTLbyte = RFM69_CTL_SENDACK;
-  else if (requestACK) CTLbyte = RFM69_CTL_REQACK;
+  if (sendACK)         CTLbyte = RF69_CTL_SENDACK | (sendRssi ? RF69_CTL_RESERVE1:0);
+  else if (requestACK) CTLbyte = RF69_CTL_REQACK | (sendRssi ? RF69_CTL_RESERVE1:0);
+
+  chprintf((BaseSequentialStream*)&SD3, "RFM SendFrame CTLbyte: %d\r\n", CTLbyte);
 
   if (toAddress > 0xFF) CTLbyte |= (toAddress & 0x300) >> 6; //assign last 2 bits of address if > 255
   if (rfm69Config.nodeID > 0xFF)  CTLbyte |= (rfm69Config.nodeID & 0x300) >> 8; //assign last 2 bits of address if > 255
@@ -280,10 +220,15 @@ int8_t rfm69SendFrame(uint16_t toAddress, const void* buffer, uint8_t bufferSize
   txBuffer[2] = (uint8_t)toAddress;
   txBuffer[3] = (uint8_t)rfm69Config.nodeID;
   txBuffer[4] = CTLbyte;
+  if ((sendACK) && (sendRssi)) {
+    txBuffer[txBufferSize++] = ~rfm69Data.rssi;
+    chprintf((BaseSequentialStream*)&SD3, "RFM SendFrame ATC RSSI: %d\r\n", txBuffer[txBufferSize - 1]);
+  }
 
   spiAcquireBus(rfm69Config.spidp);
   spiSelect(rfm69Config.spidp);
-  spiSend(rfm69Config.spidp, RFM69_SEND_HEADER_SIZE, txBuffer);
+  spiSend(rfm69Config.spidp, txBufferSize, txBuffer);
+
   // Transfer data
   if (bufferSize > 0) spiSend(rfm69Config.spidp, bufferSize, buffer);
   spiUnselect(rfm69Config.spidp);
@@ -294,23 +239,24 @@ int8_t rfm69SendFrame(uint16_t toAddress, const void* buffer, uint8_t bufferSize
   else if (requestACK) rfm69SetMode(RF69_MODE_TX_WAIT_ACK);
   else                 rfm69SetMode(RF69_MODE_TX);
   // wait for PacketSent
-  CTLbyte = 0;
+  CTLbyte = 0; // Used here as counter
   while ((rfm69ReadRegister(REG_IRQFLAGS2) & RF_IRQFLAGS2_PACKETSENT) == 0x00) {
     CTLbyte++;
     chThdSleepMilliseconds(1);
   }
+  rfm69PacketSent++;
   chprintf((BaseSequentialStream*)&SD3, "RFM SendFrame PS: wait %u, flag %x\r\n", CTLbyte, rfm69ReadRegister(REG_IRQFLAGS2));
-
-  //rfm69ReceiveBegin(); // *** replaced old rfm69SetMode(RF69_MODE_STANDBY);
 
   if (transceiverMode == RF69_MODE_TX_WAIT_ACK) rfm69SetMode(RF69_MODE_RX_WAIT_ACK);
   else rfm69SetMode(RF69_MODE_RX);
 
+  //*** ---
   // Enable receiving
   if (rfm69ReadRegister(REG_IRQFLAGS2) & RF_IRQFLAGS2_PAYLOADREADY) {
     // avoid RX deadlocks
     rfm69WriteRegister(REG_PACKETCONFIG2, (rfm69ReadRegister(REG_PACKETCONFIG2) & 0xFB) | RF_PACKET2_RXRESTART);
   }
+  //*** ---
   // set DIO0 to "PAYLOADREADY" in receive mode
   rfm69WriteRegister(REG_DIOMAPPING1, RF_DIOMAPPING1_DIO0_01);
 
@@ -324,23 +270,33 @@ void rfm69IsrCb(void *arg){
   (void)arg;
 
   chSysLockFromISR();
-  haveData = true;
   if (transceiverMode == RF69_MODE_RX) chBSemSignalI(&rfm69DataReceived);
   if (transceiverMode == RF69_MODE_RX_WAIT_ACK) chBSemSignalI(&rfm69Received);
   chSysUnlockFromISR();
 }
 
+
+/*
+ * Enable Automatic Transmission Control
+ *
+ * @parm targetRssi Target RSSI,
+ *                  0 = disabled
+ */
+void rfm69AutoPower(int8_t targetRssi) {
+  rfm69TargetRssi = targetRssi;
+}
+
  /*
-  * Internal function
-  * Interrupt gets called when a packet is received
+  * Get data
+  *
+  * @@return RF69_RSLT_NOK - Data not for us, or not ACKed.
+  *          RF69_RSLT_OK - Data received.
   */
 #define RFM69_INTERRUPT_DATA_SIZE 4
 int8_t rfm69GetData(void) {
   static char rxBuffer[RFM69_INTERRUPT_DATA_SIZE];
 
   chprintf((BaseSequentialStream*)&SD3, "RFM GD: datamode %u, flag %x\r\n", transceiverMode, rfm69ReadRegister(REG_IRQFLAGS2));
-
-  //if (((transceiverMode == RF69_MODE_RX) || (transceiverMode == RF69_MODE_RX_WAIT_ACK)) &&
 
   if (rfm69ReadRegister(REG_IRQFLAGS2) & RF_IRQFLAGS2_PAYLOADREADY) {
     rfm69SetMode(RF69_MODE_STANDBY);
@@ -356,10 +312,9 @@ int8_t rfm69GetData(void) {
     rfm69Data.targetId = rxBuffer[1] | (((uint16_t)rxBuffer[3] & 0x0C) << 6); //10 bit address (most significant 2 bits stored in bits(2,3) of CTL byte
     rfm69Data.senderId = rxBuffer[2] | (((uint16_t)rxBuffer[3] & 0x03) << 8); //10 bit address (most significant 2 bits stored in bits(0,1) of CTL byte
 
-    chprintf((BaseSequentialStream*)&SD3, "RFM GD: F:%u, T:%u, L:%u\r\n", rfm69Data.senderId, rfm69Data.targetId, rfm69Data.payloadLength);
+    chprintf((BaseSequentialStream*)&SD3, "RFM GD: F:%u, T:%u, PL:%u\r\n", rfm69Data.senderId, rfm69Data.targetId, rfm69Data.payloadLength);
 
     // Match this node's address, or broadcast address
-    // Address situation could receive packets that are malformed and don't fit this libraries extra fields
     if (!(rfm69Data.targetId == rfm69Config.nodeID || rfm69Data.targetId == RF69_BROADCAST_ADDR) ||
         (rfm69Data.payloadLength < 3)) {
       rfm69Data.payloadLength = 0;
@@ -373,18 +328,18 @@ int8_t rfm69GetData(void) {
       rfm69Data.ackRequested = 0;
       rfm69Data.ackReceived = 0;
       rfm69Data.rssi = 0;
+      // Set receiving
       rfm69SetMode(RF69_MODE_RX);
-      // Avoid RX deadlocks
-      rfm69WriteRegister(REG_PACKETCONFIG2, (rfm69ReadRegister(REG_PACKETCONFIG2) & 0xFB) | RF_PACKET2_RXRESTART);
       return RF69_RSLT_NOK;
     }
 
     rfm69Data.length = rfm69Data.payloadLength - 3;
-    rfm69Data.ackReceived = rxBuffer[3] & RFM69_CTL_SENDACK; // extract ACK-received flag
-    rfm69Data.ackRequested = rxBuffer[3] & RFM69_CTL_REQACK; // extract ACK-requested flag
-    chprintf((BaseSequentialStream*)&SD3, "RFM GD: dl:%u, are:%u, arq:%u\r\n",
-             rfm69Data.length, rfm69Data.ackReceived, rfm69Data.ackRequested);
-    // *** ATC rfm69InterruptHook(rxBuffer[3]); // TWS: hook to derived class interrupt function
+    rfm69Data.ackReceived = rxBuffer[3] & RF69_CTL_SENDACK; // extract ACK-received flag
+    rfm69Data.ackRequested = rxBuffer[3] & RF69_CTL_REQACK; // extract ACK-requested flag
+    rfm69Data.ackRssiRequested = rxBuffer[3] & RF69_CTL_RESERVE1; // extract the ACK RSSI request flag
+    chprintf((BaseSequentialStream*)&SD3, "RFM GD: dl:%u, are:%u, arq:%u, AckRssi: %u\r\n",
+             rfm69Data.length, rfm69Data.ackReceived, rfm69Data.ackRequested, rfm69Data.ackRssiRequested);
+
     // Get data, if they are present
     if (rfm69Data.length > 0) {
       spiReceive(rfm69Config.spidp, rfm69Data.length, rfm69Data.data);
@@ -395,18 +350,34 @@ int8_t rfm69GetData(void) {
     spiReleaseBus(rfm69Config.spidp);
 
     rfm69Data.rssi = rfm69ReadRSSI();
+    rfm69PacketReceived++;
 
     if ((rfm69Data.ackRequested) && (rfm69Data.targetId == rfm69Config.nodeID))  {
-      chprintf((BaseSequentialStream*)&SD3, "RFM ACK start\r\n");
-      chThdSleepMilliseconds(10);
-      // Send the frame
-      return rfm69SendFrame(rfm69Data.senderId, "", 0, false, true);
+      chThdSleepMilliseconds(5);
+      // Send the frame and return
+      return rfm69SendFrame(rfm69Data.senderId, "", 0, false, true, rfm69Data.ackRssiRequested);
+    }
+
+    // ATC
+    if ((rfm69Data.ackReceived) && (rfm69Data.ackRssiRequested)) {
+      int8_t rfm69AckRssi; // this contains the RSSI our destination Ack'd back to us (if we enabledAutoPower)
+      // the next two bytes contain the ACK_RSSI (assuming the datalength is valid)
+      if (rfm69Data.length >= 1) {
+        rfm69AckRssi = -rfm69Data.data[rfm69Data.length - 1]; // RSSI was sent as single byte positive value
+        rfm69Data.length--; // Compensate data length accordingly
+        if (rfm69TargetRssi != 0) {
+          if ((rfm69AckRssi < rfm69TargetRssi) && (rfm69PowerLevel < 31)) {
+            rfm69PowerLevel++;
+          } else if ((rfm69AckRssi > rfm69TargetRssi) && (rfm69PowerLevel > 0)) {
+            rfm69PowerLevel--;
+          }
+        }
+      }
+      chprintf((BaseSequentialStream*)&SD3, "RFM ATC start, rfm69AckedRssi %d, rfm69PowerLevel %d \r\n",
+                   rfm69AckRssi, rfm69PowerLevel);
     }
 
     rfm69SetMode(RF69_MODE_RX);
-    // Avoid RX deadlocks
-    rfm69WriteRegister(REG_PACKETCONFIG2, (rfm69ReadRegister(REG_PACKETCONFIG2) & 0xFB) | RF_PACKET2_RXRESTART);
-
     return RF69_RSLT_OK;
   }
 
@@ -414,93 +385,21 @@ int8_t rfm69GetData(void) {
 }
 
 /*
- * Checks if a packet was received and/or puts transceiver in receive (ie RX or listen) mode
- */
-bool rfm69ReceiveDone(void) {
-  if (haveData) {
-    chprintf((BaseSequentialStream*)&SD3, "RFM RD haveData\r\n");
-    haveData = false;
-    rfm69GetData();
-  }
-
-  if ((transceiverMode == RF69_MODE_RX) && (rfm69Data.payloadLength > 0)) {
-    rfm69SetMode(RF69_MODE_STANDBY); // ??? enables interrupts
-    chprintf((BaseSequentialStream*)&SD3, "RFM RD payload\r\n");
-    return true;
-  } else if (transceiverMode == RF69_MODE_RX) {// already in RX no payload yet
-    chprintf((BaseSequentialStream*)&SD3, "RFM RD not yet\r\n");
-    return false;
-  }
-
-  rfm69ReceiveBegin();
-  chprintf((BaseSequentialStream*)&SD3, "RFM RD end\r\n");
-  return false;
-}
-
-/*
- * Should be polled immediately after sending a packet with ACK request
- */
-bool rfm69ACKReceived(uint16_t fromNodeID) {
-  if (rfm69ReceiveDone()) return (rfm69Data.senderId == fromNodeID || fromNodeID == RF69_BROADCAST_ADDR) && rfm69Data.ackReceived;
-  return false;
-}
-
-/*
- * Check whether an ACK was requested in the last received packet (non-broadcasted packet)
- */
-bool rfm69ACKRequested(void) {
-  return rfm69Data.ackRequested && (rfm69Data.targetId == rfm69Config.nodeID);
-}
-
-/*
- * should be called immediately after reception in case sender wants ACK
- */
-bool rfm69SendACK(void) {
-  uint16_t temp = 0;
-
-  chprintf((BaseSequentialStream*)&SD3, "RFM SendACK start\r\n");
-
-  rfm69Data.ackRequested = 0;   // TWS added to make sure we don't end up in a timing race and infinite loop sending Acks
-  uint16_t sender = rfm69Data.senderId;
-  int16_t rssi = rfm69Data.rssi; // save payload received RSSI value
-
-  // avoid RX deadlocks
-  rfm69WriteRegister(REG_PACKETCONFIG2, (rfm69ReadRegister(REG_PACKETCONFIG2) & 0xFB) | RF_PACKET2_RXRESTART);
-
-  // Wait for clear line
-  rfm69SetMode(RF69_MODE_RX);
-  while ((rfm69ReadRSSI() > CSMA_LIMIT) && ((temp * 1) < RF69_CSMA_LIMIT_MS)) {
-    chThdSleepMilliseconds(1);
-    temp++;
-    chprintf((BaseSequentialStream*)&SD3, "RFM SendWA RSSI: %d\r\n", rfm69ReadRSSI());
-  }
-  // Line is busy
-  if (temp == RF69_CSMA_LIMIT_MS) return false;
-
-  chprintf((BaseSequentialStream*)&SD3, "RFM SendACK: %u\r\n", temp);
-
-  rfm69Data.senderId = sender;    // TWS: Restore SenderID after it gets wiped out by receiveDone()
-
-  rfm69SendFrame(sender, "", 0, false, true);
-
-  rfm69Data.rssi = rssi; // restore payload RSSI
-
-  return true;
-}
-
-/*
  * Send packet
+ *
+ * @return RF69_RSLT_BUSY - Line is busy.
+ *         RF69_RSLT_OK - OK
+ *         RF69_RSLT_NOK - Data not acked.
  */
 int8_t rfm69Send(uint16_t toAddress, const void* buffer, uint8_t bufferSize, bool requestAck) {
-  uint16_t temp = 0;
   msg_t resp;
 
   chprintf((BaseSequentialStream*)&SD3, "RFM Send start\r\n");
-
   // Send the frame
-  if (rfm69SendFrame(toAddress, buffer, bufferSize, requestAck, false) == RF69_RSLT_BUSY)
+  if (rfm69SendFrame(toAddress, buffer, bufferSize, requestAck, false, rfm69TargetRssi) == RF69_RSLT_BUSY)
     return RF69_RSLT_BUSY;
 
+  // If ACK not requested we are done.
   if (!requestAck) {
     rfm69SetMode(RF69_MODE_RX);
     return RF69_RSLT_OK;
@@ -514,7 +413,6 @@ int8_t rfm69Send(uint16_t toAddress, const void* buffer, uint8_t bufferSize, boo
   resp = chBSemWaitTimeout(&rfm69Received, TIME_MS2I(RFM69_ACK_TIMEOUT_MS));
   chprintf((BaseSequentialStream*)&SD3, "Time %u\r\n", chVTGetSystemTimeX());
   if (resp == MSG_OK) {
-    haveData = false;
     rfm69GetData();
     rfm69SetMode(RF69_MODE_RX);
   } else {
@@ -526,27 +424,97 @@ int8_t rfm69Send(uint16_t toAddress, const void* buffer, uint8_t bufferSize, boo
 
   if ((rfm69Data.senderId == toAddress || toAddress == RF69_BROADCAST_ADDR) && rfm69Data.ackReceived)
     return RF69_RSLT_OK;
-  else return RF69_RSLT_NOK;
+  else {
+    rfm69PacketAckFailed++;
+    return RF69_RSLT_NOK;
+  }
 }
 
 /*
- *
+ * Send packet with retry
  * Replies usually take only 5..8ms at 50kbps@915MHz
  */
 bool rfm69SendWithRetry(uint16_t toAddress, const void* buffer, uint8_t bufferSize, uint8_t retries) {
 
   for (uint8_t i = 0; i <= retries; i++) {
-    //rfm69Send(toAddress, buffer, bufferSize, true);
-    chThdSleepMilliseconds(RFM69_ACK_TIMEOUT_MS);
-    if (rfm69ACKReceived(toAddress)) return true;
+    if (rfm69Send( toAddress, buffer, bufferSize, true) == RF69_RSLT_OK) return RF69_RSLT_OK;
   }
-  return false;
+  return RF69_RSLT_NOK;
+}
+
+/*
+ * Put transceiver in sleep mode to save battery.
+ * To wake or resume receiving just call receiveDone()
+ */
+void rfm69Sleep(void) {
+  rfm69SetMode(RF69_MODE_SLEEP);
+}
+
+/*
+ * Get temperature
+ *
+ * @return Centigrade
+ */
+int8_t rfm69ReadTemperature(uint8_t calFactor) {
+  int8_t retVal;
+
+  rfm69SetMode(RF69_MODE_STANDBY);
+
+  rfm69WriteRegister(REG_TEMP1, RF_TEMP1_MEAS_START);
+  while ((rfm69ReadRegister(REG_TEMP1) & RF_TEMP1_MEAS_RUNNING));
+  // 'complement' corrects the slope, rising temp = rising val
+  retVal = ~rfm69ReadRegister(REG_TEMP2) + COURSE_TEMP_COEF + calFactor;
+
+  rfm69SetMode(RF69_MODE_RX);
+  return retVal;
+}
+
+/*
+ * For RFM69HW only. Must be called setHighPower(true),
+ * after initialize() or else transmission won't work.
+ */
+void rfm69SetHighPower(bool onOff) {
+  rfm69IsHW = onOff;
+  rfm69WriteRegister(REG_OCP, rfm69IsHW ? RF_OCP_OFF : RF_OCP_ON);
+
+  if (rfm69IsHW) // turning ON
+    rfm69WriteRegister(REG_PALEVEL, (rfm69ReadRegister(REG_PALEVEL) & 0x1F) | RF_PALEVEL_PA1_ON | RF_PALEVEL_PA2_ON); // enable P1 & P2 amplifier stages
+  else
+    rfm69WriteRegister(REG_PALEVEL, RF_PALEVEL_PA0_ON | RF_PALEVEL_PA1_OFF | RF_PALEVEL_PA2_OFF | rfm69PowerLevel); // enable P0 only
+
+  // Allow rfm69SetHighPowerRegs to be set
+  rfm69SetMode(RF69_MODE_RX);
+}
+
+/*
+ * To enable encryption: radio.encrypt("ABCDEFGHIJKLMNOP");
+ * To disable encryption: radio.encrypt(null) or radio.encrypt(0)
+ * KEY HAS TO BE 16 bytes !!!
+ */
+void rfm69Encrypt(const char* key) {
+  uint8_t txBuffer[17];
+
+  rfm69SetMode(RF69_MODE_STANDBY);
+  if (key != 0) {
+    txBuffer[0] = REG_AESKEY1 | 0x80;
+    memcpy(&txBuffer[1], key, 16);   // Copy text to buffer
+
+    spiAcquireBus(rfm69Config.spidp);
+    spiSelect(rfm69Config.spidp);
+    spiSend(rfm69Config.spidp, 17, txBuffer);
+    spiUnselect(rfm69Config.spidp);
+    spiReleaseBus(rfm69Config.spidp);
+  }
+  rfm69WriteRegister(REG_PACKETCONFIG2, (rfm69ReadRegister(REG_PACKETCONFIG2) & 0xFE) | (key ? 1 : 0));
+
+  rfm69SetMode(RF69_MODE_RX);
 }
 
 void rfm69Start(rfm69Config_t *rfm69cfg) {
   uint8_t temp;
 
   rfm69Config = *rfm69cfg;
+  rfm69PowerLevel = 31;
 
   // Semaphores
   chBSemObjectInit(&rfm69Received, true);
@@ -554,8 +522,6 @@ void rfm69Start(rfm69Config_t *rfm69cfg) {
 
   // Start spi
   spiStart(rfm69Config.spidp, rfm69Config.spiConfig);
-  // Force mode
-  transceiverMode = RF69_MODE_STANDBY;
 
   // Set interrupt pin
   palEnableLineEvent(rfm69Config.irqLine, PAL_EVENT_MODE_RISING_EDGE);
@@ -605,42 +571,21 @@ void rfm69Start(rfm69Config_t *rfm69cfg) {
     {255, 0}
   };
 
-  temp = 0;
-  do {
-    rfm69WriteRegister(REG_SYNCVALUE1, 0xAA);
-    chThdSleepMilliseconds(1);
-    temp++;
-  } while ((rfm69ReadRegister(REG_SYNCVALUE1) != 0xAA) && (temp < 10));
-  chprintf((BaseSequentialStream*)&SD3, "temp: %d, %x\r\n", temp, rfm69ReadRegister(REG_SYNCVALUE1));
-
-  temp = 0;
-  do {
-    rfm69WriteRegister(REG_SYNCVALUE1, 0x55);
-    chThdSleepMilliseconds(1);
-    temp++;
-  } while ((rfm69ReadRegister(REG_SYNCVALUE1) != 0x55) && (temp < 10));
-  chprintf((BaseSequentialStream*)&SD3, "temp: %d, %x\r\n", temp, rfm69ReadRegister(REG_SYNCVALUE1));
-
   for (temp = 0; rfm69Registers[temp][0] != 255; temp++) {
     rfm69WriteRegister(rfm69Registers[temp][0], rfm69Registers[temp][1]);
   }
 
-  // Encryption is persistent between resets and can trip you up during debugging.
-  // Disable it during initialization so we always start from a known state.
-  // ***  encrypt(0);
-
-  // Called regardless if it's a RFM69W or RFM69HW
-  rfm69SetHighPower(rfm69Config.isRfm69HW);
   // Set mode
-  rfm69SetMode(transceiverMode);
+  rfm69SetMode(RF69_MODE_RX);
 
   // Wait for ModeReady
-  temp = 0;
   do {
-    chThdSleepMilliseconds(1);
-    temp++;
-  } while (((rfm69ReadRegister(REG_IRQFLAGS1) & RF_IRQFLAGS1_MODEREADY) == 0x00) && (temp < 10));
-  chprintf((BaseSequentialStream*)&SD3, "temp: %d, %x\r\n", temp, rfm69ReadRegister(REG_IRQFLAGS1));
+   // Endless loop
+  } while ((rfm69ReadRegister(REG_IRQFLAGS1) & RF_IRQFLAGS1_MODEREADY) == 0x00);
+
+  rfm69PacketSent = 0;
+  rfm69PacketReceived = 0;
+  rfm69PacketAckFailed = 0;
 
 }
 
@@ -652,19 +597,7 @@ void rfm69Stop(rfm69Config_t *rfm69cfg) {
 void rfm69ReadAllRegs(void) {
   uint8_t regVal, address;
 
-/*
-#if REGISTER_DETAIL
-  int capVal;
-
-  //... State Variables for intelligent decoding
-  uint8_t modeFSK = 0;
-  int bitRate = 0;
-  int freqDev = 0;
-  long freqCenter = 0;
-#endif
-*/
-
-  chprintf((BaseSequentialStream*)&SD3, "Address - HEX - BIN\r\n");
+  chprintf((BaseSequentialStream*)&SD3, "Address - HEX - DEC\r\n");
   for (uint8_t regAddr = 1; regAddr <= 0x4F; regAddr++) {
     address = regAddr & 0x7F;
 

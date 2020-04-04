@@ -2,7 +2,10 @@
  * rfm69.h
  *
  *  Created on: 26. 3. 2020
- *      Author: adam
+ *      Author: vysocan76
+ *
+ *  ChibiOS specific driver for RFM69
+ *
  */
 
 #ifndef RFM69_H
@@ -27,8 +30,9 @@
 #define RF69_FSTEP              61.03515625 // == FXOSC / 2^19 = 32MHz / 2^19 (p13 in datasheet)
 
 // TWS: define CTLbyte bits
-#define RFM69_CTL_SENDACK       0x80
-#define RFM69_CTL_REQACK        0x40
+#define RF69_CTL_SENDACK        0x80
+#define RF69_CTL_REQACK         0x40
+#define RF69_CTL_RESERVE1       0x20
 
 #define RFM69_ACK_TIMEOUT_MS    30  // 30ms roundtrip req for 61byte packets
 
@@ -36,15 +40,15 @@
 #define RF69_RSLT_BUSY          0
 #define RF69_RSLT_OK            1
 
+
+
 typedef struct {
   SPIDriver       *spidp;
   const SPIConfig *spiConfig;
   ioline_t         irqLine;
-  bool             isRfm69HW;
   uint8_t          freqBand;
   uint16_t         nodeID;
   uint8_t          networkID;
-  uint8_t          powerLevel;  // 0 - 31
 } rfm69Config_t;
 
 typedef enum {
@@ -53,9 +57,9 @@ typedef enum {
   RF69_MODE_SYNTH       = 2,// PLL ON
   RF69_MODE_RX          = 3,// RX MODE
   RF69_MODE_TX          = 4,// TX MODE
-  RF69_MODE_TX_ACK      = 5,
-  RF69_MODE_TX_WAIT_ACK = 6,
-  RF69_MODE_RX_WAIT_ACK = 7
+  RF69_MODE_TX_ACK      = 5,// TX MODE to send ACK
+  RF69_MODE_TX_WAIT_ACK = 6,// TX MODE with wait for ACK
+  RF69_MODE_RX_WAIT_ACK = 7 // RX MODE waiting for ACK
 } rfm69Transceiver_t;
 
 typedef struct {
@@ -66,28 +70,25 @@ typedef struct {
   uint8_t payloadLength;
   uint8_t ackRequested;
   uint8_t ackReceived;   // should be polled immediately after sending a packet with ACK request
-  int16_t rssi;          // most accurate RSSI during reception (closest to the reception)
+  uint8_t ackRssiRequested;
+  int8_t rssi;           // most accurate RSSI during reception (closest to the reception)
 } rfm69data_t;
 
 extern rfm69data_t rfm69Data;
 extern binary_semaphore_t rfm69DataReceived;
+extern uint32_t rfm69PacketSent;
+extern uint32_t rfm69PacketReceived;
+extern uint32_t rfm69PacketAckFailed;
 
-//uint8_t rfm69ReadRegister(uint8_t reg);
-//void rfm69WriteRegister(uint8_t reg, uint8_t value);
-//void rfm69SetHighPowerRegs(bool onOff);
-//void rfm69SetMode(uint8_t newMode);
-
+void rfm69SetPowerLevel(uint8_t powerLevel);
+void rfm69AutoPower(int8_t targetRssi);
 int8_t rfm69GetData(void);
-void rfm69SetHighPower(bool onOff);
-void rfm69Sleep(void);
-void SetPowerLevel(uint8_t powerLevel);
-void rfm69Encrypt(const char* key);
-int8_t rfm69ReadTemperature(uint8_t calFactor);
-bool rfm69SendACK(void);
-bool rfm69ReceiveDone(void);
-bool rfm69ACKRequested(void);
 int8_t rfm69Send(uint16_t toAddress, const void* buffer, uint8_t bufferSize, bool requestAck);
 bool frm69SendWithRetry(uint16_t toAddress, const void* buffer, uint8_t bufferSize, uint8_t retries);
+void rfm69Sleep(void);
+int8_t rfm69ReadTemperature(uint8_t calFactor);
+void rfm69SetHighPower(bool onOff);
+void rfm69Encrypt(const char* key);
 void rfm69Start(rfm69Config_t *rfm69cfg);
 void rfm69Stop(rfm69Config_t *rfm69cfg);
 void rfm69ReadAllRegs(void);
