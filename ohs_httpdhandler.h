@@ -29,6 +29,16 @@
 #error This needs LWIP_HTTPD_SUPPORT_POST
 #endif
 
+#ifndef HTTP_DEBUG
+#define HTTP_DEBUG 0
+#endif
+
+#if HTTP_DEBUG
+#define DBG(...) {(BaseSequentialStream*)&SD3, __VA_ARGS__);}
+#else
+#define DBG(...)
+#endif
+
 static void *current_connection;
 static void *valid_connection;
 static char current_uri[LWIP_HTTPD_MAX_REQUEST_URI_LEN];
@@ -257,6 +267,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
   char temp[3] = "";
   uint16_t logAddress;
   float tmpFloat;
+  time_t tempTime;   // Temp time
 
   for (uint8_t htmlPage = 0; htmlPage < ARRAY_SIZE(webPage); ++htmlPage) {
     if (!strcmp(name, webPage[htmlPage].link)) {
@@ -919,14 +930,14 @@ err_t httpd_post_begin(void *connection, const char *uri, const char *http_reque
   LWIP_UNUSED_ARG(content_len);
   LWIP_UNUSED_ARG(post_auto_wnd);
 
-  //chprintf((BaseSequentialStream*)&SD3, "-PB-connection: %u\r\n", (uint32_t *)connection);
-  //chprintf((BaseSequentialStream*)&SD3, "-PB-uri: %s\r\n", (char *)uri);
-  //chprintf((BaseSequentialStream*)&SD3, "-PB-http_request: %s\r\n", (char *)http_request);
-  //chprintf((BaseSequentialStream*)&SD3, "-PB-http_request_len: %u\r\n", http_request_len);
-  //chprintf((BaseSequentialStream*)&SD3, "-PB-content_len: %u\r\n", content_len);
-  //chprintf((BaseSequentialStream*)&SD3, "-PB-response_uri: %s\r\n", (char *)response_uri);
-  //chprintf((BaseSequentialStream*)&SD3, "-PB-response_uri_len: %u\r\n", response_uri_len);
-  //chprintf((BaseSequentialStream*)&SD3, "-PB-post_auto_wnd: %u\r\n", *post_auto_wnd);
+  //DBG("-PB-connection: %u\r\n", (uint32_t *)connection);
+  //DBG("-PB-uri: %s\r\n", (char *)uri);
+  //DBG("-PB-http_request: %s\r\n", (char *)http_request);
+  //DBG("-PB-http_request_len: %u\r\n", http_request_len);
+  //DBG("-PB-content_len: %u\r\n", content_len);
+  //DBG("-PB-response_uri: %s\r\n", (char *)response_uri);
+  //DBG("-PB-response_uri_len: %u\r\n", response_uri_len);
+  //DBG("-PB-post_auto_wnd: %u\r\n", *post_auto_wnd);
 
   if (current_connection != connection) {
     current_connection = connection;
@@ -982,26 +993,26 @@ bool readPostParam(char *name, uint8_t nameLen, char *value, uint8_t valueLen){
 
 err_t httpd_post_receive_data(void *connection, struct pbuf *p) {
 
-  //chprintf((BaseSequentialStream*)&SD3, "-PD-connection: %u\r\n", (uint32_t *)connection);
+  //DBG("-PD-connection: %u\r\n", (uint32_t *)connection);
   if (current_connection == connection) {
-    //chprintf((BaseSequentialStream*)&SD3, "p->payload: %s\r\n", p->payload);
-    //chprintf((BaseSequentialStream*)&SD3, "p->ref: %u\r\n", p->ref);
-    //chprintf((BaseSequentialStream*)&SD3, "p->next: %u\r\n", p->next);
-    //chprintf((BaseSequentialStream*)&SD3, "p->tot_len: %u\r\n", p->tot_len);
+    //DBG("p->payload: %s\r\n", p->payload);
+    //DBG("p->ref: %u\r\n", p->ref);
+    //DBG("p->next: %u\r\n", p->next);
+    //DBG("p->tot_len: %u\r\n", p->tot_len);
 
-    //chprintf((BaseSequentialStream*)&SD3, "strlen(postData): %u\r\n", strlen(postData));
+    //DBG("strlen(postData): %u\r\n", strlen(postData));
     // Append payload to buffer, maximum size of postData and null
     strncat(postData, (const char *)p->payload, LWIP_MIN(p->tot_len, (sizeof(postData)-strlen(postData))));
 
     //pPostData = &postData[strlen(postData)];
     //pPostData = (char *)pbuf_get_contiguous(p, postData, sizeof(postData)-strlen(postData),
                 //LWIP_MIN(p->tot_len,sizeof(postData)-strlen(postData)), 0);
-    //chprintf((BaseSequentialStream*)&SD3, "postData: %s\r\n", postData);
-    //chprintf((BaseSequentialStream*)&SD3, "pPostData: %s\r\n", pPostData);
+    //DBG("postData: %s\r\n", postData);
+    //DBG("pPostData: %s\r\n", pPostData);
     //--u8_t buf[32];
     //--u8_t ptr = (u8_t)pbuf_get_contiguous(p, buf, sizeof(buf), LWIP_MIN(option_len, sizeof(buf)), offset);
 
-    //chprintf((BaseSequentialStream*)&SD3, "strlen(postData): %u\r\n", strlen(postData));
+    //DBG("strlen(postData): %u\r\n", strlen(postData));
     pbuf_free(p);
     return ERR_OK;
   }
@@ -1021,8 +1032,8 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
   char value[121];
   bool repeat;
 
-  //chprintf((BaseSequentialStream*)&SD3, "-PE-connection: %u\r\n", (uint32_t *)connection);
-  chprintf((BaseSequentialStream*)&SD3, "-PE-postData: %s\r\n", postData);
+  //DBG("-PE-connection: %u\r\n", (uint32_t *)connection);
+  DBG("-PE-postData: %s\r\n", postData);
 
   if (current_connection == connection) {
     pPostData = &postData[0];
@@ -1033,7 +1044,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_NODE:
             do{
               repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
-              chprintf((BaseSequentialStream*)&SD3, "Parse: %s=%s<\r\n", name, value);
+              DBG("Parse: %s=%s<\r\n", name, value);
               switch(name[0]){
                 case 'P': // select
                   number = strtol(value, NULL, 10);
@@ -1097,7 +1108,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_USER:
             do{
               repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
-              chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
+              DBG("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'P': // select
                   number = strtol(value, NULL, 10);
@@ -1129,7 +1140,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_KEY:
             do{
               repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
-              chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
+              DBG("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'P': // select
                   number = strtol(value, NULL, 10);
@@ -1164,7 +1175,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_ZONE:
             do{
               repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
-              chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
+              DBG("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'P': // select
                   number = strtol(value, NULL, 10);
@@ -1200,7 +1211,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_ALERT:
             do{
               repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
-              chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
+              DBG("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case '0' ... ('0' + ARRAY_SIZE(alertType)): // Handle all radio buttons in groups 0 .. #, A .. #
                   if (value[0] == '0') conf.alert[name[0]-48] &= ~(1 << (name[1]-65));
@@ -1215,7 +1226,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_LOG:
             do{
               repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
-              chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
+              DBG("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'N': // Now
                   webLog = FRAMWritePos - (LOGGER_OUTPUT_LEN * FRAM_MSG_SIZE);
@@ -1232,7 +1243,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_GROUP:
             do{
               repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
-              chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
+              DBG("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'P': // select
                   number = strtol(value, NULL, 10);
@@ -1264,7 +1275,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_SETTING:
             do{
               repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
-              chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
+              DBG("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'A': // Apply
                   // SMTP
@@ -1338,7 +1349,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_HOME:
             do{
               repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
-              chprintf((BaseSequentialStream*)&SD3, "Parse: %s = %s<\r\n", name, value);
+              DBG("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'A': // Apply
                 break;
@@ -1355,7 +1366,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
     }
 
     chsnprintf(response_uri, response_uri_len, current_uri);
-    chprintf((BaseSequentialStream*)&SD3, "-PE-response_uri: %s\r\n", response_uri);
+    DBG("-PE-response_uri: %s\r\n", response_uri);
     current_connection = NULL;
   }
 }

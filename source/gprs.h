@@ -42,14 +42,9 @@ typedef struct {
   uint8_t message;
 } gprsRingBuffer_t;
 
-//extern gprsRingBuffer_t gprsRingBuffer;
-
-//void gprsInitRingBuffer(gprsRingBuffer_t *what);
 void gprsInit(SerialDriver *sdp);
 void gprsFlushRX(void);
-//uint8_t gprsRead(void);
 uint8_t gprsReadMsg(uint8_t *where, uint8_t response_len);
-//uint8_t gprsWaitAndReadMsg(uint8_t *where, uint8_t response_len, uint16_t wait);
 int8_t gprsSendCmd(char *what);
 int8_t gprsSendCmdWR(char *what, uint8_t *response, uint8_t response_len);
 int8_t gprsSendCmdWRI(char *what, uint8_t *response, uint8_t response_len, uint8_t index);

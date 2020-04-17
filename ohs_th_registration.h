@@ -53,6 +53,31 @@ static THD_FUNCTION(RegistrationThread, arg) {
             }
           }
           break;
+          case 'Z': // Zone
+            tmpLog[0] = 'Z'; // Log data
+            // Check if zone number is allowed
+            if ((inMsg->number <= ALARM_ZONES) && (inMsg->number > HW_ZONES)) {
+              //   Zone already connected
+              if (GET_CONF_ZONE_IS_PRESENT(conf.zone[inMsg->number])) tmpLog[1] = 'r';
+              else tmpLog[1] = 'R'; // Log data
+              // Reset zone status
+              zone[inMsg->number].lastEvent = 'O';
+              zone[inMsg->number].lastOK    = getTimeUnixSec(); // update current timestamp
+              zone[inMsg->number].lastPIR   = zone[inMsg->number].lastOK;
+
+              CLEAR_ZONE_ERROR(zone[inMsg->number].setting); // reset remote zone error flag
+              zone[inMsg->number].setting   &= ~(1 << 5);
+              // Force and register
+              conf.zone[inMsg->number] = inMsg->setting; // copy setting
+              SET_CONF_ZONE_IS_REMOTE(zone[inMsg->number].setting); // force "Remote zone"
+              SET_CONF_ZONE_IS_PRESENT(zone[inMsg->number].setting); // force "Present - connected"
+              if (inMsg->type == 'A') SET_CONF_ZONE_TYPE(conf.zone[inMsg->number]); // force "Analog"
+              else                    CLEAR_CONF_ZONE_TYPE(conf.zone[inMsg->number]); // force "Digital"
+              conf.zoneAddress[inMsg->number-HW_ZONES] = inMsg->address; // copy address
+              memcpy(&conf.zoneName[inMsg->number], &inMsg->name, NAME_LENGTH);
+            } else { tmpLog[1] = 'E'; } // Log data
+            tmpLog[2] = inMsg->number; pushToLog(tmpLog, 3);
+          break;
           default:
             tmpLog[0] = 'N'; tmpLog[1] = 'E'; tmpLog[2] = inMsg->address; tmpLog[3] = inMsg->number; tmpLog[4] = inMsg->type; tmpLog[5] = inMsg->function; pushToLog(tmpLog, 6);
           break;

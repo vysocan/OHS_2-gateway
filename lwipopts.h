@@ -64,6 +64,8 @@
 #define LWIP_IGMP 1
 #define LWIP_MDNS_RESPONDER 1
 #define LWIP_NUM_NETIF_CLIENT_DATA 1 // +1 MDSN
+// Rename thread name
+#define TCPIP_THREAD_NAME               "tcpip"
 
 
 // LWIP DEBUG
@@ -75,7 +77,7 @@
 //#define IP_DEBUG LWIP_DBG_ON
 //#define DNS_DEBUG LWIP_DBG_ON
 // SNTP
-//#define SNTP_DEBUG LWIP_DBG_ON
+#define SNTP_DEBUG LWIP_DBG_ON
 // SMTP
 #define SMTP_DEBUG LWIP_DBG_ON
 #define IGMP_DEBUG LWIP_DBG_ON
@@ -117,6 +119,15 @@ void SetTimeUnixA(time_t ut){
   rtcSetTime(&RTCD1, &_ts);
 }
 */
+/*
+#define SNTP_SET_SYSTEM_TIME(sec) \
+  do{time_t rawtime = (sec);\
+     RTCDateTime _ts;\
+     convertUnixSecondToRTCDateTime(&_ts, rawtime);\
+     rtcSetTime(&RTCD1, &_ts);}while(0)
+*/
+
+// with tm
 #define SNTP_SET_SYSTEM_TIME(sec) \
   do{time_t rawtime = (sec);\
      RTCDateTime _ts;\
@@ -124,7 +135,6 @@ void SetTimeUnixA(time_t ut){
      _pt = gmtime(&rawtime);\
      rtcConvertStructTmToDateTime(_pt, 0, &_ts);\
      rtcSetTime(&RTCD1, &_ts);}while(0)
-
 
 
 /* old

@@ -20,17 +20,21 @@ static THD_FUNCTION(SensorThread, arg) {
   int8_t   nodeIndex;
   uint8_t  lastNode = 255;
   uint32_t lastNodeTime = 0;
+  time_t   timeNow;
 
   while (true) {
     msg = chMBFetchTimeout(&sensor_mb, (msg_t*)&inMsg, TIME_INFINITE);
     if (msg == MSG_OK) {
+      // Get current time
+      timeNow = getTimeUnixSec();
+
       nodeIndex = getNodeIndex(inMsg->address, inMsg->type, inMsg->function, inMsg->number);
       if (nodeIndex != -1) {
         chprintf(console, "Sensor data for node %c-%c\r\n", inMsg->type, inMsg->function);
         //  node enabled
         if (GET_NODE_ENABLED(node[nodeIndex].setting)) {
           node[nodeIndex].value   = inMsg->value;
-          node[nodeIndex].last_OK = getTimeUnixSec();  // Get timestamp
+          node[nodeIndex].last_OK = timeNow;  // Get timestamp
           //++publishNode(nodeIndex); // MQTT
           // Triggers
           //++processTriggers(node[nodeIndex].address, node[nodeIndex].type, node[nodeIndex].number, node[nodeIndex].value);
@@ -45,13 +49,14 @@ static THD_FUNCTION(SensorThread, arg) {
           }
         } // node enabled
       } else {
-        // Let's call same unknown node for re-registrtion only once a while or we send many packets if multiple sensor data come in
-        if ((lastNode != inMsg->address) || (getTimeUnixSec() > lastNodeTime)) {
+        // Let's call same unknown node for re-registration only once a while,
+        // or we send many packets if multiple sensor data come in
+        if ((lastNode != inMsg->address) || (timeNow > lastNodeTime)) {
           chprintf(console, "Unregistered sensor\r\n");
           chThdSleepMilliseconds(5);  // This is needed for sleeping battery nodes, or they wont see reg. command.
           nodeIndex = sendCmd(inMsg->address, NODE_CMD_REGISTRATION); // call this address to register
           lastNode = inMsg->address;
-          lastNodeTime = getTimeUnixSec() + 1; // add 1-2 second(s)
+          lastNodeTime = timeNow + 1; // add 1-2 second(s)
         }
       }
     }else {

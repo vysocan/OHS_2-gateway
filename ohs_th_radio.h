@@ -11,7 +11,7 @@
 /*
  * RFM69 thread
  */
-static THD_WORKING_AREA(waRadioThread, 512);
+static THD_WORKING_AREA(waRadioThread, 256);
 static THD_FUNCTION(RadioThread, arg) {
   chRegSetThreadName(arg);
   msg_t resp;
@@ -36,7 +36,7 @@ static THD_FUNCTION(RadioThread, arg) {
           switch((uint8_t)rfm69Data.data[1]) {
             case NODE_CMD_PING: // Nodes should do periodic ping to stay alive/registered
               for (uint8_t nodeIndex=0; nodeIndex < NODE_SIZE; nodeIndex++) {
-                if (node[nodeIndex].address == rfm69Data.senderId)
+                if (node[nodeIndex].address == rfm69Data.senderId + RADIO_UNIT_OFFSET)
                   node[nodeIndex].last_OK = getTimeUnixSec();
               }
             break;
@@ -49,7 +49,7 @@ static THD_FUNCTION(RadioThread, arg) {
             registration_t *outMsg = chPoolAlloc(&registration_pool);
             if (outMsg != NULL) {
               // node setting
-              outMsg->address  = rfm69Data.senderId;
+              outMsg->address  = rfm69Data.senderId + RADIO_UNIT_OFFSET;
               outMsg->type     = (char)rfm69Data.data[pos];
               outMsg->function = (char)rfm69Data.data[pos+1];
               outMsg->number   = rfm69Data.data[pos+2];
@@ -67,7 +67,7 @@ static THD_FUNCTION(RadioThread, arg) {
           } while (pos < rfm69Data.length);
           break;
         case 'K': // iButtons keys
-          nodeIndex = getNodeIndex(rfm69Data.senderId, rfm69Data.data[0],
+          nodeIndex = getNodeIndex(rfm69Data.senderId + RADIO_UNIT_OFFSET, rfm69Data.data[0],
                                    rfm69Data.data[1], rfm69Data.data[2] - (rfm69Data.data[2] % 2));
           chprintf(console, "Received Key, node index: %d\r\n", nodeIndex);
           // Node index found
@@ -78,13 +78,13 @@ static THD_FUNCTION(RadioThread, arg) {
               checkKey(GET_NODE_GROUP(node[nodeIndex].setting), (rfm69Data.data[2] % 2), &rfm69Data.data[3]);
             } else {
               // log disabled remote nodes
-              tmpLog[0] = 'N'; tmpLog[1] = 'F'; tmpLog[2] = rfm69Data.senderId;
+              tmpLog[0] = 'N'; tmpLog[1] = 'F'; tmpLog[2] = rfm69Data.senderId + RADIO_UNIT_OFFSET;
               tmpLog[3] = rfm69Data.data[2]; tmpLog[4] = rfm69Data.data[0];
               tmpLog[5] = rfm69Data.data[1];  pushToLog(tmpLog, 6);
             }
           } else { // node not found
             chThdSleepMilliseconds(5);  // This is needed for sleeping battery nodes, or they wont see reg. command.
-            resp = sendCmd(rfm69Data.senderId, NODE_CMD_REGISTRATION); // call this address to register
+            resp = sendCmd(rfm69Data.senderId + RADIO_UNIT_OFFSET, NODE_CMD_REGISTRATION); // call this address to register
           }
           break;
         case 'S': // Sensor data
@@ -93,7 +93,7 @@ static THD_FUNCTION(RadioThread, arg) {
             sensor_t *outMsg = chPoolAlloc(&sensor_pool);
             if (outMsg != NULL) {
               // node setting
-              outMsg->address  = rfm69Data.senderId;
+              outMsg->address  = rfm69Data.senderId + RADIO_UNIT_OFFSET;
               outMsg->type     = (char)rfm69Data.data[pos];
               outMsg->function = (char)rfm69Data.data[pos+1];
               outMsg->number   = rfm69Data.data[pos+2];
@@ -109,6 +109,41 @@ static THD_FUNCTION(RadioThread, arg) {
               pushToLogText("FS"); // Sensor queue is full
             }
             pos += SENSOR_PACKET_SIZE;
+          } while (pos < rfm69Data.length);
+          break;
+        case 'Z': // Zone
+          pos = 0;
+          do {
+            pos++; // Skip 'R'
+            // Zone allowed
+            if ((rfm69Data.data[pos] <= ALARM_ZONES) && (rfm69Data.data[pos] > HW_ZONES)) {
+              // Zone enabled
+              if (GET_CONF_ZONE_ENABLED(conf.zone[rfm69Data.data[pos]])) {
+                // Zone address and sender address match & zone is remote zone
+                if ((conf.zoneAddress[rfm69Data.data[pos]-HW_ZONES] == rfm69Data.senderId + RADIO_UNIT_OFFSET) &&
+                     (GET_CONF_ZONE_IS_REMOTE(conf.zone[rfm69Data.data[pos]]))){
+                  zone[rfm69Data.data[pos]].lastEvent = rfm69Data.data[pos+1];
+                  if (rfm69Data.data[pos+1] == 'O') {
+                    zone[rfm69Data.data[pos]].lastOK = getTimeUnixSec();  // update current timestamp
+                  } else {
+                    zone[rfm69Data.data[pos]].lastPIR = getTimeUnixSec(); // update current timestamp
+                  }
+                } else {
+                  // Log error just once
+                  if (!GET_ZONE_ERROR(zone[rfm69Data.data[pos]].setting)) {
+                    tmpLog[0] = 'Z'; tmpLog[1] = 'e'; tmpLog[2] = rfm69Data.data[pos]; tmpLog[3] = 'M'; pushToLog(tmpLog, 4);
+                    SET_ZONE_ERROR(zone[rfm69Data.data[pos]].setting); // Set error flag
+                  }
+                }
+              } else {
+                // Log error just once
+                if (!GET_ZONE_ERROR(zone[rfm69Data.data[pos]].setting)) {
+                  tmpLog[0] = 'Z'; tmpLog[1] = 'e'; tmpLog[2] = rfm69Data.data[pos]; tmpLog[3] = 'N'; pushToLog(tmpLog, 4);
+                  SET_ZONE_ERROR(zone[rfm69Data.data[pos]].setting); // Set error flag
+                }
+              } // else / Zone enabled
+            } // Zone allowed
+            pos += 2;
           } while (pos < rfm69Data.length);
           break;
       } // switch case

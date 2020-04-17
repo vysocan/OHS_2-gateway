@@ -15,16 +15,19 @@
 static THD_WORKING_AREA(waServiceThread, 256);
 static THD_FUNCTION(ServiceThread, arg) {
   chRegSetThreadName(arg);
-  time_t tempTime;
+  time_t tempTime, timeNow;
   uint8_t counterAC = 0;
   int8_t resp;
 
   while (true) {
     chThdSleepMilliseconds(1000);
+    // Get current time
+    timeNow = getTimeUnixSec();
+
     // Remove zombie nodes
     for (uint8_t nodeIndex=0; nodeIndex < NODE_SIZE; nodeIndex++) {
       if ((node[nodeIndex].address != 0) &&
-          (node[nodeIndex].last_OK + SECONDS_PER_HOUR < getTimeUnixSec())) {
+          (node[nodeIndex].last_OK + SECONDS_PER_HOUR < timeNow)) {
         chprintf(console, "Zombie node: %u,A %u,T %u,F %u,N %u\r\n", nodeIndex, node[nodeIndex].address,
                  node[nodeIndex].type, node[nodeIndex].function, node[nodeIndex].number);
         tmpLog[0] = 'N'; tmpLog[1] = 'Z'; tmpLog[2] = node[nodeIndex].address;
@@ -44,6 +47,7 @@ static THD_FUNCTION(ServiceThread, arg) {
         //memset(&node[nodeIndex].name, 0, NAME_LENGTH);
       }
     }
+
 
     // Battery check
     if (palReadPad(GPIOD, GPIOD_BAT_OK) == 0) { // The signal is "Low" when the voltage of battery is under 11V
@@ -69,13 +73,13 @@ static THD_FUNCTION(ServiceThread, arg) {
 
     // AC power check - The signal turns to be "High" when the power supply turns OFF
     resp = palReadPad(GPIOD, GPIOD_AC_OFF);
-    if (!resp && counterAC > 1) counterAC--;
-    if (!resp && counterAC == 1) {
+    if (!resp && (counterAC > 1)) counterAC--;
+    if (!resp && (counterAC == 1)) {
       counterAC--;
       pushToLogText("SAH"); // AC ON
     }
-    if (resp && counterAC < AC_POWER_DELAY) counterAC++;
-    if (resp && counterAC == AC_POWER_DELAY) {
+    if (resp && (counterAC < AC_POWER_DELAY)) counterAC++;
+    if (resp && (counterAC == AC_POWER_DELAY)) {
       counterAC++;
       pushToLogText("SAL"); // AC OFF
     }
@@ -94,12 +98,11 @@ static THD_FUNCTION(ServiceThread, arg) {
           }
         }
         // Group has at least one zone && time has passed
-        if ((tempTime != 0) && ((tempTime + (conf.autoArm * SECONDS_PER_MINUTE)) <= getTimeUnixSec())) {
+        if ((tempTime != 0) && ((tempTime + (conf.autoArm * SECONDS_PER_MINUTE)) <= timeNow)) {
           // Only if group not armed or arming
           if ((!GET_GROUP_ARMED(group[groupNum].setting)) && (group[groupNum].armDelay == 0)) {
             tmpLog[0] = 'G'; tmpLog[1] = 'A'; tmpLog[2] = groupNum; pushToLog(tmpLog, 3);
             armGroup(groupNum, ARM_GROUP_CHAIN_NONE, armAway, 0);
-
           }
         }
       }
@@ -109,9 +112,9 @@ static THD_FUNCTION(ServiceThread, arg) {
     for (uint8_t zoneNum=0; zoneNum < ALARM_ZONES ; zoneNum++){
       //   Zone enabled      and   open alarm enabled
       if (GET_CONF_ZONE_ENABLED(conf.zone[zoneNum]) && GET_CONF_ZONE_OPEN_ALARM(conf.zone[zoneNum])){
-        if (getTimeUnixSec() >= (zone[zoneNum].lastOK + (conf.openAlarm * SECONDS_PER_MINUTE))) {
+        if (timeNow >= (zone[zoneNum].lastOK + (conf.openAlarm * SECONDS_PER_MINUTE))) {
           tmpLog[0] = 'Z'; tmpLog[1] = 'O'; tmpLog[2] = zoneNum; pushToLog(tmpLog, 3);
-          zone[zoneNum].lastOK = getTimeUnixSec(); // update current timestamp
+          zone[zoneNum].lastOK = timeNow; // update current timestamp
         }
       }
     }

@@ -12,7 +12,7 @@
 /*
  * RS485 thread
  */
-static THD_WORKING_AREA(waRS485Thread, 512);
+static THD_WORKING_AREA(waRS485Thread, 256);
 static THD_FUNCTION(RS485Thread, arg) {
   chRegSetThreadName(arg);
   event_listener_t serialListener;

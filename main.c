@@ -3,6 +3,8 @@
   Adam Baron 2020
 
 */
+// Optimize stack and overflow
+#define PORT_INT_REQUIRED_STACK 128
 
 #include <string.h>
 #include <stdlib.h>
@@ -22,6 +24,12 @@
 // Define debug console
 BaseSequentialStream* console = (BaseSequentialStream*)&SD3;
 
+// Semaphores
+binary_semaphore_t gprsSem;
+binary_semaphore_t emailSem;
+
+// RFM69
+#include "rfm69.h"
 // OHS includes
 #include "ohs_conf.h"
 #include "ohs_shell.h"
@@ -29,11 +37,7 @@ BaseSequentialStream* console = (BaseSequentialStream*)&SD3;
 #include "ohs_functions.h"
 
 
-char tclCmd[120] = "set x 1;"
-                "while {< $x 5} {"
-                  "puts \"x is $x\";"
-                  "set x [+ $x 1];"
-                "};";
+char tclCmd[120] = "= y\";";
 
 char *s = &tclCmd[0];
 
@@ -62,17 +66,17 @@ char gprsSmsText[120];
 
 // uBS
 //#include "uBS.h"
-
-
-// RFM69
-#include "rfm69.h"
-
 // TCL
-#include "tcl.h"
+#define UMM_MALLOC_CFG_HEAP_SIZE ((size_t)1024*16)
+static char my_umm_heap[UMM_MALLOC_CFG_HEAP_SIZE] __attribute__((section(".ram4")));
+//#define UMM_MALLOC_CFG_HEAP_ADDR (&my_umm_heap[0])
+static char my_test[1024] __attribute__((section(".ram4")));
+char* my_testp = &my_test[0];
 
-// Semaphores
-binary_semaphore_t gprsSem;
-binary_semaphore_t emailSem;
+#include "umm_malloc.h"
+#include "umm_malloc_cfg.h"
+//#include "picol.h"
+#include "tcl.h"
 
 // Thread handling
 #include "ohs_th_zone.h"
@@ -90,7 +94,7 @@ binary_semaphore_t emailSem;
  * This is a periodic thread that does absolutely nothing except flashing
  * a LED.
  */
-static THD_WORKING_AREA(waThread1, 256);
+static THD_WORKING_AREA(waThread1, 128);
 static THD_FUNCTION(Thread1, arg) {
   chRegSetThreadName(arg);
   systime_t time;
@@ -122,7 +126,7 @@ rfm69Config_t rfm69cfg = {
   &spi3cfg,
   LINE_RADIO_IRQ,
   RF69_868MHZ,
-  91,
+  1,
   100
 };
 
@@ -184,7 +188,7 @@ int main(void) {
   spiStart(&SPID1, &spi1cfg);  // SPI
   rfm69Start(&rfm69cfg);       // RFM69
   rfm69SetHighPower(true);
-  rfm69AutoPower(-90);
+  rfm69AutoPower(-80);
   rfm69Encrypt("ABCDABCDABCDABCD");
 
   adcStart(&ADCD1, NULL);      // Activates the ADC1 driver
@@ -193,13 +197,13 @@ int main(void) {
 
   // Create thread(s).
   chThdCreateStatic(waZoneThread, sizeof(waZoneThread), NORMALPRIO, ZoneThread, (void*)"zone");
-  chThdCreateStatic(waAEThread1, sizeof(waAEThread1), NORMALPRIO, AEThread, (void*)"alarm 1");
-  chThdCreateStatic(waAEThread2, sizeof(waAEThread2), NORMALPRIO, AEThread, (void*)"alarm 2");
-  chThdCreateStatic(waAEThread3, sizeof(waAEThread3), NORMALPRIO, AEThread, (void*)"alarm 3");
+  chThdCreateStatic(waAEThread1, sizeof(waAEThread1), NORMALPRIO + 1, AEThread, (void*)"alarm 1");
+  chThdCreateStatic(waAEThread2, sizeof(waAEThread2), NORMALPRIO + 1, AEThread, (void*)"alarm 2");
+  chThdCreateStatic(waAEThread3, sizeof(waAEThread3), NORMALPRIO + 1, AEThread, (void*)"alarm 3");
   chThdCreateStatic(waLoggerThread, sizeof(waLoggerThread), NORMALPRIO, LoggerThread, (void*)"logger");
   chThdCreateStatic(waRS485Thread, sizeof(waRS485Thread), NORMALPRIO, RS485Thread, (void*)"RS485");
-  chThdCreateStatic(waRegistrationThread, sizeof(waRegistrationThread), NORMALPRIO, RegistrationThread, (void*)"registration");
-  chThdCreateStatic(waSensorThread, sizeof(waSensorThread), NORMALPRIO, SensorThread, (void*)"sensor");
+  chThdCreateStatic(waRegistrationThread, sizeof(waRegistrationThread), NORMALPRIO - 1, RegistrationThread, (void*)"registration");
+  chThdCreateStatic(waSensorThread, sizeof(waSensorThread), NORMALPRIO - 1, SensorThread, (void*)"sensor");
   chThdCreateStatic(waModemThread, sizeof(waModemThread), NORMALPRIO, ModemThread, (void*)"modem");
   chThdCreateStatic(waAlertThread, sizeof(waAlertThread), NORMALPRIO, AlertThread, (void*)"alert");
   chThdCreateStatic(waServiceThread, sizeof(waServiceThread), NORMALPRIO, ServiceThread, (void*)"service");
@@ -207,7 +211,7 @@ int main(void) {
   chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, (void*)"heartbeat");
 
   static THD_WORKING_AREA(waShell, 2048);
-  chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO + 1, shellThread, (void *)&shell_cfg1);
+  chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg1);
 
   // Ethernet
   macAddr[0] = LWIP_ETHADDR_0;
@@ -262,45 +266,63 @@ int main(void) {
   initRuntimeZones();
 
   // TCL
-  smalloc_init();
-
+  //umm_init();
+  umm_init(&my_umm_heap[0], UMM_MALLOC_CFG_HEAP_SIZE);
+  //smalloc_init();
   struct tcl tcl;
-  //const char *s = "set x 4; puts [+ [* $x 10] 2]";
-  //const char *s = "if {> 1 2} {puts A} {puts B};";
+  //tcl_init(&tcl);
+
   /*
   const char *s = "set a 1; ;"
                   "while {<= $a 10} {"
                    "if {== $a 5} { puts {Missing five!}; set a [+ $a 1]; continue;}"
                    " puts \"I can compute that $a[]x$a = [square $a]\" ; set a [+ $a 1]};";
                    */
+  //struct picolInterp interp;
+  //struct tcl_env* env = tcl_malloc(sizeof(*env));
+
+  //struct picolInterp* interpp = umm_malloc(sizeof(*interpp));
+  //picolInitInterp(interpp);
+  //picolRegisterCoreCommands(interpp);
 
 
   char mes[] = { 'S', 'T', 0, 0, 0, 0, 0};
 
   chThdSleepMilliseconds(10000);
+  time_t tt;
+
+  chprintf(console, "tt---%x-%u\r\n", my_testp, sizeof(my_test));
+  chprintf(console, "mes---%x-%u\r\n", &mes[0], sizeof(mes));
 
   // Idle runner
   while (true) {
-    chprintf(console, "---\r\n");
+    tt = getTimeUnixSec();
+    chprintf(console, "---%u-%d\r\n", chVTGetSystemTimeX(), (uint32_t)tt);
 
     //rfm69SendWithAck(1, mes, 7);
-    chprintf(console, "Send: %d , time %u\r\n\r\n", rfm69Send(1, mes, 7, true), chVTGetSystemTimeX());
+    //chprintf(console, "Send: %d , time %u\r\n\r\n", rfm69Send(1, mes, 7, true), chVTGetSystemTimeX());
 
     chThdSleepMilliseconds(10000);
+
 
     //chprintf(console, "RFM69 temp: %d\r\n", rfm69ReadTemperature(0));
 
     //rfm69ReadAllRegs();
 
-    /*
-    tcl_init(&tcl);
+    tt = chVTGetSystemTimeX();
+
+    tcl_init(&tcl, 1024, &my_umm_heap[0]);
     if (tcl_eval(&tcl, s, strlen(s)) != FERROR) {
       chprintf(console, ">>>%.*s\r\n", tcl_length(tcl.result), tcl_string(tcl.result));
     } else {
       chprintf(console, ">>>TCL error\r\n");
     }
     tcl_destroy(&tcl);
-    */
+
+    chprintf(console, "TCL time %u in 0.1 ms\r\n", (chVTGetSystemTimeX() - tt));
+
+    umm_info(&my_umm_heap[0], true);
+
 
     /*
     if (SDU1.config->usbp->state == USB_ACTIVE) {
@@ -311,15 +333,16 @@ int main(void) {
 
 
 
+
     /*
-    temptime = calculateDST(2019, 3, 0, 0, 2);
-    chprintf(console, "DST s %d \r\n", temptime);
-    ptm = gmtime(&temptime);
+    tt = calculateDST(2020-1980, 3, 0, 0, 2);
+    chprintf(console, "DST s %d \r\n", tt);
+    ptm = gmtime(&tt);
     chprintf(console, "DST s %s \r\n", asctime(ptm));
 
-    temptime = calculateDST(2019, 10, 0, 0, 3);
-    chprintf(console, "DST e %d \r\n", temptime);
-    ptm = gmtime(&temptime);
+    tt = calculateDST(2020-1980, 10, 0, 0, 3);
+    chprintf(console, "DST e %d \r\n", tt);
+    ptm = gmtime(&tt);
     chprintf(console, "DST e %s \r\n", asctime(ptm));
     */
 

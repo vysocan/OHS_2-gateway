@@ -19,24 +19,34 @@
 #include "hal.h"
 #include "chprintf.h"
 
-rfm69Config_t rfm69Config;
-rfm69data_t rfm69Data;
+#ifndef RFM69_DEBUG
+#define RFM69_DEBUG 1
+#endif
 
-uint8_t  rfm69PowerLevel; // 0 - 31
-bool     rfm69IsHW;
+#if RFM69_DEBUG
+#define DBG(...) {chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__);}
+#else
+#define DBG(...)
+#endif
 
-int8_t   rfm69TargetRssi = 0; // 0 disabled
-
-uint32_t rfm69PacketSent;
-uint32_t rfm69PacketReceived;
-uint32_t rfm69PacketAckFailed;
-
-
-rfm69Transceiver_t transceiverMode;
-
+// Global variables
+rfm69Config_t      rfm69Config;
+rfm69data_t        rfm69Data;
+rfm69Transceiver_t transceiverMode;     // Current transceiver mode
+uint8_t            rfm69PowerLevel;     // 0 - 31, Auto-adjusted when ATC is enabled
+bool               rfm69IsHW = 0;       // HighPower flag
+bool               rfm69SensBoost = 0;  // SensitivityBoost flag
+int8_t             rfm69TargetRssi = 0; // 0 = ATC disabled
+#if RFM69_STATISTICS
+// Statistics
+uint32_t           rfm69PacketSent;
+uint32_t           rfm69PacketReceived;
+uint32_t           rfm69PacketAckFailed;
+#endif
 // Semaphores
 binary_semaphore_t rfm69DataReceived;
 binary_semaphore_t rfm69Received;
+binary_semaphore_t rfm69Lock;
 
 /*
  * Read a RFM69 register value.
@@ -106,14 +116,14 @@ void rfm69SetHighPowerRegs(bool onOff) {
 void rfm69SetMode(uint8_t newMode) {
 
   if (newMode == transceiverMode) return;
-
+  // Switch modes
   switch (newMode) {
     case RF69_MODE_TX:
     case RF69_MODE_TX_ACK:
     case RF69_MODE_TX_WAIT_ACK:
       rfm69WriteRegister(REG_OPMODE, (rfm69ReadRegister(REG_OPMODE) & 0xE3) | RF_OPMODE_TRANSMITTER);
       if (rfm69IsHW) rfm69SetHighPowerRegs(true);
-      if (rfm69TargetRssi) rfm69SetPowerLevel(rfm69PowerLevel);
+      if (rfm69TargetRssi) rfm69SetPowerLevel(rfm69PowerLevel); // Do ATC
       break;
     case RF69_MODE_RX:
     case RF69_MODE_RX_WAIT_ACK:
@@ -144,11 +154,12 @@ void rfm69SetMode(uint8_t newMode) {
          ((rfm69ReadRegister(REG_IRQFLAGS1) & RF_IRQFLAGS1_MODEREADY) == 0x00));
 
   transceiverMode = newMode;
-  chprintf((BaseSequentialStream*)&SD3, "RFM M: %u\r\n", transceiverMode);
+  DBG("RFM M: %u\r\n", transceiverMode);
 }
 
 /*
  * Get the received signal strength indicator (RSSI)
+ *
  * @return RSSI
  */
 int8_t rfm69ReadRSSI(void) {
@@ -174,26 +185,34 @@ int8_t rfm69SendFrame(uint16_t toAddress, const void* buffer, uint8_t bufferSize
   uint8_t txBuffer[RFM69_SEND_HEADER_SIZE + 1]; // +1 for ATC, to send RSSI
   uint8_t txBufferSize = RFM69_SEND_HEADER_SIZE;
 
-  chprintf((BaseSequentialStream*)&SD3, "RFM SendFrame start\r\n");
+  DBG("RFM SendFrame start\r\n");
+
+  // Check address is not us
+  if (toAddress == rfm69Config.nodeID) return RF69_RSLT_NOK;
+  // Lock
+  chBSemWait(&rfm69Lock);
 
   rfm69SetMode(RF69_MODE_RX);
   // Wait for clear line
   while ((rfm69ReadRSSI() > CSMA_LIMIT) && ((temp * 1) < RF69_CSMA_LIMIT_MS)) {
     chThdSleepMilliseconds(1);
     temp++;
-    chprintf((BaseSequentialStream*)&SD3, "RFM SendWA RSSI: %d\r\n", rfm69ReadRSSI());
+    DBG("RFM SendWA RSSI: %d\r\n", rfm69ReadRSSI());
   }
   // Line is busy
-  if (temp == RF69_CSMA_LIMIT_MS) return RF69_RSLT_BUSY;
+  if (temp == RF69_CSMA_LIMIT_MS) {
+    chBSemSignal(&rfm69Lock);
+    return RF69_RSLT_BUSY;
+  }
 
-  chprintf((BaseSequentialStream*)&SD3, "RFM SendFrame CSMA: %u\r\n", temp);
+  DBG("RFM SendFrame CSMA: %u\r\n", temp);
 
   // turn off receiver to prevent reception while filling fifo
   rfm69SetMode(RF69_MODE_STANDBY);
   // wait for ModeReady
   while ((rfm69ReadRegister(REG_IRQFLAGS1) & RF_IRQFLAGS1_MODEREADY) == 0x00) {}
 
-  chprintf((BaseSequentialStream*)&SD3, "RFM SendFrame MR: %x\r\n", rfm69ReadRegister(REG_IRQFLAGS1));
+  DBG("RFM SendFrame MR: %x\r\n", rfm69ReadRegister(REG_IRQFLAGS1));
   //writeReg(REG_DIOMAPPING1, RF_DIOMAPPING1_DIO0_00); // DIO0 is "Packet Sent"
 
   // Force maximum size
@@ -210,7 +229,7 @@ int8_t rfm69SendFrame(uint16_t toAddress, const void* buffer, uint8_t bufferSize
   if (sendACK)         CTLbyte = RF69_CTL_SENDACK | (sendRssi ? RF69_CTL_RESERVE1:0);
   else if (requestACK) CTLbyte = RF69_CTL_REQACK | (sendRssi ? RF69_CTL_RESERVE1:0);
 
-  chprintf((BaseSequentialStream*)&SD3, "RFM SendFrame CTLbyte: %d\r\n", CTLbyte);
+  DBG("RFM SendFrame CTLbyte: %d\r\n", CTLbyte);
 
   if (toAddress > 0xFF) CTLbyte |= (toAddress & 0x300) >> 6; //assign last 2 bits of address if > 255
   if (rfm69Config.nodeID > 0xFF)  CTLbyte |= (rfm69Config.nodeID & 0x300) >> 8; //assign last 2 bits of address if > 255
@@ -222,7 +241,7 @@ int8_t rfm69SendFrame(uint16_t toAddress, const void* buffer, uint8_t bufferSize
   txBuffer[4] = CTLbyte;
   if ((sendACK) && (sendRssi)) {
     txBuffer[txBufferSize++] = ~rfm69Data.rssi;
-    chprintf((BaseSequentialStream*)&SD3, "RFM SendFrame ATC RSSI: %d\r\n", txBuffer[txBufferSize - 1]);
+    DBG("RFM SendFrame ATC RSSI: %d\r\n", txBuffer[txBufferSize - 1]);
   }
 
   spiAcquireBus(rfm69Config.spidp);
@@ -244,8 +263,10 @@ int8_t rfm69SendFrame(uint16_t toAddress, const void* buffer, uint8_t bufferSize
     CTLbyte++;
     chThdSleepMilliseconds(1);
   }
+#if RFM69_STATISTICS
   rfm69PacketSent++;
-  chprintf((BaseSequentialStream*)&SD3, "RFM SendFrame PS: wait %u, flag %x\r\n", CTLbyte, rfm69ReadRegister(REG_IRQFLAGS2));
+#endif
+  DBG("RFM SendFrame PS: wait %u, flag %x\r\n", CTLbyte, rfm69ReadRegister(REG_IRQFLAGS2));
 
   if (transceiverMode == RF69_MODE_TX_WAIT_ACK) rfm69SetMode(RF69_MODE_RX_WAIT_ACK);
   else rfm69SetMode(RF69_MODE_RX);
@@ -260,6 +281,8 @@ int8_t rfm69SendFrame(uint16_t toAddress, const void* buffer, uint8_t bufferSize
   // set DIO0 to "PAYLOADREADY" in receive mode
   rfm69WriteRegister(REG_DIOMAPPING1, RF_DIOMAPPING1_DIO0_01);
 
+  DBG("RFM SendFrame end\r\n");
+  chBSemSignal(&rfm69Lock);
   return RF69_RSLT_OK;
 }
 
@@ -286,6 +309,18 @@ void rfm69AutoPower(int8_t targetRssi) {
   rfm69TargetRssi = targetRssi;
 }
 
+/*
+ * High sensitivity or normal sensitivity mode.
+ *
+ * Good to enable when RSSI is less than -70dbm.
+ * It adds 2db to the bottom end, but takes off 10db at the top
+ */
+void rfm69SetSensBoost(bool onOff) {
+  rfm69SensBoost = onOff;
+  rfm69WriteRegister(REG_TESTLNA, rfm69SensBoost ? RF_TESTLNA_HIGH_SENSITIVITY : RF_TESTLNA_NORMAL);
+  DBG("RFM SensBoost: %u, %x\r\n", rfm69SensBoost, rfm69ReadRegister(REG_TESTLNA));
+}
+
  /*
   * Get data
   *
@@ -294,14 +329,16 @@ void rfm69AutoPower(int8_t targetRssi) {
   */
 #define RFM69_INTERRUPT_DATA_SIZE 4
 int8_t rfm69GetData(void) {
-  static char rxBuffer[RFM69_INTERRUPT_DATA_SIZE];
+  uint8_t rxBuffer[RFM69_INTERRUPT_DATA_SIZE];
+  uint8_t txBuffer[1] = {REG_FIFO & 0x7F};
 
-  chprintf((BaseSequentialStream*)&SD3, "RFM GD: datamode %u, flag %x\r\n", transceiverMode, rfm69ReadRegister(REG_IRQFLAGS2));
+  DBG("RFM GD: datamode %u, flag %x\r\n", transceiverMode, rfm69ReadRegister(REG_IRQFLAGS2));
 
   if (rfm69ReadRegister(REG_IRQFLAGS2) & RF_IRQFLAGS2_PAYLOADREADY) {
+    // Lock
+    chBSemWait(&rfm69Lock);
+    //
     rfm69SetMode(RF69_MODE_STANDBY);
-
-    uint8_t txBuffer[1] = {REG_FIFO & 0x7F};
 
     spiAcquireBus(rfm69Config.spidp);
     spiSelect(rfm69Config.spidp);
@@ -312,12 +349,11 @@ int8_t rfm69GetData(void) {
     rfm69Data.targetId = rxBuffer[1] | (((uint16_t)rxBuffer[3] & 0x0C) << 6); //10 bit address (most significant 2 bits stored in bits(2,3) of CTL byte
     rfm69Data.senderId = rxBuffer[2] | (((uint16_t)rxBuffer[3] & 0x03) << 8); //10 bit address (most significant 2 bits stored in bits(0,1) of CTL byte
 
-    chprintf((BaseSequentialStream*)&SD3, "RFM GD: F:%u, T:%u, PL:%u\r\n", rfm69Data.senderId, rfm69Data.targetId, rfm69Data.payloadLength);
+    DBG("RFM GD: F:%u, T:%u, PL:%u\r\n", rfm69Data.senderId, rfm69Data.targetId, rfm69Data.payloadLength);
 
     // Match this node's address, or broadcast address
     if (!(rfm69Data.targetId == rfm69Config.nodeID || rfm69Data.targetId == RF69_BROADCAST_ADDR) ||
         (rfm69Data.payloadLength < 3)) {
-      rfm69Data.payloadLength = 0;
       spiUnselect(rfm69Config.spidp);
       spiReleaseBus(rfm69Config.spidp);
       // Clear data
@@ -330,6 +366,7 @@ int8_t rfm69GetData(void) {
       rfm69Data.rssi = 0;
       // Set receiving
       rfm69SetMode(RF69_MODE_RX);
+      chBSemSignal(&rfm69Lock);
       return RF69_RSLT_NOK;
     }
 
@@ -337,7 +374,7 @@ int8_t rfm69GetData(void) {
     rfm69Data.ackReceived = rxBuffer[3] & RF69_CTL_SENDACK; // extract ACK-received flag
     rfm69Data.ackRequested = rxBuffer[3] & RF69_CTL_REQACK; // extract ACK-requested flag
     rfm69Data.ackRssiRequested = rxBuffer[3] & RF69_CTL_RESERVE1; // extract the ACK RSSI request flag
-    chprintf((BaseSequentialStream*)&SD3, "RFM GD: dl:%u, are:%u, arq:%u, AckRssi: %u\r\n",
+    DBG("RFM GD: dl:%u, are:%u, arq:%u, AckRssi: %u\r\n",
              rfm69Data.length, rfm69Data.ackReceived, rfm69Data.ackRequested, rfm69Data.ackRssiRequested);
 
     // Get data, if they are present
@@ -350,11 +387,24 @@ int8_t rfm69GetData(void) {
     spiReleaseBus(rfm69Config.spidp);
 
     rfm69Data.rssi = rfm69ReadRSSI();
+#if RFM69_STATISTICS
     rfm69PacketReceived++;
+#endif
 
     if ((rfm69Data.ackRequested) && (rfm69Data.targetId == rfm69Config.nodeID))  {
-      chThdSleepMilliseconds(5);
+      /*
+      // Sensitivity boost
+      if ((rfm69Data.rssi < -70) && !rfm69SensBoost)  {
+        rfm69SetSensBoost(true);
+      } else if ((rfm69Data.rssi > -50) && rfm69SensBoost) {
+        rfm69SetSensBoost(false);
+      }
+      */
+
+      //chThdSleepMilliseconds(5);
+      DBG("RFM GD sending ACK\r\n");
       // Send the frame and return
+      chBSemSignal(&rfm69Lock);
       return rfm69SendFrame(rfm69Data.senderId, "", 0, false, true, rfm69Data.ackRssiRequested);
     }
 
@@ -373,11 +423,12 @@ int8_t rfm69GetData(void) {
           }
         }
       }
-      chprintf((BaseSequentialStream*)&SD3, "RFM ATC start, rfm69AckedRssi %d, rfm69PowerLevel %d \r\n",
+      DBG("RFM ATC start, rfm69AckedRssi %d, rfm69PowerLevel %d \r\n",
                    rfm69AckRssi, rfm69PowerLevel);
     }
 
     rfm69SetMode(RF69_MODE_RX);
+    chBSemSignal(&rfm69Lock);
     return RF69_RSLT_OK;
   }
 
@@ -394,40 +445,39 @@ int8_t rfm69GetData(void) {
 int8_t rfm69Send(uint16_t toAddress, const void* buffer, uint8_t bufferSize, bool requestAck) {
   msg_t resp;
 
-  chprintf((BaseSequentialStream*)&SD3, "RFM Send start\r\n");
+  DBG("RFM Send start\r\n");
   // Send the frame
-  if (rfm69SendFrame(toAddress, buffer, bufferSize, requestAck, false, rfm69TargetRssi) == RF69_RSLT_BUSY)
-    return RF69_RSLT_BUSY;
+  resp = rfm69SendFrame(toAddress, buffer, bufferSize, requestAck, false, rfm69TargetRssi);
+  // If BUSY or NOK then return
+  if (resp != RF69_RSLT_OK) return resp;
 
   // If ACK not requested we are done.
-  if (!requestAck) {
-    rfm69SetMode(RF69_MODE_RX);
-    return RF69_RSLT_OK;
-  }
+  if (!requestAck) return RF69_RSLT_OK;
 
-  chprintf((BaseSequentialStream*)&SD3, "RFM SendWA wait ACK\r\n");
-  chprintf((BaseSequentialStream*)&SD3, "Time %u\r\n", chVTGetSystemTimeX());
+  DBG("RFM SendWA wait ACK\r\n");
+  DBG("Time %u\r\n", chVTGetSystemTimeX());
 
   // Wait ACK
   chBSemReset(&rfm69Received, true);
   resp = chBSemWaitTimeout(&rfm69Received, TIME_MS2I(RFM69_ACK_TIMEOUT_MS));
-  chprintf((BaseSequentialStream*)&SD3, "Time %u\r\n", chVTGetSystemTimeX());
-  if (resp == MSG_OK) {
-    rfm69GetData();
-    rfm69SetMode(RF69_MODE_RX);
-  } else {
+  DBG("Time %u\r\n", chVTGetSystemTimeX());
+  if (resp != MSG_OK) {
+    DBG("RFM SendWA ACK timeout\r\n");
     rfm69SetMode(RF69_MODE_RX);
     return RF69_RSLT_NOK;
   }
+  // Read ACK data
+  rfm69GetData();
 
-  chprintf((BaseSequentialStream*)&SD3, "RFM SendWA received ACK\r\n");
-
-  if ((rfm69Data.senderId == toAddress || toAddress == RF69_BROADCAST_ADDR) && rfm69Data.ackReceived)
+  if ((rfm69Data.senderId == toAddress || toAddress == RF69_BROADCAST_ADDR) && rfm69Data.ackReceived) {
+    DBG("RFM SendWA received ACK\r\n");
     return RF69_RSLT_OK;
-  else {
-    rfm69PacketAckFailed++;
-    return RF69_RSLT_NOK;
   }
+
+#if RFM69_STATISTICS
+  rfm69PacketAckFailed++;
+#endif
+  return RF69_RSLT_NOK;
 }
 
 /*
@@ -519,6 +569,7 @@ void rfm69Start(rfm69Config_t *rfm69cfg) {
   // Semaphores
   chBSemObjectInit(&rfm69Received, true);
   chBSemObjectInit(&rfm69DataReceived, true);
+  chBSemObjectInit(&rfm69Lock, false);
 
   // Start spi
   spiStart(rfm69Config.spidp, rfm69Config.spiConfig);
@@ -583,9 +634,11 @@ void rfm69Start(rfm69Config_t *rfm69cfg) {
    // Endless loop
   } while ((rfm69ReadRegister(REG_IRQFLAGS1) & RF_IRQFLAGS1_MODEREADY) == 0x00);
 
+#if RFM69_STATISTICS
   rfm69PacketSent = 0;
   rfm69PacketReceived = 0;
   rfm69PacketAckFailed = 0;
+#endif
 
 }
 
@@ -597,7 +650,7 @@ void rfm69Stop(rfm69Config_t *rfm69cfg) {
 void rfm69ReadAllRegs(void) {
   uint8_t regVal, address;
 
-  chprintf((BaseSequentialStream*)&SD3, "Address - HEX - DEC\r\n");
+  DBG("Address - HEX - DEC\r\n");
   for (uint8_t regAddr = 1; regAddr <= 0x4F; regAddr++) {
     address = regAddr & 0x7F;
 
@@ -608,6 +661,6 @@ void rfm69ReadAllRegs(void) {
     spiUnselect(rfm69Config.spidp);
     spiReleaseBus(rfm69Config.spidp);
 
-    chprintf((BaseSequentialStream*)&SD3, "%x - %x - %u\r\n", regAddr, regVal, regVal);
+    DBG("%x - %x - %u\r\n", regAddr, regVal, regVal);
   }
 }

@@ -49,12 +49,24 @@ int8_t sendData(uint8_t address, const uint8_t *data, uint8_t length){
 
 // Send a command to node
 int8_t sendCmd(uint8_t address, uint8_t command) {
-  RS485Cmd_t rs485Cmd;
 
-  chprintf(console, "RS485 Send cmd: %d to address: %d\r\n", command, address);
-  rs485Cmd.address = address;
-  rs485Cmd.length = command;
-  return rs485SendCmdWithACK(&RS485D2, &rs485Cmd, 3);
+  // RS485
+  if (address <= RADIO_UNIT_OFFSET) {
+    RS485Cmd_t rs485Cmd;
+
+    chprintf(console, "RS485 Send cmd: %d to address: %d\r\n", command, address);
+    rs485Cmd.address = address;
+    rs485Cmd.length = command;
+    return rs485SendCmdWithACK(&RS485D2, &rs485Cmd, 3);
+  }
+  // Radio
+  if (address >= RADIO_UNIT_OFFSET) {
+    char radioCmd[] = {'C', command};
+
+    chprintf(console, "Radio Send cmd: %d to address: %d\r\n", command, address - RADIO_UNIT_OFFSET);
+    rfm69Send(address - RADIO_UNIT_OFFSET, radioCmd, sizeof(radioCmd), true);
+  }
+
 }
 
 // Send a command to all members of a group
@@ -63,7 +75,7 @@ void sendCmdToGrp(uint8_t groupNum, uint8_t command, char type) {
   // Go through all nodes
   for (int8_t i=0; i < NODE_SIZE; i++){
     if (GET_NODE_ENABLED(node[i].setting)) {
-      // Auth. node belong to group           type of node = 'Key'
+      // Auth. node belong to group                         type of node
       if ((GET_NODE_GROUP(node[i].setting) == groupNum) && (type == node[i].type)) {
         sendCmd(node[i].address, command);
       }

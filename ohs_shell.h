@@ -61,8 +61,9 @@ static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
     uint8_t *end = (uint8_t *)tp;
     sz = end - begin;
 
-    while(begin < end)
-       if(*begin++ == CH_DBG_STACK_FILL_VALUE) ++n;
+    while(begin < end) {
+      if(*begin++ == CH_DBG_STACK_FILL_VALUE) ++n;
+    }
 
     used_pct = (n * 100) / sz;
 
@@ -302,33 +303,127 @@ void setTimeUnixSec(time_t unix_time) {
   rtcSetTime(&RTCD1, &timespec);
 }
 
-//Year - 1900
-//1=First,2=Second,3=Third,4=Fourth, or 0=Last week of the month
-//day of week, 0=Sun, 1=Mon, ... 6=Sat
-//1=Jan, 2=Feb, ... 12=Dec
-//0-23=hour
+/* Days in a month */
+static const uint8_t TM_RTC_Months[2][12] = {
+    {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31},   /* Not leap year */
+    {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}    /* Leap year */
+};
+
+/*
+ * Convert seconds to RTCDateTime not using tm (ISO C `broken-down time' structure.)
+ */
+void convertUnixSecondToRTCDateTime(RTCDateTime* dateTime, uint32_t unixSeconds) {
+  uint16_t year;
+
+  // Get milliseconds
+  dateTime->millisecond = (unixSeconds % SECONDS_PER_DAY) * 1000;
+  unixSeconds /= SECONDS_PER_DAY;
+  // Get week day, Monday is day one
+  dateTime->dayofweek = (unixSeconds + 3) % 7 + 1;
+  // Get year
+  year = 1970;
+  while (true) {
+    if (RTC_LEAP_YEAR(year)) {
+      if (unixSeconds >= 366) {
+        unixSeconds -= 366;
+      } else {
+        break;
+      }
+    } else if (unixSeconds >= 365) {
+      unixSeconds -= 365;
+    } else {
+      break;
+    }
+    year++;
+  }
+  // Get year in xx format
+  dateTime->year = year - 1980;
+  // Get month
+  for (dateTime->month = 0; dateTime->month < 12; dateTime->month++) {
+    if (RTC_LEAP_YEAR(year)) {
+      if (unixSeconds >= (uint32_t)TM_RTC_Months[1][dateTime->month]) {
+        unixSeconds -= TM_RTC_Months[1][dateTime->month];
+      } else {
+        break;
+      }
+    } else if (unixSeconds >= (uint32_t)TM_RTC_Months[0][dateTime->month]) {
+      unixSeconds -= TM_RTC_Months[0][dateTime->month];
+    } else {
+      break;
+    }
+  }
+  // Month starts with 1
+  dateTime->month++;
+  // Get day, day starts with 1
+  dateTime->day = unixSeconds + 1;
+}
+
+/*
+ * Convert RTCDateTime to seconds not using tm (ISO C `broken-down time' structure.)
+ */
+time_t convertRTCDateTimeToUnixSecond(RTCDateTime *dateTime) {
+    uint32_t days = 0, seconds = 0;
+    uint16_t i;
+    uint16_t year = (uint16_t) (dateTime->year + 1980);
+
+    // Year is below offset year
+    if (year < RTC_OFFSET_YEAR) return 0;
+    // Days in previus years
+    for (i = RTC_OFFSET_YEAR; i < year; i++) {
+      days += RTC_DAYS_IN_YEAR(i);
+    }
+    // Days in current year
+    for (i = 1; i < dateTime->month; i++) {
+      days += TM_RTC_Months[RTC_LEAP_YEAR(year)][i - 1];
+    }
+    // Day starts with 1
+    days += dateTime->day - 1;
+    seconds = days * SECONDS_PER_DAY;
+    seconds += dateTime->millisecond / 1000;
+
+    return seconds;
+}
+
+/*
+ * Get Daylight Saving Time for particular rule
+ *
+ * @parm year - 1900
+ * @parm month - 1=Jan, 2=Feb, ... 12=Dec
+ * @parm week - 1=First, 2=Second, 3=Third, 4=Fourth, or 0=Last week of the month
+ * @parm dow, Day of week - 0=Sun, 1=Mon, ... 6=Sat
+ * @parm hour - 0 - 23
+ * @retval seconds
+ */
 time_t calculateDST(uint16_t year, uint8_t month, uint8_t week, uint8_t dow, uint8_t hour){
-  struct tm* ptm;
+  RTCDateTime dstDateTime;
   time_t rawtime;
-  uint8_t _month = month, _week = week;  //temp copies of month and week
+  uint8_t _week = week; // Local copy
 
-  ptm = gmtime(0);
-
-  if (_week == 0) {       //Last week = 0
-    if (_month++ > 12) {  //for "Last", go to the next month
-      _month = 1;  year++;
+  if (_week == 0) {      //Last week = 0
+    if (month++ > 12) {  //for "Last", go to the next month
+      month = 1;
+      year++;
     }
     _week = 1;            //and treat as first week of next month, subtract 7 days later
   }
-  //first day of the month, or first day of next month for "Last" rules
-  ptm->tm_year = year ;
-  ptm->tm_mon = _month - 1;
-  ptm->tm_mday = 1;
-  ptm->tm_hour = hour;
-  ptm->tm_min = 0;
-  ptm->tm_sec = 0;
+  // First day of the month, or first day of next month for "Last" rules
+  dstDateTime.year = year;
+  dstDateTime.month = month ;
+  dstDateTime.day = 1;
+  dstDateTime.millisecond = hour * SECONDS_PER_HOUR * 1000;
+
   // Do DST
-  rawtime = mktime(ptm) + ((7 * (_week - 1) + (dow - ptm->tm_wday + 7) % 7) * SECONDS_PER_DAY);
+  rawtime = convertRTCDateTimeToUnixSecond(&dstDateTime);
+  //chprintf(console, "DST: %d\r\n", rawtime);
+
+  // Weekday function by Michael Keith and Tom Craver
+  year += 1980;
+  uint8_t weekday = (dstDateTime.day += month < 3 ?
+      year-- : year - 2, 23 * month / 9 + dstDateTime.day + 4 + year/4 - year/100 + year/400)%7;
+  //chprintf(console, "DST: %d\r\n", weekday);
+
+  rawtime += ((7 * (_week - 1) + (dow - weekday + 7) % 7) * SECONDS_PER_DAY);
+  //chprintf(console, "DST: %d\r\n", rawtime);
 
   //back up a week if this is a "Last" rule
   if (week == 0) {
@@ -338,17 +433,19 @@ time_t calculateDST(uint16_t year, uint8_t month, uint8_t week, uint8_t dow, uin
   return rawtime;
 }
 
+
 time_t getTimeUnixSec(void) {
-  struct tm timestamp;
-  time_t timeSec, dsts, dste;
+  time_t timeSec;
 
   rtcGetTime(&RTCD1, &timespec);
-  rtcConvertDateTimeToStructTm(&timespec, &timestamp, NULL);
-  timeSec = mktime(&timestamp);
-  dsts = calculateDST(timestamp.tm_year, conf.timeDstMonth, conf.timeDstWeekNum, conf.timeDstDow, conf.timeDstHour);
-  dste = calculateDST(timestamp.tm_year, conf.timeStdMonth, conf.timeStdWeekNum, conf.timeStdDow, conf.timeStdHour);
-  if ((timeSec >= dsts) && (timeSec <= dste)) timeSec += conf.timeDstOffset * SECONDS_PER_MINUTE;
-  else timeSec += conf.timeStdOffset * SECONDS_PER_MINUTE;
+  timeSec = convertRTCDateTimeToUnixSecond(&timespec);
+  if ((timeSec >= calculateDST(timespec.year, conf.timeDstMonth, conf.timeDstWeekNum, conf.timeDstDow, conf.timeDstHour)) &&
+      (timeSec <= calculateDST(timespec.year, conf.timeStdMonth, conf.timeStdWeekNum, conf.timeStdDow, conf.timeStdHour))) {
+    timeSec += conf.timeDstOffset * SECONDS_PER_MINUTE;
+  } else {
+    timeSec += conf.timeStdOffset * SECONDS_PER_MINUTE;
+  }
+
   return timeSec;
 }
 
@@ -466,7 +563,7 @@ static uint8_t decodeLog(char *in, char *out, bool full){
       chprintf(chp, "%s ", text_Zone);
       if (full) {
         if ((uint8_t)in[2] < ALARM_ZONES) {
-          chprintf(chp, "%u. %s ", (uint8_t)in[2] + 1, conf.zoneName[(uint8_t)in[2]]);
+          chprintf(chp, "%u %s ", (uint8_t)in[2] + 1, conf.zoneName[(uint8_t)in[2]]);
         } else {
           chprintf(chp, "%s ", text_unknown);
         }
@@ -478,7 +575,7 @@ static uint8_t decodeLog(char *in, char *out, bool full){
         case 'R': chprintf(chp, "%s", text_registered); break;
         case 'r': chprintf(chp, "%s%s", text_re, text_registered); break;
         case 'E': chprintf(chp, "%s %s", text_registration, text_error); break;
-        case 'e': chprintf(chp, "%s %s ", text_error, text_not);
+        case 'e': chprintf(chp, "%s, %s %s ", text_error, text_address, text_not);
           switch(in[3]){
             case 'M': chprintf(chp, "%s", text_matched); break;
             default : chprintf(chp, "%s", text_allowed); break;
@@ -593,7 +690,9 @@ static void cmd_date(BaseSequentialStream *chp, int argc, char *argv[]) {
   if ((argc == 2) && (strcmp(argv[0], "set") == 0)){
     unix_time = atol(argv[1]);
     if (unix_time > 0){
-      setTimeUnixSec(unix_time);
+      //setTimeUnixSec(unix_time);
+      convertUnixSecondToRTCDateTime(&timespec, unix_time);
+      rtcSetTime(&RTCD1, &timespec);
       return;
     }
     else{

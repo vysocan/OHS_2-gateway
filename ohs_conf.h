@@ -52,9 +52,12 @@
 #define LOGGER_MSG_LENGTH 11
 
 // Time related
-#define SECONDS_PER_DAY    86400U
-#define SECONDS_PER_HOUR   3600U
-#define SECONDS_PER_MINUTE 60U
+#define SECONDS_PER_DAY     86400U
+#define SECONDS_PER_HOUR    3600U
+#define SECONDS_PER_MINUTE  60U
+#define RTC_LEAP_YEAR(year) ((((year) % 4 == 0) && ((year) % 100 != 0)) || ((year) % 400 == 0))
+#define RTC_DAYS_IN_YEAR(x) RTC_LEAP_YEAR(x) ? 366 : 365
+#define RTC_OFFSET_YEAR     1970
 
 // Node commands
 #define NODE_CMD_ACK          0
@@ -191,7 +194,6 @@ char tmpLog[LOGGER_MSG_LENGTH]; // Temporary logger string
 // RTC related
 static RTCDateTime timespec;
 time_t startTime;  // OHS start timestamp variable
-time_t tempTime;   // Temp time
 // Ethernet
 uint8_t macAddr[6];
 
@@ -325,7 +327,7 @@ typedef struct {
 
   uint16_t zone[ALARM_ZONES];
   char     zoneName[ALARM_ZONES][NAME_LENGTH];
-  uint8_t  zoneAddress[ALARM_ZONES-HW_ZONES];          // Remote zone address
+  uint8_t  zoneAddress[ALARM_ZONES-HW_ZONES]; // Only for remote zone address
 
   uint16_t group[ALARM_GROUPS];
   char     groupName[ALARM_GROUPS][NAME_LENGTH];
@@ -515,7 +517,7 @@ void setConfDefault(void){
     //                    |||- ~ Free ~
     //                    ||||- Remote zone
     //                    |||||- Battery powered zone, they don't send OK, only PIR or Tamper.
-    //                    ||||||- Logical type balanced 1/ unbalanced 0
+    //                    ||||||- Logical type balanced 1/ unbalanced 0. Only Analog zones can be balanced.
     //                    |||||||- PIR as Tamper
     //                    ||||||||- Still open alarm
     //                    ||||||||         |- Arm Home zone
