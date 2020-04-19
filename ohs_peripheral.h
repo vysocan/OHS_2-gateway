@@ -59,6 +59,15 @@ static RS485Config rs485cfg = {
   GPIOD_USART2_DE // pad
 };
 
+// RFM69
+rfm69Config_t rfm69cfg = {
+  &SPID3,
+  &spi3cfg,
+  LINE_RADIO_IRQ,
+  RF69_868MHZ,
+  1,
+  100
+};
 
 // ADC related
 #define ADC_GRP1_NUM_CHANNELS 11

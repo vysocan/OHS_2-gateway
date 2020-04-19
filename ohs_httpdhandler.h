@@ -142,13 +142,16 @@ const char JSTimer[]                = "<script>"
 #define PAGE_ALERT      6
 #define PAGE_NODE       7
 #define PAGE_LOG        8
+#define PAGE_TIMER      9
+#define PAGE_TRIGGER    10
+#define PAGE_TCL        11
 
 typedef struct {
   char    link[14];
   char    name[10];
 } webPage_t;
 
-const webPage_t webPage[] = {
+static const webPage_t webPage[] = {
 //  123456789012345  123456789012345
   {"/index.html",   "Home"},
   {"/setting.html", "Settings"},
@@ -161,7 +164,7 @@ const webPage_t webPage[] = {
   {"/log.html",     "Log"}
 };
 
-static char postData[256];
+static char postData[1024] __attribute__((section(".ram4")));
 static char *pPostData;
 
 void printOkNok(BaseSequentialStream *chp, const int8_t value) {
@@ -182,13 +185,13 @@ void printRadioButton(BaseSequentialStream *chp, const char *name, const uint8_t
 }
 
 #define GET_BUTTON_STATE(x,y) (x==y)
-void printFourButton(BaseSequentialStream *chp, const char *name, const uint8_t state, const bool enableJS,
+void printFourButton(BaseSequentialStream *chp, const char *name, const uint8_t state,
                      const char *text1, const char *text2, const char *text3, const char *text4) {
   chprintf(chp, "%s", html_radio_sl);
-  printRadioButton(chp, name, 0, text1, GET_BUTTON_STATE(state, 0), enableJS);
-  printRadioButton(chp, name, 1, text2, GET_BUTTON_STATE(state, 1), enableJS);
-  printRadioButton(chp, name, 2, text3, GET_BUTTON_STATE(state, 2), enableJS);
-  printRadioButton(chp, name, 3, text4, GET_BUTTON_STATE(state, 3), enableJS);
+  printRadioButton(chp, name, 0, text1, GET_BUTTON_STATE(state, 0), false);
+  printRadioButton(chp, name, 1, text2, GET_BUTTON_STATE(state, 1), false);
+  printRadioButton(chp, name, 2, text3, GET_BUTTON_STATE(state, 2), false);
+  printRadioButton(chp, name, 3, text4, GET_BUTTON_STATE(state, 3), false);
   chprintf(chp, "%s", html_div_e);
 }
 
@@ -249,13 +252,12 @@ void printIntInput(BaseSequentialStream *chp, const char name, const int16_t val
   chprintf(chp, "%s%c%s", html_id_tag, name, html_e_tag);
 }
 
-void printTextArea(BaseSequentialStream *chp, const char name, const char *value, const uint16_t size,
-                   const uint8_t rows, const uint8_t cols){
+void printTextArea(BaseSequentialStream *chp, const char name, const char *value,
+                   const uint16_t maxSize, const uint8_t cols, const uint8_t rows){
   chprintf(chp, "%s%c%s%c%s%u", html_textarea_1, name, html_textarea_2, name, html_textarea_3, rows);
-  chprintf(chp, "%s%u%s%u%s", html_textarea_4, cols, html_textarea_5, size, html_e_tag);
+  chprintf(chp, "%s%u%s%u%s", html_textarea_4, cols, html_textarea_5, maxSize, html_e_tag);
   chprintf(chp, "%s%s", value, html_textarea_e);
 }
-
 
 void genfiles_ex_init(void) {
   /* nothing to do here yet */
@@ -266,8 +268,7 @@ static uint16_t webLog = 0;
 int fs_open_custom(struct fs_file *file, const char *name){
   char temp[3] = "";
   uint16_t logAddress;
-  float tmpFloat;
-  time_t tempTime;   // Temp time
+  time_t tempTime;      // Temp time
 
   for (uint8_t htmlPage = 0; htmlPage < ARRAY_SIZE(webPage); ++htmlPage) {
     if (!strcmp(name, webPage[htmlPage].link)) {
@@ -321,7 +322,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           for (uint8_t i = 0; i < NODE_SIZE; i++) {
             if (node[i].address != 0) {
               chprintf(chp, "%s%u.%s%s - ", html_tr_td, i + 1, html_e_td_td, node[i].name);
-              printNodeAddress(chp, node[i].address, node[i].number);
+              printNodeAddress(chp, node[i].address, node[i].type, node[i].function, node[i].number);
               chprintf(chp, "%s", html_e_td_td);
               printOkNok(chp, GET_NODE_ENABLED(node[i].setting));
               chprintf(chp, "%s", html_e_td_td);
@@ -357,7 +358,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s", text_Name, html_e_td_td);
           printTextInput(chp, 'n', node[webNode].name, NAME_LENGTH);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Address, html_e_td_td);
-          printNodeAddress(chp, node[webNode].address, node[webNode].number);
+          printNodeAddress(chp, node[webNode].address, node[webNode].type, node[webNode].function, node[webNode].number);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Type, html_e_td_td);
           printNodeType(chp, node[webNode].type);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Function, html_e_td_td);
@@ -564,7 +565,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Balanced, html_e_td_td);
           printOnOffButton(chp, "a", GET_CONF_ZONE_BALANCED(conf.zone[webZone]), false);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Authentication, text_delay, html_e_td_td);
-          printFourButton(chp, "d", GET_CONF_ZONE_AUTH_TIME(conf.zone[webZone]), false, text_0x, text_1x, text_2x, text_3x);
+          printFourButton(chp, "d", GET_CONF_ZONE_AUTH_TIME(conf.zone[webZone]), text_0x, text_1x, text_2x, text_3x);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Group, html_e_td_td);
           selectGroup(chp, GET_CONF_ZONE_GROUP(conf.zone[webZone]), 'g');
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
@@ -755,10 +756,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Battery, html_e_td_td);
           printOkNok(chp, palReadPad(GPIOD, GPIOD_BAT_OK));
           chprintf(chp, "%s%s %s%", html_e_td_e_tr_tr_td, text_RTC, text_battery);
-          // VBAT does not measure under 1 V
-          if (adcSamples[10] < 700) tmpFloat = 0;
-          else tmpFloat = (float)adcSamples[10] * ADC_SCALING_VBAT;
-          chprintf(chp, "%s%.2f V", html_e_td_td, tmpFloat);
+          chprintf(chp, "%s%.2f V", html_e_td_td, rtcVbat);
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           chprintf(chp, "<h1>%s</h1>\r\n", text_Modem);
           chprintf(chp, "%s%s", html_table, html_tr_td);
@@ -779,7 +777,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s %s%s%u%%", html_e_td_e_tr_tr_td, text_Signal, text_strength, html_e_td_td, gprsStrength);
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
 
-          printTextArea(chp, 's', tclCmd, 120, 5, 60);
+          printTextArea(chp, 's', &tclCmd[0], sizeof(tclCmd), 80, 20);
 
           // Buttons
           chprintf(chp, "%s%s", html_Apply, html_Save);

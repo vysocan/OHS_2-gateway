@@ -49,10 +49,10 @@
 
 /* Use ChibiOS specific priorities. */
 #if !defined(TCPIP_THREAD_PRIO)
-#define TCPIP_THREAD_PRIO               (LOWPRIO + 1)
+#define TCPIP_THREAD_PRIO               (LOWPRIO + 11)
 #endif
 #if !defined(LWIP_THREAD_PRIORITY)
-#define LWIP_THREAD_PRIORITY            (LOWPRIO)
+#define LWIP_THREAD_PRIORITY            (LOWPRIO + 10)
 #endif
 
 // DNS

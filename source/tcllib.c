@@ -35,8 +35,7 @@
 #endif
 
 //
-void * ummp;
-uint16_t tcl_iteration; //
+uint16_t tcl_iteration;
 
 struct tcl;
 int tcl_eval(struct tcl* tcl, const char* s, size_t len);
@@ -57,8 +56,7 @@ int tcl_next(const char* s, size_t n, const char** from, const char** to, int* q
   int depth = 0;
   char open;
   char close;
-  TCL_TRACE("tcl_next(%.*s)+%d+%d|q:%d", n, s, *from - s, *to - s, *q);
-  //umm_info(ummp, true);
+  DBG("tcl_next(%.*s)+%d+%d|q:%d", n, s, *from - s, *to - s, *q);
 
   // Check for endless loop
   if (!tcl_iteration) {
@@ -170,7 +168,7 @@ long int htoi(char* hex) {
 }
 
 static inline void* tcl_malloc(size_t n)        { return umm_malloc(n); }
-static inline void  tcl_free(void* v)           { umm_free(v); }
+inline void  tcl_free(void* v)           { umm_free(v); }
 static inline void* tcl_realloc(void* v, int n) { return umm_realloc(v, n); }
 
 //const char *empty_str = "";
@@ -185,6 +183,7 @@ int tcl_strcmp(tcl_value_t* u, tcl_value_t* v) {
 int tcl_length(tcl_value_t* v) { return v == NULL ? 0 : strlen(v); }
 
 int tcl_int(tcl_value_t* v) { return atoi(v); }
+int tcl_float(tcl_value_t* v) { return atof(v); }
 
 tcl_value_t* tcl_append_string(tcl_value_t* v, const char* s, size_t len) {
   size_t n = tcl_length(v);
@@ -300,7 +299,7 @@ struct tcl_var* tcl_env_var(struct tcl_env* env, tcl_value_t* name) {
   var->name = tcl_dup(name);
   var->next = env->vars;
   var->value = tcl_alloc("", 0);
-  var->var_type = VARCHAR;
+  //var->var_type = VARCHAR;
   env->vars = var;
   DBG("Allocate '%s'.", name);
   return var;
@@ -346,8 +345,6 @@ tcl_var_t tcl_var_type(tcl_value_t * val) {
 
 tcl_value_t* tcl_var(struct tcl* tcl, tcl_value_t* name, tcl_value_t* v) {
   struct tcl_var* var;
-  char buf [16];
-  long int i;
 
   VAR("tcl_var start |%s|%s|", name, v);
   for (var = tcl->env->vars; var != NULL; var = var->next) {
@@ -356,50 +353,19 @@ tcl_value_t* tcl_var(struct tcl* tcl, tcl_value_t* name, tcl_value_t* v) {
       break;
     }
   }
+  // Error reporting
+  if ((var == NULL) && (v == NULL)) {
+    TCL_WARNING("Variable '%s' is empty.", name);
+  }
   if (var == NULL) {
     VAR("- Allocate new %s.", name);
     var = tcl_env_var(tcl->env, name);
   }
   if (v != NULL) {
     tcl_free(var->value);
-    var->var_type = tcl_var_type(v);
-    switch (var->var_type) {
-      case VARINT:
-        var->value = tcl_malloc(sizeof(long int));
-        i = atol(v);
-        VAR("- Set int atol '%s' as '%d'.", v, i);
-        var->value = i;
-        VAR("- Set int '%s = %d|%s'.", var->name, *(var->value), v);
-        break;
-      case VARFLOAT:
-        var->value = tcl_malloc(sizeof(float));
-        *var->value = atof(v);
-        VAR("- Set float '%s = %f|%s'.", var->name, *var->value, v);
-        break;
-      default:
-        var->value = tcl_dup(v);
-        VAR("- Set str '%s = %s|%s'.", var->name, var->value, v);
-        break;
-    }
+    var->value = tcl_dup(v);
+    VAR("- Set str '%s = %s|%s'.", var->name, var->value, v);
     tcl_free(v);
-  }
-  // Return conversion
-  switch (var->var_type) {
-    case VARINT:
-      i = *(var->value);
-      tcl_free(var->value);
-      VAR("- Ret int '%s = %d'.", var->name, i);
-      itoa(i, buf, 10);
-      var->value = tcl_dup(buf);
-      VAR("- Ret int '%s = %s|%d' .", var->name, var->value, i);
-      var->var_type = VARCHAR;
-      break;
-    case VARFLOAT:
-      VAR("- Ret float '%s = %f|%s' .", var->name, *var->value, v);
-      break;
-    default:
-      VAR("- Ret str '%s = %s|%s' .", var->name, var->value);
-      break;
   }
   VAR("tcl_var end");
   return var->value;
@@ -552,10 +518,6 @@ static int tcl_cmd_set(struct tcl* tcl, tcl_value_t* args, void* arg) {
   DBG("%s = %s", var, val);
   int r = tcl_result(tcl, FNORMAL, tcl_dup(tcl_var(tcl, var, val)));
   DBG("FREE tcl_cmd_set %x.", var);
-  // Error reporting
-  if (val == NULL) {
-    TCL_WARNING("Variable '%s' is empty.", var);
-  }
   tcl_free(var);
   return r;
 }
@@ -710,14 +672,16 @@ static int tcl_cmd_while(struct tcl* tcl, tcl_value_t* args, void* arg) {
 #ifndef TCL_DISABLE_MATH
 static int tcl_cmd_math(struct tcl* tcl, tcl_value_t* args, void* arg) {
   (void)arg;
-  char buf[64];
+  char buf[16];
   tcl_value_t* opval = tcl_list_at(args, 0);
   tcl_value_t* aval = tcl_list_at(args, 1);
   tcl_value_t* bval = tcl_list_at(args, 2);
   const char* op = tcl_string(opval);
-  int a = tcl_int(aval);
-  int b = tcl_int(bval);
-  int c = 0;
+  float a = tcl_float(aval);
+  TCL_TRACE("a = %.2f", a);
+  float b = tcl_float(bval);
+  TCL_TRACE("b = %.2f", a);
+  float c = 0;
   if (op[0] == '+') {
     c = a + b;
   } else if (op[0] == '-') {
@@ -751,6 +715,7 @@ static int tcl_cmd_math(struct tcl* tcl, tcl_value_t* args, void* arg) {
     c = a != b;
   }
 
+  /*
   char* p = buf + sizeof(buf) - 1;
   char neg = (c < 0);
   *p-- = 0;
@@ -765,6 +730,9 @@ static int tcl_cmd_math(struct tcl* tcl, tcl_value_t* args, void* arg) {
     *p-- = '-';
   }
   p++;
+  */
+
+  chsnprintf(&buf[0], sizeof(buf), "%.2f", c);
 
   DBG("FREE tcl_cmd_math %x.", opval);
   DBG("FREE tcl_cmd_math %x.", aval);
@@ -772,13 +740,12 @@ static int tcl_cmd_math(struct tcl* tcl, tcl_value_t* args, void* arg) {
   tcl_free(opval);
   tcl_free(aval);
   tcl_free(bval);
-  return tcl_result(tcl, FNORMAL, tcl_alloc(p, strlen(p)));
+  return tcl_result(tcl, FNORMAL, tcl_alloc(&buf[0], strlen(buf)));
 }
 #endif
 
-void tcl_init(struct tcl* tcl, uint16_t max_iterations, void* heap) {
+void tcl_init(struct tcl* tcl, uint16_t max_iterations) {
   tcl_iteration = max_iterations;
-  ummp = heap;
   empty_str = tcl_malloc(1);
   *empty_str = '\0';
   tcl->env = tcl_env_alloc(NULL);

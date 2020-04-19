@@ -36,11 +36,6 @@ binary_semaphore_t emailSem;
 #include "ohs_peripheral.h"
 #include "ohs_functions.h"
 
-
-char tclCmd[120] = "= y\";";
-
-char *s = &tclCmd[0];
-
 // GPRS
 #include "gprs.h"
 typedef enum {
@@ -57,26 +52,25 @@ volatile int8_t gprsStrength = 0;
 char gprsModemInfo[20]; // SIMCOM_SIM7600x-x
 char gprsSmsText[120];
 
+// uBS
+//#include "uBS.h"
+
+// TCL
+#define UMM_MALLOC_CFG_HEAP_SIZE ((size_t)1024*16)
+static char my_umm_heap[UMM_MALLOC_CFG_HEAP_SIZE] __attribute__((section(".ram4")));
+static char tclOutput[1024] __attribute__((section(".ram4")));
+static char tclCmd[1024] __attribute__((section(".ram4")));
+#include "umm_malloc.h"
+#include "umm_malloc_cfg.h"
+#include "tcl.h"
+struct tcl tcl;
+
 // LWIP
 #include "lwipthread.h"
 #include "lwip/apps/httpd.h"
 #include "lwip/apps/sntp.h"
 #include "lwip/apps/smtp.h"
 #include "ohs_httpdhandler.h"
-
-// uBS
-//#include "uBS.h"
-// TCL
-#define UMM_MALLOC_CFG_HEAP_SIZE ((size_t)1024*16)
-static char my_umm_heap[UMM_MALLOC_CFG_HEAP_SIZE] __attribute__((section(".ram4")));
-//#define UMM_MALLOC_CFG_HEAP_ADDR (&my_umm_heap[0])
-static char my_test[1024] __attribute__((section(".ram4")));
-char* my_testp = &my_test[0];
-
-#include "umm_malloc.h"
-#include "umm_malloc_cfg.h"
-//#include "picol.h"
-#include "tcl.h"
 
 // Thread handling
 #include "ohs_th_zone.h"
@@ -89,53 +83,21 @@ char* my_testp = &my_test[0];
 #include "ohs_th_alert.h"
 #include "ohs_th_service.h"
 #include "ohs_th_radio.h"
+#include "ohs_th_tcl.h"
+#include "ohs_th_heartbeat.h"
 
 /*
- * This is a periodic thread that does absolutely nothing except flashing
- * a LED.
- */
-static THD_WORKING_AREA(waThread1, 128);
-static THD_FUNCTION(Thread1, arg) {
-  chRegSetThreadName(arg);
-  systime_t time;
-
-  while (true) {
-    time = serusbcfg.usbp->state == USB_ACTIVE ? 250 : 500;
-
-    palSetPad(GPIOC, GPIOC_HEARTBEAT);
-    chThdSleepMilliseconds(time);
-    palClearPad(GPIOC, GPIOC_HEARTBEAT);
-    chThdSleepMilliseconds(500);
-  }
-}
-
-
-/*
- * helper function
- */
-/*
+// helper function
 static void GetTimeTm(struct tm *timp) {
   rtcGetTime(&RTCD1, &timespec);
   rtcConvertDateTimeToStructTm(&timespec, timp, NULL);
 }
 */
 
-// RFM69
-rfm69Config_t rfm69cfg = {
-  &SPID3,
-  &spi3cfg,
-  LINE_RADIO_IRQ,
-  RF69_868MHZ,
-  1,
-  100
-};
-
 msg_t resp;
 struct tm *ptm;
 
-/*
- * Application entry point.
- */
+// Application entry point.
 int main(void) {
   halInit();
   chSysInit();
@@ -192,8 +154,6 @@ int main(void) {
   rfm69Encrypt("ABCDABCDABCDABCD");
 
   adcStart(&ADCD1, NULL);      // Activates the ADC1 driver
-  adcSTM32EnableTSVREFE();     // Enable
-  adcSTM32EnableVBATE();       // Enable VBAT pin
 
   // Create thread(s).
   chThdCreateStatic(waZoneThread, sizeof(waZoneThread), NORMALPRIO, ZoneThread, (void*)"zone");
@@ -208,7 +168,8 @@ int main(void) {
   chThdCreateStatic(waAlertThread, sizeof(waAlertThread), NORMALPRIO, AlertThread, (void*)"alert");
   chThdCreateStatic(waServiceThread, sizeof(waServiceThread), NORMALPRIO, ServiceThread, (void*)"service");
   chThdCreateStatic(waRadioThread, sizeof(waRadioThread), NORMALPRIO, RadioThread, (void*)"radio");
-  chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, (void*)"heartbeat");
+  chThdCreateStatic(waHeartBeatThread, sizeof(waHeartBeatThread), NORMALPRIO, HeartBeatThread, (void*)"heartbeat");
+  chThdCreateStatic(waTclThread, sizeof(waTclThread), LOWPRIO, tclThread, (void*)"tcl");
 
   static THD_WORKING_AREA(waShell, 2048);
   chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg1);
@@ -232,7 +193,7 @@ int main(void) {
   sntp_init();
   mdns_resp_init();
 
-  // Read last group[] state
+  // Read last groups states
   readFromBkpRTC((uint8_t*)&group, sizeof(group), 0);
   // Read conf.
   readFromBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
@@ -268,61 +229,15 @@ int main(void) {
   // TCL
   //umm_init();
   umm_init(&my_umm_heap[0], UMM_MALLOC_CFG_HEAP_SIZE);
-  //smalloc_init();
-  struct tcl tcl;
   //tcl_init(&tcl);
 
-  /*
-  const char *s = "set a 1; ;"
-                  "while {<= $a 10} {"
-                   "if {== $a 5} { puts {Missing five!}; set a [+ $a 1]; continue;}"
-                   " puts \"I can compute that $a[]x$a = [square $a]\" ; set a [+ $a 1]};";
-                   */
-  //struct picolInterp interp;
-  //struct tcl_env* env = tcl_malloc(sizeof(*env));
-
-  //struct picolInterp* interpp = umm_malloc(sizeof(*interpp));
-  //picolInitInterp(interpp);
-  //picolRegisterCoreCommands(interpp);
-
-
-  char mes[] = { 'S', 'T', 0, 0, 0, 0, 0};
-
   chThdSleepMilliseconds(10000);
-  time_t tt;
 
-  chprintf(console, "tt---%x-%u\r\n", my_testp, sizeof(my_test));
-  chprintf(console, "mes---%x-%u\r\n", &mes[0], sizeof(mes));
 
   // Idle runner
   while (true) {
-    tt = getTimeUnixSec();
-    chprintf(console, "---%u-%d\r\n", chVTGetSystemTimeX(), (uint32_t)tt);
-
-    //rfm69SendWithAck(1, mes, 7);
-    //chprintf(console, "Send: %d , time %u\r\n\r\n", rfm69Send(1, mes, 7, true), chVTGetSystemTimeX());
 
     chThdSleepMilliseconds(10000);
-
-
-    //chprintf(console, "RFM69 temp: %d\r\n", rfm69ReadTemperature(0));
-
-    //rfm69ReadAllRegs();
-
-    tt = chVTGetSystemTimeX();
-
-    tcl_init(&tcl, 1024, &my_umm_heap[0]);
-    if (tcl_eval(&tcl, s, strlen(s)) != FERROR) {
-      chprintf(console, ">>>%.*s\r\n", tcl_length(tcl.result), tcl_string(tcl.result));
-    } else {
-      chprintf(console, ">>>TCL error\r\n");
-    }
-    tcl_destroy(&tcl);
-
-    chprintf(console, "TCL time %u in 0.1 ms\r\n", (chVTGetSystemTimeX() - tt));
-
-    umm_info(&my_umm_heap[0], true);
-
 
     /*
     if (SDU1.config->usbp->state == USB_ACTIVE) {
@@ -330,9 +245,6 @@ int main(void) {
       chThdWait(shelltp);               // Waiting termination.
     }
     */
-
-
-
 
     /*
     tt = calculateDST(2020-1980, 3, 0, 0, 2);

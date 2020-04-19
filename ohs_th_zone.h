@@ -8,8 +8,6 @@
 #ifndef OHS_TH_ZONE_H_
 #define OHS_TH_ZONE_H_
 
-
-
 /*
  * Zone thread
  */
@@ -18,7 +16,7 @@ static THD_FUNCTION(ZoneThread, arg) {
   chRegSetThreadName(arg);
 
   msg_t    msg;
-  uint16_t val;
+  uint16_t val, vbat;
   uint8_t  groupNum = 255;
 
   // Delay to allow PIR to settle up during power on
@@ -41,7 +39,30 @@ static THD_FUNCTION(ZoneThread, arg) {
       }
     }
 
+    // RTC VBat
+    if (vbat == 0) {
+     adcSTM32EnableTSVREFE();     // Enable
+     adcSTM32EnableVBATE();       // Enable VBAT pin
+    }
     adcConvert(&ADCD1, &adcgrpcfg1, adcSamples, ADC_GRP1_BUF_DEPTH); // Do ADC
+    // RTC VBat is measured only on vbat overflow
+    if (vbat == 3) {
+      adcSTM32DisableVBATE();       // Disable VBAT pin
+      adcSTM32DisableTSVREFE();     // Disable
+      // VBAT does not measure under 1 V
+      if (adcSamples[10] < 700) rtcVbat = 0;
+      else rtcVbat = (float)adcSamples[10] * ADC_SCALING_VBAT;
+      // Lower or higher then ~ 2.5V
+      if ((adcSamples[10] < 1500) && !GET_CONF_SYSTEM_FLAG_RTC_LOW(conf.systemFlags)) {
+        pushToLogText("SRL");
+        SET_CONF_SYSTEM_FLAG_RTC_LOW(conf.systemFlags);
+      }
+      if ((adcSamples[10] > 1600) && GET_CONF_SYSTEM_FLAG_RTC_LOW(conf.systemFlags)) {
+        pushToLogText("SRH");
+        CLEAR_CONF_SYSTEM_FLAG_RTC_LOW(conf.systemFlags);
+      }
+    }
+    vbat++;
 
     /*
     for(uint8_t i = 0; i < ADC_GRP1_NUM_CHANNELS; i++) {

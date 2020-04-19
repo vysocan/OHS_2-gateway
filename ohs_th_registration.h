@@ -48,7 +48,8 @@ static THD_FUNCTION(RegistrationThread, arg) {
               node[nodeIndex].setting  = inMsg->setting;
               node[nodeIndex].last_OK  = getTimeUnixSec();
               memcpy(&node[nodeIndex].name, &inMsg->name, NAME_LENGTH);
-              tmpLog[0] = 'N'; tmpLog[1] = 'R'; tmpLog[2] = inMsg->address; tmpLog[3] = inMsg->number; tmpLog[4] = inMsg->type; tmpLog[5] = inMsg->function;  pushToLog(tmpLog, 6);
+              tmpLog[0] = 'N'; tmpLog[1] = 'R'; tmpLog[2] = inMsg->address; tmpLog[3] = inMsg->type;
+                tmpLog[4] = inMsg->function; tmpLog[5] = inMsg->number;  pushToLog(tmpLog, 6);
               chprintf(console, "Registered as: %d\r\n", nodeIndex);
             }
           }
@@ -79,7 +80,8 @@ static THD_FUNCTION(RegistrationThread, arg) {
             tmpLog[2] = inMsg->number; pushToLog(tmpLog, 3);
           break;
           default:
-            tmpLog[0] = 'N'; tmpLog[1] = 'E'; tmpLog[2] = inMsg->address; tmpLog[3] = inMsg->number; tmpLog[4] = inMsg->type; tmpLog[5] = inMsg->function; pushToLog(tmpLog, 6);
+            tmpLog[0] = 'N'; tmpLog[1] = 'E'; tmpLog[2] = inMsg->address; tmpLog[3] = inMsg->type;
+            tmpLog[4] = inMsg->function; tmpLog[5] = inMsg->number; pushToLog(tmpLog, 6);
           break;
       } // end switch
     } else {

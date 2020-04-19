@@ -20,22 +20,22 @@
 #define BACKUP_SRAM_SIZE 0x1000 // 4kB SRAM size
 #define BACKUP_RTC_SIZE  80     // 80 bytes
 
-#define ALARM_ZONES      30     // Maximum zones
-#define ALARM_GROUPS     10     // Maximum groups
+#define ALARM_GROUPS     10     // # of groups
+#define ALARM_ZONES      30     // Maximum # of zones
 #define HW_ZONES         11     // # of hardware zones on gateway
-#define CONTACTS_SIZE    10     // Maximum contacts
-#define KEYS_SIZE        20     // Maximum keys
+#define CONTACTS_SIZE    10     // Maximum # of contacts
+#define KEYS_SIZE        20     // Maximum # of keys
 #define KEY_LENGTH       8      //
 #define NAME_LENGTH      16     //
 #define PHONE_LENGTH     14     //
 #define EMAIL_LENGTH     30     //
-#define URL_LENGTH       32
+#define URL_LENGTH       32     // URL address
 #define NOT_SET          "not set"
 
-#define ALARM_PIR        3400   //(3380 = 15.2V)
+#define ALARM_PIR        3400   // (3380 = 15.2V)
 #define ALARM_PIR_LOW    3050
 #define ALARM_PIR_HI     3650
-#define ALARM_OK         1850   //(1850 = 15.2V)
+#define ALARM_OK         1850   // (1850 = 15.2V)
 #define ALARM_OK_LOW     1500
 #define ALARM_OK_HI      2100
 #define ALARM_TAMPER     0
@@ -140,10 +140,13 @@
 #define CLEAR_CONF_CONTACT_ENABLED(x)   x &= ~1
 #define CLEAR_CONF_CONTACT_IS_GLOBAL(x) x &= ~(1 << 5U)
 
-
 #define GET_CONF_KEY_ENABLED(x)     ((x) & 0b1)
 #define SET_CONF_KEY_ENABLED(x)     x |= 1
 #define CLEAR_CONF_KEY_ENABLED(x)   x &= ~1
+
+#define GET_CONF_SYSTEM_FLAG_RTC_LOW(x)    ((x) & 0b1)
+#define SET_CONF_SYSTEM_FLAG_RTC_LOW(x)    x |= 1
+#define CLEAR_CONF_SYSTEM_FLAG_RTC_LOW(x)  x &= ~1
 
 #define GET_ZONE_ALARM(x)     ((x >> 1U) & 0b1)
 #define GET_ZONE_ERROR(x)     ((x >> 5U) & 0b1)
@@ -186,6 +189,7 @@
 #define CLEAR_NODE_BATT_LOW(x) x &= ~(1 << 5U)
 #define CLEAR_NODE_MQTT_PUB(x) x &= ~(1 << 7U)
 
+// Helper macros
 #define ARRAY_SIZE(x) sizeof(x)/sizeof(x[0])
 
 // Global vars
@@ -194,6 +198,8 @@ char tmpLog[LOGGER_MSG_LENGTH]; // Temporary logger string
 // RTC related
 static RTCDateTime timespec;
 time_t startTime;  // OHS start timestamp variable
+// RTC last Vbat value
+float rtcVbat;
 // Ethernet
 uint8_t macAddr[6];
 
@@ -230,7 +236,6 @@ typedef struct {
   uint8_t flag;
 } alert_t;
 
-
 // Registration events
 #define REG_FIFO_SIZE 6
 #define REG_PACKET_HEADER_SIZE 5
@@ -259,21 +264,26 @@ typedef struct {
 // Alerts
 typedef struct {
   char    name[6];
-//  uint8_t number;
 } alertType_t;
 // Logger keeps info about this as bit flags of uint8_t, maximum number of alert types is 8.
 const alertType_t alertType[] = {
+  // 1234567890
   { "SMS" },
   { "Page" },
   { "Email" }
 };
+// Check alertType size
+typedef char check_alertType[ARRAY_SIZE(alertType) <= 8 ? 1 : -1];
+
 // Logger message text to match alert, maximum number of alerts is number of bits in uint32_t
 const char alertDef[][3] = {
-  "SS", "SX", "SB", "SA",
+  "SS", "SX", "SB", "SA", "SR",
   "GS", "GD", "GA",
   "ZP", "ZT", "ZO",
   "AA", "AH", "AD", "AU", "AF"
 };
+// Check alertDef size
+typedef char check_alertDef[ARRAY_SIZE(alertDef) <= 32 ? 1 : -1];
 
 /*
  * Mailboxes
@@ -364,6 +374,11 @@ typedef struct {
 
   char     user[NAME_LENGTH];
   char     password[NAME_LENGTH];
+
+  uint8_t  tclSetting;    // TCL flags
+  uint16_t tclIteration;  // Number of allowed loops
+
+  uint8_t  systemFlags;
 
 } config_t;
 config_t conf;
@@ -610,6 +625,11 @@ void setConfDefault(void){
   strcpy(conf.user, "admin");
   strcpy(conf.password, "pass");
 
+  conf.tclSetting = 0;
+  conf.tclIteration = 1000;
+
+  //                   ||||||||- RTC low flag, let's check on power On.
+  conf.systemFlags = 0b00000001;
 }
 
 #endif /* OHS_CONF_H_ */

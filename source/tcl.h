@@ -58,6 +58,8 @@ int tcl_length(tcl_value_t* v);
 int tcl_next(const char* s, size_t n, const char** from, const char** to,
     int* q);
 
+void  tcl_free(void* v);
+
 tcl_value_t* tcl_append_string(tcl_value_t* v, const char* s, size_t len);
 tcl_value_t* tcl_append(tcl_value_t* v, tcl_value_t* tail);
 tcl_value_t* tcl_alloc(const char* s, size_t len);
@@ -80,7 +82,7 @@ struct tcl_cmd {
 struct tcl_var {
   tcl_value_t* name;
   tcl_value_t* value;
-  tcl_var_t var_type;
+  //tcl_var_t var_type;
   struct tcl_var* next;
 };
 
@@ -104,7 +106,7 @@ int tcl_subst(struct tcl* tcl, const char* s, size_t len);
 int tcl_eval(struct tcl* tcl, const char* s, size_t len);
 void tcl_register(struct tcl* tcl, const char* name, tcl_cmd_fn_t fn, int arity,
     void* arg);
-void tcl_init(struct tcl* tcl, uint16_t max_iterations, void* ummp);
+void tcl_init(struct tcl* tcl, uint16_t max_iterations);
 void tcl_destroy(struct tcl* tcl);
 
 #ifdef __cplusplus

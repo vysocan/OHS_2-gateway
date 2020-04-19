@@ -103,8 +103,8 @@ static THD_FUNCTION(RS485Thread, arg) {
                 } else {
                   // log disabled remote nodes
                   tmpLog[0] = 'N'; tmpLog[1] = 'F'; tmpLog[2] = rs485Msg.address;
-                  tmpLog[3] = rs485Msg.data[2]; tmpLog[4] = rs485Msg.data[0];
-                  tmpLog[5] = rs485Msg.data[1];  pushToLog(tmpLog, 6);
+                  tmpLog[3] = rs485Msg.data[0]; tmpLog[4] = rs485Msg.data[1];
+                  tmpLog[5] = rs485Msg.data[2];  pushToLog(tmpLog, 6);
                 }
               } else { // node not found
                 chThdSleepMilliseconds(5);  // This is needed for sleeping battery nodes, or they wont see reg. command.

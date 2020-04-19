@@ -164,13 +164,34 @@ int umm_usage_metric( void ) {
   return (int)((ummHeapInfo.usedBlocks * 100)/(ummHeapInfo.freeBlocks));
 }
 
+unsigned int iSqrt(unsigned int x) {
+  register unsigned int op, res, one;
+
+  op = x;
+  res = 0;
+
+  /* "one" starts at the highest power of four <= than the argument. */
+  one = 1 << 30;  /* second-to-top bit set */
+  while (one > op) one >>= 2;
+
+  while (one != 0) {
+    if (op >= res + one) {
+      op -= res + one;
+      res += one << 1;  // <-- faster than 2 * one
+    }
+    res >>= 1;
+    one >>= 2;
+  }
+  return res;
+}
+
 int umm_fragmentation_metric( void ) {
   //---DBGLOG_DEBUG( "freeBlocks %i freeBlocksSquared %i\r\n", umm_metrics.freeBlocks, ummHeapInfo.freeBlocksSquared);
   if (0 == ummHeapInfo.freeBlocks) {
       return 0;
   } else {
-      //return (100 - (((uint32_t)(sqrtf(ummHeapInfo.freeBlocksSquared)) * 100)/(ummHeapInfo.freeBlocks)));
-      return 100;
+      //return (100 - (((uint32_t)(sqrt(ummHeapInfo.freeBlocksSquared)) * 100)/(ummHeapInfo.freeBlocks)));
+    return (100 - (((uint32_t)(iSqrt(ummHeapInfo.freeBlocksSquared)) * 100)/(ummHeapInfo.freeBlocks)));
   }
 }
 

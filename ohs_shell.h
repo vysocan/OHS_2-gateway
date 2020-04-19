@@ -264,9 +264,11 @@ void printNodeFunction(BaseSequentialStream *chp, const char function) {
   }
 }
 
-void printNodeAddress(BaseSequentialStream *chp, const uint8_t address, const uint8_t number) {
-  if (address < RADIO_UNIT_OFFSET) { chprintf(chp, "W:%u:%u ", address, number); }
-  else                             { chprintf(chp, "R:%u:%u ", address-RADIO_UNIT_OFFSET, number); }
+void printNodeAddress(BaseSequentialStream *chp, const uint8_t address, const char type,
+                      const char function, const uint8_t number) {
+  if (address < RADIO_UNIT_OFFSET) { chprintf(chp, "W:%u:", address); }
+  else                             { chprintf(chp, "R:%u:", address-RADIO_UNIT_OFFSET); }
+  chprintf(chp, "%c:%c:%u ", type, function, number);
 }
 
 void printFrmTimestamp(BaseSequentialStream *chp, time_t *value) {
@@ -506,14 +508,24 @@ static uint8_t decodeLog(char *in, char *out, bool full){
             chprintf(chp, " %s", text_state);
           }
           break;
+        case 'R': chprintf(chp, "%s %s ", text_RTC, text_battery);
+          if (full) {
+            switch(in[2]){
+              case 'L': chprintf(chp, "%s", text_low); break;
+              default:  chprintf(chp, "%s", text_OK); break;
+            }
+          } else {
+            chprintf(chp, " %s", text_state);
+          }
+          break;
         default: chprintf(chp, "%s", text_unknown); break; // unknown
       }
     break;
     case 'N': // Remote nodes
-      printNodeType(chp, in[4]); chprintf(chp, ":");
-      printNodeFunction(chp, in[5]);
+      printNodeType(chp, in[3]); chprintf(chp, ":");
+      printNodeFunction(chp, in[4]);
       chprintf(chp, " %s ", text_address);
-      printNodeAddress(chp, (uint8_t)in[2], (uint8_t)in[3]);
+      printNodeAddress(chp, (uint8_t)in[2], (uint8_t)in[3], (uint8_t)in[4], (uint8_t)in[5]);
       if (in[1] != 'E') {chprintf(chp, "%s ", text_is);}
       switch(in[1]){
         case 'Z' : chprintf(chp, "%s", text_removed); break;

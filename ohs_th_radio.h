@@ -79,8 +79,8 @@ static THD_FUNCTION(RadioThread, arg) {
             } else {
               // log disabled remote nodes
               tmpLog[0] = 'N'; tmpLog[1] = 'F'; tmpLog[2] = rfm69Data.senderId + RADIO_UNIT_OFFSET;
-              tmpLog[3] = rfm69Data.data[2]; tmpLog[4] = rfm69Data.data[0];
-              tmpLog[5] = rfm69Data.data[1];  pushToLog(tmpLog, 6);
+              tmpLog[3] = rfm69Data.data[0]; tmpLog[4] = rfm69Data.data[1];
+              tmpLog[5] = rfm69Data.data[2];  pushToLog(tmpLog, 6);
             }
           } else { // node not found
             chThdSleepMilliseconds(5);  // This is needed for sleeping battery nodes, or they wont see reg. command.

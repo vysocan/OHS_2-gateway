@@ -31,8 +31,8 @@ static THD_FUNCTION(ServiceThread, arg) {
         chprintf(console, "Zombie node: %u,A %u,T %u,F %u,N %u\r\n", nodeIndex, node[nodeIndex].address,
                  node[nodeIndex].type, node[nodeIndex].function, node[nodeIndex].number);
         tmpLog[0] = 'N'; tmpLog[1] = 'Z'; tmpLog[2] = node[nodeIndex].address;
-        tmpLog[3] = node[nodeIndex].number; tmpLog[4] = node[nodeIndex].type;
-        tmpLog[5] = node[nodeIndex].function; pushToLog(tmpLog, 6);
+        tmpLog[3] = node[nodeIndex].type; tmpLog[4] = node[nodeIndex].function;
+        tmpLog[5] = node[nodeIndex].number; pushToLog(tmpLog, 6);
         // Set whole struct to 0
         memset(&node[nodeIndex].address, 0, sizeof(node[0]));
         //0, '\0', '\0', 0, 0b00011110, 0, 0, 255, ""
