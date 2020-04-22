@@ -82,7 +82,8 @@
 #define DBGLOG_ERROR(...) {chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__);}
 #define DBGLOG_WARNING(...) {chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__);}
 #define DBGLOG_INFO(...) {chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__);}
-#define DBGLOG_FORCE(...) {chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__);}
+//#define DBGLOG_FORCE(...) {chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__);}
+#define DBGLOG_FORCE(...)
 
 //extern char my_umm_heap[];
 

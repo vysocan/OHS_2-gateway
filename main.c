@@ -57,9 +57,10 @@ char gprsSmsText[120];
 
 // TCL
 #define UMM_MALLOC_CFG_HEAP_SIZE ((size_t)1024*16)
+#define TCL_SCRIPT_LENGTH        1024
 static char my_umm_heap[UMM_MALLOC_CFG_HEAP_SIZE] __attribute__((section(".ram4")));
-static char tclOutput[1024] __attribute__((section(".ram4")));
-static char tclCmd[1024] __attribute__((section(".ram4")));
+static char tclOutput[TCL_SCRIPT_LENGTH] __attribute__((section(".ram4")));
+static char tclCmd[TCL_SCRIPT_LENGTH] __attribute__((section(".ram4")));
 #include "umm_malloc.h"
 #include "umm_malloc_cfg.h"
 #include "tcl.h"
@@ -70,6 +71,7 @@ struct tcl tcl;
 #include "lwip/apps/httpd.h"
 #include "lwip/apps/sntp.h"
 #include "lwip/apps/smtp.h"
+#include "lwip/apps/mdns.h"
 #include "ohs_httpdhandler.h"
 
 // Thread handling
@@ -138,6 +140,7 @@ int main(void) {
   chPoolObjectInit(&registration_pool, sizeof(registration_t), NULL);
   chPoolObjectInit(&sensor_pool, sizeof(sensor_t), NULL);
   chPoolObjectInit(&alert_pool, sizeof(alert_t), NULL);
+  chPoolObjectInit(&script_pool, sizeof(script_t), NULL);
   //chPoolObjectInit(&node_pool, sizeof(node_t), NULL);
   //chPoolLoadArray(&alarmEvent_pool, alarmEvent_pool_queue, ALARMEVENT_FIFO_SIZE);
   for(uint8_t i = 0; i < ALARMEVENT_FIFO_SIZE; i++) { chPoolFree(&alarmEvent_pool, &alarmEvent_pool_queue[i]); }
@@ -145,6 +148,7 @@ int main(void) {
   for(uint8_t i = 0; i < REG_FIFO_SIZE; i++) { chPoolFree(&registration_pool, &registration_pool_queue[i]); }
   for(uint8_t i = 0; i < SENSOR_FIFO_SIZE; i++) { chPoolFree(&sensor_pool, &sensor_pool_queue[i]); }
   for(uint8_t i = 0; i < ALERT_FIFO_SIZE; i++) { chPoolFree(&alert_pool, &alert_pool_queue[i]); }
+  for(uint8_t i = 0; i < SCRIPT_FIFO_SIZE; i++) { chPoolFree(&script_pool, &script_pool_queue[i]); }
   //for(uint8_t i = 0; i < NODE_SIZE; i++) { chPoolFree(&node_pool, &node_pool_queue[i]); }
 
   spiStart(&SPID1, &spi1cfg);  // SPI
@@ -175,9 +179,7 @@ int main(void) {
   chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg1);
 
   // Ethernet
-  macAddr[0] = LWIP_ETHADDR_0;
-  macAddr[1] = LWIP_ETHADDR_1;
-  macAddr[2] = LWIP_ETHADDR_2;
+  macAddr[0] = LWIP_ETHADDR_0; macAddr[1] = LWIP_ETHADDR_1; macAddr[2] = LWIP_ETHADDR_2;
   macAddr[3] = STM32_UUID[0] & 0xff;
   macAddr[4] = (STM32_UUID[0] >> 8) & 0xff;
   macAddr[5] = (STM32_UUID[0] >> 16) & 0xff;
@@ -227,6 +229,8 @@ int main(void) {
   initRuntimeZones();
 
   // TCL
+  memset(&tclCmd[0], '\0', TCL_SCRIPT_LENGTH);
+  memset(&tclOutput[0], '\0', TCL_SCRIPT_LENGTH);
   //umm_init();
   umm_init(&my_umm_heap[0], UMM_MALLOC_CFG_HEAP_SIZE);
   //tcl_init(&tcl);

@@ -5,7 +5,7 @@
 #endif
 
 #if GPRS_DEBUG
-#define DBG(...) {(BaseSequentialStream*)&SD3, __VA_ARGS__);}
+#define DBG(...) {chprintf((BaseSequentialStream*)&SD3, __VA_ARGS__);}
 #else
 #define DBG(...)
 #endif

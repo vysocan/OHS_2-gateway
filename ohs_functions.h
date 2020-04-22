@@ -84,7 +84,7 @@ void sendCmdToGrp(uint8_t groupNum, uint8_t command, char type) {
 }
 
 // Find existing node index
-int8_t getNodeIndex(uint8_t address, char type, char function, uint8_t number){
+uint8_t getNodeIndex(uint8_t address, char type, char function, uint8_t number){
   for (uint8_t i=0; i < NODE_SIZE; i++) {
     //chprintf(console, "getNodeIndex: %d,T %d-%d,A %d-%d,F %d-%d,N %d-%d\r\n", i, type, node[i].type, address, node[i].address, function, node[i].function, number, node[i].number);
     if (node[i].type     == type &&
@@ -92,22 +92,18 @@ int8_t getNodeIndex(uint8_t address, char type, char function, uint8_t number){
         node[i].function == function &&
         node[i].number   == number) { return i; }
   }
-  return -1;
+  return DUMMY_NO_VALUE;
 }
 
 // Get first free node index
-int8_t getNodeFreeIndex(void){
+uint8_t getNodeFreeIndex(void){
   for (uint8_t i=0; i < NODE_SIZE; i++) {
     //chprintf(console, "getNodeFreeIndex: %d, %d\r\n", i, node[i].address);
     if (node[i].address == 0) { return i; }
   }
-  return -1;
+  return DUMMY_NO_VALUE;
 }
 
-typedef enum {
-  armAway = 0,
-  armHome = 1
-} armType_t;
 // Arm a group
 void armGroup(uint8_t groupNum, uint8_t master, armType_t armType, uint8_t hop) {
   uint8_t resp = 0;
@@ -132,7 +128,7 @@ void armGroup(uint8_t groupNum, uint8_t master, armType_t armType, uint8_t hop) 
   resp = GET_CONF_GROUP_ARM_CHAIN(conf.group[groupNum]); // Temp variable
   if ((resp != 15) &&
       (resp != master) &&
-      (master != ARM_GROUP_CHAIN_NONE) &&
+      (master != DUMMY_NO_VALUE) &&
       (hop <= ALARM_GROUPS)) {
     hop++; // Increase hop
     armGroup(resp, master, armType, hop);
@@ -167,24 +163,39 @@ void disarmGroup(uint8_t groupNum, uint8_t master, uint8_t hop) {
   resp = GET_CONF_GROUP_DISARM_CHAIN(conf.group[groupNum]); // Temp variable
   if ((resp != 15) &&
       (resp != master) &&
-      (master != 255) &&
+      (master != DUMMY_NO_VALUE) &&
       (hop <= ALARM_GROUPS)) {
     hop++; // Increase hop
     disarmGroup(resp, master, hop);
   }
 }
 
+// sdbm hash - http://www.cse.yorku.ca/~oz/hash.html
+uint32_t sdbmHash(uint8_t *toHash, uint8_t length) {
+  uint32_t hash = 0;
+  uint8_t  c;
+
+  while (length) {
+    c = *toHash++;
+    hash = c + (hash << 6) + (hash << 16) - hash;
+    length--;
+  }
+
+  return hash;
+}
+
 // Check key value to saved keys
-void checkKey(uint8_t groupNum, armType_t armType, uint8_t *key){
+void checkKey(uint8_t groupNum, armType_t armType, uint8_t *key, uint8_t length){
   // Group is allowed and enabled
-  chprintf(console, "Check key for group: %u, arm tupe: %u\r\n", groupNum, armType);
+  chprintf(console, "Check key for group: %u, arm type: %u\r\n", groupNum, armType);
   if ((groupNum < ALARM_GROUPS) && (GET_CONF_GROUP_ENABLED(conf.group[groupNum]))) {
     // Check all keys
+    uint32_t keyHash = sdbmHash(key, length);
     for (uint8_t i=0; i < KEYS_SIZE; i++){
-      chprintf(console, "Key match: %d", i);
+      chprintf(console, "Key check match: %d", i);
       //for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, key[ii]); } chprintf(console, "\r\n");
       //for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, conf.keyValue[i][ii]); } chprintf(console, "\r\n");
-      if (memcmp(key, &conf.keyValue[i], KEY_LENGTH) == 0) { // key matched
+      if (conf.keyValue[i] == keyHash) { // key matched
         chprintf(console, ", group: %d\r\n", groupNum);
         //  key enabled && (group = contact_group || contact_key = global)
         if (GET_CONF_KEY_ENABLED(conf.keySetting[i]) &&
@@ -210,8 +221,8 @@ void checkKey(uint8_t groupNum, armType_t armType, uint8_t *key){
       } // key matched
       else if (i == KEYS_SIZE-1) {
         // Log unknown keys
-        tmpLog[0] = 'A'; tmpLog[1] = 'U'; memcpy(&tmpLog[2], key, KEY_LENGTH); pushToLog(tmpLog, 10);
-        memcpy(&lastKey[0], key, KEY_LENGTH); // store last unknown key
+        tmpLog[0] = 'A'; tmpLog[1] = 'U'; memcpy(&tmpLog[2], &keyHash, KEY_LENGTH); pushToLog(tmpLog, 10);
+        lastKey = keyHash; // store last unknown key
       }
     } // for
   } else {

@@ -208,6 +208,7 @@ const char text_Auto[]              = "Auto";
 const char text_Tamper[]            = "Tamper";
 const char text_relay[]             = "relay";
 const char text_home[]              = "home";
+const char text_away[]              = "away";
 const char text_Time[]              = "Time";
 const char text_time[]              = "time";
 const char text_Start[]             = "Start";
@@ -237,6 +238,13 @@ const char text_Balanced[]          = "Balanced";
 const char text_balanced[]          = "balanced";
 const char text_low[]               = "low";
 const char text_state[]             = "state";
+const char text_Blocks[]            = "Blocks";
+const char text_Entries[]           = "Entries";
+const char text_Used[]              = "Used";
+const char text_Free[]              = "Free";
+const char text_Total[]             = "Total";
+const char text_Metric[]            = "Metric";
+const char text_Hash[]              = "Hash";
 
 void printNodeType(BaseSequentialStream *chp, const char type) {
   switch(type){
@@ -451,9 +459,9 @@ time_t getTimeUnixSec(void) {
   return timeSec;
 }
 
-void printKey(BaseSequentialStream *chp, const char *value, const uint8_t size){
-  for (uint8_t i = 0; i < size; ++i) {
-    chprintf(chp, "%02x", value[i]);
+void printKey(BaseSequentialStream *chp, const char *value){
+  for (uint8_t i = KEY_LENGTH; i > 0 ; i--) {
+    chprintf(chp, "%02x", value[i - 1]);
   }
 }
 
@@ -468,7 +476,7 @@ void printGroup(BaseSequentialStream *chp, const uint8_t value) {
  * full: decode full string or just short version for alerts.html
  */
 static uint8_t decodeLog(char *in, char *out, bool full){
-  uint8_t groupNum = 255;
+  uint8_t groupNum = DUMMY_NO_VALUE;
   memset(&out[0], 0x0, LOG_TEXT_LENGTH);
   MemoryStream ms;
   BaseSequentialStream *chp;
@@ -602,18 +610,18 @@ static uint8_t decodeLog(char *in, char *out, bool full){
       if (full) {
         if (in[1] != 'U') {
           chprintf(chp, "#%u, ", (uint8_t)in[2] + 1);
-          if (conf.keyContact[(uint8_t)in[2]] == 255) chprintf(chp, "%s ", NOT_SET);
+          if (conf.keyContact[(uint8_t)in[2]] == DUMMY_NO_VALUE) chprintf(chp, "%s ", NOT_SET);
           else chprintf(chp, "%s ", conf.contactName[(conf.keyContact[(uint8_t)in[2]])]);
           groupNum = GET_CONF_CONTACT_GROUP(conf.keyContact[(uint8_t)in[2]]);
         }
       }
       switch(in[1]){
         case 'D': chprintf(chp, "%s", text_disarmed); break;
-        case 'A': chprintf(chp, "%s", text_armed); break;
+        case 'A': chprintf(chp, "%s %s", text_armed, text_away); break;
         case 'H': chprintf(chp, "%s %s", text_armed, text_home); break;
         case 'U': chprintf(chp, "%s %s ", text_is, text_unknown);
           if (full) {
-            printKey(chp, &in[2], KEY_LENGTH);
+            printKey(chp, &in[2]);
           }
           break;
         case 'F': chprintf(chp, "%s %s", text_is, text_disabled); break;

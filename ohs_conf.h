@@ -25,7 +25,7 @@
 #define HW_ZONES         11     // # of hardware zones on gateway
 #define CONTACTS_SIZE    10     // Maximum # of contacts
 #define KEYS_SIZE        20     // Maximum # of keys
-#define KEY_LENGTH       8      //
+#define KEY_LENGTH       4      // sizeof(uint32_t)
 #define NAME_LENGTH      16     //
 #define PHONE_LENGTH     14     //
 #define EMAIL_LENGTH     30     //
@@ -45,11 +45,17 @@
 #define REGISTRATION_SIZE 22
 #define NODE_SIZE         50    // Number of nodes
 
-#define ARM_GROUP_CHAIN_NONE 255
+#define DUMMY_NO_VALUE    255
 
 #define AC_POWER_DELAY    60    // seconds
 
 #define LOGGER_MSG_LENGTH 11
+
+// Parameter checks
+#if NODE_SIZE >= DUMMY_NO_VALUE
+#error "NODE_SIZE is set to high!"
+#endif
+
 
 // Time related
 #define SECONDS_PER_DAY     86400U
@@ -193,7 +199,7 @@
 #define ARRAY_SIZE(x) sizeof(x)/sizeof(x[0])
 
 // Global vars
-char lastKey[KEY_LENGTH];
+uint32_t lastKey;
 char tmpLog[LOGGER_MSG_LENGTH]; // Temporary logger string
 // RTC related
 static RTCDateTime timespec;
@@ -202,6 +208,12 @@ time_t startTime;  // OHS start timestamp variable
 float rtcVbat;
 // Ethernet
 uint8_t macAddr[6];
+
+// Arm type enum
+typedef enum {
+  armAway = 0,
+  armHome = 1
+} armType_t;
 
 // time_t conversion
 union time_tag {
@@ -214,6 +226,12 @@ union float_tag {
   uint8_t byte[4];
   float val;
 } floatConv;
+
+// uint32_t conversion
+union uint32_tag {
+  uint8_t byte[4];
+  uint32_t val;
+} uint32Conv;
 
 // Zones alarm events
 #define ALARMEVENT_FIFO_SIZE 10
@@ -261,10 +279,19 @@ typedef struct {
   float   value;    // = 0.0;
 } sensor_t;
 
+// Script events
+#define SCRIPT_FIFO_SIZE 5
+typedef struct {
+  uint8_t index;
+  uint8_t flags;
+  uint16_t dummy;
+} script_t;
+
 // Alerts
 typedef struct {
   char    name[6];
 } alertType_t;
+
 // Logger keeps info about this as bit flags of uint8_t, maximum number of alert types is 8.
 const alertType_t alertType[] = {
   // 1234567890
@@ -302,6 +329,10 @@ static MAILBOX_DECL(sensor_mb, sensor_mb_buffer, SENSOR_FIFO_SIZE);
 
 static msg_t        alert_mb_buffer[ALERT_FIFO_SIZE];
 static MAILBOX_DECL(alert_mb, alert_mb_buffer, ALERT_FIFO_SIZE);
+
+static msg_t        script_mb_buffer[SCRIPT_FIFO_SIZE];
+static MAILBOX_DECL(script_mb, script_mb_buffer, SCRIPT_FIFO_SIZE);
+
 /*
  * Pools
  */
@@ -319,6 +350,9 @@ static MEMORYPOOL_DECL(sensor_pool, sizeof(sensor_t), PORT_NATURAL_ALIGN, NULL);
 
 static alert_t        alert_pool_queue[ALERT_FIFO_SIZE];
 static MEMORYPOOL_DECL(alert_pool, sizeof(alert_t), PORT_NATURAL_ALIGN, NULL);
+
+static script_t       script_pool_queue[SCRIPT_FIFO_SIZE];
+static MEMORYPOOL_DECL(script_pool, sizeof(script_t), PORT_NATURAL_ALIGN, NULL);
 
 //static node_t          node_pool_queue[NODE_SIZE];
 //static MEMORYPOOL_DECL(node_pool, sizeof(node_t), PORT_NATURAL_ALIGN, NULL);
@@ -348,8 +382,7 @@ typedef struct {
   char     contactEmail[CONTACTS_SIZE][EMAIL_LENGTH];
 
   uint8_t  keySetting[KEYS_SIZE];
-  char     keyValue[KEYS_SIZE][KEY_LENGTH];
-  //char     keyName[KEYS_SIZE][NAME_LENGTH];
+  uint32_t keyValue[KEYS_SIZE];
   uint8_t  keyContact[KEYS_SIZE];
 
   uint32_t alert[ARRAY_SIZE(alertType)];
@@ -382,6 +415,8 @@ typedef struct {
 
 } config_t;
 config_t conf;
+// Check conf size fits to backup SRAM
+typedef char check_conf[sizeof(conf) <= BACKUP_SRAM_SIZE ? 1 : -1];
 
 // Group runtime variables
 typedef struct {
@@ -423,10 +458,10 @@ typedef struct {
   uint16_t setting;// = B00011110;  // 2 bytes to store also zone setting
   float    value;  // = 0;
   time_t last_OK;  // = 0;
-  uint8_t  queue;  //   = 255; // No queue
+  uint8_t  queue;  //   = DUMMY_NO_VALUE 255; // No queue
   char name[NAME_LENGTH]; // = "";
 } node_t;
-node_t node[NODE_SIZE] = {{ 0, '\0', '\0', 0, 0b00011110, 0, 0, 255, ""}};
+node_t node[NODE_SIZE] = {{ 0, '\0', '\0', 0, 0b00011110, 0, 0, DUMMY_NO_VALUE, ""}};
 
 // Set default to runtime structs
 void initRuntimeGroups(void){
@@ -597,8 +632,8 @@ void setConfDefault(void){
   for(uint8_t i = 0; i < KEYS_SIZE; i++) {
     // disabled
     conf.keySetting[i] = 0b00000000;
-    memset(&conf.keyValue[i][0], 0xFF, KEY_LENGTH);  // Set key value to FF
-    conf.keyContact[i] = 255;
+    conf.keyValue[i]   = 0xFFFFFFFF;  // Set key value to FF
+    conf.keyContact[i] = DUMMY_NO_VALUE;
   }
 
   for(uint8_t i = 0; i < ARRAY_SIZE(alertType); i++) {
@@ -625,7 +660,11 @@ void setConfDefault(void){
   strcpy(conf.user, "admin");
   strcpy(conf.password, "pass");
 
-  conf.tclSetting = 0;
+  //                  |||||-
+  //                  ||||||-
+  //                  |||||||- Show warnings
+  //                  ||||||||- Restart environment each time.
+  conf.tclSetting = 0b00000001;
   conf.tclIteration = 1000;
 
   //                   ||||||||- RTC low flag, let's check on power On.

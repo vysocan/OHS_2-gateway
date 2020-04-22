@@ -17,8 +17,8 @@ static THD_FUNCTION(SensorThread, arg) {
   chRegSetThreadName(arg);
   msg_t    msg;
   sensor_t *inMsg;
-  int8_t   nodeIndex;
-  uint8_t  lastNode = 255;
+  uint8_t  nodeIndex;
+  uint8_t  lastNode = DUMMY_NO_VALUE;
   uint32_t lastNodeTime = 0;
   time_t   timeNow;
 
@@ -29,7 +29,7 @@ static THD_FUNCTION(SensorThread, arg) {
       timeNow = getTimeUnixSec();
 
       nodeIndex = getNodeIndex(inMsg->address, inMsg->type, inMsg->function, inMsg->number);
-      if (nodeIndex != -1) {
+      if (nodeIndex != DUMMY_NO_VALUE) {
         chprintf(console, "Sensor data for node %c-%c\r\n", inMsg->type, inMsg->function);
         //  node enabled
         if (GET_NODE_ENABLED(node[nodeIndex].setting)) {
@@ -41,10 +41,10 @@ static THD_FUNCTION(SensorThread, arg) {
           // Global battery check
           if ((node[nodeIndex].function == 'B') && !(GET_NODE_BATT_LOW(node[nodeIndex].setting)) && (node[nodeIndex].value < 3.6)){
             SET_NODE_BATT_LOW(node[nodeIndex].setting); // switch ON  battery low flag
-            tmpLog[0] = 'R'; tmpLog[1] = 'A'; tmpLog[2] = 255; tmpLog[3] = nodeIndex; pushToLog(tmpLog, 4);
+            tmpLog[0] = 'R'; tmpLog[1] = 'A'; tmpLog[2] = DUMMY_NO_VALUE; tmpLog[3] = nodeIndex; pushToLog(tmpLog, 4);
           }
           if ((node[nodeIndex].function == 'B') && (GET_NODE_BATT_LOW(node[nodeIndex].setting)) && (node[nodeIndex].value > 4.16)){
-            tmpLog[0] = 'R'; tmpLog[1] = 'D'; tmpLog[2] = 255; tmpLog[3] = nodeIndex; pushToLog(tmpLog, 4);
+            tmpLog[0] = 'R'; tmpLog[1] = 'D'; tmpLog[2] = DUMMY_NO_VALUE; tmpLog[3] = nodeIndex; pushToLog(tmpLog, 4);
             CLEAR_NODE_BATT_LOW(node[nodeIndex].setting); // switch OFF battery low flag
           }
         } // node enabled

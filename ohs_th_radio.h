@@ -16,7 +16,7 @@ static THD_FUNCTION(RadioThread, arg) {
   chRegSetThreadName(arg);
   msg_t resp;
   uint8_t pos;
-  int8_t nodeIndex;
+  uint8_t nodeIndex;
 
   while (true) {
     resp = chBSemWaitTimeout(&rfm69DataReceived, TIME_INFINITE);
@@ -71,11 +71,12 @@ static THD_FUNCTION(RadioThread, arg) {
                                    rfm69Data.data[1], rfm69Data.data[2] - (rfm69Data.data[2] % 2));
           chprintf(console, "Received Key, node index: %d\r\n", nodeIndex);
           // Node index found
-          if (nodeIndex != -1) {
+          if (nodeIndex != DUMMY_NO_VALUE) {
             node[nodeIndex].last_OK = getTimeUnixSec(); // Update timestamp
             //  Node is enabled
             if (GET_NODE_ENABLED(node[nodeIndex].setting)) {
-              checkKey(GET_NODE_GROUP(node[nodeIndex].setting), (rfm69Data.data[2] % 2), &rfm69Data.data[3]);
+              checkKey(GET_NODE_GROUP(node[nodeIndex].setting), (rfm69Data.data[2] % 2),
+                       &rfm69Data.data[3], rfm69Data.length - 4);
             } else {
               // log disabled remote nodes
               tmpLog[0] = 'N'; tmpLog[1] = 'F'; tmpLog[2] = rfm69Data.senderId + RADIO_UNIT_OFFSET;

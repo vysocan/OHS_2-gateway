@@ -17,7 +17,7 @@ static THD_FUNCTION(ZoneThread, arg) {
 
   msg_t    msg;
   uint16_t val, vbat;
-  uint8_t  groupNum = 255;
+  uint8_t  groupNum = DUMMY_NO_VALUE;
 
   // Delay to allow PIR to settle up during power on
   chThdSleepSeconds(SECONDS_PER_MINUTE);

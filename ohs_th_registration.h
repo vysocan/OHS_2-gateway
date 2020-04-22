@@ -18,7 +18,7 @@ static THD_FUNCTION(RegistrationThread, arg) {
   chRegSetThreadName(arg);
   msg_t msg;
   registration_t *inMsg;
-  int8_t nodeIndex;
+  uint8_t nodeIndex;
 
   while (true) {
     msg = chMBFetchTimeout(&registration_mb, (msg_t*)&inMsg, TIME_INFINITE);
@@ -30,7 +30,7 @@ static THD_FUNCTION(RegistrationThread, arg) {
         case 'I':
           nodeIndex = getNodeIndex(inMsg->address, inMsg->type, inMsg->function, inMsg->number);
           // Node exists
-          if (nodeIndex >= 0 ) {
+          if (nodeIndex != DUMMY_NO_VALUE ) {
             node[nodeIndex].setting  = inMsg->setting;
             node[nodeIndex].last_OK  = getTimeUnixSec();
             node[nodeIndex].value    = 0; // Reset value
@@ -38,7 +38,7 @@ static THD_FUNCTION(RegistrationThread, arg) {
             chprintf(console, "Re-registred as: %d\r\n", nodeIndex);
           } else {
             nodeIndex = getNodeFreeIndex(); // Find empty slot
-            if (nodeIndex == -1) {
+            if (nodeIndex == DUMMY_NO_VALUE) {
               pushToLogText("FN"); // No empty slot
             } else {
               node[nodeIndex].type     = inMsg->type;

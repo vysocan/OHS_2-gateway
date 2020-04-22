@@ -14,7 +14,7 @@
 static int tcl_cmd_node(struct tcl* tcl, tcl_value_t* args, void* arg) {
   (void)arg;
   char *pch, *index[TCL_CMD_NODE_ADDRESS_SIZE];
-  int8_t indexNum = 0;
+  uint8_t indexNum = 0;
   int ret;
   char buf[16];
 
@@ -31,16 +31,16 @@ static int tcl_cmd_node(struct tcl* tcl, tcl_value_t* args, void* arg) {
   if (indexNum == TCL_CMD_NODE_ADDRESS_SIZE) {
     indexNum = getNodeIndex((*index[0] == 'R' ? RADIO_UNIT_OFFSET : 0) + atoi(index[1]),
                             *index[2], *index[3], atoi(index[4]));
-    if (indexNum != -1) {
+    if (indexNum != DUMMY_NO_VALUE) {
       //chprintf((BaseSequentialStream*)&SD3, "*tcl_cmd_node*: %d.\r\n", indexNum);
       chsnprintf(&buf[0], sizeof(buf), "%.2f", node[indexNum].value);
       ret = tcl_result(tcl, FNORMAL, tcl_alloc(&buf[0], strlen(buf)));
     } else {
-      indexNum == -1;
+      indexNum = DUMMY_NO_VALUE;
     }
   }
   // Else error
-  if (indexNum == -1) {
+  if (indexNum == DUMMY_NO_VALUE) {
     ret = tcl_result(tcl, FERROR, tcl_alloc("", 0));
   }
   tcl_free(location);
@@ -56,7 +56,6 @@ static THD_FUNCTION(tclThread, arg) {
   msg_t    msg;
   logger_t *inMsg;
   systime_t runTime;
-
 
   tcl_init(&tcl, conf.tclIteration);
   tcl_register(&tcl, "node", tcl_cmd_node, 2, NULL);

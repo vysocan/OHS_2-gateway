@@ -17,7 +17,7 @@ static THD_WORKING_AREA(waModemThread, 256);
 static THD_FUNCTION(ModemThread, arg) {
   chRegSetThreadName(arg);
   uint8_t counter = 0, tmp;
-  uint8_t gprsLastStatus = 255; // get status on start
+  uint8_t gprsLastStatus = DUMMY_NO_VALUE; // get status on start
   int8_t resp = 0;
   uint8_t tempText[16]; // Need to hold whole response of AT command
 
@@ -57,7 +57,7 @@ static THD_FUNCTION(ModemThread, arg) {
       }
 
       // Dummy query to initialize modem UART at start, since first AT reply is null
-      if ((counter == 25) && (gprsLastStatus == 255) && (gsmStatus == gprs_OK)) {
+      if ((counter == 25) && (gprsLastStatus == DUMMY_NO_VALUE) && (gsmStatus == gprs_OK)) {
         resp = gprsSendCmd(AT_is_alive);
         chThdSleepMilliseconds(AT_DELAY);
         gprsFlushRX();
@@ -108,7 +108,7 @@ static THD_FUNCTION(ModemThread, arg) {
           tmp++;
         } while ((!palReadPad(GPIOD, GPIOD_GSM_STATUS)) && (tmp != 0));
         gsmStatus = gprs_NotInitialized;
-        gprsLastStatus = 255;
+        gprsLastStatus = DUMMY_NO_VALUE;
         if (tmp != 0) {
           chprintf(console, " stopped.\r\n");
           pushToLogText("MF");

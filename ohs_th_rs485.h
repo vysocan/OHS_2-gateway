@@ -20,7 +20,7 @@ static THD_FUNCTION(RS485Thread, arg) {
   msg_t resp;
   RS485Msg_t rs485Msg;
   uint8_t pos;
-  int8_t nodeIndex;
+  uint8_t nodeIndex;
 
   // Register
   // ++ old chEvtRegister((event_source_t *)chnGetEventSource(&RS485D2.event), &serialListener, EVENT_MASK(0));
@@ -95,11 +95,12 @@ static THD_FUNCTION(RS485Thread, arg) {
                                        rs485Msg.data[1], rs485Msg.data[2] - (rs485Msg.data[2] % 2));
               chprintf(console, "Received Key, node index: %d\r\n", nodeIndex);
               // Node index found
-              if (nodeIndex != -1) {
+              if (nodeIndex != DUMMY_NO_VALUE) {
                 node[nodeIndex].last_OK = getTimeUnixSec(); // Update timestamp
                 //  Node is enabled
                 if (GET_NODE_ENABLED(node[nodeIndex].setting)) {
-                  checkKey(GET_NODE_GROUP(node[nodeIndex].setting), (rs485Msg.data[2] % 2), &rs485Msg.data[3]);
+                  checkKey(GET_NODE_GROUP(node[nodeIndex].setting), (rs485Msg.data[2] % 2),
+                           &rs485Msg.data[3], rs485Msg.length - 4);
                 } else {
                   // log disabled remote nodes
                   tmpLog[0] = 'N'; tmpLog[1] = 'F'; tmpLog[2] = rs485Msg.address;

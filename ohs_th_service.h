@@ -35,7 +35,7 @@ static THD_FUNCTION(ServiceThread, arg) {
         tmpLog[5] = node[nodeIndex].number; pushToLog(tmpLog, 6);
         // Set whole struct to 0
         memset(&node[nodeIndex].address, 0, sizeof(node[0]));
-        //0, '\0', '\0', 0, 0b00011110, 0, 0, 255, ""
+        //0, '\0', '\0', 0, 0b00011110, 0, 0, DUMMY_NO_VALUE, ""
         //node[nodeIndex].address  = 0;
         //node[nodeIndex].type     = '\0';
         //node[nodeIndex].function = '\0';
@@ -43,7 +43,7 @@ static THD_FUNCTION(ServiceThread, arg) {
         //node[nodeIndex].setting  = 0;
         //node[nodeIndex].value    = 0;
         //node[nodeIndex].last_OK  = 0;
-        node[nodeIndex].queue    = 255;
+        node[nodeIndex].queue    = DUMMY_NO_VALUE;
         //memset(&node[nodeIndex].name, 0, NAME_LENGTH);
       }
     }
@@ -102,7 +102,7 @@ static THD_FUNCTION(ServiceThread, arg) {
           // Only if group not armed or arming
           if ((!GET_GROUP_ARMED(group[groupNum].setting)) && (group[groupNum].armDelay == 0)) {
             tmpLog[0] = 'G'; tmpLog[1] = 'A'; tmpLog[2] = groupNum; pushToLog(tmpLog, 3);
-            armGroup(groupNum, ARM_GROUP_CHAIN_NONE, armAway, 0);
+            armGroup(groupNum, DUMMY_NO_VALUE, armAway, 0);
           }
         }
       }
