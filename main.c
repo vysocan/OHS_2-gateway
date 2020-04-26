@@ -27,6 +27,8 @@ BaseSequentialStream* console = (BaseSequentialStream*)&SD3;
 // Semaphores
 binary_semaphore_t gprsSem;
 binary_semaphore_t emailSem;
+// CB semaphores
+binary_semaphore_t cbTimerSem;
 
 // RFM69
 #include "rfm69.h"
@@ -49,15 +51,15 @@ volatile int8_t gprsIsAlive = 0;
 volatile int8_t gprsSetSMS = 0;
 volatile int8_t gprsReg = 2;
 volatile int8_t gprsStrength = 0;
-char gprsModemInfo[20]; // SIMCOM_SIM7600x-x
-char gprsSmsText[120];
+char gprsModemInfo[20] __attribute__((section(".ram4"))); // SIMCOM_SIM7600x-x
+char gprsSmsText[128] __attribute__((section(".ram4")));
 
 // uBS
 //#include "uBS.h"
 
 // TCL
 #define UMM_MALLOC_CFG_HEAP_SIZE ((size_t)1024*16)
-#define TCL_SCRIPT_LENGTH        1024
+#define TCL_SCRIPT_LENGTH        ((size_t)1024*1)
 static char my_umm_heap[UMM_MALLOC_CFG_HEAP_SIZE] __attribute__((section(".ram4")));
 static char tclOutput[TCL_SCRIPT_LENGTH] __attribute__((section(".ram4")));
 static char tclCmd[TCL_SCRIPT_LENGTH] __attribute__((section(".ram4")));
@@ -65,6 +67,10 @@ static char tclCmd[TCL_SCRIPT_LENGTH] __attribute__((section(".ram4")));
 #include "umm_malloc_cfg.h"
 #include "tcl.h"
 struct tcl tcl;
+
+void myCb (char *result) {
+  strcpy(&gprsModemInfo[0], result);
+}
 
 // LWIP
 #include "lwipthread.h"
@@ -107,6 +113,7 @@ int main(void) {
   // Semaphores
   chBSemObjectInit(&gprsSem, false);
   chBSemObjectInit(&emailSem, false);
+  chBSemObjectInit(&cbTimerSem, false);
 
   sdStart(&SD3,  &serialCfg); // Debug port
   chprintf(console, "\r\nOHS v.%u.%u start\r\n", OHS_MAJOR, OHS_MINOR);
@@ -207,6 +214,7 @@ int main(void) {
     writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
     writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
   }
+  conf.tclIteration = 4000;
   //setConfDefault(); // Load OHS default conf.
   // SMTP
   smtp_set_server_addr(conf.SMTPAddress);
@@ -222,6 +230,12 @@ int main(void) {
   chprintf(console, "uBS, free space: %u, First block: %u\r\n", uBSGetFreeSpace(), uBSaddress);
   */
 
+  // Initilaize .ram4
+  memset(&tclCmd[0], '\0', TCL_SCRIPT_LENGTH);
+  memset(&tclOutput[0], '\0', TCL_SCRIPT_LENGTH);
+  memset(&gprsModemInfo[0], '\0', 20);
+  memset(&gprsSmsText[0], '\0', 128);
+
   // Start
   startTime = getTimeUnixSec();
   pushToLogText("Ss");
@@ -229,18 +243,12 @@ int main(void) {
   initRuntimeZones();
 
   // TCL
-  memset(&tclCmd[0], '\0', TCL_SCRIPT_LENGTH);
-  memset(&tclOutput[0], '\0', TCL_SCRIPT_LENGTH);
-  //umm_init();
   umm_init(&my_umm_heap[0], UMM_MALLOC_CFG_HEAP_SIZE);
-  //tcl_init(&tcl);
 
   chThdSleepMilliseconds(10000);
 
-
   // Idle runner
   while (true) {
-
     chThdSleepMilliseconds(10000);
 
     /*

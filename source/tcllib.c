@@ -23,19 +23,21 @@
 #define TCL_TRACE(...) {chprintf((BaseSequentialStream*) &SD3, "TCL trace: ");\
                     chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__);\
                     chprintf((BaseSequentialStream*) &SD3, "\r\n");}
-#define TCL_WARNING(...) {chprintf((BaseSequentialStream*) &SD3, "TCL warning: ");\
-                    chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__);\
-                    chprintf((BaseSequentialStream*) &SD3, "\r\n");}
-#define TCL_ERROR(...) {chprintf((BaseSequentialStream*) &SD3, "TCL error: ");\
-                    chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__);\
-                    chprintf((BaseSequentialStream*) &SD3, "\r\n");}
+
+#define TCL_WARNING(...) {chprintf(tcl_output, "Warning: ");\
+                    chprintf(tcl_output, __VA_ARGS__);\
+                    chprintf(tcl_output, "\r\n");}
+#define TCL_ERROR(...) {chprintf(tcl_output, "Error: ");\
+                    chprintf(tcl_output, __VA_ARGS__);\
+                    chprintf(tcl_output, "\r\n");}
 
 #ifndef MAX_VAR_LENGTH
-#define MAX_VAR_LENGTH 512
+#define MAX_VAR_LENGTH 256
 #endif
 
-//
+// OHS changes
 uint16_t tcl_iteration;
+BaseSequentialStream *tcl_output;
 
 struct tcl;
 int tcl_eval(struct tcl* tcl, const char* s, size_t len);
@@ -174,7 +176,8 @@ static inline void* tcl_realloc(void* v, int n) { return umm_realloc(v, n); }
 //const char *empty_str = "";
 char *empty_str;
 
-const char* tcl_string(tcl_value_t* v) { return v == NULL ? empty_str : v; }
+// --- const char* tcl_string(tcl_value_t* v) { return v == NULL ? empty_str : v; }
+char* tcl_string(tcl_value_t* v) { return v == NULL ? empty_str : v; }
 
 int tcl_strcmp(tcl_value_t* u, tcl_value_t* v) {
   return strcmp(u, v);
@@ -535,7 +538,7 @@ static int tcl_cmd_subst(struct tcl* tcl, tcl_value_t* args, void* arg) {
 static int tcl_cmd_puts(struct tcl* tcl, tcl_value_t* args, void* arg) {
   (void)arg;
   tcl_value_t* text = tcl_list_at(args, 1);
-  chprintf((BaseSequentialStream*)&SD3, "**TCL: %s\r\n", tcl_string(text));
+  chprintf(tcl_output, "%s\r\n", tcl_string(text));
   return tcl_result(tcl, FNORMAL, text);
 }
 #endif
@@ -744,7 +747,8 @@ static int tcl_cmd_math(struct tcl* tcl, tcl_value_t* args, void* arg) {
 }
 #endif
 
-void tcl_init(struct tcl* tcl, uint16_t max_iterations) {
+void tcl_init(struct tcl* tcl, uint16_t max_iterations, BaseSequentialStream *output) {
+  tcl_output = output;
   tcl_iteration = max_iterations;
   empty_str = tcl_malloc(1);
   *empty_str = '\0';

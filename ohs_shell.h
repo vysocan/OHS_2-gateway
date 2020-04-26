@@ -87,18 +87,30 @@ const char weekNumber[][7] = {
 
 const char weekDay[][10] = {
 // 12345678901234567890
-  "Sunday",
   "Monday",
   "Tuesday",
   "Wednesday",
   "Thursday",
   "Friday",
-  "Saturday"
+  "Saturday",
+  "Sunday"
+};
+
+const char weekDayShort[][3] = {
+  "Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"
 };
 
 const char monthName[][4] = {
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+};
+
+const char durationSelect[][10] = {
+// 12345678901234567890
+  "second(s)",
+  "minute(s)",
+  "hour(s)",
+  "day(s)"
 };
 
 const char text_System[]            = "System";
@@ -182,6 +194,8 @@ const char text_battery[]           = "battery";
 const char text_analog[]            = "analog";
 const char text_digital[]           = "digital";
 const char text_seconds[]           = "second(s)";
+const char text_hours[]             = "hour(s)";
+const char text_days[]              = "day(s)";
 const char text_Zone[]              = "Zone";
 const char text_delay[]             = "delay";
 const char text_SMS[]               = "SMS";
@@ -245,6 +259,19 @@ const char text_Free[]              = "Free";
 const char text_Total[]             = "Total";
 const char text_Metric[]            = "Metric";
 const char text_Hash[]              = "Hash";
+const char text_Period[]            = "Period";
+const char text_Run[]               = "Run";
+const char text_Script[]            = "Script";
+const char text_Next[]              = "Next";
+const char text_on[]                = "on";
+const char text_off[]               = "off";
+const char text_Calendar[]          = "Calendar";
+const char text_Duration[]          = "Duration";
+const char text_duration[]          = "duration";
+const char text_Timer[]             = "Timer";
+const char text_kB[]                = "kB";
+const char text_Heap[]              = "Heap";
+const char text_Fragmentation[]     = "Fragmentation";
 
 void printNodeType(BaseSequentialStream *chp, const char type) {
   switch(type){
@@ -274,9 +301,14 @@ void printNodeFunction(BaseSequentialStream *chp, const char function) {
 
 void printNodeAddress(BaseSequentialStream *chp, const uint8_t address, const char type,
                       const char function, const uint8_t number) {
-  if (address < RADIO_UNIT_OFFSET) { chprintf(chp, "W:%u:", address); }
-  else                             { chprintf(chp, "R:%u:", address-RADIO_UNIT_OFFSET); }
-  chprintf(chp, "%c:%c:%u ", type, function, number);
+  // If address is defined
+  if (address) {
+    if (address < RADIO_UNIT_OFFSET) { chprintf(chp, "W:%u:", address); }
+    else                             { chprintf(chp, "R:%u:", address-RADIO_UNIT_OFFSET); }
+    chprintf(chp, "%c:%c:%u ", type, function, number);
+  } else {
+    chprintf(chp, "%s", NOT_SET);
+  }
 }
 
 void printFrmTimestamp(BaseSequentialStream *chp, time_t *value) {

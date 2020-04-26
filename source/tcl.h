@@ -5,6 +5,9 @@
 extern "C" {
 #endif
 
+#include "hal.h"
+#include "memstreams.h"
+
 struct tcl;
 
 /* Token type and control flow constants */
@@ -49,7 +52,8 @@ struct tcl_parser {
 typedef char tcl_value_t;
 typedef uint8_t tcl_var_t;
 
-const char* tcl_string(tcl_value_t* v);
+// --- const char* tcl_string(tcl_value_t* v);
+char* tcl_string(tcl_value_t* v);
 int tcl_int(tcl_value_t* v);
 int tcl_length(tcl_value_t* v);
 
@@ -106,7 +110,7 @@ int tcl_subst(struct tcl* tcl, const char* s, size_t len);
 int tcl_eval(struct tcl* tcl, const char* s, size_t len);
 void tcl_register(struct tcl* tcl, const char* name, tcl_cmd_fn_t fn, int arity,
     void* arg);
-void tcl_init(struct tcl* tcl, uint16_t max_iterations);
+void tcl_init(struct tcl* tcl, uint16_t max_iterations, BaseSequentialStream *output);
 void tcl_destroy(struct tcl* tcl);
 
 #ifdef __cplusplus

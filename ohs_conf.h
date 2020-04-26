@@ -41,6 +41,8 @@
 #define ALARM_TAMPER     0
 #define ALARM_UNBALANCED 500
 
+#define TIMER_SIZE       10     // # of timers
+
 #define RADIO_UNIT_OFFSET 15
 #define REGISTRATION_SIZE 22
 #define NODE_SIZE         50    // Number of nodes
@@ -61,6 +63,7 @@
 #define SECONDS_PER_DAY     86400U
 #define SECONDS_PER_HOUR    3600U
 #define SECONDS_PER_MINUTE  60U
+#define MINUTES_PER_HOUR    60U
 #define RTC_LEAP_YEAR(year) ((((year) % 4 == 0) && ((year) % 100 != 0)) || ((year) % 400 == 0))
 #define RTC_DAYS_IN_YEAR(x) RTC_LEAP_YEAR(x) ? 366 : 365
 #define RTC_OFFSET_YEAR     1970
@@ -153,6 +156,41 @@
 #define GET_CONF_SYSTEM_FLAG_RTC_LOW(x)    ((x) & 0b1)
 #define SET_CONF_SYSTEM_FLAG_RTC_LOW(x)    x |= 1
 #define CLEAR_CONF_SYSTEM_FLAG_RTC_LOW(x)  x &= ~1
+
+#define GET_CONF_TIMER_ENABLED(x)     ((x) & 0b1)
+#define GET_CONF_TIMER_TYPE(x)        ((x >> 1U) & 0b1)
+#define GET_CONF_TIMER_SU(x)          ((x >> 2U) & 0b1)
+#define GET_CONF_TIMER_SA(x)          ((x >> 3U) & 0b1)
+#define GET_CONF_TIMER_FR(x)          ((x >> 4U) & 0b1)
+#define GET_CONF_TIMER_TH(x)          ((x >> 5U) & 0b1)
+#define GET_CONF_TIMER_WE(x)          ((x >> 6U) & 0b1)
+#define GET_CONF_TIMER_TU(x)          ((x >> 7U) & 0b1)
+#define GET_CONF_TIMER_MO(x)          ((x >> 8U) & 0b1)
+#define GET_CONF_TIMER_TRIGGERED(x)   ((x >> 9U) & 0b1)
+#define GET_CONF_TIMER_PERIOD_TYPE(x) ((x >> 12U) & 0b11)
+#define GET_CONF_TIMER_RUN_TYPE(x)    ((x >> 14U) & 0b11)
+#define SET_CONF_TIMER_ENABLED(x)     x |= 1
+#define SET_CONF_TIMER_TYPE(x)        x |= (1 << 1U)
+#define SET_CONF_TIMER_SA(x)          x |= (1 << 2U)
+#define SET_CONF_TIMER_FR(x)          x |= (1 << 3U)
+#define SET_CONF_TIMER_TH(x)          x |= (1 << 4U)
+#define SET_CONF_TIMER_WE(x)          x |= (1 << 5U)
+#define SET_CONF_TIMER_TU(x)          x |= (1 << 6U)
+#define SET_CONF_TIMER_MO(x)          x |= (1 << 7U)
+#define SET_CONF_TIMER_SU(x)          x |= (1 << 8U)
+#define SET_CONF_TIMER_TRIGGERED(x)   x |= (1 << 9U)
+#define SET_CONF_TIMER_PERIOD_TYPE(x,y) x = (((x)&(0b1100111111111111))|(((y & 0b11) << 12U)&(0b0011000000000000)))
+#define SET_CONF_TIMER_RUN_TYPE(x,y)    x = (((x)&(0b0011111111111111))|(((y & 0b11) << 14U)&(0b1100000000000000)))
+#define CLEAR_CONF_TIMER_ENABLED(x)   x &= ~1
+#define CLEAR_CONF_TIMER_TYPE(x)      x &= ~(1 << 1U)
+#define CLEAR_CONF_TIMER_SA(x)        x &= ~(1 << 2U)
+#define CLEAR_CONF_TIMER_FR(x)        x &= ~(1 << 3U)
+#define CLEAR_CONF_TIMER_TH(x)        x &= ~(1 << 4U)
+#define CLEAR_CONF_TIMER_WE(x)        x &= ~(1 << 5U)
+#define CLEAR_CONF_TIMER_TU(x)        x &= ~(1 << 6U)
+#define CLEAR_CONF_TIMER_MO(x)        x &= ~(1 << 7U)
+#define CLEAR_CONF_TIMER_SU(x)        x &= ~(1 << 8U)
+#define CLEAR_CONF_TIMER_TRIGGERED(x) x &= ~(1 << 9U)
 
 #define GET_ZONE_ALARM(x)     ((x >> 1U) & 0b1)
 #define GET_ZONE_ERROR(x)     ((x >> 5U) & 0b1)
@@ -279,12 +317,17 @@ typedef struct {
   float   value;    // = 0.0;
 } sensor_t;
 
+//
+typedef void (*script_cb_t) (char *result);
+void script_cb(script_cb_t ptrFunc(char *result), char *result) {
+  ptrFunc(result);
+}
 // Script events
 #define SCRIPT_FIFO_SIZE 5
 typedef struct {
   uint8_t index;
   uint8_t flags;
-  uint16_t dummy;
+  void   *callback;
 } script_t;
 
 // Alerts
@@ -357,6 +400,39 @@ static MEMORYPOOL_DECL(script_pool, sizeof(script_t), PORT_NATURAL_ALIGN, NULL);
 //static node_t          node_pool_queue[NODE_SIZE];
 //static MEMORYPOOL_DECL(node_pool, sizeof(node_t), PORT_NATURAL_ALIGN, NULL);
 
+// Timers
+typedef struct {
+//                         |- Run type: 0 Secods, 01 Minutes,
+//                         ||-          10 Hours, 11 Days
+//                         |||- Period type: 0 Secods, 01 Minutes,
+//                         ||||-             10 Hours, 11 Days
+//                         |||||-
+//                         ||||||-
+//                         |||||||- Triggered
+//                         ||||||||- Monday
+//                         ||||||||         |- Tuesday
+//                         ||||||||         ||- Wednesday
+//                         ||||||||         |||- Thursday
+//                         ||||||||         ||||- Friday
+//                         ||||||||         |||||- Saturday
+//                         ||||||||         ||||||- Sunday
+//                         ||||||||         |||||||- Calendar / Period
+//                         ||||||||         ||||||||-  Enabled
+//                         54321098         76543210
+  uint16_t setting;     //B00000000 << 8 | B00000000;
+  uint8_t  periodTime;  // period interval
+  uint16_t startTime;   // for calendar timer in minutes 0 - 1440
+  uint8_t  runTime;     // runtime interval
+  float    constantOn;  // value to pass
+  float    constantOff; // value to pass
+  uint8_t  toAddress;
+  char     toFunction;
+  uint8_t  toNumber;
+  uint32_t nextOn;
+  uint32_t nextOff;
+  char     name[NAME_LENGTH];
+  uint8_t  evalScript;
+} calendar_t;
 
 // Configuration struct
 typedef struct {
@@ -412,6 +488,8 @@ typedef struct {
   uint16_t tclIteration;  // Number of allowed loops
 
   uint8_t  systemFlags;
+
+  calendar_t timer[TIMER_SIZE];
 
 } config_t;
 config_t conf;
@@ -665,10 +743,26 @@ void setConfDefault(void){
   //                  |||||||- Show warnings
   //                  ||||||||- Restart environment each time.
   conf.tclSetting = 0b00000001;
-  conf.tclIteration = 1000;
+  conf.tclIteration = 4000;
 
   //                   ||||||||- RTC low flag, let's check on power On.
-  conf.systemFlags = 0b00000001;
+  conf.systemFlags = 0b00000000;
+
+  for(uint8_t i = 0; i < TIMER_SIZE; i++) {
+    conf.timer[i].setting = 0;
+    conf.timer[i].periodTime = 1;
+    conf.timer[i].startTime = 0;
+    conf.timer[i].runTime = 1;
+    conf.timer[i].constantOn = 1;
+    conf.timer[i].constantOff = 0;
+    conf.timer[i].toAddress = 0;
+    conf.timer[i].toFunction = ' ';
+    conf.timer[i].toNumber = 0;
+    conf.timer[i].nextOn = 0;
+    conf.timer[i].nextOff = 0;
+    strcpy(conf.timer[i].name, "");
+    conf.timer[i].evalScript = DUMMY_NO_VALUE;
+  }
 }
 
 #endif /* OHS_CONF_H_ */

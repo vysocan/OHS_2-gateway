@@ -30,7 +30,7 @@
 #endif
 
 #ifndef HTTP_DEBUG
-#define HTTP_DEBUG 0
+#define HTTP_DEBUG 1
 #endif
 
 #if HTTP_DEBUG
@@ -70,7 +70,12 @@ const char html_e_option[]          = "</option>";
 const char html_selected[]          = "' selected>";
 const char html_m_tag[]             = "' value='";
 const char html_id_tag[]            = "' id='";
-const char html_s_tag_1[]           = "<input type='text' maxlength='";
+const char html_t_tag_1[]           = "<input type='text' maxlength='";
+const char html_i_tag_1[]           = "<input type='time";
+const char html_i_tag_2[]           = "' min='00:00' max='23:59' required>";
+const char html_n_tag_1[]           = "<input type='number' style='width:";
+const char html_n_tag_2[]           = "em' min='";
+const char html_n_tag_3[]           = "' max='";
 const char html_p_tag_1[]           = "<input type='password' maxlength='";
 const char html_s_tag_2[]           = "' size='";
 const char html_s_tag_3[]           = "' name='";
@@ -86,6 +91,8 @@ const char html_Reregister[]        = "<input type='submit' name='R' value='Call
 const char html_Now[]               = "<input type='submit' name='N' value='Now'/>";
 const char html_FR[]                = "<input type='submit' name='R' value='<<'/>";
 const char html_FF[]                = "<input type='submit' name='F' value='>>'/>";
+const char html_Run[]               = "<input type='submit' name='R' value='Run'/>";
+const char html_Refresh[]           = "<input type='submit' name='F' value='Refresh'/>";
 const char html_textarea_1[]        = "<textarea name='";
 const char html_textarea_2[]        = "' id='";
 const char html_textarea_3[]        = "' rows='";
@@ -106,29 +113,27 @@ const char html_cbChecked[]         = "' checked ";
 const char html_cbPart4a[]          = "><label for='";
 const char html_cbPart4b[]          = "'>";
 const char html_cbPart5[]           = "</label></div>";
-const char html_cbJSen[]            = " onclick=\"en()\"";
-const char html_cbJSdis[]           = " onclick=\"dis()\"";
+const char html_cbJSen[]            = " onclick=\"en";
+const char html_cbJSdis[]           = " onclick=\"dis";
+const char html_cbJSend[]           = "()\"";
 // JavaScript related
 const char html_script[]            = "<script>";
 const char html_e_script[]          = "</script>";
 const char html_script_src[]        = "<script type='text/javascript' src='/js/";
-const char JSen[]                   = "en()";
-const char JSdis[]                  = "dis()";
-const char JSContact[]              = "var x=document.querySelectorAll(\"#g\");"
-                                      "var y=document.querySelectorAll(\"#xx\");";
+const char JSen1[]                  = "en1()";
+const char JSdis1[]                 = "dis1()";
+const char JSContact[]              = "var e1=document.querySelectorAll(\"#g\");"
+                                      "var d1=document.querySelectorAll(\"#xx\");";
 const char JSCredential[]           = "var tc=document.querySelectorAll(\"#p,#d\");";
-const char JSZone[]                 = "var x=document.querySelectorAll(\"#xx\");"
-                                      "var y=document.querySelectorAll(\"#a1,#a0\");";
+const char JSZone[]                 = "var e1=document.querySelectorAll(\"#xx\");"
+                                      "var d1=document.querySelectorAll(\"#a1,#a0\");";
+const char JSTimer[]                = "var e1=document.querySelectorAll(\"#s,#S\");"
+                                      "var d1=document.querySelectorAll(\"#D0,#D1,#E0,#E1,#F0,#F1,#G0,#G1,#H0,#H1,#I0,#I1,#J0,#J1\");";
 
 // old
-const char JSTrigger[]              = "<script>"
-                                      "var x=document.querySelectorAll(\"#XX\");"
-                                      "var y=document.querySelectorAll(\"#F0,#F1,#C0,#C1,#m0,#m1,#m2,#r,#l0,#l1,#l2,#l3,#t,#c,#f\");"
-                                      "</script>";
-const char JSTimer[]                = "<script>"
-                                      "var x=document.querySelectorAll(\"#p,#l0,#l1,#l2,#l3\");"
-                                      "var y=document.querySelectorAll(\"#D0,#D1,#E0,#E1,#F0,#F1,#G0,#G1,#H0,#H1,#I0,#I1,#J0,#J1\");"
-                                      "</script>";
+const char JSTrigger[]              = "var x=document.querySelectorAll(\"#XX\");"
+                                      "var y=document.querySelectorAll(\"#F0,#F1,#C0,#C1,#m0,#m1,#m2,#r,#l0,#l1,#l2,#l3,#t,#c,#f\");";
+
 
 #define HTML_PAGE_SIZE  (MEM_SIZE - 1600) // Change in lwip opt.h MEM_SIZE
 
@@ -147,7 +152,7 @@ const char JSTimer[]                = "<script>"
 
 typedef struct {
   char    link[14];
-  char    name[10];
+  char    name[9];
 } webPage_t;
 
 static const webPage_t webPage[] = {
@@ -167,7 +172,6 @@ static const webPage_t webPage[] = {
 };
 
 static char postData[1024] __attribute__((section(".ram4")));
-static char *pPostData;
 
 void printOkNok(BaseSequentialStream *chp, const int8_t value) {
   if (value == 1) chprintf(chp, "%s", text_i_OK);
@@ -175,29 +179,42 @@ void printOkNok(BaseSequentialStream *chp, const int8_t value) {
 }
 
 void printRadioButton(BaseSequentialStream *chp, const char *name, const uint8_t value,
-                 const char *label, bool selected, bool enableJS) {
+                 const char *label, bool selected, const uint8_t enableJS) {
   chprintf(chp, "%s%s%s", html_cbPart1a, name, html_cbPart1b);
   chprintf(chp, "%s%u%s%u", name, value, html_cbPart2, value);
   selected ? chprintf(chp, "%s", html_cbChecked) : chprintf(chp, "%s", html_cbPart3);
   if (enableJS) {
-    value ? chprintf(chp, "%s", html_cbJSen) : chprintf(chp, "%s", html_cbJSdis);
+    if (value) {
+      chprintf(chp, "%s%u%s", html_cbJSen, enableJS, html_cbJSend);
+    } else {
+      chprintf(chp, "%s%u%s", html_cbJSdis, enableJS, html_cbJSend);
+    }
   }
   chprintf(chp, "%s%s%u", html_cbPart4a, name, value);
   chprintf(chp, "%s%s%s", html_cbPart4b, label, html_cbPart5);
 }
 
 #define GET_BUTTON_STATE(x,y) (x==y)
-void printFourButton(BaseSequentialStream *chp, const char *name, const uint8_t state,
-                     const char *text1, const char *text2, const char *text3, const char *text4) {
-  chprintf(chp, "%s", html_radio_sl);
-  printRadioButton(chp, name, 0, text1, GET_BUTTON_STATE(state, 0), false);
-  printRadioButton(chp, name, 1, text2, GET_BUTTON_STATE(state, 1), false);
-  printRadioButton(chp, name, 2, text3, GET_BUTTON_STATE(state, 2), false);
-  printRadioButton(chp, name, 3, text4, GET_BUTTON_STATE(state, 3), false);
+void printFourButton(BaseSequentialStream *chp, const char *name, const uint8_t state, const uint8_t enableJS,
+                     const char *text1, const char *text2, const char *text3, const char *text4, const uint8_t size) {
+  if (size) chprintf(chp, "%s", html_radio_sb);
+  else      chprintf(chp, "%s", html_radio_sl);
+  printRadioButton(chp, name, 0, text1, GET_BUTTON_STATE(state, 0), enableJS);
+  printRadioButton(chp, name, 1, text2, GET_BUTTON_STATE(state, 1), enableJS);
+  printRadioButton(chp, name, 2, text3, GET_BUTTON_STATE(state, 2), enableJS);
+  printRadioButton(chp, name, 3, text4, GET_BUTTON_STATE(state, 3), enableJS);
   chprintf(chp, "%s", html_div_e);
 }
 
-void  printOnOffButton(BaseSequentialStream *chp, const char *name, const uint8_t state, const bool enableJS) {
+void printTwoButton(BaseSequentialStream *chp, const char *name, const uint8_t state, const uint8_t enableJS,
+                     const char *text1, const char *text2) {
+  chprintf(chp, "%s", html_radio_sl);
+  printRadioButton(chp, name, 0, text1, GET_BUTTON_STATE(state, 0), enableJS);
+  printRadioButton(chp, name, 1, text2, GET_BUTTON_STATE(state, 1), enableJS);
+  chprintf(chp, "%s", html_div_e);
+}
+
+void  printOnOffButton(BaseSequentialStream *chp, const char *name, const uint8_t state, const uint8_t enableJS) {
   chprintf(chp, "%s", html_radio_s);
   printRadioButton(chp, name, 1, text_On, state, enableJS);
   printRadioButton(chp, name, 0, text_Off, !state, enableJS);
@@ -237,7 +254,7 @@ void printNodeValue(BaseSequentialStream *chp, const uint8_t index) {
 }
 
 void printTextInput(BaseSequentialStream *chp, const char name, const char *value, const uint8_t size){
-  chprintf(chp, "%s%u%s%u%s", html_s_tag_1, size, html_s_tag_2, size, html_s_tag_3);
+  chprintf(chp, "%s%u%s%u%s", html_t_tag_1, size, html_s_tag_2, size, html_s_tag_3);
   chprintf(chp, "%c%s%s", name, html_m_tag, value);
   chprintf(chp, "%s%c%s", html_id_tag, name, html_e_tag);
 }
@@ -248,10 +265,25 @@ void printPassInput(BaseSequentialStream *chp, const char name, const char *valu
   chprintf(chp, "%s%c%s", html_id_tag, name, html_e_tag);
 }
 
-void printIntInput(BaseSequentialStream *chp, const char name, const int16_t value, const uint8_t size){
-  chprintf(chp, "%s%u%s%u%s", html_s_tag_1, size, html_s_tag_2, size, html_s_tag_3);
+void printIntInput(BaseSequentialStream *chp, const char name, const int16_t value,
+                   const uint8_t size, const uint16_t min, const uint16_t max){
+  chprintf(chp, "%s%u", html_n_tag_1, size + 2);
+  chprintf(chp, "%s%u%s%u%s", html_n_tag_2, min, html_n_tag_3, max, html_s_tag_3);
   chprintf(chp, "%c%s%d", name, html_m_tag, value);
   chprintf(chp, "%s%c%s", html_id_tag, name, html_e_tag);
+}
+
+void printFloatInput(BaseSequentialStream *chp, const char name, const float value){
+  chprintf(chp, "%s6em%s", html_n_tag_1, html_s_tag_3);
+  chprintf(chp, "%c%s%.02f", name, html_m_tag, value);
+  chprintf(chp, "%s%c' step='0.01'>", html_id_tag, name);
+}
+
+void printTimeInput(BaseSequentialStream *chp, const char name, const uint8_t hour,
+                    const uint8_t minute){
+  chprintf(chp, "%s%s%c", html_i_tag_1, html_s_tag_3, name);
+  chprintf(chp, "%s%c%s", html_id_tag, name, html_m_tag);
+  chprintf(chp, "%02u:%02u%s", hour, minute, html_i_tag_2);
 }
 
 void printTextArea(BaseSequentialStream *chp, const char name, const char *value,
@@ -261,11 +293,22 @@ void printTextArea(BaseSequentialStream *chp, const char name, const char *value
   chprintf(chp, "%s%s", value, html_textarea_e);
 }
 
+void printDurationSelect(BaseSequentialStream *chp, const char name, const uint8_t value){
+  chprintf(chp, "%s%c%s%c%s", html_select, name, html_id_tag, name, html_e_tag);
+   for (uint8_t i = 0; i < ARRAY_SIZE(durationSelect); i++) {
+     chprintf(chp, "%s%u", html_option, i);
+     if (value == i) { chprintf(chp, "%s", html_selected); }
+     else            { chprintf(chp, "%s", html_e_tag); }
+     chprintf(chp, "%s%s", durationSelect[i], html_e_option);
+   }
+   chprintf(chp, "%s", html_e_select);
+}
+
 void genfiles_ex_init(void) {
   /* nothing to do here yet */
 }
 
-static uint8_t webNode = 0, webContact = 0, webKey = 0, webZone = 0, webGroup = 0;
+static uint8_t webNode = 0, webContact = 0, webKey = 0, webZone = 0, webGroup = 0, webTimer = 0;
 static uint16_t webLog = 0;
 int fs_open_custom(struct fs_file *file, const char *name){
   char temp[3] = "";
@@ -285,6 +328,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
       // Performing the print operation using the common code.
       chp = (BaseSequentialStream *)(void *)&ms;
 
+      // Common html page start
       chprintf(chp, "<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>Open home security</title>\r\n");
       chprintf(chp, "<link rel='stylesheet' href='/css/OHS.css'>\r\n");
       chprintf(chp, "%sEnDis.js'>%s", html_script_src, html_e_script);
@@ -292,10 +336,13 @@ int fs_open_custom(struct fs_file *file, const char *name){
       // JavaScript enable/disable on body load
       switch (htmlPage) {
         case PAGE_USER:
-          GET_CONF_CONTACT_IS_GLOBAL(conf.contact[webContact]) ? chprintf(chp, JSen) : chprintf(chp, JSdis);
+          GET_CONF_CONTACT_IS_GLOBAL(conf.contact[webContact]) ? chprintf(chp, JSen1) : chprintf(chp, JSdis1);
           break;
         case PAGE_ZONE:
-          GET_CONF_ZONE_TYPE(conf.zone[webZone]) ? chprintf(chp, JSen) : chprintf(chp, JSdis);
+          GET_CONF_ZONE_TYPE(conf.zone[webZone]) ? chprintf(chp, JSen1) : chprintf(chp, JSdis1);
+          break;
+        case PAGE_TIMER:
+          GET_CONF_TIMER_PERIOD_TYPE(conf.timer[webTimer].setting) ? chprintf(chp, JSen1) : chprintf(chp, JSdis1);
           break;
       }
       chprintf(chp, "\"><div class='wrp'><div class='sb'>\r\n");
@@ -307,7 +354,9 @@ int fs_open_custom(struct fs_file *file, const char *name){
       }
       chprintf(chp, "</ul></div><div class='mb'><h1>%s</h1>\r\n", webPage[htmlPage].name);
       chprintf(chp, "%s%s%s%s", html_form_1, webPage[htmlPage].link, html_form_2, html_table);
-      // Custom start
+      // Common html page end
+
+      // Custom html page start
       switch (htmlPage) {
         case PAGE_NODE:
           chprintf(chp, "%s#", html_tr_th);
@@ -366,9 +415,9 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Function, html_e_td_td);
           printNodeFunction(chp, node[webNode].function);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Node, text_is, html_e_td_td);
-          printOnOffButton(chp, "0", GET_NODE_ENABLED(node[webNode].setting), false);
+          printOnOffButton(chp, "0", GET_NODE_ENABLED(node[webNode].setting), 0);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_MQTT, text_publish, html_e_td_td);
-          printOnOffButton(chp, "7", GET_NODE_MQTT_PUB(node[webNode].setting), false);
+          printOnOffButton(chp, "7", GET_NODE_MQTT_PUB(node[webNode].setting), 0);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Group, html_e_td_td);
           selectGroup(chp, GET_NODE_GROUP(node[webNode].setting), 'g');
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
@@ -395,11 +444,11 @@ int fs_open_custom(struct fs_file *file, const char *name){
             printOkNok(chp, GET_CONF_CONTACT_IS_GLOBAL(conf.contact[i]));
             chprintf(chp, "%s", html_e_td_td);
             logAddress = 0; // Just temp. var.
-              for (uint8_t j = 0; j < KEYS_SIZE; j++) {
-                if (conf.keyContact[j] == i) {
-                  logAddress++;
-                }
+            for (uint8_t j = 0; j < KEYS_SIZE; j++) {
+              if (conf.keyContact[j] == i) {
+                logAddress++;
               }
+            }
             chprintf(chp, "%u%s", logAddress, html_e_td_td);
             if (!GET_CONF_CONTACT_IS_GLOBAL(conf.contact[i])) printGroup(chp, GET_CONF_CONTACT_GROUP(conf.contact[i]));
             else chprintf(chp, "%s", text_all);
@@ -419,13 +468,13 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s", text_Name, html_e_td_td);
           printTextInput(chp, 'n', conf.contactName[webContact], NAME_LENGTH);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_User, text_is, html_e_td_td);
-          printOnOffButton(chp, "0", GET_CONF_CONTACT_ENABLED(conf.contact[webContact]), false);
+          printOnOffButton(chp, "0", GET_CONF_CONTACT_ENABLED(conf.contact[webContact]), 0);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Number, html_e_td_td);
           printTextInput(chp, 'p', conf.contactPhone[webContact], PHONE_LENGTH);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Email, html_e_td_td);
           printTextInput(chp, 'm', conf.contactEmail[webContact], EMAIL_LENGTH);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Global, html_e_td_td);
-          printOnOffButton(chp, "5", GET_CONF_CONTACT_IS_GLOBAL(conf.contact[webContact]), true);
+          printOnOffButton(chp, "5", GET_CONF_CONTACT_IS_GLOBAL(conf.contact[webContact]), 1);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Group, html_e_td_td);
           selectGroup(chp, GET_CONF_CONTACT_GROUP(conf.contact[webContact]), 'g');
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
@@ -439,9 +488,6 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s", html_e_th_th, text_User);
           chprintf(chp, "%s%s", html_e_th_th, text_On);
           chprintf(chp, "%s%s%s\r\n", html_e_th_th, text_Hash, html_e_th_e_tr);
-          //chprintf(chp, "%s%s", html_e_th_th, text_Value);
-          //chprintf(chp, "%s%s", html_e_th_th, text_Global);
-          //chprintf(chp, "%s%s%s\r\n", html_e_th_th, text_Group, html_e_th_e_tr);
           // Information table
           for (uint8_t i = 0; i < KEYS_SIZE; i++) {
             chprintf(chp, "%s%u.%s", html_tr_td, i + 1, html_e_td_td);
@@ -452,11 +498,6 @@ int fs_open_custom(struct fs_file *file, const char *name){
             chprintf(chp, "%s", html_e_td_td);
             uint32Conv.val = conf.keyValue[i];
             printKey(chp, (char *)&uint32Conv.byte[0]);
-            //chprintf(chp, "%s", html_e_td_td);
-            //printOkNok(chp, GET_CONF_KEY_IS_GLOBAL(conf.keySetting[i]));
-            //chprintf(chp, "%s", html_e_td_td);
-            //if (!GET_CONF_KEY_IS_GLOBAL(conf.keySetting[i])) printGroup(chp, GET_CONF_KEY_GROUP(conf.keySetting[i]));
-            //else chprintf(chp, "%s", text_all);
             chprintf(chp, "%s", html_e_td_e_tr);
           }
           chprintf(chp, "%s", html_e_table);
@@ -486,17 +527,13 @@ int fs_open_custom(struct fs_file *file, const char *name){
             }
           }
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Key, text_is, html_e_td_td);
-          printOnOffButton(chp, "0", GET_CONF_KEY_ENABLED(conf.keySetting[webKey]), false);
+          printOnOffButton(chp, "0", GET_CONF_KEY_ENABLED(conf.keySetting[webKey]), 0);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Hash, html_e_td_td);
-          chprintf(chp, "%s%u%s%u", html_s_tag_1, KEY_LENGTH * 2, html_s_tag_2, KEY_LENGTH * 2);
+          chprintf(chp, "%s%u%s%u", html_t_tag_1, KEY_LENGTH * 2, html_s_tag_2, KEY_LENGTH * 2);
           chprintf(chp, "%sk%s", html_s_tag_3, html_m_tag);
           uint32Conv.val = conf.keyValue[webKey];
           printKey(chp, (char *)&uint32Conv.byte[0]);
           chprintf(chp, "%s%k%s", html_id_tag, html_e_tag);
-          //chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Global, html_e_td_td);
-          //printOnOffButton(chp, "5", GET_CONF_KEY_IS_GLOBAL(conf.keySetting[webKey]), false);
-          //chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Group, html_e_td_td);
-          //selectGroup(chp, GET_CONF_KEY_GROUP(conf.keySetting[webKey]), 'g');
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           // Buttons
           chprintf(chp, "%s%s", html_Apply, html_Save);
@@ -566,17 +603,18 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s", text_Name, html_e_td_td);
           printTextInput(chp, 'n', conf.zoneName[webZone], NAME_LENGTH);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Zone, text_is, html_e_td_td);
-          printOnOffButton(chp, "0", GET_CONF_ZONE_ENABLED(conf.zone[webZone]), false);
+          printOnOffButton(chp, "0", GET_CONF_ZONE_ENABLED(conf.zone[webZone]), 0);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Arm, text_home, html_e_td_td);
-          printOnOffButton(chp, "7", GET_CONF_ZONE_ARM_HOME(conf.zone[webZone]), false);
+          printOnOffButton(chp, "7", GET_CONF_ZONE_ARM_HOME(conf.zone[webZone]), 0);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Open, text_alarm, html_e_td_td);
-          printOnOffButton(chp, "8", GET_CONF_ZONE_OPEN_ALARM(conf.zone[webZone]), false);
+          printOnOffButton(chp, "8", GET_CONF_ZONE_OPEN_ALARM(conf.zone[webZone]), 0);
           chprintf(chp, "%s%s %s %s%s", html_e_td_e_tr_tr_td,  text_Alarm, text_as, text_tamper, html_e_td_td);
-          printOnOffButton(chp, "9", GET_CONF_ZONE_PIR_AS_TMP(conf.zone[webZone]), false);
+          printOnOffButton(chp, "9", GET_CONF_ZONE_PIR_AS_TMP(conf.zone[webZone]), 0);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Balanced, html_e_td_td);
-          printOnOffButton(chp, "a", GET_CONF_ZONE_BALANCED(conf.zone[webZone]), false);
+          printOnOffButton(chp, "a", GET_CONF_ZONE_BALANCED(conf.zone[webZone]), 0);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Authentication, text_delay, html_e_td_td);
-          printFourButton(chp, "d", GET_CONF_ZONE_AUTH_TIME(conf.zone[webZone]), text_0x, text_1x, text_2x, text_3x);
+          printFourButton(chp, "d", GET_CONF_ZONE_AUTH_TIME(conf.zone[webZone]), false,
+                          text_0x, text_1x, text_2x, text_3x, 0);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Group, html_e_td_td);
           selectGroup(chp, GET_CONF_ZONE_GROUP(conf.zone[webZone]), 'g');
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
@@ -594,12 +632,12 @@ int fs_open_custom(struct fs_file *file, const char *name){
           // Information table
           for (uint8_t i = 0; i < ARRAY_SIZE(alertDef); i++) {
             chprintf(chp, "%s", html_tr_td);
-            decodeLog((char*)alertDef[i], logText, false);
+            decodeLog((char*)alertDef[i], logText, 0);
             chprintf(chp, "%s%s", logText, html_e_td_td);
             for (uint8_t j = 0; j < ARRAY_SIZE(alertType); j++) {
               temp[0] = '0' + j;
               temp[1] = 'A' + i;
-              printOnOffButton(chp, temp, (conf.alert[j] >> i) & 0b1, false);
+              printOnOffButton(chp, temp, (conf.alert[j] >> i) & 0b1, 0);
               if (j < (ARRAY_SIZE(alertType) - 1)) chprintf(chp, "%s", html_e_td_td);
             }
           }
@@ -629,7 +667,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
             spiUnselect(&SPID1);                // Slave Select de-assertion.
 
             memcpy(&timeConv.ch[0], &rxBuffer[0], sizeof(timeConv.ch)); // Prepare timestamp
-            decodeLog(&rxBuffer[4], logText, true);
+            decodeLog(&rxBuffer[4], logText, 1);
 
             printFrmTimestamp(chp, &timeConv.val);
             chprintf(chp, "%s%s.", html_e_td_td, logText);
@@ -721,8 +759,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
             } else { chprintf(chp, "%s", text_i_ALARM); }
             chprintf(chp, "%s", html_e_td_e_tr);
           }
-          chprintf(chp, "%s", html_e_table);
-          chprintf(chp, "%s", html_table);
+          chprintf(chp, "%s%s", html_e_table, html_table);
           chprintf(chp, "%s%s%s", html_tr_td, text_Group, html_e_td_td);
           chprintf(chp, "%sP%s", html_select_submit, html_e_tag);
           for (uint8_t i = 0; i < ALARM_GROUPS; i++) {
@@ -735,17 +772,17 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s", text_Name, html_e_td_td);
           printTextInput(chp, 'n', conf.groupName[webGroup], NAME_LENGTH);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Group, text_is, html_e_td_td);
-          printOnOffButton(chp, "0", GET_CONF_GROUP_ENABLED(conf.group[webGroup]), false);
+          printOnOffButton(chp, "0", GET_CONF_GROUP_ENABLED(conf.group[webGroup]), 0);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Auto, text_arm, html_e_td_td);
-          printOnOffButton(chp, "5", GET_CONF_GROUP_AUTO_ARM(conf.group[webGroup]), false);
+          printOnOffButton(chp, "5", GET_CONF_GROUP_AUTO_ARM(conf.group[webGroup]), 0);
           chprintf(chp, "%s%s %ss %s 1%s", html_e_td_e_tr_tr_td,  text_Alarm, text_trigger, text_relay, html_e_td_td);
-          printOnOffButton(chp, "4", GET_CONF_GROUP_PIR1(conf.group[webGroup]), false);
+          printOnOffButton(chp, "4", GET_CONF_GROUP_PIR1(conf.group[webGroup]), 0);
           chprintf(chp, "%s%s %ss %s 1%s", html_e_td_e_tr_tr_td,  text_Alarm, text_trigger, text_relay, html_e_td_td);
-          printOnOffButton(chp, "3", GET_CONF_GROUP_PIR2(conf.group[webGroup]), false);
+          printOnOffButton(chp, "3", GET_CONF_GROUP_PIR2(conf.group[webGroup]), 0);
           chprintf(chp, "%s%s %ss %s 2%s", html_e_td_e_tr_tr_td,  text_Tamper, text_trigger, text_relay, html_e_td_td);
-          printOnOffButton(chp, "2", GET_CONF_GROUP_TAMPER1(conf.group[webGroup]), false);
+          printOnOffButton(chp, "2", GET_CONF_GROUP_TAMPER1(conf.group[webGroup]), 0);
           chprintf(chp, "%s%s %ss %s 2%s", html_e_td_e_tr_tr_td,  text_Tamper, text_trigger, text_relay, html_e_td_td);
-          printOnOffButton(chp, "1", GET_CONF_GROUP_TAMPER2(conf.group[webGroup]), false);
+          printOnOffButton(chp, "1", GET_CONF_GROUP_TAMPER2(conf.group[webGroup]), 0);
           chprintf(chp, "%s%s %s %s%s", html_e_td_e_tr_tr_td, text_Arm, text_group, text_chain, html_e_td_td);
           selectGroup(chp, GET_CONF_GROUP_ARM_CHAIN(conf.group[webGroup]), 'a');
           chprintf(chp, "%s%s %s %s%s", html_e_td_e_tr_tr_td, text_Disarm, text_group, text_chain, html_e_td_td);
@@ -803,7 +840,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s%s", html_tr_td, text_Server, html_e_td_td);
           printTextInput(chp, 'a', conf.SMTPAddress, URL_LENGTH);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Port, html_e_td_td);
-          printIntInput(chp, 'b', conf.SMTPPort, 5);
+          printIntInput(chp, 'b', conf.SMTPPort, 5, 0, 65535);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_User, html_e_td_td);
           printTextInput(chp, 'c', conf.SMTPUser, EMAIL_LENGTH);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Password, html_e_td_td);
@@ -849,7 +886,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           }
           chprintf(chp, "%s %s", html_e_select, text_oclock);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_DS, text_offset, html_e_td_td);
-          printIntInput(chp, 'O', conf.timeDstOffset, 5);
+          printIntInput(chp, 'O', conf.timeDstOffset, 5, 0, 1440);
           chprintf(chp, " %s%s", text_minutes, html_e_td_e_tr_tr_td);
 
           chprintf(chp, "%s %s%s", text_DS, text_end, html_e_td_td);
@@ -886,7 +923,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           }
           chprintf(chp, "%s %s", html_e_select, text_oclock);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Standard, text_offset, html_e_td_td);
-          printIntInput(chp, 'o', conf.timeStdOffset, 5);
+          printIntInput(chp, 'o', conf.timeStdOffset, 5, 0, 1440);
           chprintf(chp, " %s%s", text_minutes, html_e_td_e_tr_tr_td);
           chprintf(chp, " %s %s%s", text_Time, text_format, html_e_td_td);
           printTextInput(chp, 'g', conf.dateTimeFormat, NAME_LENGTH);
@@ -899,26 +936,160 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s", html_ApplyValPass, html_Save);
           break;
         case PAGE_TCL:
-          // Information table - TCL heap
-          chprintf(chp, "%s", html_tr_th);
+          chprintf(chp, "%s%s %u%s", html_tr_th, text_Heap, UMM_MALLOC_CFG_HEAP_SIZE/1024, text_kB);
           chprintf(chp, "%s%s", html_e_th_th, text_Used);
           chprintf(chp, "%s%s", html_e_th_th, text_Free);
           chprintf(chp, "%s%s", html_e_th_th, text_Total);
           chprintf(chp, "%s%s%s\r\n", html_e_th_th, text_Metric, html_e_th_e_tr);
+          // Information table - TCL heap
           chprintf(chp, "%s%s%s", html_tr_td, text_Entries, html_e_td_td);
           chprintf(chp, "%u%s", ummHeapInfo.usedEntries, html_e_td_td);
           chprintf(chp, "%u%s", ummHeapInfo.freeEntries, html_e_td_td);
           chprintf(chp, "%u%s", ummHeapInfo.totalEntries, html_e_td_td);
-          chprintf(chp, "%u%%%s", umm_usage_metric(), html_e_td_e_tr_tr_td);
+          chprintf(chp, "%s %u%%%s", text_Used, umm_usage_metric(), html_e_td_e_tr_tr_td);
           chprintf(chp, "%s%s", text_Blocks, html_e_td_td);
           chprintf(chp, "%u%s", ummHeapInfo.usedBlocks, html_e_td_td);
           chprintf(chp, "%u%s", ummHeapInfo.freeBlocks, html_e_td_td);
           chprintf(chp, "%u%s", ummHeapInfo.totalBlocks, html_e_td_td);
-          chprintf(chp, "%u%%", umm_fragmentation_metric());
+          chprintf(chp, "%s %u%%", text_Fragmentation, umm_fragmentation_metric());
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           // Script area
           printTextArea(chp, 's', &tclCmd[0], sizeof(tclCmd), 80, 20);
+          // Buttons
+          chprintf(chp, "%s%s%s%s%s", html_br, html_br, html_Run, html_Refresh, html_Save);
+          // Output
+          chprintf(chp, "%s%s", html_br, html_br);
+          chprintf(chp, "<pre>%s</pre>", tclOutput);
+          break;
+        case PAGE_TIMER:
+          chprintf(chp, "%s#", html_tr_th);
+          chprintf(chp, "%s%s", html_e_th_th, text_Name);
+          chprintf(chp, "%s%s", html_e_th_th, text_On);
+          chprintf(chp, "%s%s", html_e_th_th, text_Type);
+          chprintf(chp, "%s%s", html_e_th_th, text_Start);
+          chprintf(chp, "%s%s", html_e_th_th, text_Period);
+          chprintf(chp, "%s%s %s", html_e_th_th, text_Run, text_time);
+          chprintf(chp, "%s%s %s", html_e_th_th, text_Next, text_on);
+          chprintf(chp, "%s%s %s", html_e_th_th, text_Next, text_off);
+          chprintf(chp, "%s%s", html_e_th_th, text_Address);
+          chprintf(chp, "%s%s", html_e_th_th, text_Script);
+          chprintf(chp, "%s%s", html_e_th_th, text_On);
+          chprintf(chp, "%s%s", html_e_th_th, text_Off);
+          chprintf(chp, "%s%s%s\r\n", html_e_th_th, text_Status, html_e_th_e_tr);
+          // Information table
+          for (uint8_t i = 0; i < TIMER_SIZE; i++) {
+            chprintf(chp, "%s%u.%s", html_tr_td, i + 1, html_e_td_td);
+            chprintf(chp, "%s%s", conf.timer[i].name, html_e_td_td);
+            printOkNok(chp, GET_CONF_TIMER_ENABLED(conf.timer[i].setting));
+            chprintf(chp, "%s", html_e_td_td);
+            if (GET_CONF_TIMER_TYPE(conf.timer[i].setting)) {
+              chprintf(chp, "%s %s", text_Run, text_on);
+              for (uint8_t j = 0; j < ARRAY_SIZE(weekDayShort); j++) {
+                if ((conf.timer[i].setting >> (8 - j)) & 0b1) {
+                  chprintf(chp, " %s", weekDayShort[j]);
+                }
+              }
+            } else {
+              chprintf(chp, "%s", text_Period);
+            }
+            chprintf(chp, "%s", html_e_td_td);
+            chprintf(chp, "%02u:%02u%s", conf.timer[i].startTime / SECONDS_PER_MINUTE,
+                     conf.timer[i].startTime % SECONDS_PER_MINUTE, html_e_td_td);
+            if (!GET_CONF_TIMER_TYPE(conf.timer[i].setting)) {
+              chprintf(chp, "%u %s", conf.timer[i].periodTime,
+                       durationSelect[GET_CONF_TIMER_PERIOD_TYPE(conf.timer[i].setting)]);
+            }
+            chprintf(chp, "%s%u %s", html_e_td_td,  conf.timer[i].runTime,
+                     durationSelect[GET_CONF_TIMER_RUN_TYPE(conf.timer[i].setting)]);
+            chprintf(chp, "%s", html_e_td_td);
+            tempTime = conf.timer[i].nextOn;
+            if (GET_CONF_TIMER_ENABLED(conf.timer[i].setting)) printFrmTimestamp(chp, &tempTime);
+            chprintf(chp, "%s", html_e_td_td);
+            tempTime = conf.timer[i].nextOff;
+            if (GET_CONF_TIMER_ENABLED(conf.timer[i].setting)) printFrmTimestamp(chp, &tempTime);
+            chprintf(chp, "%s", html_e_td_td);
+            printNodeAddress(chp, conf.timer[i].toAddress, 'I',  conf.timer[i].toFunction,
+                             conf.timer[i].toFunction);
+            chprintf(chp, "%s", html_e_td_td);
 
+            chprintf(chp, "%s", html_e_td_td);
+            chprintf(chp, "%.2f%s", conf.timer[i].constantOn, html_e_td_td);
+            chprintf(chp, "%.2f%s", conf.timer[i].constantOff, html_e_td_td);
+            printOkNok(chp, GET_CONF_TIMER_TRIGGERED(conf.timer[i].setting));
+            chprintf(chp, "%s", html_e_td_e_tr);
+          }
+          chprintf(chp, "%s%s", html_e_table, html_table);
+          chprintf(chp, "%s%s%s", html_tr_td, text_Timer, html_e_td_td);
+          chprintf(chp, "%sP%s", html_select_submit, html_e_tag);
+          for (uint8_t i = 0; i < TIMER_SIZE; i++) {
+            chprintf(chp, "%s%u", html_option, i);
+            if (webTimer == i) { chprintf(chp, "%s", html_selected); }
+            else               { chprintf(chp, "%s", html_e_tag); }
+            chprintf(chp, "%u. %s%s", i + 1, conf.timer[i].name, html_e_option);
+          }
+          chprintf(chp, "%s%s", html_e_select, html_e_td_e_tr_tr_td);
+          chprintf(chp, "%s%s", text_Name, html_e_td_td);
+          printTextInput(chp, 'n', conf.timer[webTimer].name, NAME_LENGTH);
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Timer, text_is, html_e_td_td);
+          printOnOffButton(chp, "B", GET_CONF_TIMER_ENABLED(conf.timer[webTimer].setting), 0);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Type, html_e_td_td);
+          printTwoButton(chp, "C", GET_CONF_TIMER_TYPE(conf.timer[webTimer].setting), true,
+                         text_Period, text_Calendar);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, weekDay[0], html_e_td_td);
+          printOnOffButton(chp, "J", GET_CONF_TIMER_MO(conf.timer[webTimer].setting), 0);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, weekDay[1], html_e_td_td);
+          printOnOffButton(chp, "I", GET_CONF_TIMER_TU(conf.timer[webTimer].setting), 0);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, weekDay[2], html_e_td_td);
+          printOnOffButton(chp, "H", GET_CONF_TIMER_WE(conf.timer[webTimer].setting), 0);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, weekDay[3], html_e_td_td);
+          printOnOffButton(chp, "G", GET_CONF_TIMER_TH(conf.timer[webTimer].setting), 0);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, weekDay[4], html_e_td_td);
+          printOnOffButton(chp, "F", GET_CONF_TIMER_FR(conf.timer[webTimer].setting), 0);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, weekDay[5], html_e_td_td);
+          printOnOffButton(chp, "E", GET_CONF_TIMER_SA(conf.timer[webTimer].setting), 0);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, weekDay[6], html_e_td_td);
+          printOnOffButton(chp, "D", GET_CONF_TIMER_SU(conf.timer[webTimer].setting), 0);
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Start, text_time, html_e_td_td);
+          printTimeInput(chp, 't', conf.timer[webTimer].startTime / 60, conf.timer[webTimer].startTime % 60);
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Period, text_duration, html_e_td_td);
+          printIntInput(chp, 's', conf.timer[webTimer].periodTime, 3, 1, 255);
+          printDurationSelect(chp, 'S', GET_CONF_TIMER_PERIOD_TYPE(conf.timer[webTimer].setting));
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Run, text_duration, html_e_td_td);
+          printIntInput(chp, 'r', conf.timer[webTimer].runTime, 3, 1, 255);
+          printDurationSelect(chp, 'R', GET_CONF_TIMER_RUN_TYPE(conf.timer[webTimer].setting));
+          chprintf(chp, "%s%s%s", html_tr_td, text_Address, html_e_td_td);
+          chprintf(chp, "%sa%s", html_select, html_e_tag);
+          for (uint8_t i = 0; i <= NODE_SIZE; i++) {
+            if (i < NODE_SIZE) {
+              if (node[i].type == 'I') {
+                chprintf(chp, "%s%u", html_option, i);
+                if ((node[i].address  == conf.timer[webTimer].toAddress) &&
+                    (node[i].function == conf.timer[webTimer].toFunction) &&
+                    (node[i].number   == conf.timer[webTimer].toNumber))
+                     { chprintf(chp, "%s", html_selected); }
+                else { chprintf(chp, "%s", html_e_tag); }
+                chprintf(chp, "%s - ", node[i].name);
+                printNodeAddress(chp, node[i].address, node[i].type, node[i].function, node[i].number);
+                chprintf(chp, "%s", html_e_option);
+              }
+            } else {
+              chprintf(chp, "%s%u", html_option, DUMMY_NO_VALUE);
+              if ((conf.timer[webTimer].toAddress  == 0) &&
+                  (conf.timer[webTimer].toFunction == ' ') &&
+                  (conf.timer[webTimer].toNumber   == 0))
+                   { chprintf(chp, "%s", html_selected); }
+              else { chprintf(chp, "%s", html_e_tag); }
+              chprintf(chp, "%s%s", NOT_SET, html_e_option);
+            }
+          }
+          chprintf(chp, "%s", html_e_select);
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_On, text_value, html_e_td_td);
+          printFloatInput(chp, 'o', conf.timer[webTimer].constantOn);
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Off, text_value, html_e_td_td);
+          printFloatInput(chp, 'f', conf.timer[webTimer].constantOff);
+          chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
+          // JavaScript
+          chprintf(chp, "%s%s%s", html_script, JSTimer, html_e_script);
           // Buttons
           chprintf(chp, "%s%s", html_Apply, html_Save);
           break;
@@ -978,15 +1149,15 @@ err_t httpd_post_begin(void *connection, const char *uri, const char *http_reque
   return ERR_VAL;
 }
 
-bool readPostParam(char *name, uint8_t nameLen, char *value, uint16_t valueLen){
+bool readPostParam(char **pPostData, char *name, uint8_t nameLen, char *value, uint16_t valueLen){
   uint8_t ch, ch1, ch2;
 
   // clear out name and value so they'll be NULL terminated
   memset(name, 0, nameLen);
   memset(value, 0, valueLen);
 
-  while (*pPostData != 0){
-    ch = *pPostData; pPostData++;
+  while (**pPostData != 0){
+    ch = **pPostData; (*pPostData)++;
     switch (ch) {
       case '+': ch = ' ';
         break;
@@ -998,8 +1169,8 @@ bool readPostParam(char *name, uint8_t nameLen, char *value, uint16_t valueLen){
         return true;
         break;
       case '%':  // handle URL encoded characters by converting back to original form
-        ch1 = *pPostData; pPostData++;
-        ch2 = *pPostData; pPostData++;
+        ch1 = **pPostData; (*pPostData)++;
+        ch2 = **pPostData; (*pPostData)++;
         if (ch1 == 0 || ch2 == 0) return false;
         char hex[3] = { ch1, ch2, 0 };
         ch = strtoul(hex, NULL, 16);
@@ -1057,22 +1228,22 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
   int8_t resp;
   char name[3];
   uint8_t message[REGISTRATION_SIZE];
-  //char value[TCL_SCRIPT_LENGTH] __attribute__((section(".ram4")));
   char value[255];
   bool repeat;
+  char *ptr, *pEnd;;
 
   //DBG("-PE-connection: %u\r\n", (uint32_t *)connection);
   DBG("-PE-postData: %s\r\n", postData);
 
   if (current_connection == connection) {
-    pPostData = &postData[0];
+    ptr = &postData[0];
 
     for (uint8_t htmlPage = 0; htmlPage < ARRAY_SIZE(webPage); ++htmlPage) {
       if (!strcmp(current_uri, webPage[htmlPage].link)) {
         switch (htmlPage) {
           case PAGE_NODE:
             do{
-              repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
+              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
               DBG("Parse: %s=%s<\r\n", name, value);
               switch(name[0]){
                 case 'P': // select
@@ -1136,7 +1307,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             break;
           case PAGE_USER:
             do{
-              repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
+              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
               DBG("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'P': // select
@@ -1168,7 +1339,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             break;
           case PAGE_KEY:
             do{
-              repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
+              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
               DBG("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'P': // select
@@ -1197,7 +1368,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             break;
           case PAGE_ZONE:
             do{
-              repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
+              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
               DBG("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'P': // select
@@ -1233,7 +1404,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             break;
           case PAGE_ALERT:
             do{
-              repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
+              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
               DBG("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case '0' ... ('0' + ARRAY_SIZE(alertType)): // Handle all radio buttons in groups 0 .. #, A .. #
@@ -1248,7 +1419,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             break;
           case PAGE_LOG:
             do{
-              repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
+              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
               DBG("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'N': // Now
@@ -1265,7 +1436,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             break;
           case PAGE_GROUP:
             do{
-              repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
+              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
               DBG("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'P': // select
@@ -1297,7 +1468,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             break;
           case PAGE_SETTING:
             do{
-              repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
+              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
               DBG("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'A': // Apply
@@ -1371,7 +1542,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             break;
           case PAGE_HOME:
             do{
-              repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
+              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
               DBG("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'A': // Apply
@@ -1381,13 +1552,84 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             break;
           case PAGE_TCL:
             do{
-              repeat = readPostParam(&name[0], sizeof(name), &value[0], sizeof(value));
+              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
+              DBG("Parse: %s = %s<\r\n", name, value);
+              script_t *outMsg;
+              switch(name[0]){
+                case 'R': // Run
+                  outMsg = chPoolAlloc(&script_pool);
+                  if (outMsg != NULL) {
+                    outMsg->callback = myCb;
+                    outMsg->flags = 1;
+                    outMsg->index = 0;
+                    msg_t msg = chMBPostTimeout(&script_mb, (msg_t)outMsg, TIME_IMMEDIATE);
+                    if (msg != MSG_OK) {
+                      //chprintf(console, "MB full %d\r\n", temp);
+                    }
+                  } else {
+                    chprintf(console, "CB full %d \r\n", outMsg);
+                  }
+                break;
+                case 's': // script
+                  strncpy(tclCmd, value, sizeof(tclCmd)); // Copy sizeof value
+                break;
+              }
+            } while (repeat);
+            break;
+          case PAGE_TIMER:
+            do{
+              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
               DBG("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
-                case 'A': // Apply
+                case 'P': // select
+                  number = strtol(value, NULL, 10);
+                  if (number != webTimer) { webTimer = number; repeat = 0; }
                 break;
-                case 's': // name
-                  strncpy(tclCmd, value, sizeof(tclCmd)); // Copy sizeof value
+                case 'A': // Apply
+                  setTimer(webTimer, true);
+                break;
+                case 'n': // name
+                  strncpy(conf.timer[webTimer].name, value, NAME_LENGTH);
+                break;
+                case 's': // period
+                  conf.timer[webTimer].periodTime = strtol(value, NULL, 10);
+                break;
+                case 'S': // period
+                  number = strtol(value, NULL, 10);
+                  SET_CONF_TIMER_PERIOD_TYPE(conf.timer[webTimer].setting, number);
+                break;
+                case 'r': // run
+                  conf.timer[webTimer].runTime = strtol(value, NULL, 10);
+                break;
+                case 'R': // run
+                  number = strtol(value, NULL, 10);
+                  SET_CONF_TIMER_RUN_TYPE(conf.timer[webTimer].setting, number);
+                break;
+                case 'a': // node aaddress
+                  number = strtol(value, NULL, 10);
+                  if (number == DUMMY_NO_VALUE) {
+                    conf.timer[webTimer].toAddress  = 0;
+                    conf.timer[webTimer].toFunction = ' ';
+                    conf.timer[webTimer].toNumber   = 0;
+                  } else {
+                    conf.timer[webTimer].toAddress  = node[number].address;
+                    conf.timer[webTimer].toFunction = node[number].function;
+                    conf.timer[webTimer].toNumber   = node[number].number;
+                  }
+                break;
+                case 'o':
+                  conf.timer[webTimer].constantOn = strtof(value, NULL);
+                break;
+                case 'f':
+                  conf.timer[webTimer].constantOff = strtof(value, NULL);
+                break;
+                case 't': // time
+                  conf.timer[webTimer].startTime = strtol(value, &pEnd, 10) * MINUTES_PER_HOUR ;
+                  conf.timer[webTimer].startTime += strtol(++pEnd, NULL, 10);
+                break;
+                case 'B' ... 'I': // Handle all single radio buttons for settings B(66)=0
+                  if (value[0] == '0') conf.timer[webTimer].setting &= ~(1 << (name[0]-66));
+                  else                 conf.timer[webTimer].setting |=  (1 << (name[0]-66));
                 break;
               }
             } while (repeat);

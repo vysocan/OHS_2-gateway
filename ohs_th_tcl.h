@@ -8,7 +8,7 @@
 #ifndef OHS_TH_TCL_H_
 #define OHS_TH_TCL_H_
 /*
- * TCL functions
+ * TCL custom commands
  */
 #define TCL_CMD_NODE_ADDRESS_SIZE 5
 static int tcl_cmd_node(struct tcl* tcl, tcl_value_t* args, void* arg) {
@@ -54,38 +54,48 @@ static THD_WORKING_AREA(waTclThread, 2048);
 static THD_FUNCTION(tclThread, arg) {
   chRegSetThreadName(arg);
   msg_t    msg;
-  logger_t *inMsg;
+  script_t *inMsg;
   systime_t runTime;
 
-  tcl_init(&tcl, conf.tclIteration);
+  memset(&tclOutput[0], '\0', TCL_SCRIPT_LENGTH);
+  MemoryStream ms;
+  BaseSequentialStream *chp;
+  // Memory stream object to be used as a string writer, reserving one byte for the final zero.
+  msObjectInit(&ms, (uint8_t *)tclOutput, TCL_SCRIPT_LENGTH-1, 0);
+  // Performing the print operation using the common code.
+  chp = (BaseSequentialStream *)(void *)&ms;
+
+  tcl_init(&tcl, conf.tclIteration, chp);
   tcl_register(&tcl, "node", tcl_cmd_node, 2, NULL);
 
   while (true) {
-
-    chThdSleepMilliseconds(10000);
-
-    runTime = chVTGetSystemTimeX();
-    // Set iteration before tcl_eval()
-    tcl_iteration = conf.tclIteration;
-    if (tcl_eval(&tcl, &tclCmd[0], strlen(tclCmd)) != FERROR) {
-      chprintf(console, ">>>%.*s\r\n", tcl_length(tcl.result), tcl_string(tcl.result));
-    } else {
-      chprintf(console, ">>>TCL error\r\n");
-    }
-
-    chprintf(console, "TCL elapsed %u ms\r\n", TIME_I2MS(chVTGetSystemTimeX() - runTime));
-
-    umm_info(&my_umm_heap[0], true);
-
-    /*
-    msg = chMBFetchTimeout(&tcl_mb, (msg_t*)&inMsg, TIME_INFINITE);
+    msg = chMBFetchTimeout(&script_mb, (msg_t*)&inMsg, TIME_INFINITE);
     if (msg == MSG_OK) {
 
+      // Prepare for run
+      memset(&tclOutput[0], '\0', TCL_SCRIPT_LENGTH);
+      ms.eos = ms.offset = 0;
+      tcl_iteration = conf.tclIteration;
+      runTime = chVTGetSystemTimeX();
+
+      if (tcl_eval(&tcl, &tclCmd[0], strlen(tclCmd)) != FERROR) {
+        chprintf(chp, "Result: %.*s\r\n", tcl_length(tcl.result), tcl_string(tcl.result));
+      } else {
+        chprintf(chp, "Script error\r\n");
+      }
+
+      chprintf(chp, "Elapsed: %u ms\r\n", TIME_I2MS(chVTGetSystemTimeX() - runTime));
+
+      // Do callback if requested
+      if (inMsg->callback) {
+        script_cb(inMsg->callback, tcl_string(tcl.result));
+      }
+
+      umm_info(&my_umm_heap[0], true);
     } else {
-      chprintf(console, "Log ERROR\r\n");
+      chprintf(console, "Script MB ERROR\r\n");
     }
-    chPoolFree(&tcl_pool, inMsg);
-    */
+    chPoolFree(&script_pool, inMsg);
   }
 
   tcl_destroy(&tcl);

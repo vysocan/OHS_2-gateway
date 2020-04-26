@@ -230,4 +230,93 @@ void checkKey(uint8_t groupNum, armType_t armType, uint8_t *key, uint8_t length)
   }
 }
 
+void setTimer(const uint8_t timerIndex, const bool restart) {
+  uint8_t day, found;
+  time_t tempTime, addTime;
+  RTCDateTime tempTimeSpec;
+
+  convertUnixSecondToRTCDateTime(&tempTimeSpec, getTimeUnixSec());
+  // Calendar
+  if (GET_CONF_TIMER_TYPE(conf.timer[timerIndex].setting)) {
+    chprintf(console, "Calendar: %u", timerIndex + 1);
+    day = tempTimeSpec.dayofweek; found = 0; addTime = 0;
+    chprintf(console, ", today: %u", day);
+    for (uint8_t i = 0; i < 8; i++) {
+      // day 1 = Monday, 7 = Sunday
+      if ((conf.timer[timerIndex].setting >> (9 - day)) & 0b1) {
+        if (day != tempTimeSpec.dayofweek) {
+          found = 1; break;
+        } else {
+          // Today start_time has passed already?
+          chprintf(console, ", time: %u - %u", tempTimeSpec.millisecond / 1000, conf.timer[timerIndex].startTime * SECONDS_PER_MINUTE);
+          if (((tempTimeSpec.millisecond / 1000) > (conf.timer[timerIndex].startTime * SECONDS_PER_MINUTE)) &&
+                (addTime == 0)) {
+            addTime++;
+          } else {
+            found = 1; break;
+          }
+        }
+      } else {
+        addTime++;
+      }
+      day++; if (day == 8) day = 1;
+      chprintf(console, ", day: %u", day);
+    }
+    if (found) {
+      chprintf(console, ", addTime: %u", addTime);
+      // Calculate On time
+      tempTimeSpec.millisecond = 0;
+      conf.timer[timerIndex].nextOn = convertRTCDateTimeToUnixSecond(&tempTimeSpec)
+          + ((uint32_t)conf.timer[timerIndex].startTime * SECONDS_PER_MINUTE)
+          + ((uint32_t)addTime * SECONDS_PER_DAY);
+    } else {
+      conf.timer[timerIndex].nextOn = 0;
+    }
+    chprintf(console, "\r\n");
+  // Period
+  }
+  /*
+  else {
+    chprintf(console, "Period: %u", timerIndex + 1);
+    switch(conf.timer[timerIndex].setting >> 12 & B11){
+      case 0:  addTime = (uint32_t)conf.timer[timerIndex].periodTime; break;
+      case 1:  addTime = (uint32_t)conf.timer[timerIndex].periodTime * SECONDS_PER_MINUTE; break;
+      case 2:  addTime = (uint32_t)conf.timer[timerIndex].periodTime * SECONDS_PER_HOUR; break;
+      default: addTime = (uint32_t)conf.timer[timerIndex].periodTime * SECONDS_PER_DAY; break;
+    }
+    chprintf(console, " addTime: ")); WS.print(addTime);
+    if (add > 0) {
+      // request come from Web interface, recalculate next_on
+      if (_restart) {
+        conf.timer[timerIndex].next_on = time_temp.get()
+            - ((uint32_t)time_temp.hour() * SECONDS_PER_HOUR
+            + (uint32_t)time_temp.minute() * SECONDS_PER_MINUTE
+            + (uint32_t)time_temp.second())
+            + ((uint32_t)conf.timer[timerIndex].startTime * SECONDS_PER_MINUTE);
+        chprintf(console, " next_on: ")); WS.print(conf.timer[timerIndex].next_on);
+        // if next_on is in past calculate new next_on
+        if (time_temp.get() > conf.timer[timerIndex].next_on) {
+          _tmpt = (time_temp.get() - conf.timer[timerIndex].next_on) / addTime;
+          chprintf(console, " _tmpt: ")); WS.print(_tmpt);
+          conf.timer[timerIndex].next_on += (_tmpt + 1) * addTime;
+        }
+      } else {
+        conf.timer[timerIndex].next_on += addTime;
+      }
+      chprintf(console, " next_on: ")); WS.print(conf.timer[timerIndex].next_on);
+      WS.println();
+    }
+  }
+  */
+  // Set Off time
+  conf.timer[timerIndex].nextOff = conf.timer[timerIndex].nextOn;
+  switch(GET_CONF_TIMER_RUN_TYPE(conf.timer[timerIndex].setting)){
+    case 0:  conf.timer[timerIndex].nextOff += (uint32_t)conf.timer[timerIndex].runTime; break;
+    case 1:  conf.timer[timerIndex].nextOff += (uint32_t)conf.timer[timerIndex].runTime * SECONDS_PER_MINUTE; break;
+    case 2:  conf.timer[timerIndex].nextOff += (uint32_t)conf.timer[timerIndex].runTime * SECONDS_PER_HOUR; break;
+    default: conf.timer[timerIndex].nextOff += (uint32_t)conf.timer[timerIndex].runTime * SECONDS_PER_DAY; break;
+  }
+  CLEAR_CONF_TIMER_TRIGGERED(conf.timer[timerIndex].setting); // switch OFF Is triggered
+}
+
 #endif /* OHS_FUNCTIONS_H_ */
