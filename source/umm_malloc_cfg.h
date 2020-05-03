@@ -74,6 +74,7 @@
 
 #include "hal.h"
 #include "chprintf.h"
+
 //#define DBGLOG_TRACE(...) {chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__);}
 #define DBGLOG_TRACE(...)
 //#define DBGLOG_DEBUG(...) {chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__);}

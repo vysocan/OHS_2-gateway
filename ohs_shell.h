@@ -165,6 +165,7 @@ const char text_power[]             = "power";
 const char text_monitoring[]        = "monitoring";
 const char text_Node[]              = "Node";
 const char text_Name[]              = "Name";
+const char text_name[]              = "name";
 const char text_MQTT[]              = "MQTT";
 const char text_Function[]          = "Function";
 const char text_Type[]              = "Type";
@@ -193,10 +194,11 @@ const char text_local[]             = "local";
 const char text_battery[]           = "battery";
 const char text_analog[]            = "analog";
 const char text_digital[]           = "digital";
-const char text_seconds[]           = "second(s)";
-const char text_hours[]             = "hour(s)";
-const char text_days[]              = "day(s)";
+//const char text_seconds[]           = "second(s)";
+//const char text_hours[]             = "hour(s)";
+//const char text_days[]              = "day(s)";
 const char text_Zone[]              = "Zone";
+const char text_zone[]              = "zone";
 const char text_delay[]             = "delay";
 const char text_SMS[]               = "SMS";
 const char text_Page[]              = "Page";
@@ -234,10 +236,11 @@ const char text_Alive[]             = "Alive";
 const char text_Admin[]             = "Admin";
 const char text_user[]              = "user";
 const char text_Password[]          = "Password";
+const char text_password[]          = "password";
 const char text_SMTP[]              = "SMTP";
 const char text_NTP[]               = "NTP";
 const char text_Server[]            = "Server";
-const char text_Port[]              = "Port";
+const char text_port[]              = "port";
 const char text_of[]                = "of";
 const char text_at[]                = "at";
 const char text_offset[]            = "offset";
@@ -245,7 +248,7 @@ const char text_end[]               = "end";
 const char text_start[]             = "start";
 const char text_DS[]                = "Daylight saving";
 const char text_Standard[]          = "Standard";
-const char text_minutes[]           = "minute(s)";
+//const char text_minutes[]           = "minute(s)";
 const char text_format[]            = "format";
 const char text_oclock[]            = "o'clock";
 const char text_Balanced[]          = "Balanced";
@@ -272,6 +275,10 @@ const char text_Timer[]             = "Timer";
 const char text_kB[]                = "kB";
 const char text_Heap[]              = "Heap";
 const char text_Fragmentation[]     = "Fragmentation";
+const char text_Evaluate[]          = "Evaluate";
+const char text_script[]            = "script";
+const char text_Result[]            = "Result";
+const char text_linked_to[]         = "linked to";
 
 void printNodeType(BaseSequentialStream *chp, const char type) {
   switch(type){
@@ -475,7 +482,6 @@ time_t calculateDST(uint16_t year, uint8_t month, uint8_t week, uint8_t dow, uin
   return rawtime;
 }
 
-
 time_t getTimeUnixSec(void) {
   time_t timeSec;
 
@@ -641,7 +647,7 @@ static uint8_t decodeLog(char *in, char *out, bool full){
       chprintf(chp, "%s ", text_Key);
       if (full) {
         if (in[1] != 'U') {
-          chprintf(chp, "#%u, ", (uint8_t)in[2] + 1);
+          chprintf(chp, "#%u, %s ", (uint8_t)in[2] + 1, text_linked_to);
           if (conf.keyContact[(uint8_t)in[2]] == DUMMY_NO_VALUE) chprintf(chp, "%s ", NOT_SET);
           else chprintf(chp, "%s ", conf.contactName[(conf.keyContact[(uint8_t)in[2]])]);
           groupNum = GET_CONF_CONTACT_GROUP(conf.keyContact[(uint8_t)in[2]]);
@@ -733,7 +739,7 @@ static void cmd_date(BaseSequentialStream *chp, int argc, char *argv[]) {
     else{
       ptm = gmtime(&unix_time);
       strftime(dateTime, 30, conf.dateTimeFormat, ptm); // Format date time as needed
-      chprintf(chp, "Current: %d %s,", unix_time, text_seconds);
+      chprintf(chp, "Current: %d %s,", unix_time, durationSelect[0]);
       chprintf(chp, "%s\r\n", dateTime);
     }
     return;

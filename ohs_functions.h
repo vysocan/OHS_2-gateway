@@ -35,20 +35,33 @@ void pushToLogText(char *what) {
 
 // Send data to node
 int8_t sendData(uint8_t address, const uint8_t *data, uint8_t length){
-  RS485Msg_t rs485Data;
+  int8_t resp;
 
-  chprintf(console, "RS485 Send data to address: %d\r\n", address);
-  rs485Data.address = address;
-  rs485Data.length = length;
-  memcpy(&rs485Data.data[0], data, length);
-  for(uint8_t ii = 0; ii < length; ii++) {
-    chprintf(console, "%d-%x, ", ii, rs485Data.data[ii]);
-  } chprintf(console, "\r\n");
-  return rs485SendMsgWithACK(&RS485D2, &rs485Data, 5);
+  // RS485
+  if (address <= RADIO_UNIT_OFFSET) {
+    RS485Msg_t rs485Data;
+
+    chprintf(console, "RS485 Send data to address: %d\r\n", address);
+    rs485Data.address = address;
+    rs485Data.length = length;
+    memcpy(&rs485Data.data[0], data, length);
+    for(uint8_t ii = 0; ii < length; ii++) {
+      chprintf(console, "%d-%x, ", ii, rs485Data.data[ii]);
+    } chprintf(console, "\r\n");
+    if (rs485SendMsgWithACK(&RS485D2, &rs485Data, 5) == MSG_OK) resp = 1;
+    else resp = -1;
+  }
+  // Radio
+  if (address >= RADIO_UNIT_OFFSET) {
+    chprintf(console, "Radio Send data to address: %d\r\n", address - RADIO_UNIT_OFFSET);
+    resp = rfm69SendWithRetry(address - RADIO_UNIT_OFFSET, data, length, 5);
+  }
+  return resp;
 }
 
 // Send a command to node
 int8_t sendCmd(uint8_t address, uint8_t command) {
+  int8_t resp;
 
   // RS485
   if (address <= RADIO_UNIT_OFFSET) {
@@ -57,16 +70,17 @@ int8_t sendCmd(uint8_t address, uint8_t command) {
     chprintf(console, "RS485 Send cmd: %d to address: %d\r\n", command, address);
     rs485Cmd.address = address;
     rs485Cmd.length = command;
-    return rs485SendCmdWithACK(&RS485D2, &rs485Cmd, 3);
+    if (rs485SendCmdWithACK(&RS485D2, &rs485Cmd, 3) == MSG_OK) resp = 1;
+    else resp = -1;
   }
   // Radio
   if (address >= RADIO_UNIT_OFFSET) {
     char radioCmd[] = {'C', command};
 
     chprintf(console, "Radio Send cmd: %d to address: %d\r\n", command, address - RADIO_UNIT_OFFSET);
-    rfm69Send(address - RADIO_UNIT_OFFSET, radioCmd, sizeof(radioCmd), true);
+    resp = rfm69Send(address - RADIO_UNIT_OFFSET, radioCmd, sizeof(radioCmd), true);
   }
-
+  return resp;
 }
 
 // Send a command to all members of a group
@@ -192,13 +206,14 @@ void checkKey(uint8_t groupNum, armType_t armType, uint8_t *key, uint8_t length)
     // Check all keys
     uint32_t keyHash = sdbmHash(key, length);
     for (uint8_t i=0; i < KEYS_SIZE; i++){
-      chprintf(console, "Key check match: %d", i);
+      chprintf(console, "Key check: %d\r\n", i);
       //for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, key[ii]); } chprintf(console, "\r\n");
       //for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, conf.keyValue[i][ii]); } chprintf(console, "\r\n");
       if (conf.keyValue[i] == keyHash) { // key matched
         chprintf(console, ", group: %d\r\n", groupNum);
-        //  key enabled && (group = contact_group || contact_key = global)
+        //  key enabled && user enabled && (group = contact_group || contact_key = global)
         if (GET_CONF_KEY_ENABLED(conf.keySetting[i]) &&
+            GET_CONF_CONTACT_ENABLED(conf.contact[conf.keyContact[i]]) &&
            (groupNum == GET_CONF_CONTACT_GROUP(conf.contact[conf.keyContact[i]]) ||
             GET_CONF_CONTACT_IS_GLOBAL(conf.contact[conf.keyContact[i]]))) {
           // We have alarm or group is armed or arming
@@ -217,6 +232,7 @@ void checkKey(uint8_t groupNum, armType_t armType, uint8_t *key, uint8_t length)
           break; // no need to try other
         } else { // key is not enabled
           tmpLog[0] = 'A'; tmpLog[1] = 'F'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
+          break; // no need to try other
         }
       } // key matched
       else if (i == KEYS_SIZE-1) {
@@ -235,7 +251,9 @@ void setTimer(const uint8_t timerIndex, const bool restart) {
   time_t tempTime, addTime;
   RTCDateTime tempTimeSpec;
 
-  convertUnixSecondToRTCDateTime(&tempTimeSpec, getTimeUnixSec());
+  // To accommodate DST use this double conversion
+  tempTime = getTimeUnixSec();
+  convertUnixSecondToRTCDateTime(&tempTimeSpec, tempTime);
   // Calendar
   if (GET_CONF_TIMER_TYPE(conf.timer[timerIndex].setting)) {
     chprintf(console, "Calendar: %u", timerIndex + 1);
@@ -273,41 +291,35 @@ void setTimer(const uint8_t timerIndex, const bool restart) {
       conf.timer[timerIndex].nextOn = 0;
     }
     chprintf(console, "\r\n");
-  // Period
-  }
-  /*
-  else {
+  } else {
+    // Periods
     chprintf(console, "Period: %u", timerIndex + 1);
-    switch(conf.timer[timerIndex].setting >> 12 & B11){
+    switch(GET_CONF_TIMER_PERIOD_TYPE(conf.timer[timerIndex].setting)) {
       case 0:  addTime = (uint32_t)conf.timer[timerIndex].periodTime; break;
       case 1:  addTime = (uint32_t)conf.timer[timerIndex].periodTime * SECONDS_PER_MINUTE; break;
       case 2:  addTime = (uint32_t)conf.timer[timerIndex].periodTime * SECONDS_PER_HOUR; break;
       default: addTime = (uint32_t)conf.timer[timerIndex].periodTime * SECONDS_PER_DAY; break;
     }
-    chprintf(console, " addTime: ")); WS.print(addTime);
-    if (add > 0) {
-      // request come from Web interface, recalculate next_on
-      if (_restart) {
-        conf.timer[timerIndex].next_on = time_temp.get()
-            - ((uint32_t)time_temp.hour() * SECONDS_PER_HOUR
-            + (uint32_t)time_temp.minute() * SECONDS_PER_MINUTE
-            + (uint32_t)time_temp.second())
+    chprintf(console, " addTime: %u", addTime);
+    if (addTime > 0) {
+      // Request come from Web interface, recalculate nextOn
+      if (restart) {
+        tempTimeSpec.millisecond = 0;
+        conf.timer[timerIndex].nextOn = convertRTCDateTimeToUnixSecond(&tempTimeSpec)
             + ((uint32_t)conf.timer[timerIndex].startTime * SECONDS_PER_MINUTE);
-        chprintf(console, " next_on: ")); WS.print(conf.timer[timerIndex].next_on);
+        chprintf(console, " next_on: %u", conf.timer[timerIndex].nextOn);
         // if next_on is in past calculate new next_on
-        if (time_temp.get() > conf.timer[timerIndex].next_on) {
-          _tmpt = (time_temp.get() - conf.timer[timerIndex].next_on) / addTime;
-          chprintf(console, " _tmpt: ")); WS.print(_tmpt);
-          conf.timer[timerIndex].next_on += (_tmpt + 1) * addTime;
+        if (tempTime > conf.timer[timerIndex].nextOn) {
+          tempTime = (tempTime - conf.timer[timerIndex].nextOn) / addTime;
+          chprintf(console, " tempTime: %u", tempTime);
+          conf.timer[timerIndex].nextOn += (tempTime + 1) * addTime;
         }
       } else {
-        conf.timer[timerIndex].next_on += addTime;
+        conf.timer[timerIndex].nextOn += addTime;
       }
-      chprintf(console, " next_on: ")); WS.print(conf.timer[timerIndex].next_on);
-      WS.println();
+      chprintf(console, " next_on: %u\r\n", conf.timer[timerIndex].nextOn);
     }
   }
-  */
   // Set Off time
   conf.timer[timerIndex].nextOff = conf.timer[timerIndex].nextOn;
   switch(GET_CONF_TIMER_RUN_TYPE(conf.timer[timerIndex].setting)){

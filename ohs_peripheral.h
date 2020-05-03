@@ -83,7 +83,7 @@ static void adcerrorcallback(ADCDriver *adcp, adcerror_t err) {
 /*
  * ADC conversion group.
  * Mode:        Linear buffer, 1 sample(s) of 10 channel(s), SW triggered.
- * Channels:    IN_0,3,4,5,6,8,9,10,12,13.
+ * Channels:    IN_0,3,4,5,6,8,9,10,12,13, VBAT.
  */
 static const ADCConversionGroup adcgrpcfg1 = {
   FALSE,
@@ -116,7 +116,5 @@ static const ADCConversionGroup adcgrpcfg1 = {
   ADC_SQR3_SQ2_N(ADC_CHANNEL_IN5) |
   ADC_SQR3_SQ1_N(ADC_CHANNEL_IN6) /* SQR3 Conversion sequence 1-6 */
 };
-
-
 
 #endif /* OHS_PERIPHERAL_H_ */

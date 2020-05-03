@@ -21,10 +21,12 @@
 #define BACKUP_RTC_SIZE  80     // 80 bytes
 
 #define ALARM_GROUPS     10     // # of groups
-#define ALARM_ZONES      30     // Maximum # of zones
+#define ALARM_ZONES      30     // # of zones
 #define HW_ZONES         11     // # of hardware zones on gateway
-#define CONTACTS_SIZE    10     // Maximum # of contacts
-#define KEYS_SIZE        20     // Maximum # of keys
+#define CONTACTS_SIZE    10     // # of contacts
+#define KEYS_SIZE        20     // # of keys
+#define TIMER_SIZE       10     // # of timers
+#define SCRIPT_SIZE      10     // # of scripts
 #define KEY_LENGTH       4      // sizeof(uint32_t)
 #define NAME_LENGTH      16     //
 #define PHONE_LENGTH     14     //
@@ -40,8 +42,6 @@
 #define ALARM_OK_HI      2100
 #define ALARM_TAMPER     0
 #define ALARM_UNBALANCED 500
-
-#define TIMER_SIZE       10     // # of timers
 
 #define RADIO_UNIT_OFFSET 15
 #define REGISTRATION_SIZE 22
@@ -166,7 +166,8 @@
 #define GET_CONF_TIMER_WE(x)          ((x >> 6U) & 0b1)
 #define GET_CONF_TIMER_TU(x)          ((x >> 7U) & 0b1)
 #define GET_CONF_TIMER_MO(x)          ((x >> 8U) & 0b1)
-#define GET_CONF_TIMER_TRIGGERED(x)   ((x >> 9U) & 0b1)
+#define GET_CONF_TIMER_PASS(x)        ((x >> 9U) & 0b1)
+#define GET_CONF_TIMER_TRIGGERED(x)   ((x >> 11U) & 0b1)
 #define GET_CONF_TIMER_PERIOD_TYPE(x) ((x >> 12U) & 0b11)
 #define GET_CONF_TIMER_RUN_TYPE(x)    ((x >> 14U) & 0b11)
 #define SET_CONF_TIMER_ENABLED(x)     x |= 1
@@ -178,7 +179,8 @@
 #define SET_CONF_TIMER_TU(x)          x |= (1 << 6U)
 #define SET_CONF_TIMER_MO(x)          x |= (1 << 7U)
 #define SET_CONF_TIMER_SU(x)          x |= (1 << 8U)
-#define SET_CONF_TIMER_TRIGGERED(x)   x |= (1 << 9U)
+#define SET_CONF_TIMER_PASS(x)        x |= (1 << 9U)
+#define SET_CONF_TIMER_TRIGGERED(x)   x |= (1 << 11U)
 #define SET_CONF_TIMER_PERIOD_TYPE(x,y) x = (((x)&(0b1100111111111111))|(((y & 0b11) << 12U)&(0b0011000000000000)))
 #define SET_CONF_TIMER_RUN_TYPE(x,y)    x = (((x)&(0b0011111111111111))|(((y & 0b11) << 14U)&(0b1100000000000000)))
 #define CLEAR_CONF_TIMER_ENABLED(x)   x &= ~1
@@ -190,7 +192,8 @@
 #define CLEAR_CONF_TIMER_TU(x)        x &= ~(1 << 6U)
 #define CLEAR_CONF_TIMER_MO(x)        x &= ~(1 << 7U)
 #define CLEAR_CONF_TIMER_SU(x)        x &= ~(1 << 8U)
-#define CLEAR_CONF_TIMER_TRIGGERED(x) x &= ~(1 << 9U)
+#define CLEAR_CONF_TIMER_PASS(x)      x &= ~(1 << 9U)
+#define CLEAR_CONF_TIMER_TRIGGERED(x) x &= ~(1 << 11U)
 
 #define GET_ZONE_ALARM(x)     ((x >> 1U) & 0b1)
 #define GET_ZONE_ERROR(x)     ((x >> 5U) & 0b1)
@@ -317,7 +320,7 @@ typedef struct {
   float   value;    // = 0.0;
 } sensor_t;
 
-//
+// TCL callback
 typedef void (*script_cb_t) (char *result);
 void script_cb(script_cb_t ptrFunc(char *result), char *result) {
   ptrFunc(result);
@@ -328,6 +331,7 @@ typedef struct {
   uint8_t index;
   uint8_t flags;
   void   *callback;
+  void  **result;
 } script_t;
 
 // Alerts
@@ -406,9 +410,9 @@ typedef struct {
 //                         ||-          10 Hours, 11 Days
 //                         |||- Period type: 0 Secods, 01 Minutes,
 //                         ||||-             10 Hours, 11 Days
-//                         |||||-
+//                         |||||- Triggered
 //                         ||||||-
-//                         |||||||- Triggered
+//                         |||||||-
 //                         ||||||||- Monday
 //                         ||||||||         |- Tuesday
 //                         ||||||||         ||- Wednesday
@@ -490,6 +494,8 @@ typedef struct {
   uint8_t  systemFlags;
 
   calendar_t timer[TIMER_SIZE];
+
+  char     scriptName[SCRIPT_SIZE][NAME_LENGTH];
 
 } config_t;
 config_t conf;
@@ -634,8 +640,9 @@ void setConfDefault(void){
   conf.versionMajor   = OHS_MAJOR;
   conf.versionMinor   = OHS_MINOR;
   conf.logOffset      = 0;
-  conf.armDelay       = 20;
-  conf.autoArm        = 1;
+  conf.armDelay       = 80;
+  conf.autoArm        = 20;
+  conf.openAlarm      = 20;
   strcpy(conf.dateTimeFormat, "%T %a %d.%m.%Y");
 
   for(uint8_t i = 0; i < ALARM_ZONES; i++) {
@@ -743,7 +750,7 @@ void setConfDefault(void){
   //                  |||||||- Show warnings
   //                  ||||||||- Restart environment each time.
   conf.tclSetting = 0b00000001;
-  conf.tclIteration = 4000;
+  conf.tclIteration = 5000;
 
   //                   ||||||||- RTC low flag, let's check on power On.
   conf.systemFlags = 0b00000000;
@@ -762,6 +769,10 @@ void setConfDefault(void){
     conf.timer[i].nextOff = 0;
     strcpy(conf.timer[i].name, "");
     conf.timer[i].evalScript = DUMMY_NO_VALUE;
+  }
+
+  for(uint8_t i = 0; i < SCRIPT_SIZE; i++) {
+    strcpy(conf.scriptName[i], "");
   }
 }
 

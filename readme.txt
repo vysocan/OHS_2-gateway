@@ -1,25 +1,9 @@
-*****************************************************************************
-** ChibiOS/RT port for ARM-Cortex-M4 STM32F407.                            **
-*****************************************************************************
+ 
+ Open Home Security GW 
+***********************
 
-** TARGET **
+Gateway code for OHS board v 2.0.x custom board with STM32F407.
 
-The demo runs on an ST STM32F4-Discovery board.
+Using ChibiOS/RT port for ARM-Cortex-M4
 
-** The Demo **
-
-
-** Build Procedure **
-
-The demo has been tested by using the free Codesourcery GCC-based toolchain
-and YAGARTO. just modify the TRGT line in the makefile in order to use
-different GCC toolchains.
-
-** Notes **
-
-Some files used by the demo are not part of ChibiOS/RT but are copyright of
-ST Microelectronics and are licensed under a different license.
-Also note that not all the files present in the ST library are distributed
-with ChibiOS/RT, you can find the whole library on the ST web site:
-
-                             http://www.st.com
+See https://openhomesecurity.blogspot.com/

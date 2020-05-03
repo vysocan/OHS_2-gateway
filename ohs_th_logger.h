@@ -12,7 +12,7 @@
 /*
  * Logger thread
  */
-static THD_WORKING_AREA(waLoggerThread, 256);
+static THD_WORKING_AREA(waLoggerThread, 128);
 static THD_FUNCTION(LoggerThread, arg) {
   chRegSetThreadName(arg);
   msg_t    msg;

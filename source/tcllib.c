@@ -17,13 +17,13 @@
 //#define DBG(...) {chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__); chprintf((BaseSequentialStream*) &SD3, "\r\n");}
 #define DBG(...)
 #endif
+//#define VAR(...) {chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__); chprintf((BaseSequentialStream*) &SD3, "\r\n");}
+#define VAR(...)
 
-#define VAR(...) {chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__); chprintf((BaseSequentialStream*) &SD3, "\r\n");}
-
-#define TCL_TRACE(...) {chprintf((BaseSequentialStream*) &SD3, "TCL trace: ");\
-                    chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__);\
-                    chprintf((BaseSequentialStream*) &SD3, "\r\n");}
-
+// tcl_output
+#define TCL_TRACE(...) {chprintf(tcl_output, "Trace: ");\
+                    chprintf(tcl_output, __VA_ARGS__);\
+                    chprintf(tcl_output, "\r\n");}
 #define TCL_WARNING(...) {chprintf(tcl_output, "Warning: ");\
                     chprintf(tcl_output, __VA_ARGS__);\
                     chprintf(tcl_output, "\r\n");}
@@ -293,7 +293,6 @@ struct tcl_env* tcl_env_alloc(struct tcl_env* parent) {
   struct tcl_env* env = tcl_malloc(sizeof(*env));
   env->vars = NULL;
   env->parent = parent;
-  //TCL_TRACE("ENV Allocate %x.", env);
   return env;
 }
 
@@ -424,7 +423,7 @@ int tcl_eval(struct tcl* tcl, const char* s, size_t len) {
     switch (p.token) {
       case TERROR:
         DBG("Eval: FERROR, lexer error");
-        TCL_ERROR("At %.*s\r\n", (int)(p.to - p.from), p.from);
+        TCL_ERROR("At %.*s", (int)(p.to - p.from), p.from);
         tcl_list_free(list);
         tcl_free(cur);
         return tcl_result(tcl, FERROR, tcl_alloc("", 0));
@@ -462,8 +461,8 @@ int tcl_eval(struct tcl* tcl, const char* s, size_t len) {
               if (cmd->arity == 0 || cmd->arity == tcl_list_length(list)) {
                 r = cmd->fn(tcl, list, cmd->arg);
                 // Error reporting
-                if (r != FNORMAL) {
-                  TCL_WARNING("Command '%s', returned %u.", tcl_string(cmdname), r);
+                if (r == FERROR) {
+                  TCL_WARNING("Command '%s' returned ERROR.", tcl_string(cmdname));
                 }
                 break;
               } else {
@@ -505,7 +504,6 @@ int tcl_eval(struct tcl* tcl, const char* s, size_t len) {
 void tcl_register(struct tcl* tcl, const char* name, tcl_cmd_fn_t fn, int arity,
     void* arg) {
   struct tcl_cmd* cmd = tcl_malloc(sizeof(struct tcl_cmd));
-  //TCL_TRACE("REG Allocate %x.", cmd);
   cmd->name = tcl_alloc(name, strlen(name));
   cmd->fn = fn;
   cmd->arg = arg;
@@ -681,9 +679,7 @@ static int tcl_cmd_math(struct tcl* tcl, tcl_value_t* args, void* arg) {
   tcl_value_t* bval = tcl_list_at(args, 2);
   const char* op = tcl_string(opval);
   float a = tcl_float(aval);
-  TCL_TRACE("a = %.2f", a);
   float b = tcl_float(bval);
-  TCL_TRACE("b = %.2f", a);
   float c = 0;
   if (op[0] == '+') {
     c = a + b;
@@ -694,10 +690,7 @@ static int tcl_cmd_math(struct tcl* tcl, tcl_value_t* args, void* arg) {
   } else if (op[0] == '/') {
     // Error reporting
     if (b == 0) {
-      TCL_TRACE("Can't divide by '%d'.", b);
-      DBG("FREE tcl_cmd_math %x.", opval);
-      DBG("FREE tcl_cmd_math %x.", aval);
-      DBG("FREE tcl_cmd_math %x.", bval);
+      TCL_ERROR("Can't divide by 0.");
       tcl_free(opval);
       tcl_free(aval);
       tcl_free(bval);
@@ -717,35 +710,30 @@ static int tcl_cmd_math(struct tcl* tcl, tcl_value_t* args, void* arg) {
   } else if (op[0] == '!' && op[1] == '=') {
     c = a != b;
   }
+  // Check for c type, int or float
+  if ((float)(int)c == c) chsnprintf(&buf[0], sizeof(buf), "%d", (int)c);
+  else chsnprintf(&buf[0], sizeof(buf), "%.2f", c);
 
-  /*
-  char* p = buf + sizeof(buf) - 1;
-  char neg = (c < 0);
-  *p-- = 0;
-  if (neg) {
-    c = -c;
-  }
-  do {
-    *p-- = '0' + (c % 10);
-    c = c / 10;
-  } while (c > 0);
-  if (neg) {
-    *p-- = '-';
-  }
-  p++;
-  */
-
-  chsnprintf(&buf[0], sizeof(buf), "%.2f", c);
-
-  DBG("FREE tcl_cmd_math %x.", opval);
-  DBG("FREE tcl_cmd_math %x.", aval);
-  DBG("FREE tcl_cmd_math %x.", bval);
   tcl_free(opval);
   tcl_free(aval);
   tcl_free(bval);
   return tcl_result(tcl, FNORMAL, tcl_alloc(&buf[0], strlen(buf)));
 }
 #endif
+
+static int tcl_cmd_strcmp(struct tcl* tcl, tcl_value_t* args, void* arg) {
+  (void)arg;
+  int r;
+  tcl_value_t* aval = tcl_list_at(args, 1);
+  tcl_value_t* bval = tcl_list_at(args, 2);
+
+  if (!strcmp(aval, bval)) r = tcl_result(tcl, FNORMAL, tcl_alloc("1", 1));
+  else                     r = tcl_result(tcl, FNORMAL, tcl_alloc("0", 1));
+
+  tcl_free(aval);
+  tcl_free(bval);
+  return r;
+}
 
 void tcl_init(struct tcl* tcl, uint16_t max_iterations, BaseSequentialStream *output) {
   tcl_output = output;
@@ -767,10 +755,11 @@ void tcl_init(struct tcl* tcl, uint16_t max_iterations, BaseSequentialStream *ou
   tcl_register(tcl, "break", tcl_cmd_flow, 1, NULL);
   tcl_register(tcl, "continue", tcl_cmd_flow, 1, NULL);
 #ifndef TCL_DISABLE_MATH
-  char* math[] = { "+", "-", "*", "/", ">", ">=", "<", "<=", "==", "!=" };
+  const char* math[] = { "+", "-", "*", "/", ">", ">=", "<", "<=", "==", "!=" };
   for (unsigned int i = 0; i < (sizeof(math) / sizeof(math[0])); i++) {
     tcl_register(tcl, math[i], tcl_cmd_math, 3, NULL);
   }
+  tcl_register(tcl, "strc", tcl_cmd_strcmp, 3, NULL);
 #endif
 }
 
@@ -782,13 +771,28 @@ void tcl_destroy(struct tcl* tcl) {
   while (tcl->cmds) {
     struct tcl_cmd* cmd = tcl->cmds;
     tcl->cmds = tcl->cmds->next;
-    //DBG("FREE tcl_destroy %x.", cmd->name);
-    //DBG("FREE tcl_destroy %x.", cmd->arg);
-    //DBG("FREE tcl_destroy %x.", cmd);
     tcl_free(cmd->name);
     tcl_free(cmd->arg);
     tcl_free(cmd);
   }
   DBG("FREE tcl_destroy %x.", tcl->result);
   tcl_free(tcl->result);
+}
+
+void tcl_list_var(struct tcl* tcl, BaseSequentialStream **output) {
+  struct tcl_var* var;
+
+  chprintf(*output, "Variables:\r\n");
+  for (var = tcl->env->vars; var != NULL; var = var->next) {
+    chprintf(*output, "%s = '%s'\r\n", var->name, var->value);
+  }
+}
+
+void tcl_list_cmd(struct tcl* tcl, BaseSequentialStream **output) {
+  struct tcl_cmd* cmd;
+
+  chprintf(*output, "Commands, name (arguments):\r\n");
+  for (cmd = tcl->cmds; cmd != NULL; cmd = cmd->next) {
+    chprintf(*output, "%s (%u)\r\n", cmd->name, (cmd->arity ? cmd->arity - 1 : 0));
+  }
 }

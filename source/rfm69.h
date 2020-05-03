@@ -88,7 +88,7 @@ void rfm69AutoPower(int8_t targetRssi);
 void rfm69SetSensBoost(bool onOff);
 int8_t rfm69GetData(void);
 int8_t rfm69Send(uint16_t toAddress, const void* buffer, uint8_t bufferSize, bool requestAck);
-bool frm69SendWithRetry(uint16_t toAddress, const void* buffer, uint8_t bufferSize, uint8_t retries);
+int8_t rfm69SendWithRetry(uint16_t toAddress, const void* buffer, uint8_t bufferSize, uint8_t retries);
 void rfm69Sleep(void);
 int8_t rfm69ReadTemperature(uint8_t calFactor);
 void rfm69SetHighPower(bool onOff);

@@ -47,50 +47,102 @@ static int tcl_cmd_node(struct tcl* tcl, tcl_value_t* args, void* arg) {
   return ret;
 }
 
+static int tcl_cmd_group(struct tcl* tcl, tcl_value_t* args, void* arg) {
+  (void)arg;
+  int ret;
+  uint8_t groupNum;
+
+  tcl_value_t* groupNumber = tcl_list_at(args, 1);
+  tcl_value_t* groupCommand = tcl_list_at(args, 2);
+
+  groupNum = atoi(groupNumber) - 1;
+  //chprintf((BaseSequentialStream*)&SD3, "groupNum: %u.\r\n", groupNum);
+  //chprintf((BaseSequentialStream*)&SD3, "*groupCommand: %c.\r\n", *groupCommand);
+
+  if ((groupNum < ALARM_GROUPS) && (GET_CONF_GROUP_ENABLED(conf.group[groupNum]))) {
+    switch (*groupCommand) {
+      case 'a': // Armed
+      case 'A':
+        if (GET_GROUP_ARMED(group[groupNum].setting)) {
+          if GET_GROUP_ARMED_HOME(group[groupNum].setting) {
+            ret = tcl_result(tcl, FNORMAL, tcl_alloc("3", 1)); // Armed away
+          } else {
+            ret = tcl_result(tcl, FNORMAL, tcl_alloc("2", 1)); // Armed home
+          }
+        } else {
+          if (group[groupNum].armDelay > 0) {
+            ret = tcl_result(tcl, FNORMAL, tcl_alloc("1", 1)); // Arming
+          } else {
+            ret = tcl_result(tcl, FNORMAL, tcl_alloc("0", 1)); // Disarmed
+          }
+        }
+        break;
+      case 's': // Status
+      case 'S':
+        if (GET_GROUP_ALARM(group[groupNum].setting) == 0) {
+          if (GET_GROUP_WAIT_AUTH(group[groupNum].setting)) {
+            ret = tcl_result(tcl, FNORMAL, tcl_alloc("0", 1)); // Awaiting authorization
+          } else {
+            ret = tcl_result(tcl, FNORMAL, tcl_alloc("1", 1)); // OK
+          }
+        } else {
+          ret = tcl_result(tcl, FNORMAL, tcl_alloc("-1", 2)); // Alarm
+        }
+        break;
+    }
+  } else {
+    ret = tcl_result(tcl, FERROR, tcl_alloc("", 0));
+  }
+
+  tcl_free(groupNumber);
+  tcl_free(groupCommand);
+  return ret;
+}
+
 /*
  * TCL execution thread
  */
 static THD_WORKING_AREA(waTclThread, 2048);
 static THD_FUNCTION(tclThread, arg) {
   chRegSetThreadName(arg);
-  msg_t    msg;
+  msg_t     msg;
   script_t *inMsg;
   systime_t runTime;
 
-  memset(&tclOutput[0], '\0', TCL_SCRIPT_LENGTH);
   MemoryStream ms;
-  BaseSequentialStream *chp;
-  // Memory stream object to be used as a string writer, reserving one byte for the final zero.
-  msObjectInit(&ms, (uint8_t *)tclOutput, TCL_SCRIPT_LENGTH-1, 0);
-  // Performing the print operation using the common code.
-  chp = (BaseSequentialStream *)(void *)&ms;
+  BaseSequentialStream *tclChp;
+  msObjectInit(&ms, (uint8_t *)tclOutput, TCL_OUTPUT_LENGTH-1, 0);
+  tclChp = (BaseSequentialStream *)(void *)&ms;
 
-  tcl_init(&tcl, conf.tclIteration, chp);
+  tcl_init(&tcl, conf.tclIteration, tclChp);
   tcl_register(&tcl, "node", tcl_cmd_node, 2, NULL);
+  tcl_register(&tcl, "group", tcl_cmd_group, 3, NULL);
 
   while (true) {
     msg = chMBFetchTimeout(&script_mb, (msg_t*)&inMsg, TIME_INFINITE);
     if (msg == MSG_OK) {
 
       // Prepare for run
-      memset(&tclOutput[0], '\0', TCL_SCRIPT_LENGTH);
+      memset(&tclOutput[0], '\0', TCL_OUTPUT_LENGTH);
       ms.eos = ms.offset = 0;
       tcl_iteration = conf.tclIteration;
       runTime = chVTGetSystemTimeX();
-
       if (tcl_eval(&tcl, &tclCmd[0], strlen(tclCmd)) != FERROR) {
-        chprintf(chp, "Result: %.*s\r\n", tcl_length(tcl.result), tcl_string(tcl.result));
+        chprintf(tclChp, "\r\n%s: %.*s", text_Result, tcl_length(tcl.result), tcl_string(tcl.result));
       } else {
-        chprintf(chp, "Script error\r\n");
+        chprintf(tclChp, "\r\n%s: %s", text_Result, text_error);
       }
-
-      chprintf(chp, "Elapsed: %u ms\r\n", TIME_I2MS(chVTGetSystemTimeX() - runTime));
+      chprintf(tclChp, "\r\nElapsed: %u ms\r\n", TIME_I2MS(chVTGetSystemTimeX() - runTime));
 
       // Do callback if requested
       if (inMsg->callback) {
         script_cb(inMsg->callback, tcl_string(tcl.result));
       }
-
+      // Pass result
+      if (inMsg->result) {
+        *inMsg->result = tcl_string(tcl.result);
+      }
+      // Process umm info
       umm_info(&my_umm_heap[0], true);
     } else {
       chprintf(console, "Script MB ERROR\r\n");

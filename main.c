@@ -60,8 +60,9 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 // TCL
 #define UMM_MALLOC_CFG_HEAP_SIZE ((size_t)1024*16)
 #define TCL_SCRIPT_LENGTH        ((size_t)1024*1)
+#define TCL_OUTPUT_LENGTH        ((size_t)1024*2)
 static char my_umm_heap[UMM_MALLOC_CFG_HEAP_SIZE] __attribute__((section(".ram4")));
-static char tclOutput[TCL_SCRIPT_LENGTH] __attribute__((section(".ram4")));
+static char tclOutput[TCL_OUTPUT_LENGTH] __attribute__((section(".ram4")));
 static char tclCmd[TCL_SCRIPT_LENGTH] __attribute__((section(".ram4")));
 #include "umm_malloc.h"
 #include "umm_malloc_cfg.h"
@@ -179,8 +180,8 @@ int main(void) {
   chThdCreateStatic(waAlertThread, sizeof(waAlertThread), NORMALPRIO, AlertThread, (void*)"alert");
   chThdCreateStatic(waServiceThread, sizeof(waServiceThread), NORMALPRIO, ServiceThread, (void*)"service");
   chThdCreateStatic(waRadioThread, sizeof(waRadioThread), NORMALPRIO, RadioThread, (void*)"radio");
-  chThdCreateStatic(waHeartBeatThread, sizeof(waHeartBeatThread), NORMALPRIO, HeartBeatThread, (void*)"heartbeat");
-  chThdCreateStatic(waTclThread, sizeof(waTclThread), LOWPRIO, tclThread, (void*)"tcl");
+  chThdCreateStatic(waHeartBeatThread, sizeof(waHeartBeatThread), LOWPRIO, HeartBeatThread, (void*)"heartbeat");
+  chThdCreateStatic(waTclThread, sizeof(waTclThread), LOWPRIO + 1, tclThread, (void*)"tcl");
 
   static THD_WORKING_AREA(waShell, 2048);
   chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg1);
@@ -214,7 +215,8 @@ int main(void) {
     writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
     writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
   }
-  conf.tclIteration = 4000;
+  // TODO OHS Add group state restore after power off
+
   //setConfDefault(); // Load OHS default conf.
   // SMTP
   smtp_set_server_addr(conf.SMTPAddress);
@@ -230,9 +232,9 @@ int main(void) {
   chprintf(console, "uBS, free space: %u, First block: %u\r\n", uBSGetFreeSpace(), uBSaddress);
   */
 
-  // Initilaize .ram4
+  // Initialize .ram4
   memset(&tclCmd[0], '\0', TCL_SCRIPT_LENGTH);
-  memset(&tclOutput[0], '\0', TCL_SCRIPT_LENGTH);
+  memset(&tclOutput[0], '\0', TCL_OUTPUT_LENGTH);
   memset(&gprsModemInfo[0], '\0', 20);
   memset(&gprsSmsText[0], '\0', 128);
 
@@ -244,6 +246,11 @@ int main(void) {
 
   // TCL
   umm_init(&my_umm_heap[0], UMM_MALLOC_CFG_HEAP_SIZE);
+
+  // Initialize timers
+  for (uint8_t i = 0; i < TIMER_SIZE; i++) {
+    setTimer(i, true);
+  }
 
   chThdSleepMilliseconds(10000);
 

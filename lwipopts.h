@@ -77,11 +77,12 @@
 //#define IP_DEBUG LWIP_DBG_ON
 //#define DNS_DEBUG LWIP_DBG_ON
 // SNTP
-#define SNTP_DEBUG LWIP_DBG_ON
+//#define SNTP_DEBUG LWIP_DBG_ON
 // SMTP
-#define SMTP_DEBUG LWIP_DBG_ON
-#define IGMP_DEBUG LWIP_DBG_ON
-#define MDNS_DEBUG LWIP_DBG_ON
+//#define SMTP_DEBUG LWIP_DBG_ON
+// MDNS
+//#define IGMP_DEBUG LWIP_DBG_ON
+//#define MDNS_DEBUG LWIP_DBG_ON
 
 //SNTP
 #define SNTP_SERVER_DNS 1
@@ -127,7 +128,7 @@ void SetTimeUnixA(time_t ut){
      rtcSetTime(&RTCD1, &_ts);}while(0)
 */
 
-// with tm
+// TODO OHS Get rid of struct tm in SNTP_SET_SYSTEM_TIME, by using my own convert functions.
 #define SNTP_SET_SYSTEM_TIME(sec) \
   do{time_t rawtime = (sec);\
      RTCDateTime _ts;\

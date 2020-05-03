@@ -12,7 +12,7 @@
  * This is a periodic thread that does absolutely nothing except flashing
  * a LED.
  */
-static THD_WORKING_AREA(waHeartBeatThread, 128);
+static THD_WORKING_AREA(waHeartBeatThread, 64);
 static THD_FUNCTION(HeartBeatThread, arg) {
   chRegSetThreadName(arg);
   systime_t time;

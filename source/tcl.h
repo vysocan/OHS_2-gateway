@@ -113,6 +113,9 @@ void tcl_register(struct tcl* tcl, const char* name, tcl_cmd_fn_t fn, int arity,
 void tcl_init(struct tcl* tcl, uint16_t max_iterations, BaseSequentialStream *output);
 void tcl_destroy(struct tcl* tcl);
 
+void tcl_list_var(struct tcl* tcl, BaseSequentialStream **output);
+void tcl_list_cmd(struct tcl* tcl, BaseSequentialStream **output);
+
 #ifdef __cplusplus
 }
 #endif

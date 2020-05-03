@@ -484,7 +484,7 @@ int8_t rfm69Send(uint16_t toAddress, const void* buffer, uint8_t bufferSize, boo
  * Send packet with retry
  * Replies usually take only 5..8ms at 50kbps@915MHz
  */
-bool rfm69SendWithRetry(uint16_t toAddress, const void* buffer, uint8_t bufferSize, uint8_t retries) {
+int8_t rfm69SendWithRetry(uint16_t toAddress, const void* buffer, uint8_t bufferSize, uint8_t retries) {
 
   for (uint8_t i = 0; i <= retries; i++) {
     if (rfm69Send( toAddress, buffer, bufferSize, true) == RF69_RSLT_OK) return RF69_RSLT_OK;

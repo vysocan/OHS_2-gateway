@@ -8,11 +8,20 @@
 #ifndef OHS_TH_SENSOR_H_
 #define OHS_TH_SENSOR_H_
 
+#ifndef SENSOR_DEBUG
+#define SENSOR_DEBUG 0
+#endif
+
+#if SENSOR_DEBUG
+#define DBG_SENSOR(...) {chprintf((BaseSequentialStream*)&SD3, __VA_ARGS__);}
+#else
+#define DBG_SENSOR(...)
+#endif
 
 /*
  * Sensor thread
  */
-static THD_WORKING_AREA(waSensorThread, 256);
+static THD_WORKING_AREA(waSensorThread, 320);
 static THD_FUNCTION(SensorThread, arg) {
   chRegSetThreadName(arg);
   msg_t    msg;
@@ -30,7 +39,7 @@ static THD_FUNCTION(SensorThread, arg) {
 
       nodeIndex = getNodeIndex(inMsg->address, inMsg->type, inMsg->function, inMsg->number);
       if (nodeIndex != DUMMY_NO_VALUE) {
-        chprintf(console, "Sensor data for node %c-%c\r\n", inMsg->type, inMsg->function);
+        DBG_SENSOR("Sensor data for node %c-%c\r\n", inMsg->type, inMsg->function);
         //  node enabled
         if (GET_NODE_ENABLED(node[nodeIndex].setting)) {
           node[nodeIndex].value   = inMsg->value;
@@ -52,7 +61,7 @@ static THD_FUNCTION(SensorThread, arg) {
         // Let's call same unknown node for re-registration only once a while,
         // or we send many packets if multiple sensor data come in
         if ((lastNode != inMsg->address) || (timeNow > lastNodeTime)) {
-          chprintf(console, "Unregistered sensor\r\n");
+          DBG_SENSOR("Unregistered sensor\r\n");
           chThdSleepMilliseconds(5);  // This is needed for sleeping battery nodes, or they wont see reg. command.
           nodeIndex = sendCmd(inMsg->address, NODE_CMD_REGISTRATION); // call this address to register
           lastNode = inMsg->address;
@@ -60,7 +69,7 @@ static THD_FUNCTION(SensorThread, arg) {
         }
       }
     }else {
-      chprintf(console, "Sensor ERROR\r\n");
+      DBG_SENSOR("Sensor ERROR\r\n");
     }
     chPoolFree(&sensor_pool, inMsg);
   }

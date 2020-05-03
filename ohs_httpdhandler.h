@@ -30,13 +30,13 @@
 #endif
 
 #ifndef HTTP_DEBUG
-#define HTTP_DEBUG 1
+#define HTTP_DEBUG 0
 #endif
 
 #if HTTP_DEBUG
-#define DBG(...) {chprintf((BaseSequentialStream*)&SD3, __VA_ARGS__);}
+#define DBG_HTTP(...) {chprintf((BaseSequentialStream*)&SD3, __VA_ARGS__);}
 #else
-#define DBG(...)
+#define DBG_HTTP(...)
 #endif
 
 static void *current_connection;
@@ -90,9 +90,12 @@ const char html_Save[]              = "<input type='submit' name='e' value='Save
 const char html_Reregister[]        = "<input type='submit' name='R' value='Call registration'/>";
 const char html_Now[]               = "<input type='submit' name='N' value='Now'/>";
 const char html_FR[]                = "<input type='submit' name='R' value='<<'/>";
+const char html_R[]                 = "<input type='submit' name='r' value='<'/>";
 const char html_FF[]                = "<input type='submit' name='F' value='>>'/>";
+const char html_F[]                 = "<input type='submit' name='f' value='>'/>";
 const char html_Run[]               = "<input type='submit' name='R' value='Run'/>";
 const char html_Refresh[]           = "<input type='submit' name='F' value='Refresh'/>";
+const char html_Restart[]           = "<input type='submit' name='S' value='Restart'/>";
 const char html_textarea_1[]        = "<textarea name='";
 const char html_textarea_2[]        = "' id='";
 const char html_textarea_3[]        = "' rows='";
@@ -161,7 +164,7 @@ static const webPage_t webPage[] = {
   {"/setting.html", "Settings"},
   {"/zone.html",    "Zones"},
   {"/group.html",   "Groups"},
-  {"/contact.html", "Contacts"},
+  {"/user.html",    "Users"},
   {"/key.html",     "Keys"},
   {"/alert.html",   "Alerts"},
   {"/node.html",    "Nodes"},
@@ -308,7 +311,8 @@ void genfiles_ex_init(void) {
   /* nothing to do here yet */
 }
 
-static uint8_t webNode = 0, webContact = 0, webKey = 0, webZone = 0, webGroup = 0, webTimer = 0;
+static uint8_t webNode = 0, webContact = 0, webKey = 0, webZone = 0, webGroup = 0, webTimer = 0,
+    webScript = 0;
 static uint16_t webLog = 0;
 int fs_open_custom(struct fs_file *file, const char *name){
   char temp[3] = "";
@@ -342,7 +346,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           GET_CONF_ZONE_TYPE(conf.zone[webZone]) ? chprintf(chp, JSen1) : chprintf(chp, JSdis1);
           break;
         case PAGE_TIMER:
-          GET_CONF_TIMER_PERIOD_TYPE(conf.timer[webTimer].setting) ? chprintf(chp, JSen1) : chprintf(chp, JSdis1);
+          GET_CONF_TIMER_TYPE(conf.timer[webTimer].setting) ? chprintf(chp, JSen1) : chprintf(chp, JSdis1);
           break;
       }
       chprintf(chp, "\"><div class='wrp'><div class='sb'>\r\n");
@@ -569,7 +573,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
               chprintf(chp, "%s", html_e_td_td);
               printOkNok(chp, GET_CONF_ZONE_PIR_AS_TMP(conf.zone[i]));
               chprintf(chp, "%s", html_e_td_td);
-              chprintf(chp, "%u %s%s", GET_CONF_ZONE_AUTH_TIME(conf.zone[i])*conf.armDelay, text_seconds, html_e_td_td);
+              chprintf(chp, "%u %s%s", GET_CONF_ZONE_AUTH_TIME(conf.zone[i])*conf.armDelay, durationSelect[0], html_e_td_td);
               if (GET_CONF_ZONE_ENABLED(conf.zone[i])) printFrmTimestamp(chp, &zone[i].lastPIR);
               chprintf(chp, "%s", html_e_td_td);
               if (GET_CONF_ZONE_ENABLED(conf.zone[i])) printFrmTimestamp(chp, &zone[i].lastOK);
@@ -800,7 +804,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s%s%s", html_e_td_e_tr_tr_td, text_Up, text_time, html_e_td_td);
           tempTime -= startTime; printFrmUpTime(chp, &tempTime);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_AC, text_power, html_e_td_td);
-          printOkNok(chp, palReadPad(GPIOD, GPIOD_AC_OFF));
+          printOkNok(chp, !(palReadPad(GPIOD, GPIOD_AC_OFF)));
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Battery, html_e_td_td);
           printOkNok(chp, palReadPad(GPIOD, GPIOD_BAT_OK));
           chprintf(chp, "%s%s %s%", html_e_td_e_tr_tr_td, text_RTC, text_battery);
@@ -829,27 +833,39 @@ int fs_open_custom(struct fs_file *file, const char *name){
           break;
         case PAGE_SETTING:
           // Information table
-          chprintf(chp, "%s%s%s", html_tr_td, text_User, html_e_td_td);
+          chprintf(chp, "%s%s / %s %s%s", html_tr_td, text_Arm, text_Authentication, text_time,
+                   html_e_td_td);
+          printIntInput(chp, 'D', conf.armDelay / 4, 3, 5, 50);
+          chprintf(chp, " %s%s%s %s %s %s%s", durationSelect[0], html_e_td_e_tr_tr_td, text_Auto,
+                   text_arm, text_zone, text_delay, html_e_td_td);
+          printIntInput(chp, 'E', conf.autoArm, 3, 1, 240);
+          chprintf(chp, " %s%s%s %s %s %s%s", durationSelect[1], html_e_td_e_tr_tr_td, text_Zone,
+                   text_open, text_alarm, text_delay, html_e_td_td);
+          printIntInput(chp, 'F', conf.openAlarm, 3, 1, 240);
+          chprintf(chp, " %s%s%s %s%s", durationSelect[1], html_e_td_e_tr_tr_td, text_Admin,
+                   text_user, html_e_td_td);
           printTextInput(chp, 'u', conf.user, NAME_LENGTH);
-          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Password, html_e_td_td);
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Admin, text_password,
+                   html_e_td_td);
           printPassInput(chp, 'p', conf.password, NAME_LENGTH); chprintf(chp, "%s", html_br);
           printPassInput(chp, 'P', conf.password, NAME_LENGTH);
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
 
           chprintf(chp, "<h1>%s</h1>\r\n%s", text_SMTP, html_table);
-          chprintf(chp, "%s%s%s", html_tr_td, text_Server, html_e_td_td);
+          chprintf(chp, "%s%s %s%s", html_tr_td, text_Server, text_address, html_e_td_td);
           printTextInput(chp, 'a', conf.SMTPAddress, URL_LENGTH);
-          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Port, html_e_td_td);
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Server, text_port, html_e_td_td);
           printIntInput(chp, 'b', conf.SMTPPort, 5, 0, 65535);
-          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_User, html_e_td_td);
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_User, text_name, html_e_td_td);
           printTextInput(chp, 'c', conf.SMTPUser, EMAIL_LENGTH);
-          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Password, html_e_td_td);
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_User, text_password, html_e_td_td);
           printPassInput(chp, 'd', conf.SMTPPassword, NAME_LENGTH); chprintf(chp, "%s", html_br);
           printPassInput(chp, 'D', conf.SMTPPassword, NAME_LENGTH);
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
 
           chprintf(chp, "<h1>%s</h1>\r\n%s", text_NTP, html_table);
-          chprintf(chp, "%s%s%s", html_tr_td, text_Server, html_e_td_td);
+          chprintf(chp, "%s%s %s%s", html_tr_td, text_Server, text_address,
+                   html_e_td_td);
           printTextInput(chp, 'f', conf.SNTPAddress, URL_LENGTH);
 
           chprintf(chp, "%s%s %s%s", html_tr_td, text_DS, text_start, html_e_td_td);
@@ -886,8 +902,8 @@ int fs_open_custom(struct fs_file *file, const char *name){
           }
           chprintf(chp, "%s %s", html_e_select, text_oclock);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_DS, text_offset, html_e_td_td);
-          printIntInput(chp, 'O', conf.timeDstOffset, 5, 0, 1440);
-          chprintf(chp, " %s%s", text_minutes, html_e_td_e_tr_tr_td);
+          printIntInput(chp, 'O', conf.timeDstOffset, 5, -1440, 1440);
+          chprintf(chp, " %s%s", durationSelect[1], html_e_td_e_tr_tr_td);
 
           chprintf(chp, "%s %s%s", text_DS, text_end, html_e_td_td);
           chprintf(chp, "%sw%s", html_select, html_e_tag);
@@ -923,8 +939,8 @@ int fs_open_custom(struct fs_file *file, const char *name){
           }
           chprintf(chp, "%s %s", html_e_select, text_oclock);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Standard, text_offset, html_e_td_td);
-          printIntInput(chp, 'o', conf.timeStdOffset, 5, 0, 1440);
-          chprintf(chp, " %s%s", text_minutes, html_e_td_e_tr_tr_td);
+          printIntInput(chp, 'o', conf.timeStdOffset, 5, -1440, 1440);
+          chprintf(chp, " %s%s", durationSelect[1], html_e_td_e_tr_tr_td);
           chprintf(chp, " %s %s%s", text_Time, text_format, html_e_td_td);
           printTextInput(chp, 'g', conf.dateTimeFormat, NAME_LENGTH);
           chprintf(chp, "%s%s%s", html_e_td_e_tr, html_e_table);
@@ -953,13 +969,32 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%u%s", ummHeapInfo.totalBlocks, html_e_td_td);
           chprintf(chp, "%s %u%%", text_Fragmentation, umm_fragmentation_metric());
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
-          // Script area
-          printTextArea(chp, 's', &tclCmd[0], sizeof(tclCmd), 80, 20);
-          // Buttons
-          chprintf(chp, "%s%s%s%s%s", html_br, html_br, html_Run, html_Refresh, html_Save);
-          // Output
+          chprintf(chp, "<i class='fas fa-code' title=\"");
+          tcl_list_cmd(&tcl, &chp);
+          chprintf(chp, "\"></i>");
+          chprintf(chp, "<i class='fas fa-hashtag' title=\"");
+          tcl_list_var(&tcl, &chp);
+          chprintf(chp, "\"></i>");
           chprintf(chp, "%s%s", html_br, html_br);
-          chprintf(chp, "<pre>%s</pre>", tclOutput);
+          // Script area
+          printTextArea(chp, 's', &tclCmd[0], sizeof(tclCmd), 120, 20);
+          // Buttons
+          chprintf(chp, "%s%s%s%s%s", html_br, html_br, html_Run, html_Refresh, html_Save, html_Restart);
+          // Select script
+          chprintf(chp, "%s%s%s%s", html_table, html_tr_td, text_Script, html_e_td_td);
+          chprintf(chp, "%sP%s", html_select_submit, html_e_tag);
+          for (uint8_t i = 0; i < SCRIPT_SIZE; i++) {
+            chprintf(chp, "%s%u", html_option, i);
+            if (webTimer == i) { chprintf(chp, "%s", html_selected); }
+            else               { chprintf(chp, "%s", html_e_tag); }
+            chprintf(chp, "%u. %s%s", i + 1, conf.scriptName[i], html_e_option);
+          }
+          chprintf(chp, "%s%s", html_e_select, html_e_td_e_tr_tr_td);
+          chprintf(chp, "%s%s", text_Name, html_e_td_td);
+          printTextInput(chp, 'n', conf.scriptName[webScript], NAME_LENGTH);
+          chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
+          // Output
+          chprintf(chp, "%s<pre>%s</pre>", html_br, &tclOutput[0]);
           break;
         case PAGE_TIMER:
           chprintf(chp, "%s#", html_tr_th);
@@ -1009,9 +1044,10 @@ int fs_open_custom(struct fs_file *file, const char *name){
             if (GET_CONF_TIMER_ENABLED(conf.timer[i].setting)) printFrmTimestamp(chp, &tempTime);
             chprintf(chp, "%s", html_e_td_td);
             printNodeAddress(chp, conf.timer[i].toAddress, 'I',  conf.timer[i].toFunction,
-                             conf.timer[i].toFunction);
+                             conf.timer[i].toNumber);
             chprintf(chp, "%s", html_e_td_td);
-
+            if (conf.timer[i].evalScript != DUMMY_NO_VALUE) chprintf(chp, "%s", conf.scriptName[conf.timer[i].evalScript]);
+            else chprintf(chp, "%s", NOT_SET);
             chprintf(chp, "%s", html_e_td_td);
             chprintf(chp, "%.2f%s", conf.timer[i].constantOn, html_e_td_td);
             chprintf(chp, "%.2f%s", conf.timer[i].constantOff, html_e_td_td);
@@ -1023,8 +1059,8 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%sP%s", html_select_submit, html_e_tag);
           for (uint8_t i = 0; i < TIMER_SIZE; i++) {
             chprintf(chp, "%s%u", html_option, i);
-            if (webTimer == i) { chprintf(chp, "%s", html_selected); }
-            else               { chprintf(chp, "%s", html_e_tag); }
+            if (webScript == i) { chprintf(chp, "%s", html_selected); }
+            else                { chprintf(chp, "%s", html_e_tag); }
             chprintf(chp, "%u. %s%s", i + 1, conf.timer[i].name, html_e_option);
           }
           chprintf(chp, "%s%s", html_e_select, html_e_td_e_tr_tr_td);
@@ -1083,6 +1119,22 @@ int fs_open_custom(struct fs_file *file, const char *name){
             }
           }
           chprintf(chp, "%s", html_e_select);
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Evaluate, text_script, html_e_td_td);
+          chprintf(chp, "%sp%s", html_select, html_e_tag);
+          for (uint8_t i = 0; i <= SCRIPT_SIZE; i++) {
+            if (i < SCRIPT_SIZE) {
+              chprintf(chp, "%s%u", html_option, i);
+              if (conf.timer[webTimer].evalScript == i) { chprintf(chp, "%s", html_selected); }
+              else                                      { chprintf(chp, "%s", html_e_tag); }
+              chprintf(chp, "%u. %s%s", i + 1, conf.scriptName[i], html_e_option);
+            } else {
+              chprintf(chp, "%s%u", html_option, DUMMY_NO_VALUE);
+              if (conf.timer[webTimer].evalScript == DUMMY_NO_VALUE) { chprintf(chp, "%s", html_selected); }
+              else                                      { chprintf(chp, "%s", html_e_tag); }
+              chprintf(chp, "%s%s", NOT_SET, html_e_option);
+            }
+          }
+          chprintf(chp, "%s", html_e_select);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_On, text_value, html_e_td_td);
           printFloatInput(chp, 'o', conf.timer[webTimer].constantOn);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Off, text_value, html_e_td_td);
@@ -1130,14 +1182,14 @@ err_t httpd_post_begin(void *connection, const char *uri, const char *http_reque
   LWIP_UNUSED_ARG(content_len);
   LWIP_UNUSED_ARG(post_auto_wnd);
 
-  //DBG("-PB-connection: %u\r\n", (uint32_t *)connection);
-  //DBG("-PB-uri: %s\r\n", (char *)uri);
-  //DBG("-PB-http_request: %s\r\n", (char *)http_request);
-  //DBG("-PB-http_request_len: %u\r\n", http_request_len);
-  //DBG("-PB-content_len: %u\r\n", content_len);
-  //DBG("-PB-response_uri: %s\r\n", (char *)response_uri);
-  //DBG("-PB-response_uri_len: %u\r\n", response_uri_len);
-  //DBG("-PB-post_auto_wnd: %u\r\n", *post_auto_wnd);
+  //DBG_HTTP("-PB-connection: %u\r\n", (uint32_t *)connection);
+  //DBG_HTTP("-PB-uri: %s\r\n", (char *)uri);
+  //DBG_HTTP("-PB-http_request: %s\r\n", (char *)http_request);
+  //DBG_HTTP("-PB-http_request_len: %u\r\n", http_request_len);
+  //DBG_HTTP("-PB-content_len: %u\r\n", content_len);
+  //DBG_HTTP("-PB-response_uri: %s\r\n", (char *)response_uri);
+  //DBG_HTTP("-PB-response_uri_len: %u\r\n", response_uri_len);
+  //DBG_HTTP("-PB-post_auto_wnd: %u\r\n", *post_auto_wnd);
 
   if (current_connection != connection) {
     current_connection = connection;
@@ -1193,26 +1245,26 @@ bool readPostParam(char **pPostData, char *name, uint8_t nameLen, char *value, u
 
 err_t httpd_post_receive_data(void *connection, struct pbuf *p) {
 
-  //DBG("-PD-connection: %u\r\n", (uint32_t *)connection);
+  //DBG_HTTP("-PD-connection: %u\r\n", (uint32_t *)connection);
   if (current_connection == connection) {
-    //DBG("p->payload: %s\r\n", p->payload);
-    //DBG("p->ref: %u\r\n", p->ref);
-    //DBG("p->next: %u\r\n", p->next);
-    //DBG("p->tot_len: %u\r\n", p->tot_len);
+    //DBG_HTTP("p->payload: %s\r\n", p->payload);
+    //DBG_HTTP("p->ref: %u\r\n", p->ref);
+    //DBG_HTTP("p->next: %u\r\n", p->next);
+    //DBG_HTTP("p->tot_len: %u\r\n", p->tot_len);
 
-    //DBG("strlen(postData): %u\r\n", strlen(postData));
+    //DBG_HTTP("strlen(postData): %u\r\n", strlen(postData));
     // Append payload to buffer, maximum size of postData and null
     strncat(postData, (const char *)p->payload, LWIP_MIN(p->tot_len, (sizeof(postData)-strlen(postData))));
 
     //pPostData = &postData[strlen(postData)];
     //pPostData = (char *)pbuf_get_contiguous(p, postData, sizeof(postData)-strlen(postData),
                 //LWIP_MIN(p->tot_len,sizeof(postData)-strlen(postData)), 0);
-    //DBG("postData: %s\r\n", postData);
-    //DBG("pPostData: %s\r\n", pPostData);
+    //DBG_HTTP("postData: %s\r\n", postData);
+    //DBG_HTTP("pPostData: %s\r\n", pPostData);
     //--u8_t buf[32];
     //--u8_t ptr = (u8_t)pbuf_get_contiguous(p, buf, sizeof(buf), LWIP_MIN(option_len, sizeof(buf)), offset);
 
-    //DBG("strlen(postData): %u\r\n", strlen(postData));
+    //DBG_HTTP("strlen(postData): %u\r\n", strlen(postData));
     pbuf_free(p);
     return ERR_OK;
   }
@@ -1232,8 +1284,8 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
   bool repeat;
   char *ptr, *pEnd;;
 
-  //DBG("-PE-connection: %u\r\n", (uint32_t *)connection);
-  DBG("-PE-postData: %s\r\n", postData);
+  //DBG_HTTP("-PE-connection: %u\r\n", (uint32_t *)connection);
+  DBG_HTTP("-PE-postData: %s\r\n", postData);
 
   if (current_connection == connection) {
     ptr = &postData[0];
@@ -1244,7 +1296,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_NODE:
             do{
               repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
-              DBG("Parse: %s=%s<\r\n", name, value);
+              DBG_HTTP("Parse: %s=%s<\r\n", name, value);
               switch(name[0]){
                 case 'P': // select
                   number = strtol(value, NULL, 10);
@@ -1263,7 +1315,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   memcpy(&message[6], node[webNode].name, NAME_LENGTH);
                   resp = sendData(node[webNode].address, message, REGISTRATION_SIZE);
                   /*
-                  if (!sendData(node[webNode].address, message, REGISTRATION_SIZE)) {
+                  if (sendData(node[webNode].address, message, REGISTRATION_SIZE) != 1) {
                     // look queue slot
                     _found = DUMMY_NO_VALUE;
                     if (node[webNode].queue != DUMMY_NO_VALUE) {
@@ -1308,7 +1360,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_USER:
             do{
               repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
-              DBG("Parse: %s = %s<\r\n", name, value);
+              DBG_HTTP("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'P': // select
                   number = strtol(value, NULL, 10);
@@ -1340,7 +1392,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_KEY:
             do{
               repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
-              DBG("Parse: %s = %s<\r\n", name, value);
+              DBG_HTTP("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'P': // select
                   number = strtol(value, NULL, 10);
@@ -1369,7 +1421,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_ZONE:
             do{
               repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
-              DBG("Parse: %s = %s<\r\n", name, value);
+              DBG_HTTP("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'P': // select
                   number = strtol(value, NULL, 10);
@@ -1405,7 +1457,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_ALERT:
             do{
               repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
-              DBG("Parse: %s = %s<\r\n", name, value);
+              DBG_HTTP("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case '0' ... ('0' + ARRAY_SIZE(alertType)): // Handle all radio buttons in groups 0 .. #, A .. #
                   if (value[0] == '0') conf.alert[name[0]-48] &= ~(1 << (name[1]-65));
@@ -1420,7 +1472,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_LOG:
             do{
               repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
-              DBG("Parse: %s = %s<\r\n", name, value);
+              DBG_HTTP("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'N': // Now
                   webLog = FRAMWritePos - (LOGGER_OUTPUT_LEN * FRAM_MSG_SIZE);
@@ -1437,7 +1489,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_GROUP:
             do{
               repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
-              DBG("Parse: %s = %s<\r\n", name, value);
+              DBG_HTTP("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'P': // select
                   number = strtol(value, NULL, 10);
@@ -1469,7 +1521,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_SETTING:
             do{
               repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
-              DBG("Parse: %s = %s<\r\n", name, value);
+              DBG_HTTP("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'A': // Apply
                   // SMTP
@@ -1478,6 +1530,15 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   smtp_set_auth(conf.SMTPUser, conf.SMTPPassword);
                   // SNTP
                   sntp_setservername(0, conf.SNTPAddress);
+                break;
+                case 'D':
+                  conf.armDelay = strtol(value, NULL, 10) * 4;
+                break;
+                case 'E':
+                  conf.autoArm = strtol(value, NULL, 10);
+                break;
+                case 'F':
+                  conf.openAlarm = strtol(value, NULL, 10);
                 break;
                 case 'u': // user
                   strncpy(conf.user, value, NAME_LENGTH);
@@ -1543,7 +1604,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_HOME:
             do{
               repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
-              DBG("Parse: %s = %s<\r\n", name, value);
+              DBG_HTTP("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'A': // Apply
                 break;
@@ -1553,9 +1614,16 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_TCL:
             do{
               repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
-              DBG("Parse: %s = %s<\r\n", name, value);
+              DBG_HTTP("Parse: %s = %s<\r\n", name, value);
               script_t *outMsg;
               switch(name[0]){
+                case 'P': // select
+                    number = strtol(value, NULL, 10);
+                    if (number != webScript) { webScript = number; repeat = 0; }
+                  break;
+                case 'n': // name
+                    strncpy(conf.scriptName[webTimer], value, NAME_LENGTH);
+                  break;
                 case 'R': // Run
                   outMsg = chPoolAlloc(&script_pool);
                   if (outMsg != NULL) {
@@ -1573,13 +1641,16 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                 case 's': // script
                   strncpy(tclCmd, value, sizeof(tclCmd)); // Copy sizeof value
                 break;
+                case 'e': // save
+                  writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+                break;
               }
             } while (repeat);
             break;
           case PAGE_TIMER:
             do{
               repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
-              DBG("Parse: %s = %s<\r\n", name, value);
+              DBG_HTTP("Parse: %s = %s<\r\n", name, value);
               switch(name[0]){
                 case 'P': // select
                   number = strtol(value, NULL, 10);
@@ -1627,9 +1698,15 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   conf.timer[webTimer].startTime = strtol(value, &pEnd, 10) * MINUTES_PER_HOUR ;
                   conf.timer[webTimer].startTime += strtol(++pEnd, NULL, 10);
                 break;
-                case 'B' ... 'I': // Handle all single radio buttons for settings B(66)=0
+                case 'p': // script
+                  conf.timer[webTimer].evalScript = strtol(value, NULL, 10);
+                break;
+                case 'B' ... 'J': // Handle all single radio buttons for settings B(66)=0
                   if (value[0] == '0') conf.timer[webTimer].setting &= ~(1 << (name[0]-66));
                   else                 conf.timer[webTimer].setting |=  (1 << (name[0]-66));
+                break;
+                case 'e': // save
+                  writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
                 break;
               }
             } while (repeat);
@@ -1641,7 +1718,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
     }
 
     chsnprintf(response_uri, response_uri_len, current_uri);
-    DBG("-PE-response_uri: %s\r\n", response_uri);
+    DBG_HTTP("-PE-response_uri: %s\r\n", response_uri);
     current_connection = NULL;
   }
 }

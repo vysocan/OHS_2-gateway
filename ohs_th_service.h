@@ -8,16 +8,27 @@
 #ifndef OHS_TH_SERVICE_H_
 #define OHS_TH_SERVICE_H_
 
+#ifndef SERVICE_DEBUG
+#define SERVICE_DEBUG 0
+#endif
+
+#if SERVICE_DEBUG
+#define DBG_SERVICE(...) {chprintf((BaseSequentialStream*)&SD3, __VA_ARGS__);}
+#else
+#define DBG_SERVICE(...)
+#endif
+
 /*
  * Service thread
  * Perform various housekeeping services
  */
-static THD_WORKING_AREA(waServiceThread, 256);
+static THD_WORKING_AREA(waServiceThread, 384);
 static THD_FUNCTION(ServiceThread, arg) {
   chRegSetThreadName(arg);
-  time_t tempTime, timeNow;
-  uint8_t counterAC = 0;
-  int8_t resp;
+  time_t  tempTime, timeNow;
+  uint8_t counterAC = 0, nodeIndex;
+  int8_t  resp;
+  uint8_t message[6];
 
   while (true) {
     chThdSleepMilliseconds(1000);
@@ -28,7 +39,7 @@ static THD_FUNCTION(ServiceThread, arg) {
     for (uint8_t nodeIndex=0; nodeIndex < NODE_SIZE; nodeIndex++) {
       if ((node[nodeIndex].address != 0) &&
           (node[nodeIndex].last_OK + SECONDS_PER_HOUR < timeNow)) {
-        chprintf(console, "Zombie node: %u,A %u,T %u,F %u,N %u\r\n", nodeIndex, node[nodeIndex].address,
+        DBG_SERVICE("Zombie node: %u,A %u,T %u,F %u,N %u\r\n", nodeIndex, node[nodeIndex].address,
                  node[nodeIndex].type, node[nodeIndex].function, node[nodeIndex].number);
         tmpLog[0] = 'N'; tmpLog[1] = 'Z'; tmpLog[2] = node[nodeIndex].address;
         tmpLog[3] = node[nodeIndex].type; tmpLog[4] = node[nodeIndex].function;
@@ -49,8 +60,8 @@ static THD_FUNCTION(ServiceThread, arg) {
     }
 
 
-    // Battery check
-    if (palReadPad(GPIOD, GPIOD_BAT_OK) == 0) { // The signal is "Low" when the voltage of battery is under 11V
+    // Battery check - The signal is "Low" when the voltage of battery is under 11V
+    if (palReadPad(GPIOD, GPIOD_BAT_OK) == 0) {
       pushToLogText("SBL"); // Battery low
       pushToLogText("SCP"); // Configuration saved
       // Wait for alert mb to be empty
@@ -118,6 +129,66 @@ static THD_FUNCTION(ServiceThread, arg) {
         }
       }
     }
+
+    // Timers
+    for (uint8_t i=0; i < TIMER_SIZE; i++){
+      //   Timer enabled                                   timer next on is set
+      if (GET_CONF_TIMER_ENABLED(conf.timer[i].setting) && conf.timer[i].nextOn > 0) {
+        //   Start time has passed               NOT triggered yet
+        if ((timeNow >= conf.timer[i].nextOn) && (!GET_CONF_TIMER_TRIGGERED(conf.timer[i].setting))) {
+          //
+          if (conf.timer[i].evalScript != DUMMY_NO_VALUE) {
+            script_t *outMsg = chPoolAlloc(&script_pool);
+            if (outMsg != NULL) {
+              outMsg->callback = NULL;
+              outMsg->result = NULL;
+              outMsg->flags = 1;
+              outMsg->index = 0;
+              msg_t msg = chMBPostTimeout(&script_mb, (msg_t)outMsg, TIME_IMMEDIATE);
+              if (msg != MSG_OK) {
+                //DBG_SERVICE("MB full %d\r\n", temp);
+              }
+            } else {
+              DBG_SERVICE("CB full %d \r\n", outMsg);
+            }
+          }
+          nodeIndex = getNodeIndex(conf.timer[i].toAddress, 'I', conf.timer[i].toFunction, conf.timer[i].toNumber);
+          if (nodeIndex != DUMMY_NO_VALUE) {
+            message[0] = 'I'; // 'I'nput only
+            message[1] = conf.timer[i].toNumber;
+            floatConv.val = conf.timer[i].constantOn;
+            message[2] = floatConv.byte[0]; message[3] = floatConv.byte[1];
+            message[4] = floatConv.byte[2]; message[5] = floatConv.byte[3];
+            if (sendData(conf.timer[i].toAddress, message, 6) == 1) {
+              SET_CONF_TIMER_TRIGGERED(conf.timer[i].setting);
+              node[nodeIndex].last_OK = timeNow; // update receiving node current timestamp
+              node[nodeIndex].value   = conf.timer[i].constantOn; // update receiving node value
+              // *** publishNode(_update_node); // MQTT
+            }
+          }
+        }
+        //  End time has passed
+        if (timeNow >= conf.timer[i].nextOff) {
+          nodeIndex = getNodeIndex(conf.timer[i].toAddress, 'I', conf.timer[i].toFunction, conf.timer[i].toNumber);
+          if (nodeIndex != DUMMY_NO_VALUE) {
+            message[0] = 'I'; // 'I'nput only
+            message[1] = conf.timer[i].toNumber;
+            floatConv.val = conf.timer[i].constantOff;
+            message[2] = floatConv.byte[0]; message[3] = floatConv.byte[1];
+            message[4] = floatConv.byte[2]; message[5] = floatConv.byte[3];
+            if (sendData(conf.timer[i].toAddress, message, 6) == 1) {
+              SET_CONF_TIMER_TRIGGERED(conf.timer[i].setting);
+              node[nodeIndex].last_OK = timeNow; // update receiving node current timestamp
+              node[nodeIndex].value   = conf.timer[i].constantOff; // update receiving node value
+              // *** publishNode(_update_node); // MQTT
+            }
+          }
+          setTimer(i, false); // set next start time for this timer even if not triggered
+        }
+      }
+    }
+
+    //
 
   }
 }
