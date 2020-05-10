@@ -45,13 +45,6 @@ static THD_FUNCTION(RS485Thread, arg) {
         chprintf(console, "%u-%x, ", i, rs485Msg.data[i]);
       }
       chprintf(console, ".\r\n");
-      //chThdSleepMilliseconds(100);
-      /*
-      for(uint8_t i = RS485_HEADER_SIZE; i < rs485Msg.length + RS485_HEADER_SIZE + RS485_CRC_SIZE; i++) {
-        chprintf(console, "%d-%x, ", i,  RS485D2.ib[i]);
-      }
-      chprintf(console, "%x - %x\r\n", RS485D2.crc >> 8, RS485D2.crc & 0b11111111);
-      */
 
       if (resp == MSG_OK) {
         if (rs485Msg.ctrl == RS485_FLAG_CMD) {
@@ -70,7 +63,7 @@ static THD_FUNCTION(RS485Thread, arg) {
               pos = 0;
               do {
                 pos++; // Skip 'R'
-                registration_t *outMsg = chPoolAlloc(&registration_pool);
+                registrationEvent_t *outMsg = chPoolAlloc(&registration_pool);
                 if (outMsg != NULL) {
                   // node setting
                   outMsg->address  = rs485Msg.address;
@@ -115,7 +108,7 @@ static THD_FUNCTION(RS485Thread, arg) {
             case 'S': // Sensor data
               pos = 0;
               do {
-                sensor_t *outMsg = chPoolAlloc(&sensor_pool);
+                sensorEvent_t *outMsg = chPoolAlloc(&sensor_pool);
                 if (outMsg != NULL) {
                   // node setting
                   outMsg->address  = rs485Msg.address;

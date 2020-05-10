@@ -10,7 +10,7 @@
 
 // Logger
 void pushToLog(char *what, uint8_t size) {
-  logger_t *outMsg = chPoolAlloc(&logger_pool);
+  loggerEvent_t *outMsg = chPoolAlloc(&logger_pool);
   if (outMsg != NULL) {
     memset(outMsg->text, 0, LOGGER_MSG_LENGTH);
     if (size > LOGGER_MSG_LENGTH) size = LOGGER_MSG_LENGTH;
@@ -206,11 +206,11 @@ void checkKey(uint8_t groupNum, armType_t armType, uint8_t *key, uint8_t length)
     // Check all keys
     uint32_t keyHash = sdbmHash(key, length);
     for (uint8_t i=0; i < KEYS_SIZE; i++){
-      chprintf(console, "Key check: %d\r\n", i);
+      //chprintf(console, "Key check: %d\r\n", i);
       //for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, key[ii]); } chprintf(console, "\r\n");
       //for(uint8_t ii = 0; ii < KEY_LENGTH; ii++) { chprintf(console, "%d-%x, ", ii, conf.keyValue[i][ii]); } chprintf(console, "\r\n");
       if (conf.keyValue[i] == keyHash) { // key matched
-        chprintf(console, ", group: %d\r\n", groupNum);
+        chprintf(console, "Key matched: %d\r\n", i);
         //  key enabled && user enabled && (group = contact_group || contact_key = global)
         if (GET_CONF_KEY_ENABLED(conf.keySetting[i]) &&
             GET_CONF_CONTACT_ENABLED(conf.contact[conf.keyContact[i]]) &&

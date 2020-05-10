@@ -23,7 +23,7 @@ static THD_WORKING_AREA(waAlertThread, 256);
 static THD_FUNCTION(AlertThread, arg) {
   chRegSetThreadName(arg);
   msg_t msg;
-  alert_t *inMsg;
+  alertEvent_t *inMsg;
   uint8_t groupNum;
   int8_t resp;
 

@@ -19,6 +19,15 @@
 #endif
 
 /*
+ * Callback for Timer TCL script
+ */
+void cbTimer (char *result) {
+  (void)result;
+  // Result is ready
+  chBSemSignal(&cbTimerSem);
+}
+
+/*
  * Service thread
  * Perform various housekeeping services
  */
@@ -29,6 +38,7 @@ static THD_FUNCTION(ServiceThread, arg) {
   uint8_t counterAC = 0, nodeIndex;
   int8_t  resp;
   uint8_t message[6];
+  char   *pResult;
 
   while (true) {
     chThdSleepMilliseconds(1000);
@@ -136,53 +146,80 @@ static THD_FUNCTION(ServiceThread, arg) {
       if (GET_CONF_TIMER_ENABLED(conf.timer[i].setting) && conf.timer[i].nextOn > 0) {
         //   Start time has passed               NOT triggered yet
         if ((timeNow >= conf.timer[i].nextOn) && (!GET_CONF_TIMER_TRIGGERED(conf.timer[i].setting))) {
-          //
-          if (conf.timer[i].evalScript != DUMMY_NO_VALUE) {
-            script_t *outMsg = chPoolAlloc(&script_pool);
+          SET_CONF_TIMER_TRIGGERED(conf.timer[i].setting);
+          // Script evaluation
+          if (conf.timer[i].evalScript[0] != 0) {
+            CLEAR_CONF_TIMER_RESULT(conf.timer[i].setting); // Force not evaluated
+            scriptEvent_t *outMsg = chPoolAlloc(&script_pool);
             if (outMsg != NULL) {
-              outMsg->callback = NULL;
-              outMsg->result = NULL;
-              outMsg->flags = 1;
-              outMsg->index = 0;
-              msg_t msg = chMBPostTimeout(&script_mb, (msg_t)outMsg, TIME_IMMEDIATE);
-              if (msg != MSG_OK) {
-                //DBG_SERVICE("MB full %d\r\n", temp);
+              // Find pointer to script
+              for (scriptp = scriptLL; scriptp != NULL; scriptp = scriptp->next) {
+                if (strcmp(scriptp->name, &conf.timer[i].evalScript[0]) == 0) break;
+              }
+              // Script name exists
+              if (scriptp != NULL) {
+                pResult = (char *)&message; // Just any char[] as temp variable
+                outMsg->callback = cbTimer;
+                outMsg->result = (void **)&pResult;
+                outMsg->flags = 1;
+                outMsg->index = scriptp->cmd;
+                // Reset semaphore
+                chBSemReset(&cbTimerSem, true);
+                // Run script
+                msg_t msg = chMBPostTimeout(&script_mb, (msg_t)outMsg, TIME_IMMEDIATE);
+                if (msg != MSG_OK) {
+                  //DBG_SERVICE("MB full %d\r\n", temp);
+                }
+                // Wait for result
+                resp = chBSemWaitTimeout(&cbTimerSem, TIME_MS2I(300));
+                if (resp == MSG_OK) {
+                  if (atoi(pResult) > 0) SET_CONF_TIMER_RESULT(conf.timer[i].setting);
+                }
               }
             } else {
               DBG_SERVICE("CB full %d \r\n", outMsg);
             }
           }
-          nodeIndex = getNodeIndex(conf.timer[i].toAddress, 'I', conf.timer[i].toFunction, conf.timer[i].toNumber);
-          if (nodeIndex != DUMMY_NO_VALUE) {
-            message[0] = 'I'; // 'I'nput only
-            message[1] = conf.timer[i].toNumber;
-            floatConv.val = conf.timer[i].constantOn;
-            message[2] = floatConv.byte[0]; message[3] = floatConv.byte[1];
-            message[4] = floatConv.byte[2]; message[5] = floatConv.byte[3];
-            if (sendData(conf.timer[i].toAddress, message, 6) == 1) {
-              SET_CONF_TIMER_TRIGGERED(conf.timer[i].setting);
-              node[nodeIndex].last_OK = timeNow; // update receiving node current timestamp
-              node[nodeIndex].value   = conf.timer[i].constantOn; // update receiving node value
-              // *** publishNode(_update_node); // MQTT
+          // Do we need to send some packet ?
+          if (conf.timer[i].toAddress > 0) {
+            nodeIndex = getNodeIndex(conf.timer[i].toAddress, 'I', conf.timer[i].toFunction, conf.timer[i].toNumber);
+            if ((nodeIndex != DUMMY_NO_VALUE) &&
+                ((GET_CONF_TIMER_RESULT(conf.timer[i].setting)) || (conf.timer[i].evalScript[0] == 0))) {
+              message[0] = 'I'; // 'I'nput only
+              message[1] = conf.timer[i].toNumber;
+              floatConv.val = conf.timer[i].constantOn;
+              message[2] = floatConv.byte[0]; message[3] = floatConv.byte[1];
+              message[4] = floatConv.byte[2]; message[5] = floatConv.byte[3];
+              if (sendData(conf.timer[i].toAddress, message, 6) == 1) {
+                node[nodeIndex].last_OK = timeNow; // update receiving node current timestamp
+                node[nodeIndex].value   = conf.timer[i].constantOn; // update receiving node value
+                // *** publishNode(_update_node); // MQTT
+              }
             }
           }
         }
-        //  End time has passed
+        // Timer Off time has passed
         if (timeNow >= conf.timer[i].nextOff) {
-          nodeIndex = getNodeIndex(conf.timer[i].toAddress, 'I', conf.timer[i].toFunction, conf.timer[i].toNumber);
-          if (nodeIndex != DUMMY_NO_VALUE) {
-            message[0] = 'I'; // 'I'nput only
-            message[1] = conf.timer[i].toNumber;
-            floatConv.val = conf.timer[i].constantOff;
-            message[2] = floatConv.byte[0]; message[3] = floatConv.byte[1];
-            message[4] = floatConv.byte[2]; message[5] = floatConv.byte[3];
-            if (sendData(conf.timer[i].toAddress, message, 6) == 1) {
-              SET_CONF_TIMER_TRIGGERED(conf.timer[i].setting);
-              node[nodeIndex].last_OK = timeNow; // update receiving node current timestamp
-              node[nodeIndex].value   = conf.timer[i].constantOff; // update receiving node value
-              // *** publishNode(_update_node); // MQTT
+          if (GET_CONF_TIMER_TRIGGERED(conf.timer[i].setting)) {
+            // Do we need to send some packet ?
+            if (conf.timer[i].toAddress > 0) {
+              nodeIndex = getNodeIndex(conf.timer[i].toAddress, 'I', conf.timer[i].toFunction, conf.timer[i].toNumber);
+              if ((nodeIndex != DUMMY_NO_VALUE) &&
+                  ((GET_CONF_TIMER_RESULT(conf.timer[i].setting)) || (conf.timer[i].evalScript[0] == 0))) {
+                message[0] = 'I'; // 'I'nput only
+                message[1] = conf.timer[i].toNumber;
+                floatConv.val = conf.timer[i].constantOff;
+                message[2] = floatConv.byte[0]; message[3] = floatConv.byte[1];
+                message[4] = floatConv.byte[2]; message[5] = floatConv.byte[3];
+                if (sendData(conf.timer[i].toAddress, message, 6) == 1) {
+                  node[nodeIndex].last_OK = timeNow; // update receiving node current timestamp
+                  node[nodeIndex].value   = conf.timer[i].constantOff; // update receiving node value
+                  // *** publishNode(_update_node); // MQTT
+                }
+              }
             }
-          }
+            CLEAR_CONF_TIMER_TRIGGERED(conf.timer[i].setting);
+          } // Timer triggered
           setTimer(i, false); // set next start time for this timer even if not triggered
         }
       }

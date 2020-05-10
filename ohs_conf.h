@@ -26,7 +26,7 @@
 #define CONTACTS_SIZE    10     // # of contacts
 #define KEYS_SIZE        20     // # of keys
 #define TIMER_SIZE       10     // # of timers
-#define SCRIPT_SIZE      10     // # of scripts
+//#define SCRIPT_SIZE      10     // # of scripts
 #define KEY_LENGTH       4      // sizeof(uint32_t)
 #define NAME_LENGTH      16     //
 #define PHONE_LENGTH     14     //
@@ -166,7 +166,8 @@
 #define GET_CONF_TIMER_WE(x)          ((x >> 6U) & 0b1)
 #define GET_CONF_TIMER_TU(x)          ((x >> 7U) & 0b1)
 #define GET_CONF_TIMER_MO(x)          ((x >> 8U) & 0b1)
-#define GET_CONF_TIMER_PASS(x)        ((x >> 9U) & 0b1)
+#define GET_CONF_TIMER_RESULT(x)      ((x >> 9U) & 0b1)
+#define GET_CONF_TIMER_EVALUATED(x)   ((x >> 10U) & 0b1)
 #define GET_CONF_TIMER_TRIGGERED(x)   ((x >> 11U) & 0b1)
 #define GET_CONF_TIMER_PERIOD_TYPE(x) ((x >> 12U) & 0b11)
 #define GET_CONF_TIMER_RUN_TYPE(x)    ((x >> 14U) & 0b11)
@@ -179,7 +180,8 @@
 #define SET_CONF_TIMER_TU(x)          x |= (1 << 6U)
 #define SET_CONF_TIMER_MO(x)          x |= (1 << 7U)
 #define SET_CONF_TIMER_SU(x)          x |= (1 << 8U)
-#define SET_CONF_TIMER_PASS(x)        x |= (1 << 9U)
+#define SET_CONF_TIMER_RESULT(x)      x |= (1 << 9U)
+#define SET_CONF_TIMER_EVALUATED(x)   x |= (1 << 10U)
 #define SET_CONF_TIMER_TRIGGERED(x)   x |= (1 << 11U)
 #define SET_CONF_TIMER_PERIOD_TYPE(x,y) x = (((x)&(0b1100111111111111))|(((y & 0b11) << 12U)&(0b0011000000000000)))
 #define SET_CONF_TIMER_RUN_TYPE(x,y)    x = (((x)&(0b0011111111111111))|(((y & 0b11) << 14U)&(0b1100000000000000)))
@@ -192,7 +194,8 @@
 #define CLEAR_CONF_TIMER_TU(x)        x &= ~(1 << 6U)
 #define CLEAR_CONF_TIMER_MO(x)        x &= ~(1 << 7U)
 #define CLEAR_CONF_TIMER_SU(x)        x &= ~(1 << 8U)
-#define CLEAR_CONF_TIMER_PASS(x)      x &= ~(1 << 9U)
+#define CLEAR_CONF_TIMER_RESULT(x)    x &= ~(1 << 9U)
+#define CLEAR_CONF_TIMER_EVALUATED(x) x &= ~(1 << 10U)
 #define CLEAR_CONF_TIMER_TRIGGERED(x) x &= ~(1 << 11U)
 
 #define GET_ZONE_ALARM(x)     ((x >> 1U) & 0b1)
@@ -286,14 +289,14 @@ typedef struct {
 typedef struct {
   time_t timestamp;
   char   text[LOGGER_MSG_LENGTH];
-} logger_t;
+} loggerEvent_t;
 
 // Alert events
 #define ALERT_FIFO_SIZE 5
 typedef struct {
   char    text[LOGGER_MSG_LENGTH];
   uint8_t flag;
-} alert_t;
+} alertEvent_t;
 
 // Registration events
 #define REG_FIFO_SIZE 6
@@ -307,7 +310,7 @@ typedef struct {
   uint16_t setting;
   char     name[NAME_LENGTH];
   uint16_t dummyAlign;
-} registration_t;
+} registrationEvent_t;
 
 // Sensor events
 #define SENSOR_FIFO_SIZE 10
@@ -318,7 +321,7 @@ typedef struct {
   char    function; // = ' ';
   uint8_t number;   // = 0;
   float   value;    // = 0.0;
-} sensor_t;
+} sensorEvent_t;
 
 // TCL callback
 typedef void (*script_cb_t) (char *result);
@@ -328,11 +331,19 @@ void script_cb(script_cb_t ptrFunc(char *result), char *result) {
 // Script events
 #define SCRIPT_FIFO_SIZE 5
 typedef struct {
-  uint8_t index;
+  char   *index;
   uint8_t flags;
   void   *callback;
   void  **result;
-} script_t;
+} scriptEvent_t;
+// Script ll
+struct scriptLL_t{
+  char              *name;
+  char              *cmd;
+  struct scriptLL_t *next;
+};
+struct scriptLL_t *scriptLL = NULL; // Holds LL
+struct scriptLL_t *scriptp = NULL;  // Used as temp pointer
 
 // Alerts
 typedef struct {
@@ -383,23 +394,23 @@ static MAILBOX_DECL(script_mb, script_mb_buffer, SCRIPT_FIFO_SIZE);
 /*
  * Pools
  */
-static alarmEvent_t   alarmEvent_pool_queue[ALARMEVENT_FIFO_SIZE];
+static alarmEvent_t alarmEvent_pool_queue[ALARMEVENT_FIFO_SIZE];
 static MEMORYPOOL_DECL(alarmEvent_pool, sizeof(alarmEvent_t), PORT_NATURAL_ALIGN, NULL);
 
-static logger_t       logger_pool_queue[LOGGER_FIFO_SIZE];
-static MEMORYPOOL_DECL(logger_pool, sizeof(logger_t), PORT_NATURAL_ALIGN, NULL);
+static loggerEvent_t logger_pool_queue[LOGGER_FIFO_SIZE];
+static MEMORYPOOL_DECL(logger_pool, sizeof(loggerEvent_t), PORT_NATURAL_ALIGN, NULL);
 
-static registration_t registration_pool_queue[REG_FIFO_SIZE];
-static MEMORYPOOL_DECL(registration_pool, sizeof(registration_t), PORT_NATURAL_ALIGN, NULL);
+static registrationEvent_t registration_pool_queue[REG_FIFO_SIZE];
+static MEMORYPOOL_DECL(registration_pool, sizeof(registrationEvent_t), PORT_NATURAL_ALIGN, NULL);
 
-static sensor_t       sensor_pool_queue[SENSOR_FIFO_SIZE];
-static MEMORYPOOL_DECL(sensor_pool, sizeof(sensor_t), PORT_NATURAL_ALIGN, NULL);
+static sensorEvent_t sensor_pool_queue[SENSOR_FIFO_SIZE];
+static MEMORYPOOL_DECL(sensor_pool, sizeof(sensorEvent_t), PORT_NATURAL_ALIGN, NULL);
 
-static alert_t        alert_pool_queue[ALERT_FIFO_SIZE];
-static MEMORYPOOL_DECL(alert_pool, sizeof(alert_t), PORT_NATURAL_ALIGN, NULL);
+static alertEvent_t alert_pool_queue[ALERT_FIFO_SIZE];
+static MEMORYPOOL_DECL(alert_pool, sizeof(alertEvent_t), PORT_NATURAL_ALIGN, NULL);
 
-static script_t       script_pool_queue[SCRIPT_FIFO_SIZE];
-static MEMORYPOOL_DECL(script_pool, sizeof(script_t), PORT_NATURAL_ALIGN, NULL);
+static scriptEvent_t script_pool_queue[SCRIPT_FIFO_SIZE];
+static MEMORYPOOL_DECL(script_pool, sizeof(scriptEvent_t), PORT_NATURAL_ALIGN, NULL);
 
 //static node_t          node_pool_queue[NODE_SIZE];
 //static MEMORYPOOL_DECL(node_pool, sizeof(node_t), PORT_NATURAL_ALIGN, NULL);
@@ -411,8 +422,8 @@ typedef struct {
 //                         |||- Period type: 0 Secods, 01 Minutes,
 //                         ||||-             10 Hours, 11 Days
 //                         |||||- Triggered
-//                         ||||||-
-//                         |||||||-
+//                         ||||||- Script evaluated
+//                         |||||||- Script result
 //                         ||||||||- Monday
 //                         ||||||||         |- Tuesday
 //                         ||||||||         ||- Wednesday
@@ -435,7 +446,7 @@ typedef struct {
   uint32_t nextOn;
   uint32_t nextOff;
   char     name[NAME_LENGTH];
-  uint8_t  evalScript;
+  char     evalScript[NAME_LENGTH];
 } calendar_t;
 
 // Configuration struct
@@ -494,8 +505,6 @@ typedef struct {
   uint8_t  systemFlags;
 
   calendar_t timer[TIMER_SIZE];
-
-  char     scriptName[SCRIPT_SIZE][NAME_LENGTH];
 
 } config_t;
 config_t conf;
@@ -768,12 +777,36 @@ void setConfDefault(void){
     conf.timer[i].nextOn = 0;
     conf.timer[i].nextOff = 0;
     strcpy(conf.timer[i].name, "");
-    conf.timer[i].evalScript = DUMMY_NO_VALUE;
+    strcpy(conf.timer[i].evalScript, "");
   }
 
-  for(uint8_t i = 0; i < SCRIPT_SIZE; i++) {
-    strcpy(conf.scriptName[i], "");
+}
+
+// TODO OHS Add malloc, realloc checks for return NULL pointer.
+void initScripts(struct scriptLL_t **pointer) {
+  char     blockName[NAME_LENGTH] = {0};
+  uint32_t blockAddress = 0;
+  uint16_t cmdSize;
+  struct scriptLL_t* var;
+
+  while (uBSSeekAll(&blockAddress, &blockName, NAME_LENGTH)) {
+    chprintf(console, "Found %s at %u\r\n", blockName, blockAddress);
+    var = umm_malloc(sizeof(struct scriptLL_t));
+
+    var->name = umm_malloc(NAME_LENGTH);
+    strncpy(var->name, &blockName[0], NAME_LENGTH);
+
+    cmdSize = TCL_SCRIPT_LENGTH;
+    uBSRead(&blockName[0], NAME_LENGTH, &tclCmd[0], &cmdSize);
+    var->cmd = umm_malloc(cmdSize + 1);
+    strncpy(var->cmd, &tclCmd[0], cmdSize);
+    chprintf(console, "CMD %s, size %u\r\n", var->cmd, cmdSize);
+
+    var->next = *pointer;
+    *pointer = var;
   }
+  // Clear tclCmd on end
+  if (*pointer) memset(&tclCmd[0], '\0', TCL_SCRIPT_LENGTH);
 }
 
 #endif /* OHS_CONF_H_ */

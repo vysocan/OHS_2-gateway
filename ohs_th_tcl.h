@@ -65,9 +65,9 @@ static int tcl_cmd_group(struct tcl* tcl, tcl_value_t* args, void* arg) {
       case 'A':
         if (GET_GROUP_ARMED(group[groupNum].setting)) {
           if GET_GROUP_ARMED_HOME(group[groupNum].setting) {
-            ret = tcl_result(tcl, FNORMAL, tcl_alloc("3", 1)); // Armed away
-          } else {
             ret = tcl_result(tcl, FNORMAL, tcl_alloc("2", 1)); // Armed home
+          } else {
+            ret = tcl_result(tcl, FNORMAL, tcl_alloc("3", 1)); // Armed away
           }
         } else {
           if (group[groupNum].armDelay > 0) {
@@ -102,11 +102,11 @@ static int tcl_cmd_group(struct tcl* tcl, tcl_value_t* args, void* arg) {
 /*
  * TCL execution thread
  */
-static THD_WORKING_AREA(waTclThread, 2048);
+static THD_WORKING_AREA(waTclThread, 1024);
 static THD_FUNCTION(tclThread, arg) {
   chRegSetThreadName(arg);
-  msg_t     msg;
-  script_t *inMsg;
+  msg_t  msg;
+  scriptEvent_t *inMsg;
   systime_t runTime;
 
   MemoryStream ms;
@@ -127,20 +127,23 @@ static THD_FUNCTION(tclThread, arg) {
       ms.eos = ms.offset = 0;
       tcl_iteration = conf.tclIteration;
       runTime = chVTGetSystemTimeX();
-      if (tcl_eval(&tcl, &tclCmd[0], strlen(tclCmd)) != FERROR) {
+
+      // Run TCL
+      chprintf(console, "Script: %s, length %u\r\n", inMsg->index, strlen(inMsg->index));
+      if (tcl_eval(&tcl, inMsg->index, strlen(inMsg->index)) != FERROR) {
         chprintf(tclChp, "\r\n%s: %.*s", text_Result, tcl_length(tcl.result), tcl_string(tcl.result));
       } else {
         chprintf(tclChp, "\r\n%s: %s", text_Result, text_error);
       }
       chprintf(tclChp, "\r\nElapsed: %u ms\r\n", TIME_I2MS(chVTGetSystemTimeX() - runTime));
 
-      // Do callback if requested
-      if (inMsg->callback) {
-        script_cb(inMsg->callback, tcl_string(tcl.result));
-      }
       // Pass result
       if (inMsg->result) {
         *inMsg->result = tcl_string(tcl.result);
+      }
+      // Do callback if requested
+      if (inMsg->callback) {
+        script_cb(inMsg->callback, tcl_string(tcl.result));
       }
       // Process umm info
       umm_info(&my_umm_heap[0], true);

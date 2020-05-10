@@ -17,7 +17,7 @@ static THD_WORKING_AREA(waRegistrationThread, 256);
 static THD_FUNCTION(RegistrationThread, arg) {
   chRegSetThreadName(arg);
   msg_t msg;
-  registration_t *inMsg;
+  registrationEvent_t *inMsg;
   uint8_t nodeIndex;
 
   while (true) {

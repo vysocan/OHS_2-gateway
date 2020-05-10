@@ -31,8 +31,9 @@ enum {
   VARFLOAT
 };
 
-// Iteration counter
+// OHS - Iteration counter
 extern uint16_t tcl_iteration;
+//extern bool     tcl_output_flag;
 
 /* A helper parser struct and macro (requires C99) */
 struct tcl_parser {
@@ -113,6 +114,7 @@ void tcl_register(struct tcl* tcl, const char* name, tcl_cmd_fn_t fn, int arity,
 void tcl_init(struct tcl* tcl, uint16_t max_iterations, BaseSequentialStream *output);
 void tcl_destroy(struct tcl* tcl);
 
+// Print commands, variables to output
 void tcl_list_var(struct tcl* tcl, BaseSequentialStream **output);
 void tcl_list_cmd(struct tcl* tcl, BaseSequentialStream **output);
 

@@ -1,5 +1,4 @@
 #include <stdlib.h>
-
 #include <stdio.h>
 #include <string.h>
 
@@ -36,8 +35,9 @@
 #endif
 
 // OHS changes
-uint16_t tcl_iteration;
+uint16_t              tcl_iteration;
 BaseSequentialStream *tcl_output;
+//bool                  tcl_output_flag;
 
 struct tcl;
 int tcl_eval(struct tcl* tcl, const char* s, size_t len);

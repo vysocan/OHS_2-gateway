@@ -46,7 +46,7 @@ static THD_FUNCTION(RadioThread, arg) {
           pos = 0;
           do {
             pos++; // Skip 'R'
-            registration_t *outMsg = chPoolAlloc(&registration_pool);
+            registrationEvent_t *outMsg = chPoolAlloc(&registration_pool);
             if (outMsg != NULL) {
               // node setting
               outMsg->address  = rfm69Data.senderId + RADIO_UNIT_OFFSET;
@@ -91,7 +91,7 @@ static THD_FUNCTION(RadioThread, arg) {
         case 'S': // Sensor data
           pos = 0;
           do {
-            sensor_t *outMsg = chPoolAlloc(&sensor_pool);
+            sensorEvent_t *outMsg = chPoolAlloc(&sensor_pool);
             if (outMsg != NULL) {
               // node setting
               outMsg->address  = rfm69Data.senderId + RADIO_UNIT_OFFSET;

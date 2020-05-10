@@ -27,11 +27,25 @@ BaseSequentialStream* console = (BaseSequentialStream*)&SD3;
 // Semaphores
 binary_semaphore_t gprsSem;
 binary_semaphore_t emailSem;
-// CB semaphores
+// TCL CB semaphores
 binary_semaphore_t cbTimerSem;
 
 // RFM69
 #include "rfm69.h"
+// UMM
+#include "umm_malloc.h"
+#include "umm_malloc_cfg.h"
+#define UMM_MALLOC_CFG_HEAP_SIZE (1024*16)
+#define TCL_SCRIPT_LENGTH        (1024*1)
+#define TCL_OUTPUT_LENGTH        (1024*2)
+static char my_umm_heap[UMM_MALLOC_CFG_HEAP_SIZE] __attribute__((section(".ram4")));
+static char tclOutput[TCL_OUTPUT_LENGTH] __attribute__((section(".ram4")));
+static char tclCmd[TCL_SCRIPT_LENGTH] __attribute__((section(".ram4")));
+// TCL
+#include "tcl.h"
+struct tcl tcl;
+// uBS
+#include "uBS.h"
 // OHS includes
 #include "ohs_conf.h"
 #include "ohs_shell.h"
@@ -53,25 +67,6 @@ volatile int8_t gprsReg = 2;
 volatile int8_t gprsStrength = 0;
 char gprsModemInfo[20] __attribute__((section(".ram4"))); // SIMCOM_SIM7600x-x
 char gprsSmsText[128] __attribute__((section(".ram4")));
-
-// uBS
-//#include "uBS.h"
-
-// TCL
-#define UMM_MALLOC_CFG_HEAP_SIZE ((size_t)1024*16)
-#define TCL_SCRIPT_LENGTH        ((size_t)1024*1)
-#define TCL_OUTPUT_LENGTH        ((size_t)1024*2)
-static char my_umm_heap[UMM_MALLOC_CFG_HEAP_SIZE] __attribute__((section(".ram4")));
-static char tclOutput[TCL_OUTPUT_LENGTH] __attribute__((section(".ram4")));
-static char tclCmd[TCL_SCRIPT_LENGTH] __attribute__((section(".ram4")));
-#include "umm_malloc.h"
-#include "umm_malloc_cfg.h"
-#include "tcl.h"
-struct tcl tcl;
-
-void myCb (char *result) {
-  strcpy(&gprsModemInfo[0], result);
-}
 
 // LWIP
 #include "lwipthread.h"
@@ -137,6 +132,12 @@ int main(void) {
   usbStart(serusbcfg.usbp, &usbcfg);
   usbConnectBus(serusbcfg.usbp);
 
+  // Initialize .ram4
+  memset(&tclCmd[0], '\0', TCL_SCRIPT_LENGTH);
+  memset(&tclOutput[0], '\0', TCL_OUTPUT_LENGTH);
+  memset(&gprsModemInfo[0], '\0', sizeof(gprsModemInfo));
+  memset(&gprsSmsText[0], '\0', sizeof(gprsSmsText));
+
   shellInit();
 
   // Creating the mailboxes.
@@ -144,11 +145,11 @@ int main(void) {
 
   // Pools
   chPoolObjectInit(&alarmEvent_pool, sizeof(alarmEvent_t), NULL);
-  chPoolObjectInit(&logger_pool, sizeof(logger_t), NULL);
-  chPoolObjectInit(&registration_pool, sizeof(registration_t), NULL);
-  chPoolObjectInit(&sensor_pool, sizeof(sensor_t), NULL);
-  chPoolObjectInit(&alert_pool, sizeof(alert_t), NULL);
-  chPoolObjectInit(&script_pool, sizeof(script_t), NULL);
+  chPoolObjectInit(&logger_pool, sizeof(loggerEvent_t), NULL);
+  chPoolObjectInit(&registration_pool, sizeof(registrationEvent_t), NULL);
+  chPoolObjectInit(&sensor_pool, sizeof(sensorEvent_t), NULL);
+  chPoolObjectInit(&alert_pool, sizeof(alertEvent_t), NULL);
+  chPoolObjectInit(&script_pool, sizeof(scriptEvent_t), NULL);
   //chPoolObjectInit(&node_pool, sizeof(node_t), NULL);
   //chPoolLoadArray(&alarmEvent_pool, alarmEvent_pool_queue, ALARMEVENT_FIFO_SIZE);
   for(uint8_t i = 0; i < ALARMEVENT_FIFO_SIZE; i++) { chPoolFree(&alarmEvent_pool, &alarmEvent_pool_queue[i]); }
@@ -165,7 +166,11 @@ int main(void) {
   rfm69AutoPower(-80);
   rfm69Encrypt("ABCDABCDABCDABCD");
 
-  adcStart(&ADCD1, NULL);      // Activates the ADC1 driver
+  // Activates the ADC1 driver
+  adcStart(&ADCD1, NULL);
+
+  // UMM / TCL
+  umm_init(&my_umm_heap[0], UMM_MALLOC_CFG_HEAP_SIZE);
 
   // Create thread(s).
   chThdCreateStatic(waZoneThread, sizeof(waZoneThread), NORMALPRIO, ZoneThread, (void*)"zone");
@@ -203,7 +208,7 @@ int main(void) {
   sntp_init();
   mdns_resp_init();
 
-  // Read last groups states
+  // Read last groups state
   readFromBkpRTC((uint8_t*)&group, sizeof(group), 0);
   // Read conf.
   readFromBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
@@ -215,9 +220,8 @@ int main(void) {
     writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
     writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
   }
-  // TODO OHS Add group state restore after power off
-
   //setConfDefault(); // Load OHS default conf.
+
   // SMTP
   smtp_set_server_addr(conf.SMTPAddress);
   smtp_set_server_port(conf.SMTPPort);
@@ -225,18 +229,11 @@ int main(void) {
   // SNTP
   sntp_setservername(0, conf.SNTPAddress);
 
-  /*
-  uint16_t uBSaddress;
+  // uBS init and load scripts
   uBSInit();
-  uBSGetFreeBlock(&uBSaddress);
-  chprintf(console, "uBS, free space: %u, First block: %u\r\n", uBSGetFreeSpace(), uBSaddress);
-  */
-
-  // Initialize .ram4
-  memset(&tclCmd[0], '\0', TCL_SCRIPT_LENGTH);
-  memset(&tclOutput[0], '\0', TCL_OUTPUT_LENGTH);
-  memset(&gprsModemInfo[0], '\0', 20);
-  memset(&gprsSmsText[0], '\0', 128);
+  //chprintf(console, "uBS, free space: %u\r\n", uBSGetFreeSpace());
+  chThdSleepMilliseconds(300);
+  initScripts(&scriptLL);
 
   // Start
   startTime = getTimeUnixSec();
@@ -244,15 +241,10 @@ int main(void) {
   // Initialize zones state
   initRuntimeZones();
 
-  // TCL
-  umm_init(&my_umm_heap[0], UMM_MALLOC_CFG_HEAP_SIZE);
-
   // Initialize timers
   for (uint8_t i = 0; i < TIMER_SIZE; i++) {
     setTimer(i, true);
   }
-
-  chThdSleepMilliseconds(10000);
 
   // Idle runner
   while (true) {
@@ -275,49 +267,6 @@ int main(void) {
     chprintf(console, "DST e %d \r\n", tt);
     ptm = gmtime(&tt);
     chprintf(console, "DST e %s \r\n", asctime(ptm));
-    */
-
-    // Dump BKP SRAM
-    /*
-    for(uint16_t i = 0; i < 0x100; i++) {
-      data = *(baseAddress + i);
-      chprintf(console, "%x ", data);
-      if (((i+1)%0x10) == 0) {
-        chprintf(console, "\r\n");
-        chThdSleepMilliseconds(2);
-      }
-    }
-    */
-    // Dump BKP RTC
-    /*
-    for(uint16_t i = 0; i < 20; i++) {
-      data32 = *(RTCBaseAddress + i);
-      chprintf(console, "%x %x %x %x ", (data32 >> 24) &0xFF, (data32 >> 16) &0xFF,(data32 >> 8) &0xFF,(data32 >> 0) &0xFF);
-      if (((i+1)%4) == 0) {
-        chprintf(console, "\r\n");
-        chThdSleepMilliseconds(2);
-      }
-    }
-    */
-    // BKP RTC read test
-    /*
-    chprintf(console, ">%s, %d<\r\n", myStr, sizeof(myStr));
-    chprintf(console, "Read >%d\r\n", readFromBkpRTC((uint8_t*)&myStr, sizeof(myStr), 0));
-    chprintf(console, ">%s<\r\n", myStr);
-    */
-
-    /*
-    // Send RS485 registration request
-    chprintf(console, "RS485: %d, %d, %d, %d\r\n", RS485D2.state, RS485D2.trcState, RS485D2.ibHead, RS485D2.ibExpLen);
-    RS485Msg_t rs485Msg;
-    rs485Msg.address = 1;
-    //rs485Msg.ctrl = RS485_FLAG_DTA;
-    rs485Msg.ctrl = RS485_FLAG_CMD;
-    //rs485Msg.length = 10;
-    rs485Msg.length = 1;
-    for (uint8_t i = 0; i < rs485Msg.length; i++) { rs485Msg.data[i] = i; }
-    resp = rs485SendMsgWithACK(&RS485D2, &rs485Msg, 3);
-    chprintf(console, "Sent: %d\r\n", resp);
     */
 
   }

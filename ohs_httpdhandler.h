@@ -86,7 +86,7 @@ const char html_div_e[]             = "</div>";
 const char html_select[]            = "<select name='";
 const char html_Apply[]             = "<input type='submit' name='A' value='Apply'/>";
 const char html_ApplyValPass[]      = "<input type='submit' name='A' value='Apply' onclick='return pv()'/>";
-const char html_Save[]              = "<input type='submit' name='e' value='Save all'/>";
+const char html_Save[]              = "<input type='submit' name='e' value='Save'/>";
 const char html_Reregister[]        = "<input type='submit' name='R' value='Call registration'/>";
 const char html_Now[]               = "<input type='submit' name='N' value='Now'/>";
 const char html_FR[]                = "<input type='submit' name='R' value='<<'/>";
@@ -311,9 +311,11 @@ void genfiles_ex_init(void) {
   /* nothing to do here yet */
 }
 
-static uint8_t webNode = 0, webContact = 0, webKey = 0, webZone = 0, webGroup = 0, webTimer = 0,
-    webScript = 0;
+static uint8_t webNode = 0, webContact = 0, webKey = 0, webZone = 0, webGroup = 0,
+    webTimer = 0, webScript = DUMMY_NO_VALUE;
+char scriptName[NAME_LENGTH];
 static uint16_t webLog = 0;
+
 int fs_open_custom(struct fs_file *file, const char *name){
   char temp[3] = "";
   uint16_t logAddress;
@@ -952,12 +954,12 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s", html_ApplyValPass, html_Save);
           break;
         case PAGE_TCL:
+          // Information table - TCL heap
           chprintf(chp, "%s%s %u%s", html_tr_th, text_Heap, UMM_MALLOC_CFG_HEAP_SIZE/1024, text_kB);
           chprintf(chp, "%s%s", html_e_th_th, text_Used);
           chprintf(chp, "%s%s", html_e_th_th, text_Free);
           chprintf(chp, "%s%s", html_e_th_th, text_Total);
           chprintf(chp, "%s%s%s\r\n", html_e_th_th, text_Metric, html_e_th_e_tr);
-          // Information table - TCL heap
           chprintf(chp, "%s%s%s", html_tr_td, text_Entries, html_e_td_td);
           chprintf(chp, "%u%s", ummHeapInfo.usedEntries, html_e_td_td);
           chprintf(chp, "%u%s", ummHeapInfo.freeEntries, html_e_td_td);
@@ -969,6 +971,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%u%s", ummHeapInfo.totalBlocks, html_e_td_td);
           chprintf(chp, "%s %u%%", text_Fragmentation, umm_fragmentation_metric());
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
+
           chprintf(chp, "<i class='fas fa-code' title=\"");
           tcl_list_cmd(&tcl, &chp);
           chprintf(chp, "\"></i>");
@@ -977,22 +980,31 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "\"></i>");
           chprintf(chp, "%s%s", html_br, html_br);
           // Script area
-          printTextArea(chp, 's', &tclCmd[0], sizeof(tclCmd), 120, 20);
-          // Buttons
-          chprintf(chp, "%s%s%s%s%s", html_br, html_br, html_Run, html_Refresh, html_Save, html_Restart);
+          printTextArea(chp, 's', tclCmd, TCL_SCRIPT_LENGTH, 120, 20);
+          chprintf(chp, "%s%s", html_br, html_br);
           // Select script
           chprintf(chp, "%s%s%s%s", html_table, html_tr_td, text_Script, html_e_td_td);
+
           chprintf(chp, "%sP%s", html_select_submit, html_e_tag);
-          for (uint8_t i = 0; i < SCRIPT_SIZE; i++) {
-            chprintf(chp, "%s%u", html_option, i);
-            if (webTimer == i) { chprintf(chp, "%s", html_selected); }
-            else               { chprintf(chp, "%s", html_e_tag); }
-            chprintf(chp, "%u. %s%s", i + 1, conf.scriptName[i], html_e_option);
+          logAddress = 1;
+          for (scriptp = scriptLL; scriptp != NULL; scriptp = scriptp->next) {
+            chprintf(chp, "%s%u", html_option, logAddress);
+            if (webScript == logAddress) { chprintf(chp, "%s", html_selected); }
+            else                         { chprintf(chp, "%s", html_e_tag); }
+            chprintf(chp, "%u. %s%s", logAddress, scriptp->name, html_e_option);
+            logAddress++;
           }
+          chprintf(chp, "%s%u", html_option, DUMMY_NO_VALUE);
+          if (webScript == DUMMY_NO_VALUE) { chprintf(chp, "%s", html_selected); }
+          else                             { chprintf(chp, "%s", html_e_tag); }
+          chprintf(chp, "New script%s", html_e_option);
           chprintf(chp, "%s%s", html_e_select, html_e_td_e_tr_tr_td);
+
           chprintf(chp, "%s%s", text_Name, html_e_td_td);
-          printTextInput(chp, 'n', conf.scriptName[webScript], NAME_LENGTH);
+          printTextInput(chp, 'n', scriptName, NAME_LENGTH);
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
+          // Buttons
+          chprintf(chp, "%s%s%s%s", html_Run, html_Refresh, html_Save, html_Restart);
           // Output
           chprintf(chp, "%s<pre>%s</pre>", html_br, &tclOutput[0]);
           break;
@@ -1043,10 +1055,12 @@ int fs_open_custom(struct fs_file *file, const char *name){
             tempTime = conf.timer[i].nextOff;
             if (GET_CONF_TIMER_ENABLED(conf.timer[i].setting)) printFrmTimestamp(chp, &tempTime);
             chprintf(chp, "%s", html_e_td_td);
+            // TODO OHS print node address, but first find node index
+            //if (conf.timer[i].toAddress > 0) chprintf(chp, "%s - ", node[conf.timer[i].toAddress].name);
             printNodeAddress(chp, conf.timer[i].toAddress, 'I',  conf.timer[i].toFunction,
                              conf.timer[i].toNumber);
             chprintf(chp, "%s", html_e_td_td);
-            if (conf.timer[i].evalScript != DUMMY_NO_VALUE) chprintf(chp, "%s", conf.scriptName[conf.timer[i].evalScript]);
+            if (conf.timer[i].evalScript[0]) chprintf(chp, "%s", conf.timer[i].evalScript);
             else chprintf(chp, "%s", NOT_SET);
             chprintf(chp, "%s", html_e_td_td);
             chprintf(chp, "%.2f%s", conf.timer[i].constantOn, html_e_td_td);
@@ -1059,8 +1073,8 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%sP%s", html_select_submit, html_e_tag);
           for (uint8_t i = 0; i < TIMER_SIZE; i++) {
             chprintf(chp, "%s%u", html_option, i);
-            if (webScript == i) { chprintf(chp, "%s", html_selected); }
-            else                { chprintf(chp, "%s", html_e_tag); }
+            if (webTimer == i) { chprintf(chp, "%s", html_selected); }
+            else               { chprintf(chp, "%s", html_e_tag); }
             chprintf(chp, "%u. %s%s", i + 1, conf.timer[i].name, html_e_option);
           }
           chprintf(chp, "%s%s", html_e_select, html_e_td_e_tr_tr_td);
@@ -1121,6 +1135,23 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s", html_e_select);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Evaluate, text_script, html_e_td_td);
           chprintf(chp, "%sp%s", html_select, html_e_tag);
+
+          logAddress = 1;
+          for (scriptp = scriptLL; scriptp != NULL; scriptp = scriptp->next) {
+            chprintf(chp, "%s%s", html_option, scriptp->name);
+            if (strcmp(&conf.timer[webTimer].evalScript[0], scriptp->name) == 0) {
+              chprintf(chp, "%s", html_selected);
+              logAddress = 0;
+            } else {
+              chprintf(chp, "%s", html_e_tag);
+            }
+            chprintf(chp, "%s%s", scriptp->name, html_e_option);
+          }
+          chprintf(chp, "%s", html_option);
+          if (logAddress) { chprintf(chp, "%s", html_selected); }
+          else            { chprintf(chp, "%s", html_e_tag); }
+          chprintf(chp, "%s%s", NOT_SET, html_e_option);
+          /*
           for (uint8_t i = 0; i <= SCRIPT_SIZE; i++) {
             if (i < SCRIPT_SIZE) {
               chprintf(chp, "%s%u", html_option, i);
@@ -1134,6 +1165,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
               chprintf(chp, "%s%s", NOT_SET, html_e_option);
             }
           }
+          */
           chprintf(chp, "%s", html_e_select);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_On, text_value, html_e_td_td);
           printFloatInput(chp, 'o', conf.timer[webTimer].constantOn);
@@ -1201,6 +1233,7 @@ err_t httpd_post_begin(void *connection, const char *uri, const char *http_reque
   return ERR_VAL;
 }
 
+// TODO OHS Rewrite Post function pass pointer to value instead of copy
 bool readPostParam(char **pPostData, char *name, uint8_t nameLen, char *value, uint16_t valueLen){
   uint8_t ch, ch1, ch2;
 
@@ -1276,7 +1309,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
   LWIP_UNUSED_ARG(connection);
   LWIP_UNUSED_ARG(response_uri_len);
 
-  uint8_t number;
+  uint16_t number;
   int8_t resp;
   char name[3];
   uint8_t message[REGISTRATION_SIZE];
@@ -1615,21 +1648,38 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             do{
               repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
               DBG_HTTP("Parse: %s = %s<\r\n", name, value);
-              script_t *outMsg;
+              scriptEvent_t *outMsg;
               switch(name[0]){
                 case 'P': // select
-                    number = strtol(value, NULL, 10);
-                    if (number != webScript) { webScript = number; repeat = 0; }
+                  number = strtol(value, NULL, 10);
+                  if (number != webScript) {
+                    webScript = number; repeat = 0;
+                    memset(&tclCmd[0], '\0', TCL_SCRIPT_LENGTH);
+                    memset(&scriptName[0], '\0', NAME_LENGTH);
+                    // For old script load values
+                    if (webScript != DUMMY_NO_VALUE) {
+                      number = 1;
+                      for (scriptp = scriptLL; scriptp != NULL; scriptp = scriptp->next) {
+                        if (number == webScript) break;
+                        number++;
+                      }
+                      if (scriptp != NULL) {
+                        strncpy(&scriptName[0], scriptp->name, NAME_LENGTH);
+                        strncpy(&tclCmd[0], scriptp->cmd, TCL_SCRIPT_LENGTH);
+                      }
+                    }
+                  }
                   break;
                 case 'n': // name
-                    strncpy(conf.scriptName[webTimer], value, NAME_LENGTH);
+                  strncpy(scriptName, value, NAME_LENGTH);
                   break;
                 case 'R': // Run
                   outMsg = chPoolAlloc(&script_pool);
                   if (outMsg != NULL) {
-                    outMsg->callback = myCb;
+                    outMsg->callback = NULL;
+                    outMsg->result = NULL;
                     outMsg->flags = 1;
-                    outMsg->index = 0;
+                    outMsg->index = &tclCmd[0];
                     msg_t msg = chMBPostTimeout(&script_mb, (msg_t)outMsg, TIME_IMMEDIATE);
                     if (msg != MSG_OK) {
                       //chprintf(console, "MB full %d\r\n", temp);
@@ -1639,10 +1689,49 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   }
                 break;
                 case 's': // script
-                  strncpy(tclCmd, value, sizeof(tclCmd)); // Copy sizeof value
+                  strncpy(tclCmd, value, TCL_SCRIPT_LENGTH);
                 break;
                 case 'e': // save
-                  writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+                  // TODO OHS Add malloc, realloc checks for return NULL pointer.
+                  if (webScript == DUMMY_NO_VALUE) {
+                    // For new script append linked list
+                    scriptp = umm_malloc(sizeof(struct scriptLL_t));
+                    scriptp->name = umm_malloc(NAME_LENGTH + 1);
+                    strncpy(scriptp->name, &scriptName[0], NAME_LENGTH);
+                    number = strlen(tclCmd);
+                    scriptp->cmd = umm_malloc(number + 1);
+                    memset(scriptp->cmd + number, 0, 1);
+                    strncpy(scriptp->cmd, &tclCmd[0], number);
+                    scriptp->next = scriptLL;
+                    scriptLL = scriptp;
+                    // uBS
+                    uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd));
+                    // new script is added to top of linked list, no need to do pointer check
+                    webScript = 1;
+                  } else {
+                    // For old script replace values
+                    number = 1;
+                    // Find pointer to script
+                    for (scriptp = scriptLL; scriptp != NULL; scriptp = scriptp->next) {
+                      if (number == webScript) break;
+                      number++;
+                    }
+                    if (scriptp != NULL) {
+                      // Do we need to rename it
+                      if (strcmp(scriptp->name, &scriptName[0]) != 0) {
+                        DBG_HTTP("Rename: %x, %x\r\n", scriptp, scriptp->name);
+                        strncpy(scriptp->name, &scriptName[0], NAME_LENGTH);
+                        uBSRename(scriptp->name, &scriptName[0], NAME_LENGTH);
+                      }
+                      number = strlen(tclCmd);
+                      //scriptp->cmd = umm_realloc(scriptp->cmd, number + 1);
+                      umm_free(scriptp->cmd);
+                      scriptp->cmd = umm_malloc(number + 1);
+                      strncpy(scriptp->cmd, &tclCmd[0], number);
+                      memset(scriptp->cmd + number, 0, 1);
+                      uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd));
+                    }
+                  }
                 break;
               }
             } while (repeat);
@@ -1699,7 +1788,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   conf.timer[webTimer].startTime += strtol(++pEnd, NULL, 10);
                 break;
                 case 'p': // script
-                  conf.timer[webTimer].evalScript = strtol(value, NULL, 10);
+                  strncpy(conf.timer[webTimer].evalScript, value, NAME_LENGTH);
                 break;
                 case 'B' ... 'J': // Handle all single radio buttons for settings B(66)=0
                   if (value[0] == '0') conf.timer[webTimer].setting &= ~(1 << (name[0]-66));

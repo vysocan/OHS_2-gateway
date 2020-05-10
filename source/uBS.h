@@ -10,7 +10,6 @@
 
 #include "hal.h"
 #include "chprintf.h"
-#include <string.h>
 
 // FRAM on SPI related
 #define CMD_25AA_WRSR     0x01  // Write status register
@@ -22,12 +21,11 @@
 #define CMD_25AA_RDID     0x9F  // Read FRAM ID
 #define STATUS_25AA_WEL   0b00000010  // write enable latch (1 == write enable)
 
-void uBSReadBlock(uint32_t address);
-void uBSWriteBlock(uint32_t address, uint8_t* data);
-void uBSInit(void);
 void uBSFormat(void);
-uint16_t uBSGetFreeSpace(void);
-int8_t uBSGetFreeBlock(uint32_t* address);
-int8_t uBSWrite(void* filename, void *data, uint16_t size);
+void uBSInit(void);
+int8_t uBSWrite(void* name, uint8_t nameSize, void *data, uint16_t dataSize);
+int8_t uBSRead(void* name, uint8_t nameSize, void *data, uint16_t *dataSize);
+int8_t uBSSeekAll(uint32_t* address, void* name, uint8_t nameSize);
+int8_t uBSRename(void* oldName, void* newName, uint8_t nameSize);
 
 #endif /* UBS_H_ */

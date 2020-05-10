@@ -25,7 +25,7 @@ static THD_WORKING_AREA(waSensorThread, 320);
 static THD_FUNCTION(SensorThread, arg) {
   chRegSetThreadName(arg);
   msg_t    msg;
-  sensor_t *inMsg;
+  sensorEvent_t *inMsg;
   uint8_t  nodeIndex;
   uint8_t  lastNode = DUMMY_NO_VALUE;
   uint32_t lastNodeTime = 0;

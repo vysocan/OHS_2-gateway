@@ -16,7 +16,7 @@ static THD_WORKING_AREA(waLoggerThread, 128);
 static THD_FUNCTION(LoggerThread, arg) {
   chRegSetThreadName(arg);
   msg_t    msg;
-  logger_t *inMsg;
+  loggerEvent_t *inMsg;
   char     buffer[FRAM_MSG_SIZE+3];
   uint8_t  flag;
 
@@ -65,7 +65,7 @@ static THD_FUNCTION(LoggerThread, arg) {
 
       // Alerts
       if (flag > 0) {
-        alert_t *outMsg = chPoolAlloc(&alert_pool);
+        alertEvent_t *outMsg = chPoolAlloc(&alert_pool);
         if (outMsg != NULL) {
           memcpy(&outMsg->text[0], &inMsg->text[0], LOGGER_MSG_LENGTH);  // Copy string
           outMsg->flag = flag;
