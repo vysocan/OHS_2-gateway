@@ -257,13 +257,13 @@ void printNodeValue(BaseSequentialStream *chp, const uint8_t index) {
 }
 
 void printTextInput(BaseSequentialStream *chp, const char name, const char *value, const uint8_t size){
-  chprintf(chp, "%s%u%s%u%s", html_t_tag_1, size, html_s_tag_2, size, html_s_tag_3);
+  chprintf(chp, "%s%u%s%u%s", html_t_tag_1, size - 1, html_s_tag_2, size - 1, html_s_tag_3);
   chprintf(chp, "%c%s%s", name, html_m_tag, value);
   chprintf(chp, "%s%c%s", html_id_tag, name, html_e_tag);
 }
 
 void printPassInput(BaseSequentialStream *chp, const char name, const char *value, const uint8_t size){
-  chprintf(chp, "%s%u%s%u%s", html_p_tag_1, size, html_s_tag_2, size, html_s_tag_3);
+  chprintf(chp, "%s%u%s%u%s", html_p_tag_1, size - 1, html_s_tag_2, size - 1, html_s_tag_3);
   chprintf(chp, "%c%s%s", name, html_m_tag, value);
   chprintf(chp, "%s%c%s", html_id_tag, name, html_e_tag);
 }
@@ -292,7 +292,7 @@ void printTimeInput(BaseSequentialStream *chp, const char name, const uint8_t ho
 void printTextArea(BaseSequentialStream *chp, const char name, const char *value,
                    const uint16_t maxSize, const uint8_t cols, const uint8_t rows){
   chprintf(chp, "%s%c%s%c%s%u", html_textarea_1, name, html_textarea_2, name, html_textarea_3, rows);
-  chprintf(chp, "%s%u%s%u%s", html_textarea_4, cols, html_textarea_5, maxSize, html_e_tag);
+  chprintf(chp, "%s%u%s%u%s", html_textarea_4, cols, html_textarea_5, maxSize - 1, html_e_tag);
   chprintf(chp, "%s%s", value, html_textarea_e);
 }
 
@@ -837,7 +837,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           // Information table
           chprintf(chp, "%s%s / %s %s%s", html_tr_td, text_Arm, text_Authentication, text_time,
                    html_e_td_td);
-          printIntInput(chp, 'D', conf.armDelay / 4, 3, 5, 50);
+          printIntInput(chp, 'C', conf.armDelay / 4, 3, 5, 50);
           chprintf(chp, " %s%s%s %s %s %s%s", durationSelect[0], html_e_td_e_tr_tr_td, text_Auto,
                    text_arm, text_zone, text_delay, html_e_td_td);
           printIntInput(chp, 'E', conf.autoArm, 3, 1, 240);
@@ -1258,21 +1258,20 @@ void processPostData(char *pSource){
   *pDest = 0;
 }
 
-bool getPostData(char **pPostData, char *name, uint8_t nameLen, char *value, uint16_t *valueLen){
+bool getPostData(char **pPostData, char *pName, uint8_t nameLen, char **pValue, uint16_t *pValueLen){
   uint8_t ch;
-  uint16_t getValueLen = *valueLen;
-  *valueLen = 0;
+  *pValueLen = 0;
 
   // clear out name and value so they'll be NULL terminated
-  memset(name, 0, nameLen);
-  memset(value, 0, *valueLen);
+  memset(pName, 0, nameLen);
+  (*pValue) = NULL;
 
   while (**pPostData != 0){
     ch = **pPostData; (*pPostData)++;
     switch (ch) {
       case '=': // that's end of name, switch to storing value
         nameLen = 0;
-        value = (*pPostData) + 1;
+        (*pValue) = (*pPostData);
         continue; // do not store '='
         break;
       case '&': // that's end of pair, go away
@@ -1282,57 +1281,14 @@ bool getPostData(char **pPostData, char *name, uint8_t nameLen, char *value, uin
 
     // check against 1 so we don't overwrite the final NULL
     if (nameLen > 1) {
-      *name++ = ch;
+      *pName++ = ch;
       --nameLen;
     } else {
-      if ((getValueLen > 1) && (nameLen == 0))  {
-        ++*valueLen;
-        --getValueLen;
+      if (nameLen == 0)  {
+        (*pValueLen)++;
       }
     }
-  }
-  return false; // Null is end
-}
-
-// TODO OHS Rewrite Post function pass pointer to value instead of copy
-bool readPostParam(char **pPostData, char *name, uint8_t nameLen, char *value, uint16_t valueLen){
-  uint8_t ch, ch1, ch2;
-
-  // clear out name and value so they'll be NULL terminated
-  memset(name, 0, nameLen);
-  memset(value, 0, valueLen);
-
-  while (**pPostData != 0){
-    ch = **pPostData; (*pPostData)++;
-    switch (ch) {
-      case '+': ch = ' ';
-        break;
-      case '=': // that's end of name, switch to storing value
-        nameLen = 0;
-        continue; // do not store '='
-        break;
-      case '&': // that's end of pair, go away
-        return true;
-        break;
-      case '%':  // handle URL encoded characters by converting back to original form
-        ch1 = **pPostData; (*pPostData)++;
-        ch2 = **pPostData; (*pPostData)++;
-        if (ch1 == 0 || ch2 == 0) return false;
-        char hex[3] = { ch1, ch2, 0 };
-        ch = strtoul(hex, NULL, 16);
-        break;
-    }
-
-    // check against 1 so we don't overwrite the final NULL
-    if (nameLen > 1) {
-      *name++ = ch;
-      --nameLen;
-    } else {
-      if ((valueLen > 1) && (nameLen == 0))  {
-        *value++ = ch;
-        --valueLen;
-      }
-    }
+    //DBG_HTTP("ch-%c, nameLen-%u, valueLen-%u, %s\r\n", ch, nameLen, *valueLen, *pValue);
   }
   return false; // Null is end
 }
@@ -1374,9 +1330,8 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
   int8_t resp;
   char name[3];
   uint8_t message[REGISTRATION_SIZE];
-  char value[255];
   bool repeat;
-  char *ptr, *pEnd, *valuep;
+  char *ptr, *pEnd, *valueP;
 
   //DBG_HTTP("-PE-connection: %u\r\n", (uint32_t *)connection);
   DBG_HTTP("-PE-postData: %s\r\n", postData);
@@ -1391,11 +1346,11 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
         switch (htmlPage) {
           case PAGE_NODE:
             do{
-              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
-              DBG_HTTP("Parse: %s=%s<\r\n", name, value);
+              repeat = getPostData(&ptr, &name[0], sizeof(name), &valueP, &valueLen);
+              DBG_HTTP("Parse: %s = (%.*s), %u\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
                 case 'P': // select
-                  number = strtol(value, NULL, 10);
+                  number = strtol(valueP, NULL, 10);
                   if (number != webNode) { webNode = number; repeat = 0; }
                 break;
                 case 'R': // Reregistration
@@ -1437,14 +1392,15 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   */
                 break;
                 case 'n': // name
-                  strncpy(node[webNode].name, value, NAME_LENGTH);
+                  strncpy(node[webNode].name, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+                  node[webNode].name[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
                 break;
                 case '0' ... '7': // Handle all single radio buttons for settings
-                  if (value[0] == '0') node[webNode].setting &= ~(1 << (name[0]-48));
+                  if (valueP[0] == '0') node[webNode].setting &= ~(1 << (name[0]-48));
                   else                 node[webNode].setting |=  (1 << (name[0]-48));
                 break;
                 case 'g': // group
-                  number = strtol(value, NULL, 10);
+                  number = strtol(valueP, NULL, 10);
                   SET_NODE_GROUP(node[webNode].setting, number);
                 break;
                 case 'e': // save
@@ -1455,28 +1411,31 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             break;
           case PAGE_USER:
             do{
-              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
-              DBG_HTTP("Parse: %s = %s<\r\n", name, value);
+              repeat = getPostData(&ptr, &name[0], sizeof(name), &valueP, &valueLen);
+              DBG_HTTP("Parse: %s = (%.*s), %u\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
                 case 'P': // select
-                  number = strtol(value, NULL, 10);
+                  number = strtol(valueP, NULL, 10);
                   if (number != webContact) { webContact = number; repeat = 0; }
                 break;
                 case 'n': // name
-                  strncpy(conf.contactName[webContact], value, NAME_LENGTH);
-                break;
+                  strncpy(conf.contactName[webContact], valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+                  conf.contactName[webContact][LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
+                  break;
                 case 'p': // phone number
-                  strncpy(conf.contactPhone[webContact], value, PHONE_LENGTH);
-                break;
+                  strncpy(conf.contactPhone[webContact], valueP, LWIP_MIN(valueLen, PHONE_LENGTH - 1));
+                  conf.contactPhone[webContact][LWIP_MIN(valueLen, PHONE_LENGTH - 1)] = 0;
+                  break;
                 case 'm': // email
-                  strncpy(conf.contactEmail[webContact], value, EMAIL_LENGTH);
+                  strncpy(conf.contactEmail[webContact], valueP, LWIP_MIN(valueLen, EMAIL_LENGTH - 1));
+                  conf.contactEmail[webContact][LWIP_MIN(valueLen, EMAIL_LENGTH - 1)] = 0;
                 break;
                 case '0' ... '7': // Handle all single radio buttons for settings
-                  if (value[0] == '0') conf.contact[webContact] &= ~(1 << (name[0]-48));
+                  if (valueP[0] == '0') conf.contact[webContact] &= ~(1 << (name[0]-48));
                   else                 conf.contact[webContact] |=  (1 << (name[0]-48));
                 break;
                 case 'g': // group
-                  number = strtol(value, NULL, 10);
+                  number = strtol(valueP, NULL, 10);
                   SET_CONF_CONTACT_GROUP(conf.contact[webContact], number);
                 break;
                 case 'e': // save
@@ -1487,25 +1446,25 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             break;
           case PAGE_KEY:
             do{
-              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
-              DBG_HTTP("Parse: %s = %s<\r\n", name, value);
+              repeat = getPostData(&ptr, &name[0], sizeof(name), &valueP, &valueLen);
+              DBG_HTTP("Parse: %s = (%.*s), %u\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
                 case 'P': // select
-                  number = strtol(value, NULL, 10);
+                  number = strtol(valueP, NULL, 10);
                   if (number != webKey) { webKey = number; repeat = 0; }
                 break;
                 case 'c': // Contact ID
-                  conf.keyContact[webKey] = strtol(value, NULL, 10);
+                  conf.keyContact[webKey] = strtol(valueP, NULL, 10);
                 break;
                 case 'k': // key
-                  conf.keyValue[webKey] = strtoul(value, NULL, 16); // as unsigned long int
+                  conf.keyValue[webKey] = strtoul(valueP, NULL, 16); // as unsigned long int
                 break;
                 case '0' ... '7': // Handle all single radio buttons for settings
-                  if (value[0] == '0') conf.keySetting[webKey] &= ~(1 << (name[0]-48));
+                  if (valueP[0] == '0') conf.keySetting[webKey] &= ~(1 << (name[0]-48));
                   else                 conf.keySetting[webKey] |=  (1 << (name[0]-48));
                 break;
                 //case 'g': // group
-                  //number = strtol(value, NULL, 10);
+                  //number = strtol(valueP, NULL, 10);
                   //SET_CONF_KEY_GROUP(conf.keySetting[webKey], number);
                 //break;
                 case 'e': // save
@@ -1516,32 +1475,33 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             break;
           case PAGE_ZONE:
             do{
-              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
-              DBG_HTTP("Parse: %s = %s<\r\n", name, value);
+              repeat = getPostData(&ptr, &name[0], sizeof(name), &valueP, &valueLen);
+              DBG_HTTP("Parse: %s = (%.*s), %u\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
                 case 'P': // select
-                  number = strtol(value, NULL, 10);
+                  number = strtol(valueP, NULL, 10);
                   if (number != webZone) { webZone = number; repeat = 0; }
                 break;
                 case 'A': // Apply, for remote zone send packet.
                   //
                 break;
                 case 'n': // name
-                  strncpy(conf.zoneName[webZone], value, NAME_LENGTH);
+                  strncpy(conf.zoneName[webZone], valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+                  conf.zoneName[webZone][LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
                 break;
                 case 'd': // delay
-                  SET_CONF_ZONE_AUTH_TIME(conf.zone[webKey], (value[0] - 48));
+                  SET_CONF_ZONE_AUTH_TIME(conf.zone[webKey], (valueP[0] - 48));
                 break;
                 case '0' ... '9': // Handle all single radio buttons for settings
-                  if (value[0] == '0') conf.zone[webZone] &= ~(1 << (name[0]-48));
+                  if (valueP[0] == '0') conf.zone[webZone] &= ~(1 << (name[0]-48));
                   else                 conf.zone[webZone] |=  (1 << (name[0]-48));
                 break;
                 case 'a': // Handle all single radio buttons for settings 10 ->
-                  if (value[0] == '0') conf.zone[webZone] &= ~(1 << (name[0]-87)); // a(97) - 10
+                  if (valueP[0] == '0') conf.zone[webZone] &= ~(1 << (name[0]-87)); // a(97) - 10
                   else                 conf.zone[webZone] |=  (1 << (name[0]-87));
                 break;
                 case 'g': // group
-                  number = strtol(value, NULL, 10);
+                  number = strtol(valueP, NULL, 10);
                   SET_CONF_ZONE_GROUP(conf.zone[webZone], number);
                 break;
                 case 'e': // save
@@ -1552,11 +1512,11 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             break;
           case PAGE_ALERT:
             do{
-              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
-              DBG_HTTP("Parse: %s = %s<\r\n", name, value);
+              repeat = getPostData(&ptr, &name[0], sizeof(name), &valueP, &valueLen);
+              DBG_HTTP("Parse: %s = (%.*s), %u\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
                 case '0' ... ('0' + ARRAY_SIZE(alertType)): // Handle all radio buttons in groups 0 .. #, A .. #
-                  if (value[0] == '0') conf.alert[name[0]-48] &= ~(1 << (name[1]-65));
+                  if (valueP[0] == '0') conf.alert[name[0]-48] &= ~(1 << (name[1]-65));
                   else conf.alert[name[0]-48] |= (1 << (name[1]-65));
                 break;
                 case 'e': // save
@@ -1567,8 +1527,8 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             break;
           case PAGE_LOG:
             do{
-              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
-              DBG_HTTP("Parse: %s = %s<\r\n", name, value);
+              repeat = getPostData(&ptr, &name[0], sizeof(name), &valueP, &valueLen);
+              DBG_HTTP("Parse: %s = (%.*s), %u\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
                 case 'N': // Now
                   webLog = FRAMWritePos - (LOGGER_OUTPUT_LEN * FRAM_MSG_SIZE);
@@ -1584,28 +1544,29 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             break;
           case PAGE_GROUP:
             do{
-              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
-              DBG_HTTP("Parse: %s = %s<\r\n", name, value);
+              repeat = getPostData(&ptr, &name[0], sizeof(name), &valueP, &valueLen);
+              DBG_HTTP("Parse: %s = (%.*s), %u\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
                 case 'P': // select
-                  number = strtol(value, NULL, 10);
+                  number = strtol(valueP, NULL, 10);
                   if (number != webGroup) { webGroup = number; repeat = 0; }
                 break;
                 case 'A': // Apply
                 break;
                 case 'n': // name
-                  strncpy(conf.groupName[webGroup], value, NAME_LENGTH);
+                  strncpy(conf.groupName[webGroup], valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+                  conf.groupName[webGroup][LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
                 break;
                 case '0' ... '7': // Handle all single radio buttons for settings
-                  if (value[0] == '0') conf.group[webGroup] &= ~(1 << (name[0]-48));
+                  if (valueP[0] == '0') conf.group[webGroup] &= ~(1 << (name[0]-48));
                   else                 conf.group[webGroup] |=  (1 << (name[0]-48));
                 break;
                 case 'a': // arm chain
-                  number = strtol(value, NULL, 10);
+                  number = strtol(valueP, NULL, 10);
                   SET_CONF_GROUP_ARM_CHAIN(conf.group[webGroup], number);
                 break;
                 case 'd': // disarm chain
-                  number = strtol(value, NULL, 10);
+                  number = strtol(valueP, NULL, 10);
                   SET_CONF_GROUP_DISARM_CHAIN(conf.group[webGroup], number);
                 break;
                 case 'e': // save
@@ -1616,8 +1577,8 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             break;
           case PAGE_SETTING:
             do{
-              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
-              DBG_HTTP("Parse: %s = %s<\r\n", name, value);
+              repeat = getPostData(&ptr, &name[0], sizeof(name), &valueP, &valueLen);
+              DBG_HTTP("Parse: %s = (%.*s), %u\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
                 case 'A': // Apply
                   // SMTP
@@ -1627,70 +1588,76 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   // SNTP
                   sntp_setservername(0, conf.SNTPAddress);
                 break;
-                case 'D':
-                  conf.armDelay = strtol(value, NULL, 10) * 4;
+                case 'C':
+                  conf.armDelay = strtol(valueP, NULL, 10) * 4;
                 break;
                 case 'E':
-                  conf.autoArm = strtol(value, NULL, 10);
+                  conf.autoArm = strtol(valueP, NULL, 10);
                 break;
                 case 'F':
-                  conf.openAlarm = strtol(value, NULL, 10);
+                  conf.openAlarm = strtol(valueP, NULL, 10);
                 break;
                 case 'u': // user
-                  strncpy(conf.user, value, NAME_LENGTH);
+                  strncpy(conf.user, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+                  conf.user[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
                 break;
                 case 'p': // password
-                  strncpy(conf.password, value, NAME_LENGTH);
+                  strncpy(conf.password, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+                  conf.password[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
                 break;
                 case 'a': // SMTP server
-                  strncpy(conf.SMTPAddress, value, URL_LENGTH);
+                  strncpy(conf.SMTPAddress, valueP, LWIP_MIN(valueLen, URL_LENGTH - 1));
+                  conf.SMTPAddress[LWIP_MIN(valueLen, URL_LENGTH - 1)] = 0;
                 break;
                 case 'b': // SMTP port
-                  conf.SMTPPort = strtol(value, NULL, 10);
+                  conf.SMTPPort = strtol(valueP, NULL, 10);
                 break;
                 case 'c': // SMTP user
-                  strncpy(conf.SMTPUser, value, EMAIL_LENGTH);
+                  strncpy(conf.SMTPUser, valueP, LWIP_MIN(valueLen, EMAIL_LENGTH - 1));
+                  conf.SMTPUser[LWIP_MIN(valueLen, EMAIL_LENGTH - 1)] = 0;
                 break;
                 case 'd': // SMTP password
-                  strncpy(conf.SMTPPassword, value, NAME_LENGTH);
+                  strncpy(conf.SMTPPassword, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+                  conf.SMTPPassword[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
                 break;
                 case 'f': // NTP server
-                  strncpy(conf.SNTPAddress, value, URL_LENGTH);
+                  strncpy(conf.SNTPAddress, valueP, LWIP_MIN(valueLen, URL_LENGTH - 1));
+                  conf.SNTPAddress[LWIP_MIN(valueLen, URL_LENGTH - 1)] = 0;
                 break;
                 case 'w':
-                  conf.timeStdWeekNum = strtol(value, NULL, 10);
+                  conf.timeStdWeekNum = strtol(valueP, NULL, 10);
                 break;
                 case 's':
-                  conf.timeStdDow = strtol(value, NULL, 10);
+                  conf.timeStdDow = strtol(valueP, NULL, 10);
                 break;
                 case 'm':
-                  conf.timeStdMonth = strtol(value, NULL, 10);
+                  conf.timeStdMonth = strtol(valueP, NULL, 10);
                 break;
                 case 'h':
-                  conf.timeStdHour = strtol(value, NULL, 10);
+                  conf.timeStdHour = strtol(valueP, NULL, 10);
                 break;
                 case 'o':
-                  conf.timeStdOffset = strtol(value, NULL, 10);
+                  conf.timeStdOffset = strtol(valueP, NULL, 10);
                 break;
                 case 'W':
-                  conf.timeDstWeekNum = strtol(value, NULL, 10);
+                  conf.timeDstWeekNum = strtol(valueP, NULL, 10);
                 break;
                 case 'S':
-                  conf.timeDstDow = strtol(value, NULL, 10);
+                  conf.timeDstDow = strtol(valueP, NULL, 10);
                 break;
                 case 'M':
-                  conf.timeDstMonth = strtol(value, NULL, 10);
+                  conf.timeDstMonth = strtol(valueP, NULL, 10);
                 break;
                 case 'H':
-                  conf.timeDstHour = strtol(value, NULL, 10);
+                  conf.timeDstHour = strtol(valueP, NULL, 10);
                 break;
                 case 'O':
-                  conf.timeDstOffset = strtol(value, NULL, 10);
+                  conf.timeDstOffset = strtol(valueP, NULL, 10);
                 break;
                 case 'g': // time format
-                  strncpy(conf.dateTimeFormat, value, NAME_LENGTH);
+                  strncpy(conf.dateTimeFormat, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+                  conf.dateTimeFormat[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
                 break;
-
                 case 'e': // save
                   writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
                 break;
@@ -1699,8 +1666,8 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             break;
           case PAGE_HOME:
             do{
-              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
-              DBG_HTTP("Parse: %s = %s<\r\n", name, value);
+              repeat = getPostData(&ptr, &name[0], sizeof(name), &valueP, &valueLen);
+              DBG_HTTP("Parse: %s = (%.*s), %u\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
                 case 'A': // Apply
                 break;
@@ -1709,12 +1676,12 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             break;
           case PAGE_TCL:
             do{
-              repeat = getPostData(&ptr, &name[0], sizeof(name), valuep, &valueLen);
-              DBG_HTTP("Parse: %s = %s<\r\n", name, value);
+              repeat = getPostData(&ptr, &name[0], sizeof(name), &valueP, &valueLen);
+              DBG_HTTP("Parse: %s = (%.*s), %u\r\n", name, valueLen, valueP, valueLen);
               scriptEvent_t *outMsg;
               switch(name[0]){
                 case 'P': // select
-                  number = strtol(value, NULL, 10);
+                  number = strtol(valueP, NULL, 10);
                   if (number != webScript) {
                     webScript = number; repeat = 0;
                     memset(&tclCmd[0], '\0', TCL_SCRIPT_LENGTH);
@@ -1734,7 +1701,8 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   }
                   break;
                 case 'n': // name
-                  strncpy(scriptName, value, NAME_LENGTH);
+                  strncpy(scriptName, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+                  scriptName[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
                   break;
                 case 'R': // Run
                   outMsg = chPoolAlloc(&script_pool);
@@ -1752,7 +1720,8 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   }
                 break;
                 case 's': // script
-                  strncpy(tclCmd, value, TCL_SCRIPT_LENGTH);
+                  strncpy(tclCmd, valueP, LWIP_MIN(valueLen, TCL_SCRIPT_LENGTH - 1));
+                  tclCmd[LWIP_MIN(valueLen, TCL_SCRIPT_LENGTH - 1)] = 0;
                 break;
                 case 'e': // save
                   // TODO OHS Add malloc, realloc checks for return NULL pointer.
@@ -1801,35 +1770,36 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             break;
           case PAGE_TIMER:
             do{
-              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
-              DBG_HTTP("Parse: %s = %s<\r\n", name, value);
+              repeat = getPostData(&ptr, &name[0], sizeof(name), &valueP, &valueLen);
+              DBG_HTTP("Parse: %s = (%.*s), %u\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
                 case 'P': // select
-                  number = strtol(value, NULL, 10);
+                  number = strtol(valueP, NULL, 10);
                   if (number != webTimer) { webTimer = number; repeat = 0; }
                 break;
                 case 'A': // Apply
                   setTimer(webTimer, true);
                 break;
                 case 'n': // name
-                  strncpy(conf.timer[webTimer].name, value, NAME_LENGTH);
+                  strncpy(conf.timer[webTimer].name, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+                  conf.timer[webTimer].name[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
                 break;
                 case 's': // period
-                  conf.timer[webTimer].periodTime = strtol(value, NULL, 10);
+                  conf.timer[webTimer].periodTime = strtol(valueP, NULL, 10);
                 break;
                 case 'S': // period
-                  number = strtol(value, NULL, 10);
+                  number = strtol(valueP, NULL, 10);
                   SET_CONF_TIMER_PERIOD_TYPE(conf.timer[webTimer].setting, number);
                 break;
                 case 'r': // run
-                  conf.timer[webTimer].runTime = strtol(value, NULL, 10);
+                  conf.timer[webTimer].runTime = strtol(valueP, NULL, 10);
                 break;
                 case 'R': // run
-                  number = strtol(value, NULL, 10);
+                  number = strtol(valueP, NULL, 10);
                   SET_CONF_TIMER_RUN_TYPE(conf.timer[webTimer].setting, number);
                 break;
                 case 'a': // node aaddress
-                  number = strtol(value, NULL, 10);
+                  number = strtol(valueP, NULL, 10);
                   if (number == DUMMY_NO_VALUE) {
                     conf.timer[webTimer].toAddress  = 0;
                     conf.timer[webTimer].toFunction = ' ';
@@ -1841,21 +1811,22 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   }
                 break;
                 case 'o':
-                  conf.timer[webTimer].constantOn = strtof(value, NULL);
+                  conf.timer[webTimer].constantOn = strtof(valueP, NULL);
                 break;
                 case 'f':
-                  conf.timer[webTimer].constantOff = strtof(value, NULL);
+                  conf.timer[webTimer].constantOff = strtof(valueP, NULL);
                 break;
                 case 't': // time
-                  conf.timer[webTimer].startTime = strtol(value, &pEnd, 10) * MINUTES_PER_HOUR ;
+                  conf.timer[webTimer].startTime = strtol(valueP, &pEnd, 10) * MINUTES_PER_HOUR ;
                   conf.timer[webTimer].startTime += strtol(++pEnd, NULL, 10);
                 break;
                 case 'p': // script
-                  strncpy(conf.timer[webTimer].evalScript, value, NAME_LENGTH);
+                  strncpy(conf.timer[webTimer].evalScript, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+                  conf.timer[webTimer].evalScript[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
                 break;
                 case 'B' ... 'J': // Handle all single radio buttons for settings B(66)=0
-                  if (value[0] == '0') conf.timer[webTimer].setting &= ~(1 << (name[0]-66));
-                  else                 conf.timer[webTimer].setting |=  (1 << (name[0]-66));
+                  if (valueP[0] == '0') conf.timer[webTimer].setting &= ~(1 << (name[0]-66));
+                  else                  conf.timer[webTimer].setting |=  (1 << (name[0]-66));
                 break;
                 case 'e': // save
                   writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
