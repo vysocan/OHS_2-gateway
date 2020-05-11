@@ -39,7 +39,7 @@
  */
 // Editable
 #define UBS_BLOCK_SIZE        32
-#define UBS_BLOCK_COUNT       128
+#define UBS_BLOCK_COUNT       256
 #define UBS_NAME_SIZE         16
 #define UBS_START_ADDRESS     16384
 // Fixed

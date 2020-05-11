@@ -709,8 +709,6 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
     printFrmTimestamp(chp, &timeConv.val);
     chprintf(chp, " : %s", logText);
     chprintf(chp, " Flags: %x\r\n", rxBuffer[FRAM_MSG_SIZE-1]);
-    // TODO OHS remove sleep
-    chThdSleepMilliseconds(2);
 
     FRAMReadPos+=FRAM_MSG_SIZE; // Advance for next read
   }

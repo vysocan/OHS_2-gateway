@@ -19,7 +19,7 @@ static int tcl_cmd_node(struct tcl* tcl, tcl_value_t* args, void* arg) {
   char buf[16];
 
   tcl_value_t* location = tcl_list_at(args, 1);
-  //chprintf((BaseSequentialStream*)&SD3, "*tcl_cmd_node*: %s.\r\n", location);
+  //chprintf(console, "*tcl_cmd_node*: %s.\r\n", location);
 
   // Get index
   pch = strtok((char*)location,":");
@@ -32,7 +32,7 @@ static int tcl_cmd_node(struct tcl* tcl, tcl_value_t* args, void* arg) {
     indexNum = getNodeIndex((*index[0] == 'R' ? RADIO_UNIT_OFFSET : 0) + atoi(index[1]),
                             *index[2], *index[3], atoi(index[4]));
     if (indexNum != DUMMY_NO_VALUE) {
-      //chprintf((BaseSequentialStream*)&SD3, "*tcl_cmd_node*: %d.\r\n", indexNum);
+      //chprintf(console, "*tcl_cmd_node*: %d.\r\n", indexNum);
       chsnprintf(&buf[0], sizeof(buf), "%.2f", node[indexNum].value);
       ret = tcl_result(tcl, FNORMAL, tcl_alloc(&buf[0], strlen(buf)));
     } else {
@@ -56,8 +56,8 @@ static int tcl_cmd_group(struct tcl* tcl, tcl_value_t* args, void* arg) {
   tcl_value_t* groupCommand = tcl_list_at(args, 2);
 
   groupNum = atoi(groupNumber) - 1;
-  //chprintf((BaseSequentialStream*)&SD3, "groupNum: %u.\r\n", groupNum);
-  //chprintf((BaseSequentialStream*)&SD3, "*groupCommand: %c.\r\n", *groupCommand);
+  //chprintf(console, "groupNum: %u.\r\n", groupNum);
+  //chprintf(console, "*groupCommand: %c.\r\n", *groupCommand);
 
   if ((groupNum < ALARM_GROUPS) && (GET_CONF_GROUP_ENABLED(conf.group[groupNum]))) {
     switch (*groupCommand) {

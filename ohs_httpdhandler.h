@@ -30,7 +30,7 @@
 #endif
 
 #ifndef HTTP_DEBUG
-#define HTTP_DEBUG 0
+#define HTTP_DEBUG 1
 #endif
 
 #if HTTP_DEBUG
@@ -1233,6 +1233,67 @@ err_t httpd_post_begin(void *connection, const char *uri, const char *http_reque
   return ERR_VAL;
 }
 
+void processPostData(char *pSource){
+  uint8_t ch, ch1, ch2;
+  char *pDest = pSource;
+
+  while (*pSource != 0){
+    ch = *pSource; pSource++;
+    switch (ch) {
+      case '+': ch = ' ';
+        break;
+      case '%':  // handle URL encoded characters by converting back to original form
+        ch1 = *pSource; pSource++;
+        ch2 = *pSource; pSource++;
+        if (ch1 == 0 || ch2 == 0) {
+          ch = 0;
+          continue;
+        }
+        char hex[3] = { ch1, ch2, 0 };
+        ch = strtoul(hex, NULL, 16);
+        break;
+    }
+    *pDest = ch; pDest++;
+  }
+  *pDest = 0;
+}
+
+bool getPostData(char **pPostData, char *name, uint8_t nameLen, char *value, uint16_t *valueLen){
+  uint8_t ch;
+  uint16_t getValueLen = *valueLen;
+  *valueLen = 0;
+
+  // clear out name and value so they'll be NULL terminated
+  memset(name, 0, nameLen);
+  memset(value, 0, *valueLen);
+
+  while (**pPostData != 0){
+    ch = **pPostData; (*pPostData)++;
+    switch (ch) {
+      case '=': // that's end of name, switch to storing value
+        nameLen = 0;
+        value = (*pPostData) + 1;
+        continue; // do not store '='
+        break;
+      case '&': // that's end of pair, go away
+        return true;
+        break;
+    }
+
+    // check against 1 so we don't overwrite the final NULL
+    if (nameLen > 1) {
+      *name++ = ch;
+      --nameLen;
+    } else {
+      if ((getValueLen > 1) && (nameLen == 0))  {
+        ++*valueLen;
+        --getValueLen;
+      }
+    }
+  }
+  return false; // Null is end
+}
+
 // TODO OHS Rewrite Post function pass pointer to value instead of copy
 bool readPostParam(char **pPostData, char *name, uint8_t nameLen, char *value, uint16_t valueLen){
   uint8_t ch, ch1, ch2;
@@ -1309,15 +1370,17 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
   LWIP_UNUSED_ARG(connection);
   LWIP_UNUSED_ARG(response_uri_len);
 
-  uint16_t number;
+  uint16_t number, valueLen = 0;
   int8_t resp;
   char name[3];
   uint8_t message[REGISTRATION_SIZE];
   char value[255];
   bool repeat;
-  char *ptr, *pEnd;;
+  char *ptr, *pEnd, *valuep;
 
   //DBG_HTTP("-PE-connection: %u\r\n", (uint32_t *)connection);
+  DBG_HTTP("-PE-postData: %s\r\n", postData);
+  processPostData(postData);
   DBG_HTTP("-PE-postData: %s\r\n", postData);
 
   if (current_connection == connection) {
@@ -1646,7 +1709,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             break;
           case PAGE_TCL:
             do{
-              repeat = readPostParam(&ptr, &name[0], sizeof(name), &value[0], sizeof(value));
+              repeat = getPostData(&ptr, &name[0], sizeof(name), valuep, &valueLen);
               DBG_HTTP("Parse: %s = %s<\r\n", name, value);
               scriptEvent_t *outMsg;
               switch(name[0]){

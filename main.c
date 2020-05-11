@@ -188,7 +188,7 @@ int main(void) {
   chThdCreateStatic(waHeartBeatThread, sizeof(waHeartBeatThread), LOWPRIO, HeartBeatThread, (void*)"heartbeat");
   chThdCreateStatic(waTclThread, sizeof(waTclThread), LOWPRIO + 1, tclThread, (void*)"tcl");
 
-  static THD_WORKING_AREA(waShell, 2048);
+  static THD_WORKING_AREA(waShell, 1024);
   chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg1);
 
   // Ethernet
