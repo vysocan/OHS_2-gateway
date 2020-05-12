@@ -243,7 +243,7 @@ int main(void) {
 
   // Initialize timers
   for (uint8_t i = 0; i < TIMER_SIZE; i++) {
-    setTimer(i, true);
+    if (GET_CONF_TIMER_ENABLED(conf.timer[i].setting)) setTimer(i, true);
   }
 
   // Idle runner

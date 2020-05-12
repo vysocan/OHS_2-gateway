@@ -254,6 +254,7 @@ void setTimer(const uint8_t timerIndex, const bool restart) {
   // To accommodate DST use this double conversion
   tempTime = getTimeUnixSec();
   convertUnixSecondToRTCDateTime(&tempTimeSpec, tempTime);
+
   // Calendar
   if (GET_CONF_TIMER_TYPE(conf.timer[timerIndex].setting)) {
     chprintf(console, "Calendar: %u", timerIndex + 1);

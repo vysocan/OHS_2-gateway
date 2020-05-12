@@ -269,9 +269,9 @@ void printPassInput(BaseSequentialStream *chp, const char name, const char *valu
 }
 
 void printIntInput(BaseSequentialStream *chp, const char name, const int16_t value,
-                   const uint8_t size, const uint16_t min, const uint16_t max){
+                   const uint8_t size, const int32_t min, const int32_t max){
   chprintf(chp, "%s%u", html_n_tag_1, size + 2);
-  chprintf(chp, "%s%u%s%u%s", html_n_tag_2, min, html_n_tag_3, max, html_s_tag_3);
+  chprintf(chp, "%s%d%s%d%s", html_n_tag_2, min, html_n_tag_3, max, html_s_tag_3);
   chprintf(chp, "%c%s%d", name, html_m_tag, value);
   chprintf(chp, "%s%c%s", html_id_tag, name, html_e_tag);
 }
@@ -837,7 +837,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           // Information table
           chprintf(chp, "%s%s / %s %s%s", html_tr_td, text_Arm, text_Authentication, text_time,
                    html_e_td_td);
-          printIntInput(chp, 'C', conf.armDelay / 4, 3, 5, 50);
+          printIntInput(chp, 'C', conf.armDelay / 4, 3, 5, 60);
           chprintf(chp, " %s%s%s %s %s %s%s", durationSelect[0], html_e_td_e_tr_tr_td, text_Auto,
                    text_arm, text_zone, text_delay, html_e_td_td);
           printIntInput(chp, 'E', conf.autoArm, 3, 1, 240);
@@ -1675,6 +1675,8 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             } while (repeat);
             break;
           case PAGE_TCL:
+            // TODO OHS Add fade away notifications. Saved, ...
+            // https://fvsch.com/transition-fade/test5.html#test1
             do{
               repeat = getPostData(&ptr, &name[0], sizeof(name), &valueP, &valueLen);
               DBG_HTTP("Parse: %s = (%.*s), %u\r\n", name, valueLen, valueP, valueLen);

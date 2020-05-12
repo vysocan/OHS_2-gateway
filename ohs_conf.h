@@ -26,6 +26,7 @@
 #define CONTACTS_SIZE    10     // # of contacts
 #define KEYS_SIZE        20     // # of keys
 #define TIMER_SIZE       10     // # of timers
+#define TRIGGER_SIZE     10     // # of timers
 //#define SCRIPT_SIZE      10     // # of scripts
 #define KEY_LENGTH       4      // sizeof(uint32_t)
 #define NAME_LENGTH      16     //
@@ -415,11 +416,52 @@ static MEMORYPOOL_DECL(script_pool, sizeof(scriptEvent_t), PORT_NATURAL_ALIGN, N
 //static node_t          node_pool_queue[NODE_SIZE];
 //static MEMORYPOOL_DECL(node_pool, sizeof(node_t), PORT_NATURAL_ALIGN, NULL);
 
+// Triggers
+typedef struct {
+//                             |- Off time: 0 Seconds, 01 Minutes,
+//                             ||-          10 Hours, 11 Days
+//                             |||-
+//                             ||||-
+//                             |||||-
+//                             ||||||-
+//                             |||||||-
+//                             ||||||||- Pass off timer
+//                             ||||||||         |- Pass negative once
+//                             ||||||||         ||- Logging enabled
+//                             ||||||||         |||- Is triggered
+//                             ||||||||         ||||- Pass once / pass always
+//                             ||||||||         |||||- Passed
+//                             ||||||||         ||||||- Pass
+//                             ||||||||         |||||||- Pass value or constant
+//                             ||||||||         ||||||||- Enabled
+//                             54321098         76543210
+  uint16_t setting;       //0b000000000 << 8 | B00000000;
+  uint8_t  address;       //
+  char     function;      //
+  uint8_t  number;        //
+  uint8_t  symbol;        //
+  float    value;         //
+  float    constantOn;    //
+  float    constantOff;   //
+  uint8_t  toAddress;     //
+  char     toFunction;    //
+  uint8_t  toNumber;      //
+  uint8_t  offTime;       //
+  uint32_t nextOff;       //
+  char     name[NAME_LENGTH];
+  char     evalScript[NAME_LENGTH];
+  float    hysteresis;    //
+} trigger_t;
+
+char trigger_symbol[][4] = {
+  "any", "==" , "!=", "<" ">"
+};
+
 // Timers
 typedef struct {
-//                         |- Run type: 0 Secods, 01 Minutes,
+//                         |- Run type: 0 Seconds, 01 Minutes,
 //                         ||-          10 Hours, 11 Days
-//                         |||- Period type: 0 Secods, 01 Minutes,
+//                         |||- Period type: 0 Seconds, 01 Minutes,
 //                         ||||-             10 Hours, 11 Days
 //                         |||||- Triggered
 //                         ||||||- Script evaluated
@@ -447,7 +489,7 @@ typedef struct {
   uint32_t nextOff;
   char     name[NAME_LENGTH];
   char     evalScript[NAME_LENGTH];
-} calendar_t;
+} calendar_t; // timer_t used by ChibiOS
 
 // Configuration struct
 typedef struct {
@@ -505,6 +547,8 @@ typedef struct {
   uint8_t  systemFlags;
 
   calendar_t timer[TIMER_SIZE];
+
+  trigger_t triger[TRIGGER_SIZE];
 
 } config_t;
 config_t conf;

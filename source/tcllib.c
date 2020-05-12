@@ -173,8 +173,8 @@ static inline void* tcl_malloc(size_t n)        { return umm_malloc(n); }
 inline void  tcl_free(void* v)           { umm_free(v); }
 static inline void* tcl_realloc(void* v, int n) { return umm_realloc(v, n); }
 
-//const char *empty_str = "";
-char *empty_str;
+// --- const char *empty_str = "";
+char *empty_str = "";
 
 // --- const char* tcl_string(tcl_value_t* v) { return v == NULL ? empty_str : v; }
 char* tcl_string(tcl_value_t* v) { return v == NULL ? empty_str : v; }
@@ -738,8 +738,6 @@ static int tcl_cmd_strcmp(struct tcl* tcl, tcl_value_t* args, void* arg) {
 void tcl_init(struct tcl* tcl, uint16_t max_iterations, BaseSequentialStream *output) {
   tcl_output = output;
   tcl_iteration = max_iterations;
-  empty_str = tcl_malloc(1);
-  *empty_str = '\0';
   tcl->env = tcl_env_alloc(NULL);
   tcl->result = tcl_alloc("", 0);
   tcl->cmds = NULL;
@@ -764,7 +762,6 @@ void tcl_init(struct tcl* tcl, uint16_t max_iterations, BaseSequentialStream *ou
 }
 
 void tcl_destroy(struct tcl* tcl) {
-  umm_free(empty_str);
   while (tcl->env) {
     tcl->env = tcl_env_free(tcl->env);
   }
