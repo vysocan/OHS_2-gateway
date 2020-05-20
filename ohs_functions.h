@@ -134,6 +134,22 @@ void armGroup(uint8_t groupNum, uint8_t master, armType_t armType, uint8_t hop) 
       }
       sendCmdToGrp(groupNum, NODE_CMD_ARMING, 'K'); // Send arm cmd to all Key nodes
       //+++publishGroup(groupNum, 'P');
+      // Triggers
+      sensorEvent_t *outMsgT = chPoolAlloc(&trigger_pool);
+      if (outMsgT != NULL) {
+        outMsgT->type = 'G';
+        outMsgT->address = 0;
+        outMsgT->function = ' ';
+        outMsgT->number = groupNum;
+        // As defined in groupState[], 0 = disarmed
+        outMsgT->value = (float)(armType + 1);
+        msg_t msg = chMBPostTimeout(&trigger_mb, (msg_t)outMsgT, TIME_IMMEDIATE);
+        if (msg != MSG_OK) {
+          //chprintf(console, "S-MB full %d\r\n", temp);
+        }
+      } else {
+        pushToLogText("FT"); // Trigger queue is full
+      }
     }
   }
   else { tmpLog[0] = 'G'; tmpLog[1] = 'F'; tmpLog[2] = groupNum;  pushToLog(tmpLog, 3); }
@@ -172,6 +188,23 @@ void disarmGroup(uint8_t groupNum, uint8_t master, uint8_t hop) {
   sendCmdToGrp(groupNum, NODE_CMD_DISARM, 'K'); // Send disarm cmd to all Key nodes
   //+++if (publish == 1) publishGroup(_group, 'D');
   tmpLog[0] = 'G'; tmpLog[1] = 'D'; tmpLog[2] = groupNum; pushToLog(tmpLog, 3); // Group disarmed
+  // Triggers
+  sensorEvent_t *outMsg = chPoolAlloc(&trigger_pool);
+  if (outMsg != NULL) {
+    outMsg->type = 'G';
+    outMsg->address = 0;
+    outMsg->function = ' ';
+    outMsg->number = groupNum;
+    // As defined in groupState[], 0 = disarmed
+    outMsg->value = 0;
+    msg_t msg = chMBPostTimeout(&trigger_mb, (msg_t)outMsg, TIME_IMMEDIATE);
+    if (msg != MSG_OK) {
+      //chprintf(console, "S-MB full %d\r\n", temp);
+    }
+  } else {
+    pushToLogText("FT"); // Trigger queue is full
+  }
+
   // If Disarm another group is set and another group is not original(master)
   // and hop is lower then ALR_GROUPS
   resp = GET_CONF_GROUP_DISARM_CHAIN(conf.group[groupNum]); // Temp variable

@@ -33,26 +33,6 @@
 #define DBG(...)
 #endif
 
-
-/*
- * uBS data block definitions
- */
-// Editable
-#define UBS_BLOCK_SIZE        32
-#define UBS_BLOCK_COUNT       256
-#define UBS_NAME_SIZE         16
-#define UBS_START_ADDRESS     16384
-// Fixed
-#define UBS_END_ADDRESS       (UBS_START_ADDRESS + (UBS_BLOCK_SIZE * UBS_BLOCK_COUNT))
-#define UBS_HEADER_SIZE       1
-#define UBS_POINTER_SIZE      2
-#define UBS_HEADER_BLOCK_SIZE (UBS_HEADER_SIZE + UBS_POINTER_SIZE)
-// Helpers
-#define UBS_HEADER_ALLOW_SIZE 127 //((UBS_HEADER_SIZE * 255) >> 1)
-#define UBS_DATA_SIZE         (UBS_BLOCK_SIZE - UBS_HEADER_BLOCK_SIZE)
-#define UBS_FIRST_DATA_SIZE   (UBS_DATA_SIZE - UBS_NAME_SIZE)
-#define UBS_CMD_BUF_SIZE      (1 + UBS_POINTER_SIZE)
-
 /*
  * Sanity checks
  */
@@ -87,13 +67,13 @@
  */
 static uint8_t  uBSCmdBuf[UBS_CMD_BUF_SIZE];
 //static uint8_t  uBSBlockBuf[UBS_BLOCK_SIZE];
-static uint16_t uBSFreeSpace = 0;
-static uint16_t uBSFreeBlocks = 0;
+uint16_t uBSFreeSpace = 0;
+uint16_t uBSFreeBlocks = 0;
 // TODO OHS Check that address is within boundary of START and END.
 /*
  * ReadBlock
  */
-void uBSReadBlock(uint32_t address, uint8_t *data, uint8_t size) {
+static void uBSReadBlock(uint32_t address, uint8_t *data, uint8_t size) {
 
   osalDbgCheck(size <= 32);
 
@@ -115,7 +95,7 @@ void uBSReadBlock(uint32_t address, uint8_t *data, uint8_t size) {
 /*
  * uBSWriteBlock
  */
-void uBSWriteBlock(uint32_t address, uint8_t* data, uint8_t size) {
+static void uBSWriteBlock(uint32_t address, uint8_t* data, uint8_t size) {
 
   osalDbgCheck(size <= 32);
 
@@ -142,17 +122,17 @@ void uBSWriteBlock(uint32_t address, uint8_t* data, uint8_t size) {
  *
  * Use UBS_END_ADDRESS as dummy value
  */
-int8_t uBSGetFreeBlock(uint32_t* address) {
+static int8_t uBSGetFreeBlock(uint32_t* address) {
   uint8_t readBuf[UBS_HEADER_SIZE];
   uint32_t toSkip = *address;
   *address = UBS_START_ADDRESS;
 
   DBG("uBS free address skip: %u\r\n", toSkip);
   while (*address < UBS_END_ADDRESS) {
-    DBG("uBS free - address: %u\r\n", *address);
     if (*address != toSkip) {
       uBSReadBlock(*address, &readBuf[0], UBS_HEADER_SIZE);
       if (readBuf[0] == 0) {
+        DBG("uBS free - found address: %u\r\n", *address);
         uBSFreeSpace -= UBS_DATA_SIZE;
         uBSFreeBlocks--;
         return UBS_RSLT_OK;
@@ -160,12 +140,13 @@ int8_t uBSGetFreeBlock(uint32_t* address) {
     }
     *address += UBS_BLOCK_SIZE;
   }
+  DBG("uBS free - NOT found\r\n");
   return UBS_RSLT_NOK;
 }
 /*
  * uBSSeekName - Find block with blockName.
  */
-int8_t uBSSeekName(void* blockName, uint8_t nameSize, uint32_t* address) {
+static int8_t uBSSeekName(void* blockName, uint8_t nameSize, uint32_t* address) {
   uint8_t readBuf[UBS_HEADER_BLOCK_SIZE + UBS_NAME_SIZE];
 
   *address = UBS_START_ADDRESS;
@@ -179,13 +160,13 @@ int8_t uBSSeekName(void* blockName, uint8_t nameSize, uint32_t* address) {
     *address += UBS_BLOCK_SIZE;
   } while (*address < UBS_END_ADDRESS);
 
-  return UBS_RSLT_NOK;
+  return UBS_RSLT_NOT_FOUND;
 }
 /*
  * uBSSeekNameGetBlockSize - Find block with blockName and its size in block(s)
  *
  */
-int8_t uBSSeekNameGetBlockSize(void* blockName, uint8_t nameSize, uint32_t* address, uint16_t* blocks) {
+static int8_t uBSSeekNameGetBlockSize(void* blockName, uint8_t nameSize, uint32_t* address, uint16_t* blocks) {
   uint8_t readBuf[UBS_HEADER_BLOCK_SIZE + UBS_NAME_SIZE];
   uint32_t nextBlock;
 
@@ -213,18 +194,38 @@ int8_t uBSSeekNameGetBlockSize(void* blockName, uint8_t nameSize, uint32_t* addr
   } while (*address < UBS_END_ADDRESS);
 
   *blocks = 0;
-  return UBS_RSLT_NOK;
+  return UBS_RSLT_NOT_FOUND;
+}
+/*
+ * uBSEraseBlock
+ */
+static void uBSEraseBlock(uint32_t address, uint16_t eraseBlocks) {
+  uint8_t writeBuf[UBS_BLOCK_SIZE] = {0};
+  uint8_t readBuf[UBS_HEADER_BLOCK_SIZE];
+  uint32_t nextBlock;
+
+  for (uint16_t block = 0; block < eraseBlocks; block++) {
+    uBSReadBlock(address, &readBuf[0], UBS_HEADER_BLOCK_SIZE);
+    nextBlock = 0;
+    for (uint8_t i = 0; i < UBS_POINTER_SIZE; i++) {
+      nextBlock += (readBuf[1 + i] << ((UBS_POINTER_SIZE - i - 1) * 8));
+    }
+    DBG("uBS Erase block address: %u\r\n", address);
+    uBSWriteBlock(address, &writeBuf[0], UBS_BLOCK_SIZE);
+    uBSFreeSpace += UBS_DATA_SIZE;
+    uBSFreeBlocks++;
+    address = nextBlock;
+  }
 }
 /*
  * uBSFormat - erase all blocks
  */
 void uBSFormat(void) {
   uint32_t address = UBS_START_ADDRESS;
-  uint8_t writeBuf[UBS_BLOCK_SIZE]; // Assume 0x0
+  uint8_t writeBuf[UBS_BLOCK_SIZE] = {0};
 
   while (address < UBS_END_ADDRESS) {
     uBSWriteBlock(address, &writeBuf[0], UBS_BLOCK_SIZE);
-    //DBG("uBS Format: %u\r\n", address);
     address += UBS_BLOCK_SIZE;
   }
 }
@@ -252,6 +253,23 @@ void uBSInit(void) {
   if (uBSFreeSpace > 0) uBSFreeSpace -= UBS_NAME_SIZE; // Remove one name size of master block
 }
 /*
+ * uBSErase
+ */
+int8_t uBSErase(void* name, uint8_t nameSize) {
+  uint32_t address;
+  uint16_t blocks;
+
+  if (name == NULL) return UBS_RSLT_NOK;
+  if (nameSize > UBS_NAME_SIZE) return UBS_RSLT_NOK;
+  if (nameSize == 0) return UBS_RSLT_NOK;
+
+  if (uBSSeekNameGetBlockSize(name, nameSize, &address, &blocks) != UBS_RSLT_OK) return UBS_RSLT_NOT_FOUND;
+
+  uBSEraseBlock(address, blocks);
+
+  return UBS_RSLT_OK;
+}
+/*
  * uBSWrite
  */
 int8_t uBSWrite(void* name, uint8_t nameSize, void *data, uint16_t dataSize) {
@@ -270,7 +288,7 @@ int8_t uBSWrite(void* name, uint8_t nameSize, void *data, uint16_t dataSize) {
   newBlocks = (dataSize + UBS_NAME_SIZE) / UBS_DATA_SIZE;
   if ((dataSize + UBS_NAME_SIZE) % UBS_DATA_SIZE) newBlocks++;
 
-  if (uBSSeekNameGetBlockSize(name, nameSize, &address, &oldBlocks) == UBS_RSLT_NOK) {
+  if (uBSSeekNameGetBlockSize(name, nameSize, &address, &oldBlocks) != UBS_RSLT_OK) {
     address = UBS_END_ADDRESS;
     uBSGetFreeBlock(&address);
   }
@@ -344,6 +362,9 @@ int8_t uBSWrite(void* name, uint8_t nameSize, void *data, uint16_t dataSize) {
   }
 
   // Erase old not used blocks
+  // - not to use double buffer allocations
+  // - if (newBlocks < oldBlocks) uBSEraseBlock(eraseBlock, oldBlocks - newBlocks);
+  // Erase old not used blocks
   memset(&writeBuf[0], 0x0, UBS_BLOCK_SIZE);
   for (uint8_t block = newBlocks; block < oldBlocks; block++) {
     address = eraseBlock;
@@ -375,7 +396,7 @@ int8_t uBSRead(void* name, uint8_t nameSize, void *data, uint16_t *dataSize) {
   if (*dataSize == 0) return UBS_RSLT_NOK;
 
   DBG("uBS Read name: %s, readSize %u\r\n", name, readSize);
-  if (uBSSeekName(name, nameSize, &address) == UBS_RSLT_NOK) {
+  if (uBSSeekName(name, nameSize, &address) != UBS_RSLT_OK) {
     *dataSize = 0;
     return UBS_RSLT_NOT_FOUND;
   }

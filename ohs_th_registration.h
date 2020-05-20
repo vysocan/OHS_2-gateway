@@ -32,7 +32,7 @@ static THD_FUNCTION(RegistrationThread, arg) {
           // Node exists
           if (nodeIndex != DUMMY_NO_VALUE ) {
             node[nodeIndex].setting  = inMsg->setting;
-            node[nodeIndex].last_OK  = getTimeUnixSec();
+            node[nodeIndex].lastOK  = getTimeUnixSec();
             node[nodeIndex].value    = 0; // Reset value
             memcpy(&node[nodeIndex].name, &inMsg->name, NAME_LENGTH); // node[nodeIndex].name[NAME_LENGTH-1] = 0;
             chprintf(console, "Re-registred as: %d\r\n", nodeIndex);
@@ -46,7 +46,7 @@ static THD_FUNCTION(RegistrationThread, arg) {
               node[nodeIndex].function = inMsg->function;
               node[nodeIndex].number   = inMsg->number;
               node[nodeIndex].setting  = inMsg->setting;
-              node[nodeIndex].last_OK  = getTimeUnixSec();
+              node[nodeIndex].lastOK  = getTimeUnixSec();
               memcpy(&node[nodeIndex].name, &inMsg->name, NAME_LENGTH);
               tmpLog[0] = 'N'; tmpLog[1] = 'R'; tmpLog[2] = inMsg->address; tmpLog[3] = inMsg->type;
                 tmpLog[4] = inMsg->function; tmpLog[5] = inMsg->number;  pushToLog(tmpLog, 6);

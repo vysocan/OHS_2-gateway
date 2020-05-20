@@ -13,7 +13,7 @@
 #endif
 
 #if SENSOR_DEBUG
-#define DBG_SENSOR(...) {chprintf((BaseSequentialStream*)&SD3, __VA_ARGS__);}
+#define DBG_SENSOR(...) {chprintf((console, __VA_ARGS__);}
 #else
 #define DBG_SENSOR(...)
 #endif
@@ -43,10 +43,8 @@ static THD_FUNCTION(SensorThread, arg) {
         //  node enabled
         if (GET_NODE_ENABLED(node[nodeIndex].setting)) {
           node[nodeIndex].value   = inMsg->value;
-          node[nodeIndex].last_OK = timeNow;  // Get timestamp
+          node[nodeIndex].lastOK = timeNow;  // Get timestamp
           //++publishNode(nodeIndex); // MQTT
-          // Triggers
-          //++processTriggers(node[nodeIndex].address, node[nodeIndex].type, node[nodeIndex].number, node[nodeIndex].value);
           // Global battery check
           if ((node[nodeIndex].function == 'B') && !(GET_NODE_BATT_LOW(node[nodeIndex].setting)) && (node[nodeIndex].value < 3.6)){
             SET_NODE_BATT_LOW(node[nodeIndex].setting); // switch ON  battery low flag
@@ -55,6 +53,22 @@ static THD_FUNCTION(SensorThread, arg) {
           if ((node[nodeIndex].function == 'B') && (GET_NODE_BATT_LOW(node[nodeIndex].setting)) && (node[nodeIndex].value > 4.16)){
             tmpLog[0] = 'R'; tmpLog[1] = 'D'; tmpLog[2] = DUMMY_NO_VALUE; tmpLog[3] = nodeIndex; pushToLog(tmpLog, 4);
             CLEAR_NODE_BATT_LOW(node[nodeIndex].setting); // switch OFF battery low flag
+          }
+          // Triggers
+          sensorEvent_t *outMsgT = chPoolAlloc(&trigger_pool);
+          if (outMsgT != NULL) {
+            //memcpy(outMsg, inMsg, sizeof(sensorEvent_t));
+            outMsgT->address = inMsg->address;
+            outMsgT->function = inMsg->function;
+            outMsgT->number = inMsg->number;
+            outMsgT->type = inMsg->type;
+            outMsgT->value = inMsg->value;
+            msg = chMBPostTimeout(&trigger_mb, (msg_t)outMsgT, TIME_IMMEDIATE);
+            if (msg != MSG_OK) {
+              //chprintf(console, "S-MB full %d\r\n", temp);
+            }
+          } else {
+            pushToLogText("FT"); // Trigger queue is full
           }
         } // node enabled
       } else {

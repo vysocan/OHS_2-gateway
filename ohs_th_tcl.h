@@ -7,6 +7,17 @@
 
 #ifndef OHS_TH_TCL_H_
 #define OHS_TH_TCL_H_
+
+#ifndef TCL_DEBUG
+#define TCL_DEBUG 0
+#endif
+
+#if SERVICE_DEBUG
+#define DBG_TCL(...) {DBG_TCL(__VA_ARGS__);}
+#else
+#define DBG_TCL(...)
+#endif
+
 /*
  * TCL custom commands
  */
@@ -19,7 +30,7 @@ static int tcl_cmd_node(struct tcl* tcl, tcl_value_t* args, void* arg) {
   char buf[16];
 
   tcl_value_t* location = tcl_list_at(args, 1);
-  //chprintf(console, "*tcl_cmd_node*: %s.\r\n", location);
+  //DBG_TCL("*tcl_cmd_node*: %s.\r\n", location);
 
   // Get index
   pch = strtok((char*)location,":");
@@ -32,7 +43,7 @@ static int tcl_cmd_node(struct tcl* tcl, tcl_value_t* args, void* arg) {
     indexNum = getNodeIndex((*index[0] == 'R' ? RADIO_UNIT_OFFSET : 0) + atoi(index[1]),
                             *index[2], *index[3], atoi(index[4]));
     if (indexNum != DUMMY_NO_VALUE) {
-      //chprintf(console, "*tcl_cmd_node*: %d.\r\n", indexNum);
+      //DBG_TCL("*tcl_cmd_node*: %d.\r\n", indexNum);
       chsnprintf(&buf[0], sizeof(buf), "%.2f", node[indexNum].value);
       ret = tcl_result(tcl, FNORMAL, tcl_alloc(&buf[0], strlen(buf)));
     } else {
@@ -56,8 +67,8 @@ static int tcl_cmd_group(struct tcl* tcl, tcl_value_t* args, void* arg) {
   tcl_value_t* groupCommand = tcl_list_at(args, 2);
 
   groupNum = atoi(groupNumber) - 1;
-  //chprintf(console, "groupNum: %u.\r\n", groupNum);
-  //chprintf(console, "*groupCommand: %c.\r\n", *groupCommand);
+  //DBG_TCL("groupNum: %u.\r\n", groupNum);
+  //DBG_TCL("*groupCommand: %c.\r\n", *groupCommand);
 
   if ((groupNum < ALARM_GROUPS) && (GET_CONF_GROUP_ENABLED(conf.group[groupNum]))) {
     switch (*groupCommand) {
@@ -109,6 +120,9 @@ static THD_FUNCTION(tclThread, arg) {
   scriptEvent_t *inMsg;
   systime_t runTime;
 
+  // Load script(s)
+  initScripts(&scriptLL);
+
   MemoryStream ms;
   BaseSequentialStream *tclChp;
   msObjectInit(&ms, (uint8_t *)tclOutput, TCL_OUTPUT_LENGTH-1, 0);
@@ -117,6 +131,9 @@ static THD_FUNCTION(tclThread, arg) {
   tcl_init(&tcl, conf.tclIteration, tclChp);
   tcl_register(&tcl, "node", tcl_cmd_node, 2, NULL);
   tcl_register(&tcl, "group", tcl_cmd_group, 3, NULL);
+
+  // Process umm info
+  umm_info(&my_umm_heap[0], true);
 
   while (true) {
     msg = chMBFetchTimeout(&script_mb, (msg_t*)&inMsg, TIME_INFINITE);
@@ -129,8 +146,8 @@ static THD_FUNCTION(tclThread, arg) {
       runTime = chVTGetSystemTimeX();
 
       // Run TCL
-      chprintf(console, "Script: %s, length %u\r\n", inMsg->index, strlen(inMsg->index));
-      if (tcl_eval(&tcl, inMsg->index, strlen(inMsg->index)) != FERROR) {
+      DBG_TCL("Script: %s, length %u\r\n", inMsg->cmdP, strlen(inMsg->cmdP));
+      if (tcl_eval(&tcl, inMsg->cmdP, strlen(inMsg->cmdP)) != FERROR) {
         chprintf(tclChp, "\r\n%s: %.*s", text_Result, tcl_length(tcl.result), tcl_string(tcl.result));
       } else {
         chprintf(tclChp, "\r\n%s: %s", text_Result, text_error);
@@ -148,7 +165,7 @@ static THD_FUNCTION(tclThread, arg) {
       // Process umm info
       umm_info(&my_umm_heap[0], true);
     } else {
-      chprintf(console, "Script MB ERROR\r\n");
+      DBG_TCL("Script MB ERROR\r\n");
     }
     chPoolFree(&script_pool, inMsg);
   }

@@ -199,6 +199,38 @@
 #define CLEAR_CONF_TIMER_EVALUATED(x) x &= ~(1 << 10U)
 #define CLEAR_CONF_TIMER_TRIGGERED(x) x &= ~(1 << 11U)
 
+#define GET_CONF_TRIGGER_ENABLED(x)     ((x) & 0b1)
+#define GET_CONF_TRIGGER_PASS_VALUE(x)  ((x >> 1U) & 0b1)
+#define GET_CONF_TRIGGER_PASS(x)        ((x >> 2U) & 0b11)
+//#define GET_CONF_TRIGGER_PASS_ONCE(x)   ((x >> 3U) & 0b1)
+#define GET_CONF_TRIGGER_PASSED(x)      ((x >> 4U) & 0b1)
+#define GET_CONF_TRIGGER_TRIGGERED(x)   ((x >> 5U) & 0b1)
+#define GET_CONF_TRIGGER_ALERT(x)       ((x >> 6U) & 0b1)
+#define GET_CONF_TRIGGER_PASS_OFF(x)    ((x >> 7U) & 0b11)
+#define GET_CONF_TRIGGER_RESULT(x)      ((x >> 9U) & 0b1)
+#define GET_CONF_TRIGGER_OFF_PERIOD(x)  ((x >> 14U) & 0b11)
+
+#define SET_CONF_TRIGGER_ENABLED(x)      x |= 1
+#define SET_CONF_TRIGGER_PASS_VALUE(x)   x |= (1 << 1U)
+#define SET_CONF_TRIGGER_PASS(x,y)       x = (((x)&(0b1111111111110011))|(((y & 0b11) << 2U)&(0b0000000000001100)))
+//#define SET_CONF_TRIGGER_PASS(x)        x |= (1 << 2U)
+//#define SET_CONF_TRIGGER_PASS_ONCE(x)   x |= (1 << 3U)
+#define SET_CONF_TRIGGER_PASSED(x)       x |= (1 << 4U)
+#define SET_CONF_TRIGGER_TRIGGERED(x)    x |= (1 << 5U)
+#define SET_CONF_TRIGGER_ALERT(x)        x |= (1 << 6U)
+#define SET_CONF_TRIGGER_PASS_OFF(x,y)   x = (((x)&(0b1111111001111111))|(((y & 0b11) << 7U)&(0b0000000110000000)))
+#define SET_CONF_TRIGGER_RESULT(x)       x |= (1 << 9U)
+#define SET_CONF_TRIGGER_OFF_PERIOD(x,y) x = (((x)&(0b0011111111111111))|(((y & 0b11) << 14U)&(0b1100000000000000)))
+
+#define CLEAR_CONF_TRIGGER_ENABLED(x)    x &= ~1
+#define CLEAR_CONF_TRIGGER_PASS_VALUE(x) x &= ~(1 << 1U)
+//#define CLEAR_CONF_TRIGGER_PASS(x)       x &= ~(1 << 2U)
+//#define CLEAR_CONF_TRIGGER_PASS_ONCE(x)  x &= ~(1 << 3U)
+#define CLEAR_CONF_TRIGGER_PASSED(x)     x &= ~(1 << 4U)
+#define CLEAR_CONF_TRIGGER_TRIGGERED(x)  x &= ~(1 << 5U)
+#define CLEAR_CONF_TRIGGER_ALERT(x)      x &= ~(1 << 6U)
+#define CLEAR_CONF_TRIGGER_RESULT(x)     x &= ~(1 << 9U)
+
 #define GET_ZONE_ALARM(x)     ((x >> 1U) & 0b1)
 #define GET_ZONE_ERROR(x)     ((x >> 5U) & 0b1)
 #define GET_ZONE_QUEUED(x)    ((x >> 6U) & 0b1)
@@ -324,6 +356,10 @@ typedef struct {
   float   value;    // = 0.0;
 } sensorEvent_t;
 
+// Trigger events
+#define TRIGGER_FIFO_SIZE 10
+// Trigger event struct = sensorEvent_t
+
 // TCL callback
 typedef void (*script_cb_t) (char *result);
 void script_cb(script_cb_t ptrFunc(char *result), char *result) {
@@ -332,7 +368,7 @@ void script_cb(script_cb_t ptrFunc(char *result), char *result) {
 // Script events
 #define SCRIPT_FIFO_SIZE 5
 typedef struct {
-  char   *index;
+  char   *cmdP;
   uint8_t flags;
   void   *callback;
   void  **result;
@@ -392,6 +428,8 @@ static MAILBOX_DECL(alert_mb, alert_mb_buffer, ALERT_FIFO_SIZE);
 static msg_t        script_mb_buffer[SCRIPT_FIFO_SIZE];
 static MAILBOX_DECL(script_mb, script_mb_buffer, SCRIPT_FIFO_SIZE);
 
+static msg_t        trigger_mb_buffer[TRIGGER_FIFO_SIZE];
+static MAILBOX_DECL(trigger_mb, trigger_mb_buffer, TRIGGER_FIFO_SIZE);
 /*
  * Pools
  */
@@ -413,8 +451,8 @@ static MEMORYPOOL_DECL(alert_pool, sizeof(alertEvent_t), PORT_NATURAL_ALIGN, NUL
 static scriptEvent_t script_pool_queue[SCRIPT_FIFO_SIZE];
 static MEMORYPOOL_DECL(script_pool, sizeof(scriptEvent_t), PORT_NATURAL_ALIGN, NULL);
 
-//static node_t          node_pool_queue[NODE_SIZE];
-//static MEMORYPOOL_DECL(node_pool, sizeof(node_t), PORT_NATURAL_ALIGN, NULL);
+static sensorEvent_t trigger_pool_queue[TRIGGER_FIFO_SIZE];
+static MEMORYPOOL_DECL(trigger_pool, sizeof(sensorEvent_t), PORT_NATURAL_ALIGN, NULL);
 
 // Triggers
 typedef struct {
@@ -424,22 +462,23 @@ typedef struct {
 //                             ||||-
 //                             |||||-
 //                             ||||||-
-//                             |||||||-
-//                             ||||||||- Pass off timer
-//                             ||||||||         |- Pass negative once
+//                             |||||||- Script evaluated
+//                             ||||||||- Pass off 00 no , 01 yes , 10 timer
+//                             ||||||||         |-
 //                             ||||||||         ||- Logging enabled
 //                             ||||||||         |||- Is triggered
-//                             ||||||||         ||||- Pass once / pass always
-//                             ||||||||         |||||- Passed
+//                             ||||||||         ||||- Passed
+//                             ||||||||         |||||- Pass once / pass always
 //                             ||||||||         ||||||- Pass
 //                             ||||||||         |||||||- Pass value or constant
 //                             ||||||||         ||||||||- Enabled
 //                             54321098         76543210
   uint16_t setting;       //0b000000000 << 8 | B00000000;
   uint8_t  address;       //
+  char     type;          //
   char     function;      //
   uint8_t  number;        //
-  uint8_t  symbol;        //
+  uint8_t  condition;     //
   float    value;         //
   float    constantOn;    //
   float    constantOff;   //
@@ -453,8 +492,30 @@ typedef struct {
   float    hysteresis;    //
 } trigger_t;
 
-char trigger_symbol[][4] = {
-  "any", "==" , "!=", "<" ">"
+const char triggerCondition[][4] = {
+  "any", "=" , "<>", "<", ">"
+};
+
+const char triggerPassOffType[][6] = {
+  "no", "yes", "timer"
+};
+
+const char triggerPassType[][5] = {
+  "no", "yes", "once"
+};
+
+const char groupState[][11] = {
+// 12345678901234567890
+  "disarmed",
+  "armed away",
+  "armed home"
+};
+
+const char zoneState[][7] = {
+// 1234567890
+  "OK",
+  "alarm",
+  "tamper"
 };
 
 // Timers
@@ -548,10 +609,10 @@ typedef struct {
 
   calendar_t timer[TIMER_SIZE];
 
-  trigger_t triger[TRIGGER_SIZE];
+  trigger_t trigger[TRIGGER_SIZE];
 
 } config_t;
-config_t conf;
+config_t conf __attribute__((section(".ram4")));
 // Check conf size fits to backup SRAM
 typedef char check_conf[sizeof(conf) <= BACKUP_SRAM_SIZE ? 1 : -1];
 
@@ -560,7 +621,7 @@ typedef struct {
   uint8_t setting;
   uint8_t armDelay;
 } group_t;
-group_t group[ALARM_GROUPS];
+group_t group[ALARM_GROUPS] __attribute__((section(".ram4")));
 
 // Zone runtime variables
 typedef struct {
@@ -569,13 +630,15 @@ typedef struct {
   char    lastEvent;
   uint8_t setting;
 } zone_t;
-zone_t zone[ALARM_ZONES];
+zone_t zone[ALARM_ZONES] __attribute__((section(".ram4")));
 
 // Flags runtime variables
+/*
 typedef struct {
   uint16_t flags;
 } flags_t;
 flags_t flags;
+*/
 
 // Dynamic nodes
 typedef struct {
@@ -594,11 +657,25 @@ typedef struct {
    //                    76543210
   uint16_t setting;// = B00011110;  // 2 bytes to store also zone setting
   float    value;  // = 0;
-  time_t last_OK;  // = 0;
+  time_t lastOK;   // = 0;
   uint8_t  queue;  //   = DUMMY_NO_VALUE 255; // No queue
   char name[NAME_LENGTH]; // = "";
 } node_t;
-node_t node[NODE_SIZE] = {{ 0, '\0', '\0', 0, 0b00011110, 0, 0, DUMMY_NO_VALUE, ""}};
+node_t node[NODE_SIZE] __attribute__((section(".ram4")));
+
+void initRuntimeNodes(void){
+  for(uint8_t i = 0; i < NODE_SIZE; i++) {
+    node[i].address  = 0;
+    node[i].function = '\0';
+    node[i].lastOK  = 0;
+    node[i].name[0]  = '\0';
+    node[i].number   = 0;
+    node[i].queue    = DUMMY_NO_VALUE;
+    node[i].setting  = 0b00011110;
+    node[i].type     = '\0';
+    node[i].value    = 0;
+  }
+}
 
 // Set default to runtime structs
 void initRuntimeGroups(void){
@@ -805,6 +882,9 @@ void setConfDefault(void){
   conf.tclSetting = 0b00000001;
   conf.tclIteration = 5000;
 
+  //                   |||||-
+  //                   ||||||-
+  //                   |||||||-
   //                   ||||||||- RTC low flag, let's check on power On.
   conf.systemFlags = 0b00000000;
 
@@ -822,6 +902,22 @@ void setConfDefault(void){
     conf.timer[i].nextOff = 0;
     strcpy(conf.timer[i].name, "");
     strcpy(conf.timer[i].evalScript, "");
+  }
+
+  for(uint8_t i = 0; i < TRIGGER_SIZE; i++) {
+    conf.trigger[i].setting = 0;
+    conf.trigger[i].address = 0;
+    conf.trigger[i].condition = 0;
+    conf.trigger[i].function = ' ';
+    conf.trigger[i].constantOn = 1;
+    conf.trigger[i].constantOff = 0;
+    conf.trigger[i].hysteresis = 0;
+    conf.trigger[i].number = 0;
+    conf.trigger[i].offTime = 1;
+    conf.trigger[i].nextOff = 0;
+    conf.trigger[i].value = 0;
+    strcpy(conf.trigger[i].name, "");
+    strcpy(conf.trigger[i].evalScript, "");
   }
 
 }
@@ -850,7 +946,7 @@ void initScripts(struct scriptLL_t **pointer) {
     *pointer = var;
   }
   // Clear tclCmd on end
-  if (*pointer) memset(&tclCmd[0], '\0', TCL_SCRIPT_LENGTH);
+  memset(&tclCmd[0], '\0', TCL_SCRIPT_LENGTH);
 }
 
 #endif /* OHS_CONF_H_ */

@@ -136,8 +136,8 @@ static THD_FUNCTION(ZoneThread, arg) {
                   if ((!GET_GROUP_ARMED_HOME(group[groupNum].setting)) ||
                       ((GET_GROUP_ARMED_HOME(group[groupNum].setting)) &&
                        (GET_CONF_ZONE_ARM_HOME(conf.zone[i])))) {
-                    alarmEvent_t *outMsg = chPoolAlloc(&alarmEvent_pool);
-                    if (outMsg == NULL) {
+                    alarmEvent_t *outMsgA = chPoolAlloc(&alarmEvent_pool);
+                    if (outMsgA == NULL) {
                       if (!(GET_ZONE_FULL_FIFO(zone[i].setting))) {
                         tmpLog[0] = 'Z'; tmpLog[1] = 'P'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
                         pushToLogText("FA"); // Alarm queue is full
@@ -148,8 +148,8 @@ static THD_FUNCTION(ZoneThread, arg) {
                     tmpLog[0] = 'Z'; tmpLog[1] = 'P'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
                     SET_ZONE_ALARM(zone[i].setting); // Set alarm bit On
                     CLEAR_ZONE_FULL_FIFO(zone[i].setting); // Set Off Alarm queue is full
-                    outMsg->zone = i; outMsg->type = zone[i].lastEvent;
-                    msg = chMBPostTimeout(&alarmEvent_mb, (msg_t)outMsg, TIME_IMMEDIATE);
+                    outMsgA->zone = i; outMsgA->type = zone[i].lastEvent;
+                    msg = chMBPostTimeout(&alarmEvent_mb, (msg_t)outMsgA, TIME_IMMEDIATE);
                     if (msg != MSG_OK) pushToLogText("FA"); // Alarm queue is full
                   }
                 }
@@ -197,23 +197,24 @@ static THD_FUNCTION(ZoneThread, arg) {
             }
             break;
         }
-
-        /* Example ***
-        alarmEvent_t *outMsg = chPoolAlloc(&alarmEvent_pool);
-        if (outMsg != NULL) {
-          outMsg->zone = val;
-          outMsg->type = 'P';
-          //chprintf(console, "P OK %d %d\r\n", outMsg, outMsg->zone);
-          msg = chMBPostTimeout(&alarmEvent_mb, (msg_t)outMsg, TIME_IMMEDIATE);
-          if (msg == MSG_OK) {
-            //chprintf(console, "MB put %d\r\n", temp);
-          } else {
-            //chprintf(console, "MB full %d\r\n", temp);
+        // Triggers
+        sensorEvent_t *outMsgT = chPoolAlloc(&trigger_pool);
+        if (outMsgT != NULL) {
+          outMsgT->type = 'Z';
+          outMsgT->address = 0;
+          outMsgT->function = ' ';
+          outMsgT->number = i;
+          // As defined in zoneState[], 0 = OK
+          if (zone[i].lastEvent == 'O') outMsgT->value = 0;
+          else if (zone[i].lastEvent == 'P') outMsgT->value = 1;
+          else outMsgT->value = 2;
+          msg = chMBPostTimeout(&trigger_mb, (msg_t)outMsgT, TIME_IMMEDIATE);
+          if (msg != MSG_OK) {
+            //chprintf(console, "S-MB full %d\r\n", temp);
           }
         } else {
-          //chprintf(console, "P full %d \r\n", outMsg);
+          pushToLogText("FT"); // Trigger queue is full
         }
-        */
       } // zone enabled
     } // for each alarm zone
   } // while true

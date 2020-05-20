@@ -29,6 +29,7 @@ binary_semaphore_t gprsSem;
 binary_semaphore_t emailSem;
 // TCL CB semaphores
 binary_semaphore_t cbTimerSem;
+binary_semaphore_t cbTriggerSem;
 
 // RFM69
 #include "rfm69.h"
@@ -36,11 +37,12 @@ binary_semaphore_t cbTimerSem;
 #include "umm_malloc.h"
 #include "umm_malloc_cfg.h"
 #define UMM_MALLOC_CFG_HEAP_SIZE (1024*16)
-#define TCL_SCRIPT_LENGTH        (1024*1)
+#define TCL_SCRIPT_LENGTH        (512)
 #define TCL_OUTPUT_LENGTH        (1024*2)
 static char my_umm_heap[UMM_MALLOC_CFG_HEAP_SIZE] __attribute__((section(".ram4")));
 static char tclOutput[TCL_OUTPUT_LENGTH] __attribute__((section(".ram4")));
-static char tclCmd[TCL_SCRIPT_LENGTH] __attribute__((section(".ram4")));
+// TODO OHS When tclCmd is in ram4 char[11] gets corrupted
+static char tclCmd[TCL_SCRIPT_LENGTH];// __attribute__((section(".ram4")));
 // TCL
 #include "tcl.h"
 struct tcl tcl;
@@ -87,6 +89,7 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 #include "ohs_th_alert.h"
 #include "ohs_th_service.h"
 #include "ohs_th_radio.h"
+#include "ohs_th_trigger.h"
 #include "ohs_th_tcl.h"
 #include "ohs_th_heartbeat.h"
 
@@ -110,12 +113,15 @@ int main(void) {
   chBSemObjectInit(&gprsSem, false);
   chBSemObjectInit(&emailSem, false);
   chBSemObjectInit(&cbTimerSem, false);
+  chBSemObjectInit(&cbTriggerSem, false);
 
   sdStart(&SD3,  &serialCfg); // Debug port
   chprintf(console, "\r\nOHS v.%u.%u start\r\n", OHS_MAJOR, OHS_MINOR);
-
-  gprsInit(&SD6); // GPRS modem
-
+  // GPRS modem
+  gprsInit(&SD6);
+  // Init nodes
+  initRuntimeNodes();
+  // RS485
   rs485Start(&RS485D2, &rs485cfg);
   chprintf(console, "RS485 timeout: %d(uS)/%d(tick)\r\n", RS485D2.oneByteTimeUS, RS485D2.oneByteTimeI);
 
@@ -150,7 +156,7 @@ int main(void) {
   chPoolObjectInit(&sensor_pool, sizeof(sensorEvent_t), NULL);
   chPoolObjectInit(&alert_pool, sizeof(alertEvent_t), NULL);
   chPoolObjectInit(&script_pool, sizeof(scriptEvent_t), NULL);
-  //chPoolObjectInit(&node_pool, sizeof(node_t), NULL);
+  chPoolObjectInit(&trigger_pool, sizeof(sensorEvent_t), NULL);
   //chPoolLoadArray(&alarmEvent_pool, alarmEvent_pool_queue, ALARMEVENT_FIFO_SIZE);
   for(uint8_t i = 0; i < ALARMEVENT_FIFO_SIZE; i++) { chPoolFree(&alarmEvent_pool, &alarmEvent_pool_queue[i]); }
   for(uint8_t i = 0; i < LOGGER_FIFO_SIZE; i++) { chPoolFree(&logger_pool, &logger_pool_queue[i]); }
@@ -158,7 +164,7 @@ int main(void) {
   for(uint8_t i = 0; i < SENSOR_FIFO_SIZE; i++) { chPoolFree(&sensor_pool, &sensor_pool_queue[i]); }
   for(uint8_t i = 0; i < ALERT_FIFO_SIZE; i++) { chPoolFree(&alert_pool, &alert_pool_queue[i]); }
   for(uint8_t i = 0; i < SCRIPT_FIFO_SIZE; i++) { chPoolFree(&script_pool, &script_pool_queue[i]); }
-  //for(uint8_t i = 0; i < NODE_SIZE; i++) { chPoolFree(&node_pool, &node_pool_queue[i]); }
+  for(uint8_t i = 0; i < TRIGGER_FIFO_SIZE; i++) { chPoolFree(&trigger_pool, &trigger_pool_queue[i]); }
 
   spiStart(&SPID1, &spi1cfg);  // SPI
   rfm69Start(&rfm69cfg);       // RFM69
@@ -171,6 +177,11 @@ int main(void) {
 
   // UMM / TCL
   umm_init(&my_umm_heap[0], UMM_MALLOC_CFG_HEAP_SIZE);
+
+  // uBS init and load scripts
+  //uBSFormat();
+  uBSInit();
+  //chprintf(console, "uBS, free space: %u\r\n", uBSGetFreeSpace());
 
   // Create thread(s).
   chThdCreateStatic(waZoneThread, sizeof(waZoneThread), NORMALPRIO, ZoneThread, (void*)"zone");
@@ -185,9 +196,9 @@ int main(void) {
   chThdCreateStatic(waAlertThread, sizeof(waAlertThread), NORMALPRIO, AlertThread, (void*)"alert");
   chThdCreateStatic(waServiceThread, sizeof(waServiceThread), NORMALPRIO, ServiceThread, (void*)"service");
   chThdCreateStatic(waRadioThread, sizeof(waRadioThread), NORMALPRIO, RadioThread, (void*)"radio");
-  chThdCreateStatic(waHeartBeatThread, sizeof(waHeartBeatThread), LOWPRIO, HeartBeatThread, (void*)"heartbeat");
+  chThdCreateStatic(waTriggerThread, sizeof(waTriggerThread), NORMALPRIO - 1, TriggerThread, (void*)"trigger");
   chThdCreateStatic(waTclThread, sizeof(waTclThread), LOWPRIO + 1, tclThread, (void*)"tcl");
-
+  chThdCreateStatic(waHeartBeatThread, sizeof(waHeartBeatThread), LOWPRIO, HeartBeatThread, (void*)"heartbeat");
   static THD_WORKING_AREA(waShell, 1024);
   chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg1);
 
@@ -228,12 +239,6 @@ int main(void) {
   smtp_set_auth(conf.SMTPUser, conf.SMTPPassword);
   // SNTP
   sntp_setservername(0, conf.SNTPAddress);
-
-  // uBS init and load scripts
-  uBSInit();
-  //chprintf(console, "uBS, free space: %u\r\n", uBSGetFreeSpace());
-  chThdSleepMilliseconds(300);
-  initScripts(&scriptLL);
 
   // Start
   startTime = getTimeUnixSec();

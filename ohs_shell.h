@@ -169,6 +169,7 @@ const char text_name[]              = "name";
 const char text_MQTT[]              = "MQTT";
 const char text_Function[]          = "Function";
 const char text_Type[]              = "Type";
+const char text_type[]              = "type";
 const char text_publish[]           = "publish";
 const char text_Last[]              = "Last";
 const char text_message[]           = "message";
@@ -214,12 +215,17 @@ const char text_Entry[]             = "Entry";
 const char text_Alert[]             = "Alert";
 const char text_key[]               = "key";
 const char text_value[]             = "value";
+const char text_once[]              = "once";
+const char text_after[]             = "after";
+const char text_always[]            = "always";
+const char text_constant[]          = "constant";
 const char text_Armed[]             = "Armed";
 const char text_Arm[]               = "Arm";
 const char text_arm[]               = "arm";
 const char text_Disarm[]            = "Disarm";
 const char text_chain[]             = "chain";
 const char text_trigger[]           = "trigger";
+const char text_Trigger[]           = "Trigger";
 const char text_Auto[]              = "Auto";
 const char text_Tamper[]            = "Tamper";
 const char text_relay[]             = "relay";
@@ -274,11 +280,19 @@ const char text_duration[]          = "duration";
 const char text_Timer[]             = "Timer";
 const char text_kB[]                = "kB";
 const char text_Heap[]              = "Heap";
+const char text_Storage[]           = "Storage";
 const char text_Fragmentation[]     = "Fragmentation";
 const char text_Evaluate[]          = "Evaluate";
 const char text_script[]            = "script";
 const char text_Result[]            = "Result";
 const char text_linked_to[]         = "linked to";
+const char text_Condition[]         = "Condition";
+const char text_Hysteresis[]        = "Hysteresis";
+const char text_Pass[]              = "Pass";
+const char text_To[]                = "To";
+const char text_queue[]             = "queue";
+const char text_full[]              = "full";
+const char text_Registration[]      = "Registration";
 
 void printNodeType(BaseSequentialStream *chp, const char type) {
   switch(type){
@@ -509,6 +523,12 @@ void printGroup(BaseSequentialStream *chp, const uint8_t value) {
   } else chprintf(chp, "%s ", NOT_SET);
 }
 
+void printZone(BaseSequentialStream *chp, const uint8_t value) {
+  if (value < ALARM_ZONES) {
+    chprintf(chp, "%u. %s ", value + 1, conf.zoneName[value]);
+  } else chprintf(chp, "%s ", NOT_SET);
+}
+
 /*
  * Decode log entries to string
  * full: decode full string or just short version for alerts.html
@@ -666,6 +686,17 @@ static uint8_t decodeLog(char *in, char *out, bool full){
         default : chprintf(chp, "%s", text_unknown); break;
       }
 
+    break;
+    case 'F': // Fifos
+      switch(in[1]){
+        case 'S' : chprintf(chp, "%s", text_Sensor); break;
+        case 'T' : chprintf(chp, "%s", text_Trigger); break;
+        case 'R' : chprintf(chp, "%s", text_Registration); break;
+        case 'A' : chprintf(chp, "%s", text_Alarm); break;
+        case 'N' : chprintf(chp, "%s", text_Node); break;
+        default : chprintf(chp, "%s", text_unknown); break;
+      }
+      chprintf(chp, " %s %s", text_queue, text_full);
     break;
     default: chprintf(chp, "%s", text_Undefined);
       for(uint16_t ii = 0; ii < LOGGER_MSG_LENGTH; ii++) {

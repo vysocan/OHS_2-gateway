@@ -13,7 +13,7 @@
 #endif
 
 #if SERVICE_DEBUG
-#define DBG_SERVICE(...) {chprintf((BaseSequentialStream*)&SD3, __VA_ARGS__);}
+#define DBG_SERVICE(...) {chprintf(console, __VA_ARGS__);}
 #else
 #define DBG_SERVICE(...)
 #endif
@@ -36,9 +36,10 @@ static THD_FUNCTION(ServiceThread, arg) {
   chRegSetThreadName(arg);
   time_t  tempTime, timeNow;
   uint8_t counterAC = 0, nodeIndex;
-  int8_t  resp;
+  msg_t   resp;
   uint8_t message[6];
   char   *pResult;
+  struct scriptLL_t *scrP = NULL;
 
   while (true) {
     chThdSleepMilliseconds(1000);
@@ -48,7 +49,7 @@ static THD_FUNCTION(ServiceThread, arg) {
     // Remove zombie nodes
     for (uint8_t nodeIndex=0; nodeIndex < NODE_SIZE; nodeIndex++) {
       if ((node[nodeIndex].address != 0) &&
-          (node[nodeIndex].last_OK + SECONDS_PER_HOUR < timeNow)) {
+          (node[nodeIndex].lastOK + SECONDS_PER_HOUR < timeNow)) {
         DBG_SERVICE("Zombie node: %u,A %u,T %u,F %u,N %u\r\n", nodeIndex, node[nodeIndex].address,
                  node[nodeIndex].type, node[nodeIndex].function, node[nodeIndex].number);
         tmpLog[0] = 'N'; tmpLog[1] = 'Z'; tmpLog[2] = node[nodeIndex].address;
@@ -153,16 +154,16 @@ static THD_FUNCTION(ServiceThread, arg) {
             scriptEvent_t *outMsg = chPoolAlloc(&script_pool);
             if (outMsg != NULL) {
               // Find pointer to script
-              for (scriptp = scriptLL; scriptp != NULL; scriptp = scriptp->next) {
-                if (strcmp(scriptp->name, &conf.timer[i].evalScript[0]) == 0) break;
+              for (scrP = scriptLL; scrP != NULL; scrP = scrP->next) {
+                if (strcmp(scrP->name, &conf.timer[i].evalScript[0]) == 0) break;
               }
               // Script name exists
-              if (scriptp != NULL) {
+              if (scrP != NULL) {
                 pResult = (char *)&message; // Just any char[] as temp variable
                 outMsg->callback = cbTimer;
                 outMsg->result = (void **)&pResult;
                 outMsg->flags = 1;
-                outMsg->index = scriptp->cmd;
+                outMsg->cmdP = scrP->cmd;
                 // Reset semaphore
                 chBSemReset(&cbTimerSem, true);
                 // Run script
@@ -181,17 +182,17 @@ static THD_FUNCTION(ServiceThread, arg) {
             }
           }
           // Do we need to send some packet ?
-          if (conf.timer[i].toAddress > 0) {
+          if ((conf.timer[i].toAddress > 0) &&
+              ((GET_CONF_TIMER_RESULT(conf.timer[i].setting)) || (conf.timer[i].evalScript[0] == 0))) {
             nodeIndex = getNodeIndex(conf.timer[i].toAddress, 'I', conf.timer[i].toFunction, conf.timer[i].toNumber);
-            if ((nodeIndex != DUMMY_NO_VALUE) &&
-                ((GET_CONF_TIMER_RESULT(conf.timer[i].setting)) || (conf.timer[i].evalScript[0] == 0))) {
+            if (nodeIndex != DUMMY_NO_VALUE) {
               message[0] = 'I'; // 'I'nput only
               message[1] = conf.timer[i].toNumber;
               floatConv.val = conf.timer[i].constantOn;
               message[2] = floatConv.byte[0]; message[3] = floatConv.byte[1];
               message[4] = floatConv.byte[2]; message[5] = floatConv.byte[3];
               if (sendData(conf.timer[i].toAddress, message, 6) == 1) {
-                node[nodeIndex].last_OK = timeNow; // update receiving node current timestamp
+                node[nodeIndex].lastOK = timeNow; // update receiving node current timestamp
                 node[nodeIndex].value   = conf.timer[i].constantOn; // update receiving node value
                 // *** publishNode(_update_node); // MQTT
               }
@@ -202,17 +203,17 @@ static THD_FUNCTION(ServiceThread, arg) {
         if (timeNow >= conf.timer[i].nextOff) {
           if (GET_CONF_TIMER_TRIGGERED(conf.timer[i].setting)) {
             // Do we need to send some packet ?
-            if (conf.timer[i].toAddress > 0) {
+            if ((conf.timer[i].toAddress > 0) &&
+                ((GET_CONF_TIMER_RESULT(conf.timer[i].setting)) || (conf.timer[i].evalScript[0] == 0))) {
               nodeIndex = getNodeIndex(conf.timer[i].toAddress, 'I', conf.timer[i].toFunction, conf.timer[i].toNumber);
-              if ((nodeIndex != DUMMY_NO_VALUE) &&
-                  ((GET_CONF_TIMER_RESULT(conf.timer[i].setting)) || (conf.timer[i].evalScript[0] == 0))) {
+              if (nodeIndex != DUMMY_NO_VALUE) {
                 message[0] = 'I'; // 'I'nput only
                 message[1] = conf.timer[i].toNumber;
                 floatConv.val = conf.timer[i].constantOff;
                 message[2] = floatConv.byte[0]; message[3] = floatConv.byte[1];
                 message[4] = floatConv.byte[2]; message[5] = floatConv.byte[3];
                 if (sendData(conf.timer[i].toAddress, message, 6) == 1) {
-                  node[nodeIndex].last_OK = timeNow; // update receiving node current timestamp
+                  node[nodeIndex].lastOK = timeNow; // update receiving node current timestamp
                   node[nodeIndex].value   = conf.timer[i].constantOff; // update receiving node value
                   // *** publishNode(_update_node); // MQTT
                 }

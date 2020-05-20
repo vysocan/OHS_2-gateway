@@ -52,7 +52,7 @@ static THD_FUNCTION(RS485Thread, arg) {
             case NODE_CMD_PING: // Nodes should do periodic ping to stay alive/registered
               for (uint8_t nodeIndex=0; nodeIndex < NODE_SIZE; nodeIndex++) {
                 if (node[nodeIndex].address == rs485Msg.address)
-                  node[nodeIndex].last_OK = getTimeUnixSec();
+                  node[nodeIndex].lastOK = getTimeUnixSec();
               }
             break;
           }
@@ -89,7 +89,7 @@ static THD_FUNCTION(RS485Thread, arg) {
               chprintf(console, "Received Key, node index: %d\r\n", nodeIndex);
               // Node index found
               if (nodeIndex != DUMMY_NO_VALUE) {
-                node[nodeIndex].last_OK = getTimeUnixSec(); // Update timestamp
+                node[nodeIndex].lastOK = getTimeUnixSec(); // Update timestamp
                 //  Node is enabled
                 if (GET_NODE_ENABLED(node[nodeIndex].setting)) {
                   checkKey(GET_NODE_GROUP(node[nodeIndex].setting), (rs485Msg.data[2] % 2),
