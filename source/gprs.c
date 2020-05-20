@@ -43,7 +43,7 @@ static SerialConfig gprs_cfg = {
     txend1_cb,txend2_cb,rxchar_cb,rxerr_cb
 };
 
-void gprsInitRingBuffer(gprsRingBuffer_t *what){
+static void gprsInitRingBuffer(gprsRingBuffer_t *what){
   what->head = 0;
   what->tail = 0;
   what->message = 0;
@@ -67,7 +67,7 @@ void gprsFlushRX(void) {
 /*
  * gprsRead one byte
  */
-uint8_t gprsRead(void) {
+static uint8_t gprsRead(void) {
   uint8_t rb = gprsRingBuffer.data[gprsRingBuffer.tail++];
   // In case not aligned to 256: rx_buffer.tail = (rx_buffer.tail + 1) % GSM_USART_RX_BUFFER_SIZE;
   // We have a line message
@@ -98,7 +98,7 @@ uint8_t gprsReadMsg(uint8_t *where, uint8_t response_len) {
 /*
  * Wait and read a message
  */
-uint8_t gprsWaitAndReadMsg(uint8_t *where, uint8_t response_len, uint16_t wait) {
+static uint8_t gprsWaitAndReadMsg(uint8_t *where, uint8_t response_len, uint16_t wait) {
   uint16_t atWait;
   uint8_t  count, rb;
 

@@ -29,6 +29,8 @@
 #define UBS_DATA_SIZE         (UBS_BLOCK_SIZE - UBS_HEADER_BLOCK_SIZE)
 #define UBS_FIRST_DATA_SIZE   (UBS_DATA_SIZE - UBS_NAME_SIZE)
 #define UBS_CMD_BUF_SIZE      (1 + UBS_POINTER_SIZE)
+// Statistics
+#define UBS_SPACE_MAX         ((UBS_BLOCK_COUNT * UBS_DATA_SIZE) - UBS_NAME_SIZE)
 
 // FRAM on SPI related
 #define CMD_25AA_WRSR     0x01  // Write status register

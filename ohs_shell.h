@@ -715,8 +715,6 @@ static uint8_t decodeLog(char *in, char *out, bool full){
 #define LOGGER_OUTPUT_LEN 20
 static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
-  //char   rxBuffer[FRAM_MSG_SIZE];
-  //char   txBuffer[3];
 
   if (argc > 1)  { goto ERROR; }
   if (argc == 1) { FRAMReadPos = (atoi(argv[0]) - LOGGER_OUTPUT_LEN + 1) * FRAM_MSG_SIZE; }
@@ -820,20 +818,45 @@ static void cmd_debug(BaseSequentialStream *chp, int argc, char *argv[]) {
   }
 }
 
+// Routing console to USB
+static void cmd_ubs(BaseSequentialStream *chp, int argc, char *argv[]) {
+  (void)argv;
+
+  if (argc == 1) {
+    switch (argv[0][0]) {
+      case 's':
+        chprintf(chp, "uBS     total    free    used\r\n");
+        chprintf(chp, "blocks: %5u   %5u   %5u\r\n", UBS_BLOCK_COUNT, uBSFreeBlocks,
+                 UBS_BLOCK_COUNT - uBSFreeBlocks);
+        chprintf(chp, "space:  %5u   %5u   %5u\r\n", UBS_SPACE_MAX, uBSFreeSpace,
+                 UBS_SPACE_MAX - uBSFreeSpace);
+        break;
+      case 'f':
+        uBSFormat();
+        uBSInit();
+        chprintf(chp, "uBS formated and re-initialized.\r\n");
+        break;
+      default: goto ERROR;
+        break;
+    }
+  } else goto ERROR;
+
+  return;
+
+  ERROR:
+    shellUsage(chp, "status, format");
+    return;
+}
+
 // Commands
 static const ShellCommand commands[] = {
   {"date",  cmd_date},
   {"log",  cmd_log},
   {"threads",  cmd_threads},
   {"debug",  cmd_debug},
+  {"ubs",  cmd_ubs},
   {NULL, NULL}
 };
-
-
-/*static const ShellConfig shell_cfg1 = {
-  (BaseSequentialStream  *)&SD3,
-  commands
-};*/
 
 static const ShellConfig shell_cfg1 = {
   (BaseSequentialStream *)&SDU1,

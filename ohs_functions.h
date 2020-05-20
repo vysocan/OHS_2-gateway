@@ -134,6 +134,8 @@ void armGroup(uint8_t groupNum, uint8_t master, armType_t armType, uint8_t hop) 
       }
       sendCmdToGrp(groupNum, NODE_CMD_ARMING, 'K'); // Send arm cmd to all Key nodes
       //+++publishGroup(groupNum, 'P');
+      // Save group state, here we save armDelay and armType
+      writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
       // Triggers
       sensorEvent_t *outMsgT = chPoolAlloc(&trigger_pool);
       if (outMsgT != NULL) {
@@ -188,6 +190,8 @@ void disarmGroup(uint8_t groupNum, uint8_t master, uint8_t hop) {
   sendCmdToGrp(groupNum, NODE_CMD_DISARM, 'K'); // Send disarm cmd to all Key nodes
   //+++if (publish == 1) publishGroup(_group, 'D');
   tmpLog[0] = 'G'; tmpLog[1] = 'D'; tmpLog[2] = groupNum; pushToLog(tmpLog, 3); // Group disarmed
+  // Save group state
+  writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
   // Triggers
   sensorEvent_t *outMsg = chPoolAlloc(&trigger_pool);
   if (outMsg != NULL) {

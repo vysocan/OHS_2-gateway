@@ -54,7 +54,7 @@ binary_semaphore_t rfm69Lock;
  * @param address The register address to be read
  * @return The value of the register
  */
-uint8_t rfm69ReadRegister(uint8_t address) {
+static uint8_t rfm69ReadRegister(uint8_t address) {
   uint8_t resp;
 
   address &= 0x7F;
@@ -75,7 +75,7 @@ uint8_t rfm69ReadRegister(uint8_t address) {
  * @param address The register address to be written
  * @param value The value of the register to be set
  */
-void rfm69WriteRegister(uint8_t address, uint8_t value) {
+static void rfm69WriteRegister(uint8_t address, uint8_t value) {
   uint8_t txBuffer[2] = { address | 0x80, value};
 
   spiAcquireBus(rfm69Config.spidp);
@@ -113,7 +113,7 @@ void rfm69SetHighPowerRegs(bool onOff) {
 /*
  * Set RFM69 mode
  */
-void rfm69SetMode(uint8_t newMode) {
+static void rfm69SetMode(uint8_t newMode) {
 
   if (newMode == transceiverMode) return;
   // Switch modes
@@ -162,7 +162,7 @@ void rfm69SetMode(uint8_t newMode) {
  *
  * @return RSSI
  */
-int8_t rfm69ReadRSSI(void) {
+static int8_t rfm69ReadRSSI(void) {
   int16_t rssi = 0;
 
   // *** missing force trigger part
@@ -178,7 +178,7 @@ int8_t rfm69ReadRSSI(void) {
  *          RF69_RSLT_OK - Sent.
  */
 #define RFM69_SEND_HEADER_SIZE 5
-int8_t rfm69SendFrame(uint16_t toAddress, const void* buffer, uint8_t bufferSize,
+static int8_t rfm69SendFrame(uint16_t toAddress, const void* buffer, uint8_t bufferSize,
                       bool requestACK, bool sendACK, bool sendRssi) {
   uint8_t CTLbyte;
   uint16_t temp;
@@ -289,7 +289,7 @@ int8_t rfm69SendFrame(uint16_t toAddress, const void* buffer, uint8_t bufferSize
 /*
  * ISR
  */
-void rfm69IsrCb(void *arg){
+static void rfm69IsrCb(void *arg){
   (void)arg;
 
   chSysLockFromISR();

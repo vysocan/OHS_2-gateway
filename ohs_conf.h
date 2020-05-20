@@ -202,7 +202,6 @@
 #define GET_CONF_TRIGGER_ENABLED(x)     ((x) & 0b1)
 #define GET_CONF_TRIGGER_PASS_VALUE(x)  ((x >> 1U) & 0b1)
 #define GET_CONF_TRIGGER_PASS(x)        ((x >> 2U) & 0b11)
-//#define GET_CONF_TRIGGER_PASS_ONCE(x)   ((x >> 3U) & 0b1)
 #define GET_CONF_TRIGGER_PASSED(x)      ((x >> 4U) & 0b1)
 #define GET_CONF_TRIGGER_TRIGGERED(x)   ((x >> 5U) & 0b1)
 #define GET_CONF_TRIGGER_ALERT(x)       ((x >> 6U) & 0b1)
@@ -213,8 +212,6 @@
 #define SET_CONF_TRIGGER_ENABLED(x)      x |= 1
 #define SET_CONF_TRIGGER_PASS_VALUE(x)   x |= (1 << 1U)
 #define SET_CONF_TRIGGER_PASS(x,y)       x = (((x)&(0b1111111111110011))|(((y & 0b11) << 2U)&(0b0000000000001100)))
-//#define SET_CONF_TRIGGER_PASS(x)        x |= (1 << 2U)
-//#define SET_CONF_TRIGGER_PASS_ONCE(x)   x |= (1 << 3U)
 #define SET_CONF_TRIGGER_PASSED(x)       x |= (1 << 4U)
 #define SET_CONF_TRIGGER_TRIGGERED(x)    x |= (1 << 5U)
 #define SET_CONF_TRIGGER_ALERT(x)        x |= (1 << 6U)
@@ -224,8 +221,6 @@
 
 #define CLEAR_CONF_TRIGGER_ENABLED(x)    x &= ~1
 #define CLEAR_CONF_TRIGGER_PASS_VALUE(x) x &= ~(1 << 1U)
-//#define CLEAR_CONF_TRIGGER_PASS(x)       x &= ~(1 << 2U)
-//#define CLEAR_CONF_TRIGGER_PASS_ONCE(x)  x &= ~(1 << 3U)
 #define CLEAR_CONF_TRIGGER_PASSED(x)     x &= ~(1 << 4U)
 #define CLEAR_CONF_TRIGGER_TRIGGERED(x)  x &= ~(1 << 5U)
 #define CLEAR_CONF_TRIGGER_ALERT(x)      x &= ~(1 << 6U)
@@ -301,12 +296,12 @@ union time_tag {
 // float conversion
 union float_tag {
   uint8_t byte[4];
-  float val;
+  float   val;
 } floatConv;
 
 // uint32_t conversion
 union uint32_tag {
-  uint8_t byte[4];
+  uint8_t  byte[4];
   uint32_t val;
 } uint32Conv;
 
