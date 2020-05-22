@@ -902,17 +902,21 @@ void setConfDefault(void){
   for(uint8_t i = 0; i < TRIGGER_SIZE; i++) {
     conf.trigger[i].setting = 0;
     conf.trigger[i].address = 0;
-    conf.trigger[i].condition = 0;
+    conf.trigger[i].type = ' ';
     conf.trigger[i].function = ' ';
+    conf.trigger[i].number = 0;
+    conf.trigger[i].condition = 0;
+    conf.trigger[i].value = 0;
     conf.trigger[i].constantOn = 1;
     conf.trigger[i].constantOff = 0;
-    conf.trigger[i].hysteresis = 0;
-    conf.trigger[i].number = 0;
+    conf.trigger[i].toAddress  = 0;
+    conf.trigger[i].toFunction = ' ';
+    conf.trigger[i].toNumber   = 0;
     conf.trigger[i].offTime = 1;
     conf.trigger[i].nextOff = 0;
-    conf.trigger[i].value = 0;
     strcpy(conf.trigger[i].name, "");
     strcpy(conf.trigger[i].evalScript, "");
+    conf.trigger[i].hysteresis = 0;
   }
 
 }

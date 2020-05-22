@@ -8,6 +8,16 @@
 #ifndef OHS_TH_ZONE_H_
 #define OHS_TH_ZONE_H_
 
+#ifndef ZONE_DEBUG
+#define ZONE_DEBUG 0
+#endif
+
+#if ZONE_DEBUG
+#define DBG_ZONE(...) {chprintf(console, __VA_ARGS__);}
+#else
+#define DBG_ZONE(...)
+#endif
+
 /*
  * Zone thread
  */

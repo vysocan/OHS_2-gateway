@@ -126,9 +126,9 @@ static THD_FUNCTION(TriggerThread, arg) {
               if ((GET_CONF_TRIGGER_PASS(conf.trigger[i].setting)) &&
                   ((GET_CONF_TRIGGER_RESULT(conf.trigger[i].setting)) || (conf.trigger[i].evalScript[0] == 0))) {
                 // Select input node to update its value and timestamp
-                nodeIndex = getNodeIndex(inMsg->address, 'I', inMsg->function, inMsg->number);
+                nodeIndex = getNodeIndex(conf.trigger[i].toAddress, 'I', conf.trigger[i].toFunction, conf.trigger[i].toNumber);
                 if (nodeIndex != DUMMY_NO_VALUE) {
-                  DBG_TRIG(" , pass: %u", nodeIndex);
+                  DBG_TRIG(" , pass to node index: %u", nodeIndex + 1);
                   //  Pass off,  time
                   if (GET_CONF_TRIGGER_PASS_OFF(conf.trigger[i].setting) == 2) {
                     switch(GET_CONF_TRIGGER_OFF_PERIOD(conf.trigger[i].setting)) {
@@ -138,7 +138,7 @@ static THD_FUNCTION(TriggerThread, arg) {
                       default: add = (uint32_t)conf.trigger[i].offTime * SECONDS_PER_DAY; break;
                     }
                     conf.trigger[i].nextOff = timeNow + add;
-                    DBG_TRIG(" , nextOff: %u", conf.trigger[i].nextOff);
+                    DBG_TRIG(" , nextOff at: %u", conf.trigger[i].nextOff);
                   }
                   // Not passed
                   if (!GET_CONF_TRIGGER_PASSED(conf.trigger[i].setting)) {
@@ -172,7 +172,7 @@ static THD_FUNCTION(TriggerThread, arg) {
               // Logging enabled & triggered
               if ((GET_CONF_TRIGGER_ALERT(conf.trigger[i].setting)) &&
                   (GET_CONF_TRIGGER_TRIGGERED(conf.trigger[i].setting))) {
-                tmpLog[0] = 'R'; tmpLog[1] = 'A'; tmpLog[2] = i; pushToLog(tmpLog, 3);
+                tmpLog[0] = 'R'; tmpLog[1] = 'D'; tmpLog[2] = i; pushToLog(tmpLog, 3);
               }
               if ((GET_CONF_TRIGGER_PASS_OFF(conf.trigger[i].setting) == 1) &&
                   (GET_CONF_TRIGGER_TRIGGERED(conf.trigger[i].setting))) {

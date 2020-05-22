@@ -226,8 +226,43 @@ static THD_FUNCTION(ServiceThread, arg) {
       }
     }
 
-    //
+    // Trigger Off timer
+    for (uint8_t i=0; i < TRIGGER_SIZE; i++){
+      // Trigger enabled
+      if (GET_CONF_TRIGGER_ENABLED(conf.trigger[i].setting)) {
+        // Timer Off time has passed
+        if ((GET_CONF_TRIGGER_PASS_OFF(conf.trigger[i].setting) == 2) &&
+            (timeNow >= conf.trigger[i].nextOff)) {
+          if (GET_CONF_TRIGGER_TRIGGERED(conf.trigger[i].setting)) {
+            // Do we need to send some packet ?
+            if ((conf.trigger[i].toAddress > 0) &&
+                ((GET_CONF_TRIGGER_RESULT(conf.trigger[i].setting)) || (conf.trigger[i].evalScript[0] == 0))) {
+              nodeIndex = getNodeIndex(conf.trigger[i].toAddress, 'I', conf.trigger[i].toFunction, conf.timer[i].toNumber);
+              if (nodeIndex != DUMMY_NO_VALUE) {
+                message[0] = 'I'; // 'I'nput only
+                message[1] = conf.trigger[i].toNumber;
+                floatConv.val = conf.trigger[i].constantOff;
+                message[2] = floatConv.byte[0]; message[3] = floatConv.byte[1];
+                message[4] = floatConv.byte[2]; message[5] = floatConv.byte[3];
+                if (sendData(conf.trigger[i].toAddress, message, 6) == 1) {
+                  node[nodeIndex].lastOK = timeNow; // update receiving node current timestamp
+                  node[nodeIndex].value   = conf.trigger[i].constantOff; // update receiving node value
+                  // *** publishNode(_update_node); // MQTT
+                }
+              }
+            }
+            // Logging enabled & triggered
+            if ((GET_CONF_TRIGGER_ALERT(conf.trigger[i].setting)) &&
+                (GET_CONF_TRIGGER_TRIGGERED(conf.trigger[i].setting))) {
+              tmpLog[0] = 'R'; tmpLog[1] = 'D'; tmpLog[2] = i; pushToLog(tmpLog, 3);
+            }
+            CLEAR_CONF_TRIGGER_TRIGGERED(conf.trigger[i].setting);
+          } // Timer triggered
+        }
+      }
+    }
 
+    //
   }
 }
 

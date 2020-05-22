@@ -364,6 +364,7 @@ static uint16_t webLog = 0;
 int fs_open_custom(struct fs_file *file, const char *name){
   char temp[3] = "";
   uint16_t logAddress;
+  uint8_t number;
   time_t tempTime;      // Temp time
 
   for (uint8_t htmlPage = 0; htmlPage < ARRAY_SIZE(webPage); ++htmlPage) {
@@ -428,7 +429,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           // Information table
           for (uint8_t i = 0; i < NODE_SIZE; i++) {
             if (node[i].address != 0) {
-              chprintf(chp, "%s%u.%s%s - ", html_tr_td, i + 1, html_e_td_td, node[i].name);
+              chprintf(chp, "%s%u.%s", html_tr_td, i + 1, html_e_td_td);
               printNodeAddress(chp, node[i].address, node[i].type, node[i].function, node[i].number);
               chprintf(chp, "%s", html_e_td_td);
               printOkNok(chp, GET_NODE_ENABLED(node[i].setting));
@@ -614,10 +615,12 @@ int fs_open_custom(struct fs_file *file, const char *name){
               chprintf(chp, "%s%s", conf.zoneName[i], html_e_td_td);
               printOkNok(chp, GET_CONF_ZONE_ENABLED(conf.zone[i]));
               chprintf(chp, "%s", html_e_td_td);
-              GET_CONF_ZONE_BALANCED(conf.zone[i]) ? chprintf(chp, "%s ", text_balanced) : chprintf(chp, "un%s ", text_balanced);
-              GET_CONF_ZONE_IS_REMOTE(conf.zone[i]) ? chprintf(chp, "%s ", text_remote) : chprintf(chp, "%s ", text_local);
-              if (GET_CONF_ZONE_IS_BATTERY(conf.zone[i])) chprintf(chp, "%s ", text_battery);
-              GET_CONF_ZONE_TYPE(conf.zone[i]) ? chprintf(chp, "%s", text_analog) : chprintf(chp, "%s", text_digital);
+              if (GET_CONF_ZONE_ENABLED(conf.zone[i])) {
+                GET_CONF_ZONE_BALANCED(conf.zone[i]) ? chprintf(chp, "%s ", text_balanced) : chprintf(chp, "un%s ", text_balanced);
+                GET_CONF_ZONE_IS_REMOTE(conf.zone[i]) ? chprintf(chp, "%s ", text_remote) : chprintf(chp, "%s ", text_local);
+                if (GET_CONF_ZONE_IS_BATTERY(conf.zone[i])) chprintf(chp, "%s ", text_battery);
+                GET_CONF_ZONE_TYPE(conf.zone[i]) ? chprintf(chp, "%s", text_analog) : chprintf(chp, "%s", text_digital);
+              }
               chprintf(chp, "%s", html_e_td_td);
               printOkNok(chp, GET_CONF_ZONE_ARM_HOME(conf.zone[i]));
               chprintf(chp, "%s", html_e_td_td);
@@ -625,7 +628,8 @@ int fs_open_custom(struct fs_file *file, const char *name){
               chprintf(chp, "%s", html_e_td_td);
               printOkNok(chp, GET_CONF_ZONE_PIR_AS_TMP(conf.zone[i]));
               chprintf(chp, "%s", html_e_td_td);
-              chprintf(chp, "%u %s%s", GET_CONF_ZONE_AUTH_TIME(conf.zone[i])*conf.armDelay, durationSelect[0], html_e_td_td);
+              chprintf(chp, "%u %s%s", GET_CONF_ZONE_AUTH_TIME(conf.zone[i])*conf.armDelay/4,
+                       durationSelect[0], html_e_td_td);
               if (GET_CONF_ZONE_ENABLED(conf.zone[i])) printFrmTimestamp(chp, &zone[i].lastPIR);
               chprintf(chp, "%s", html_e_td_td);
               if (GET_CONF_ZONE_ENABLED(conf.zone[i])) printFrmTimestamp(chp, &zone[i].lastOK);
@@ -945,6 +949,9 @@ int fs_open_custom(struct fs_file *file, const char *name){
             chprintf(chp, "%s%s", monthName[i], html_e_option);
           }
           chprintf(chp, "%s %s ", html_e_select, text_at);
+          printIntInput(chp, 'h', conf.timeDstHour , 2, 0, 23);
+          chprintf(chp, " %s", text_oclock);
+          /*
           chprintf(chp, "%sH%s", html_select, html_e_tag);
           for (uint8_t i = 0; i < 24; i++) {
             chprintf(chp, "%s%u", html_option, i);
@@ -953,6 +960,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
             chprintf(chp, "%02u%s", i, html_e_option);
           }
           chprintf(chp, "%s %s", html_e_select, text_oclock);
+          */
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_DS, text_offset, html_e_td_td);
           printIntInput(chp, 'O', conf.timeDstOffset, 5, -1440, 1440);
           chprintf(chp, " %s%s", durationSelect[1], html_e_td_e_tr_tr_td);
@@ -982,6 +990,9 @@ int fs_open_custom(struct fs_file *file, const char *name){
             chprintf(chp, "%s%s", monthName[i], html_e_option);
           }
           chprintf(chp, "%s %s ", html_e_select, text_at);
+          printIntInput(chp, 'h', conf.timeStdHour , 2, 0, 23);
+          chprintf(chp, " %s", text_oclock);
+          /*
           chprintf(chp, "%sh%s", html_select, html_e_tag);
           for (uint8_t i = 0; i < 24; i++) {
             chprintf(chp, "%s%u", html_option, i);
@@ -990,6 +1001,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
             chprintf(chp, "%02u%s", i, html_e_option);
           }
           chprintf(chp, "%s %s", html_e_select, text_oclock);
+          */
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Standard, text_offset, html_e_td_td);
           printIntInput(chp, 'o', conf.timeStdOffset, 5, -1440, 1440);
           chprintf(chp, " %s%s", durationSelect[1], html_e_td_e_tr_tr_td);
@@ -1257,7 +1269,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
                   printZone(chp, conf.trigger[i].number);
                   break;
                 default: // TODO OHS print node name, but first find node index
-                  printNodeAddress(chp, conf.trigger[i].address, 'I',  conf.trigger[i].function,
+                  printNodeAddress(chp, conf.trigger[i].address, 'S', conf.trigger[i].function,
                                    conf.trigger[i].number);
                   break;
               }
@@ -1302,7 +1314,10 @@ int fs_open_custom(struct fs_file *file, const char *name){
               durationSelect[GET_CONF_TRIGGER_OFF_PERIOD(conf.trigger[i].setting)]);
             }
             chprintf(chp, "%s", html_e_td_td);
-            // ***
+            if (GET_CONF_TRIGGER_ENABLED(conf.trigger[i].setting)) {
+              printNodeAddress(chp, conf.trigger[i].toAddress, 'I',  conf.trigger[i].toFunction,
+                               conf.trigger[i].toNumber);
+            }
             chprintf(chp, "%s", html_e_td_td);
             chprintf(chp, "%.2f%s", conf.trigger[i].constantOn, html_e_td_td);
             chprintf(chp, "%.2f%s", conf.trigger[i].constantOff, html_e_td_td);
@@ -1310,7 +1325,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
             chprintf(chp, "%s", html_e_td_e_tr);
           }
           chprintf(chp, "%s%s", html_e_table, html_table);
-          //
+          // Trigger options
           chprintf(chp, "%s%s%s", html_tr_td, text_Trigger, html_e_td_td);
           chprintf(chp, "%sP%s", html_select_submit, html_e_tag);
           for (uint8_t i = 0; i < TRIGGER_SIZE; i++) {
@@ -1322,16 +1337,17 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s", html_e_select, html_e_td_e_tr_tr_td);
           chprintf(chp, "%s%s", text_Name, html_e_td_td);
           printTextInput(chp, 'n', conf.trigger[webTrigger].name, NAME_LENGTH);
-          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Timer, text_is, html_e_td_td);
-          printOnOffButton(chp, "B", GET_CONF_TIMER_ENABLED(conf.trigger[webTimer].setting));
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Trigger, text_is, html_e_td_td);
+          printOnOffButton(chp, "B", GET_CONF_TRIGGER_ENABLED(conf.trigger[webTrigger].setting));
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Type, html_e_td_td);
           chprintf(chp, "%sy%sy' onchange='sd(this)%s", html_select, html_id_tag, html_e_tag);
-          logAddress = 0;
+          logAddress = 0; number = 0;
           for (uint8_t i = 0; i < ALARM_GROUPS; i++) {
             if (GET_CONF_GROUP_ENABLED(conf.group[i])) {
               chprintf(chp, "%s%u", html_option, logAddress);
               if ((conf.trigger[webTrigger].type == 'G') && (conf.trigger[webTrigger].number == i)) {
                 chprintf(chp, "%s", html_selected);
+                number = 1;
               } else { chprintf(chp, "%s", html_e_tag); }
               chprintf(chp, "%s - ", text_Group);
               printGroup(chp, i);
@@ -1344,6 +1360,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
               chprintf(chp, "%s%u", html_option, logAddress);
               if ((conf.trigger[webTrigger].type == 'Z') && (conf.trigger[webTrigger].number == i)) {
                 chprintf(chp, "%s", html_selected);
+                number = 1;
               } else { chprintf(chp, "%s", html_e_tag); }
               chprintf(chp, "%s - ", text_Zone);
               printZone(chp, i);
@@ -1359,12 +1376,20 @@ int fs_open_custom(struct fs_file *file, const char *name){
                   (conf.trigger[webTrigger].function == node[i].function) &&
                   (conf.trigger[webTrigger].address == node[i].address)) {
                 chprintf(chp, "%s", html_selected);
+                number = 1;
               } else { chprintf(chp, "%s", html_e_tag); }
               chprintf(chp, "%s - ", text_Sensor);
               printNodeAddress(chp, node[i].address, node[i].type, node[i].function, node[i].number);
               chprintf(chp, "%s", html_e_option);
             }
             logAddress++;
+          }
+          if (!number) {
+            chprintf(chp, "%s%u%s", html_option, DUMMY_NO_VALUE, html_selected,
+                     NOT_SET, html_e_option);
+            if (conf.trigger[webTrigger].type == 'S') chprintf(chp, "%s", text_not_found);
+            else                                      chprintf(chp, "%s", NOT_SET);
+            chprintf(chp, "%s", html_e_option);
           }
           chprintf(chp, "%s", html_e_select);
           // Condition
@@ -1382,20 +1407,20 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s1%s", html_div_id_1, html_div_id_2);
           chprintf(chp, "%sg%sg%s", html_select, html_id_tag, html_e_tag);
           for (uint8_t i = 0; i < ARRAY_SIZE(groupState); i++) {
-             chprintf(chp, "%s%u", html_option, i);
-             if ((uint8_t)conf.trigger[webTrigger].value == i) { chprintf(chp, "%s", html_selected); }
-             else                                              { chprintf(chp, "%s", html_e_tag); }
-             chprintf(chp, "%s%s", groupState[i], html_e_option);
-           }
+            chprintf(chp, "%s%u", html_option, i);
+            if ((uint8_t)conf.trigger[webTrigger].value == i) { chprintf(chp, "%s", html_selected); }
+            else                                              { chprintf(chp, "%s", html_e_tag); }
+            chprintf(chp, "%s%s", groupState[i], html_e_option);
+          }
           chprintf(chp, "%s", html_e_select);
           chprintf(chp, "%s%s2%s", html_div_e, html_div_id_1, html_div_id_2);
           chprintf(chp, "%sz%sz%s", html_select, html_id_tag, html_e_tag);
           for (uint8_t i = 0; i < ARRAY_SIZE(zoneState); i++) {
-             chprintf(chp, "%s%u", html_option, i);
-             if ((uint8_t)conf.trigger[webTrigger].value == i) { chprintf(chp, "%s", html_selected); }
-             else                                              { chprintf(chp, "%s", html_e_tag); }
-             chprintf(chp, "%s%s", zoneState[i], html_e_option);
-           }
+            chprintf(chp, "%s%u", html_option, i);
+            if ((uint8_t)conf.trigger[webTrigger].value == i) { chprintf(chp, "%s", html_selected); }
+            else                                              { chprintf(chp, "%s", html_e_tag); }
+            chprintf(chp, "%s%s", zoneState[i], html_e_option);
+          }
           chprintf(chp, "%s", html_e_select);
           chprintf(chp, "%s%s3%s", html_div_e, html_div_id_1, html_div_id_2);
           printFloatInput(chp, 'v', conf.trigger[webTrigger].value);
@@ -1432,7 +1457,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Pass, text_Off,html_e_td_td);
           printThreeButton(chp, "S", GET_CONF_TRIGGER_PASS_OFF(conf.trigger[webTrigger].setting),
                            2, 0b100, triggerPassOffType[0], triggerPassOffType[1], triggerPassOffType[2], 0);
-          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Off, text_Timer, html_e_td_td);
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Off, text_timer, html_e_td_td);
           printIntInput(chp, 't', conf.trigger[webTrigger].offTime, 3, 1, 255);
           printDurationSelect(chp, 'T', GET_CONF_TRIGGER_OFF_PERIOD(conf.trigger[webTrigger].setting));
           chprintf(chp, "%s%s%s", html_tr_td, text_Address, html_e_td_td);
@@ -1441,9 +1466,9 @@ int fs_open_custom(struct fs_file *file, const char *name){
             if (i < NODE_SIZE) {
               if (node[i].type == 'I') {
                 chprintf(chp, "%s%u", html_option, i);
-                if ((node[i].address  == conf.trigger[webTrigger].address) &&
-                    (node[i].function == conf.trigger[webTrigger].function) &&
-                    (node[i].number   == conf.trigger[webTrigger].number))
+                if ((node[i].address  == conf.trigger[webTrigger].toAddress) &&
+                    (node[i].function == conf.trigger[webTrigger].toFunction) &&
+                    (node[i].number   == conf.trigger[webTrigger].toNumber))
                      { chprintf(chp, "%s", html_selected); }
                 else { chprintf(chp, "%s", html_e_tag); }
                 chprintf(chp, "%s - ", node[i].name);
@@ -1452,9 +1477,9 @@ int fs_open_custom(struct fs_file *file, const char *name){
               }
             } else {
               chprintf(chp, "%s%u", html_option, DUMMY_NO_VALUE);
-              if ((conf.trigger[webTrigger].address  == 0) &&
-                  (conf.trigger[webTrigger].function == ' ') &&
-                  (conf.trigger[webTrigger].number   == 0))
+              if ((conf.trigger[webTrigger].toAddress  == 0) &&
+                  (conf.trigger[webTrigger].toFunction == ' ') &&
+                  (conf.trigger[webTrigger].toNumber   == 0))
                    { chprintf(chp, "%s", html_selected); }
               else { chprintf(chp, "%s", html_e_tag); }
               chprintf(chp, "%s%s", NOT_SET, html_e_option);
@@ -1648,7 +1673,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_NODE:
             do{
               repeat = getPostData(&postDataP, &name[0], sizeof(name), &valueP, &valueLen);
-              DBG_HTTP("Parse: %s = '%s' (%u)\r\n", name, valueP, valueLen);
+              DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
                 case 'P': // select
                   number = strtol(valueP, NULL, 10);
@@ -1713,7 +1738,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_USER:
             do{
               repeat = getPostData(&postDataP, &name[0], sizeof(name), &valueP, &valueLen);
-              DBG_HTTP("Parse: %s = '%s' (%u)\r\n", name, valueP, valueLen);
+              DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
                 case 'P': // select
                   number = strtol(valueP, NULL, 10);
@@ -1748,7 +1773,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_KEY:
             do{
               repeat = getPostData(&postDataP, &name[0], sizeof(name), &valueP, &valueLen);
-              DBG_HTTP("Parse: %s = '%s' (%u)\r\n", name, valueP, valueLen);
+              DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
                 case 'P': // select
                   number = strtol(valueP, NULL, 10);
@@ -1773,7 +1798,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_ZONE:
             do{
               repeat = getPostData(&postDataP, &name[0], sizeof(name), &valueP, &valueLen);
-              DBG_HTTP("Parse: %s = '%s' (%u)\r\n", name, valueP, valueLen);
+              DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
                 case 'P': // select
                   number = strtol(valueP, NULL, 10);
@@ -1810,7 +1835,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_ALERT:
             do{
               repeat = getPostData(&postDataP, &name[0], sizeof(name), &valueP, &valueLen);
-              DBG_HTTP("Parse: %s = '%s' (%u)\r\n", name, valueP, valueLen);
+              DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
                 case '0' ... ('0' + ARRAY_SIZE(alertType)): // Handle all radio buttons in groups 0 .. #, A .. #
                   if (valueP[0] == '0') conf.alert[name[0]-48] &= ~(1 << (name[1]-65));
@@ -1825,7 +1850,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_LOG:
             do{
               repeat = getPostData(&postDataP, &name[0], sizeof(name), &valueP, &valueLen);
-              DBG_HTTP("Parse: %s = '%s' (%u)\r\n", name, valueP, valueLen);
+              DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
                 case 'N': // Now
                   webLog = FRAMWritePos - (LOGGER_OUTPUT_LEN * FRAM_MSG_SIZE);
@@ -1842,7 +1867,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_GROUP:
             do{
               repeat = getPostData(&postDataP, &name[0], sizeof(name), &valueP, &valueLen);
-              DBG_HTTP("Parse: %s = '%s' (%u)\r\n", name, valueP, valueLen);
+              DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
                 case 'P': // select
                   number = strtol(valueP, NULL, 10);
@@ -1875,7 +1900,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_SETTING:
             do{
               repeat = getPostData(&postDataP, &name[0], sizeof(name), &valueP, &valueLen);
-              DBG_HTTP("Parse: %s = '%s' (%u)\r\n", name, valueP, valueLen);
+              DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
                 case 'A': // Apply
                   // SMTP
@@ -1964,7 +1989,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_HOME:
             do{
               repeat = getPostData(&postDataP, &name[0], sizeof(name), &valueP, &valueLen);
-              DBG_HTTP("Parse: %s = '%s' (%u)\r\n", name, valueP, valueLen);
+              DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
                 case 'A': // Apply
                 break;
@@ -1976,7 +2001,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             // https://fvsch.com/transition-fade/test5.html#test1
             do{
               repeat = getPostData(&postDataP, &name[0], sizeof(name), &valueP, &valueLen);
-              DBG_HTTP("Parse: %s = '%s' (%u)\r\n", name, valueP, valueLen);
+              DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
               scriptEvent_t *outMsg;
               switch(name[0]){
                 case 'P': // select
@@ -2071,7 +2096,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_TIMER:
             do{
               repeat = getPostData(&postDataP, &name[0], sizeof(name), &valueP, &valueLen);
-              DBG_HTTP("Parse: %s = '%s' (%u)\r\n", name, valueP, valueLen);
+              DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
                 case 'P': // select
                   number = strtol(valueP, NULL, 10);
@@ -2137,7 +2162,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
           case PAGE_TRIGGER:
             do{
               repeat = getPostData(&postDataP, &name[0], sizeof(name), &valueP, &valueLen);
-              DBG_HTTP("Parse: %s = '%s' (%u)\r\n", name, valueP, valueLen);
+              DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
                 case 'P': // select
                   number = strtol(valueP, NULL, 10);
@@ -2173,11 +2198,16 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                     conf.trigger[webTrigger].address  = 0;
                     conf.trigger[webTrigger].function = ' ';
                     conf.trigger[webTrigger].number   = number - ALARM_GROUPS;
-                  } else {
+                  } else if (number >= (ALARM_ZONES + ALARM_GROUPS)) {
                     conf.trigger[webTrigger].type       = 'S';
                     conf.trigger[webTrigger].address  = node[number - ALARM_ZONES - ALARM_GROUPS].address;
                     conf.trigger[webTrigger].function = node[number - ALARM_ZONES - ALARM_GROUPS].function;
                     conf.trigger[webTrigger].number   = node[number - ALARM_ZONES - ALARM_GROUPS].number;
+                  } else {
+                    conf.trigger[webTrigger].type     = ' ';
+                    conf.trigger[webTrigger].address  = 0;
+                    conf.trigger[webTrigger].function = ' ';
+                    conf.trigger[webTrigger].number   = 0;
                   }
                 break;
                 case 'c': // condition

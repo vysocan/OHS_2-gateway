@@ -48,11 +48,15 @@ static char tclCmd[TCL_SCRIPT_LENGTH];// __attribute__((section(".ram4")));
 struct tcl tcl;
 // uBS
 #include "uBS.h"
+
+#define LOG_TEXT_LENGTH 80
+char logText[LOG_TEXT_LENGTH] __attribute__((section(".ram4"))); // To decode log text
+
 // OHS includes
 #include "ohs_conf.h"
+#include "ohs_functions.h"
 #include "ohs_shell.h"
 #include "ohs_peripheral.h"
-#include "ohs_functions.h"
 
 // GPRS
 #include "gprs.h"
@@ -139,10 +143,11 @@ int main(void) {
   usbConnectBus(serusbcfg.usbp);
 
   // Initialize .ram4
-  memset(&tclCmd[0], '\0', TCL_SCRIPT_LENGTH);
-  memset(&tclOutput[0], '\0', TCL_OUTPUT_LENGTH);
-  memset(&gprsModemInfo[0], '\0', sizeof(gprsModemInfo));
-  memset(&gprsSmsText[0], '\0', sizeof(gprsSmsText));
+  memset(&tclCmd[0], 0, TCL_SCRIPT_LENGTH);
+  memset(&tclOutput[0], 0, TCL_OUTPUT_LENGTH);
+  memset(&gprsModemInfo[0], 0, sizeof(gprsModemInfo));
+  memset(&gprsSmsText[0], 0, sizeof(gprsSmsText));
+  memset(&logText[0], 0, LOG_TEXT_LENGTH);
 
   shellInit();
 
@@ -169,7 +174,7 @@ int main(void) {
   spiStart(&SPID1, &spi1cfg);  // SPI
   rfm69Start(&rfm69cfg);       // RFM69
   rfm69SetHighPower(true);
-  rfm69AutoPower(-80);
+  // rfm69AutoPower(-80); /
   rfm69Encrypt("ABCDABCDABCDABCD");
 
   // Activates the ADC1 driver
