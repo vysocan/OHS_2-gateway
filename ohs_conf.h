@@ -617,6 +617,8 @@ typedef struct {
   uint8_t armDelay;
 } group_t;
 group_t group[ALARM_GROUPS] __attribute__((section(".ram4")));
+// Check conf size fits to backup SRAM
+typedef char check_group[sizeof(group) <= BACKUP_RTC_SIZE ? 1 : -1];
 
 // Zone runtime variables
 typedef struct {

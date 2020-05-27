@@ -9,6 +9,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
+#include <stdbool.h>
 
 #include "ch.h"
 #include "hal.h"
@@ -215,8 +217,9 @@ int main(void) {
   struct lwipthread_opts lwip_opts =
   { &macAddr[0], 0, 0, 0, NET_ADDRESS_DHCP
     #if LWIP_NETIF_HOSTNAME
-      , 0
+      ,0
     #endif
+    ,NULL, NULL
   };
 
   lwipInit(&lwip_opts);
@@ -278,6 +281,5 @@ int main(void) {
     ptm = gmtime(&tt);
     chprintf(console, "DST e %s \r\n", asctime(ptm));
     */
-
   }
 }

@@ -138,36 +138,6 @@ int tcl_next(const char* s, size_t n, const char** from, const char** to, int* q
 }
 
 /* ------------------------------------------------------- */
-/* ------------------------------------------------------- */
-/* ------------------------------------------------------- */
-/* ------------------------------------------------------- */
-/* ------------------------------------------------------- */
-
-long int htoi(char* hex) {
-  uint32_t val = 0;
-
-  /* tcl_is_space(); */
-  /* tcl_is_end(); */
-
-  while (*hex) {
-    // get current character then increment
-    uint8_t byte = *hex++;
-    // transform hex character to the 4bit equivalent number, using the ascii table indexes
-    if (byte >= '0' && byte <= '9') {
-      byte = byte - '0';
-    } else if (byte >= 'a' && byte <= 'f') {
-      byte = byte - 'a' + 10;
-    } else if (byte >= 'A' && byte <= 'F') {
-      byte = byte - 'A' + 10;
-    } else {
-      return 0;
-    }
-
-    // shift 4 to make space for new digit, and add the 4 bits of the new digit
-    val = (val << 4) | (byte & 0xF);
-  }
-  return val;
-}
 
 static inline void* tcl_malloc(size_t n)        { return umm_malloc(n); }
 inline void  tcl_free(void* v)           { umm_free(v); }
@@ -312,14 +282,10 @@ struct tcl_env* tcl_env_free(struct tcl_env* env) {
   while (env->vars) {
     struct tcl_var* var = env->vars;
     env->vars = env->vars->next;
-    //DBG("FREE tcl_env %x.", var->name);
     tcl_free(var->name);
-    //DBG("FREE tcl_env %x.", var->value);
     tcl_free(var->value);
-    //DBG("FREE tcl_env %x.", var);
     tcl_free(var);
   }
-  //DBG("FREE tcl_env %x.", env);
   tcl_free(env);
   return parent;
 }

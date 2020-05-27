@@ -31,7 +31,7 @@
 #endif
 
 #if HTTP_DEBUG
-#define DBG_HTTP(...) {chprintf((BaseSequentialStream*)&SD3, __VA_ARGS__);}
+#define DBG_HTTP(...) {chprintf(console, __VA_ARGS__);}
 #else
 #define DBG_HTTP(...)
 #endif
@@ -115,7 +115,7 @@ const char html_cbPart1a[]          = "<div class='rc'><input type='radio' name=
 const char html_cbPart1b[]          = "' id='";
 const char html_cbPart2[]           = "' value='";
 const char html_cbPart3[]           = "'";
-const char html_cbChecked[]         = "' checked ";
+const char html_cbChecked[]         = "' checked";
 const char html_cbPart4a[]          = "><label for='";
 const char html_cbPart4b[]          = "'>";
 const char html_cbPart5[]           = "</label></div>";
@@ -430,7 +430,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           for (uint8_t i = 0; i < NODE_SIZE; i++) {
             if (node[i].address != 0) {
               chprintf(chp, "%s%u.%s", html_tr_td, i + 1, html_e_td_td);
-              printNodeAddress(chp, node[i].address, node[i].type, node[i].function, node[i].number);
+              printNodeAddress(chp, node[i].address, node[i].type, node[i].function, node[i].number, true);
               chprintf(chp, "%s", html_e_td_td);
               printOkNok(chp, GET_NODE_ENABLED(node[i].setting));
               chprintf(chp, "%s", html_e_td_td);
@@ -466,7 +466,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s", text_Name, html_e_td_td);
           printTextInput(chp, 'n', node[webNode].name, NAME_LENGTH);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Address, html_e_td_td);
-          printNodeAddress(chp, node[webNode].address, node[webNode].type, node[webNode].function, node[webNode].number);
+          printNodeAddress(chp, node[webNode].address, node[webNode].type, node[webNode].function, node[webNode].number, true);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Type, html_e_td_td);
           printNodeType(chp, node[webNode].type);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Function, html_e_td_td);
@@ -951,16 +951,6 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s %s ", html_e_select, text_at);
           printIntInput(chp, 'h', conf.timeDstHour , 2, 0, 23);
           chprintf(chp, " %s", text_oclock);
-          /*
-          chprintf(chp, "%sH%s", html_select, html_e_tag);
-          for (uint8_t i = 0; i < 24; i++) {
-            chprintf(chp, "%s%u", html_option, i);
-            if (conf.timeDstHour == i) { chprintf(chp, "%s", html_selected); }
-            else                       { chprintf(chp, "%s", html_e_tag); }
-            chprintf(chp, "%02u%s", i, html_e_option);
-          }
-          chprintf(chp, "%s %s", html_e_select, text_oclock);
-          */
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_DS, text_offset, html_e_td_td);
           printIntInput(chp, 'O', conf.timeDstOffset, 5, -1440, 1440);
           chprintf(chp, " %s%s", durationSelect[1], html_e_td_e_tr_tr_td);
@@ -992,16 +982,6 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s %s ", html_e_select, text_at);
           printIntInput(chp, 'h', conf.timeStdHour , 2, 0, 23);
           chprintf(chp, " %s", text_oclock);
-          /*
-          chprintf(chp, "%sh%s", html_select, html_e_tag);
-          for (uint8_t i = 0; i < 24; i++) {
-            chprintf(chp, "%s%u", html_option, i);
-            if (conf.timeStdHour == i) { chprintf(chp, "%s", html_selected); }
-            else                       { chprintf(chp, "%s", html_e_tag); }
-            chprintf(chp, "%02u%s", i, html_e_option);
-          }
-          chprintf(chp, "%s %s", html_e_select, text_oclock);
-          */
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Standard, text_offset, html_e_td_td);
           printIntInput(chp, 'o', conf.timeStdOffset, 5, -1440, 1440);
           chprintf(chp, " %s%s", durationSelect[1], html_e_td_e_tr_tr_td);
@@ -1133,10 +1113,8 @@ int fs_open_custom(struct fs_file *file, const char *name){
             tempTime = conf.timer[i].nextOff;
             if (GET_CONF_TIMER_ENABLED(conf.timer[i].setting)) printFrmTimestamp(chp, &tempTime);
             chprintf(chp, "%s", html_e_td_td);
-            // TODO OHS print node name, but first find node index
-            //if (conf.timer[i].toAddress > 0) chprintf(chp, "%s - ", node[conf.timer[i].toAddress].name);
             printNodeAddress(chp, conf.timer[i].toAddress, 'I',  conf.timer[i].toFunction,
-                             conf.timer[i].toNumber);
+                             conf.timer[i].toNumber, true);
             chprintf(chp, "%s", html_e_td_td);
             if (conf.timer[i].evalScript[0]) chprintf(chp, "%s", conf.timer[i].evalScript);
             else chprintf(chp, "%s", NOT_SET);
@@ -1197,7 +1175,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
                      { chprintf(chp, "%s", html_selected); }
                 else { chprintf(chp, "%s", html_e_tag); }
                 chprintf(chp, "%s - ", node[i].name);
-                printNodeAddress(chp, node[i].address, node[i].type, node[i].function, node[i].number);
+                printNodeAddress(chp, node[i].address, node[i].type, node[i].function, node[i].number, true);
                 chprintf(chp, "%s", html_e_option);
               }
             } else {
@@ -1268,9 +1246,8 @@ int fs_open_custom(struct fs_file *file, const char *name){
                 case 'Z': chprintf(chp, "%s - ", text_Zone);
                   printZone(chp, conf.trigger[i].number);
                   break;
-                default: // TODO OHS print node name, but first find node index
-                  printNodeAddress(chp, conf.trigger[i].address, 'S', conf.trigger[i].function,
-                                   conf.trigger[i].number);
+                default: printNodeAddress(chp, conf.trigger[i].address, 'S', conf.trigger[i].function,
+                                          conf.trigger[i].number, true);
                   break;
               }
             }
@@ -1306,17 +1283,19 @@ int fs_open_custom(struct fs_file *file, const char *name){
               }
             }
             chprintf(chp, "%s", html_e_td_td);
-
-            if (GET_CONF_TRIGGER_PASS_OFF(conf.trigger[i].setting) < 2) {
-              chprintf(chp, "%s", triggerPassOffType[GET_CONF_TRIGGER_PASS_OFF(conf.trigger[i].setting)]);
-            } else {
-              chprintf(chp, "%s %u %s", text_after, conf.trigger[i].offTime,
-              durationSelect[GET_CONF_TRIGGER_OFF_PERIOD(conf.trigger[i].setting)]);
+            // Pass off
+            if (GET_CONF_TRIGGER_PASS(conf.trigger[i].setting)) {
+              if (GET_CONF_TRIGGER_PASS_OFF(conf.trigger[i].setting) < 2) {
+                chprintf(chp, "%s", triggerPassOffType[GET_CONF_TRIGGER_PASS_OFF(conf.trigger[i].setting)]);
+              } else {
+                chprintf(chp, "%s %u %s", text_after, conf.trigger[i].offTime,
+                durationSelect[GET_CONF_TRIGGER_OFF_PERIOD(conf.trigger[i].setting)]);
+              }
             }
             chprintf(chp, "%s", html_e_td_td);
             if (GET_CONF_TRIGGER_ENABLED(conf.trigger[i].setting)) {
               printNodeAddress(chp, conf.trigger[i].toAddress, 'I',  conf.trigger[i].toFunction,
-                               conf.trigger[i].toNumber);
+                               conf.trigger[i].toNumber, true);
             }
             chprintf(chp, "%s", html_e_td_td);
             chprintf(chp, "%.2f%s", conf.trigger[i].constantOn, html_e_td_td);
@@ -1371,7 +1350,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           for (uint8_t i = 0; i < NODE_SIZE; i++) {
             if (node[i].type == 'S') {
               chprintf(chp, "%s%u", html_option, logAddress);
-              if ((conf.trigger[webTrigger].type == 'S') &&
+              if ((conf.trigger[webTrigger].type == node[i].type) &&
                   (conf.trigger[webTrigger].number == node[i].number) &&
                   (conf.trigger[webTrigger].function == node[i].function) &&
                   (conf.trigger[webTrigger].address == node[i].address)) {
@@ -1379,19 +1358,17 @@ int fs_open_custom(struct fs_file *file, const char *name){
                 number = 1;
               } else { chprintf(chp, "%s", html_e_tag); }
               chprintf(chp, "%s - ", text_Sensor);
-              printNodeAddress(chp, node[i].address, node[i].type, node[i].function, node[i].number);
+              printNodeAddress(chp, node[i].address, node[i].type, node[i].function, node[i].number, true);
               chprintf(chp, "%s", html_e_option);
             }
             logAddress++;
           }
-          if (!number) {
-            chprintf(chp, "%s%u%s", html_option, DUMMY_NO_VALUE, html_selected,
-                     NOT_SET, html_e_option);
-            if (conf.trigger[webTrigger].type == 'S') chprintf(chp, "%s", text_not_found);
-            else                                      chprintf(chp, "%s", NOT_SET);
-            chprintf(chp, "%s", html_e_option);
-          }
-          chprintf(chp, "%s", html_e_select);
+          chprintf(chp, "%s%u", html_option, DUMMY_NO_VALUE);
+          if (!number) chprintf(chp, "%s", html_selected);
+          else         chprintf(chp, "%s", html_e_tag);
+          if ((conf.trigger[webTrigger].type == 'S') && (!number)) chprintf(chp, "%s", text_not_found);
+          else                                      chprintf(chp, "%s", NOT_SET);
+          chprintf(chp, "%s%s", html_e_option, html_e_select);
           // Condition
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Condition, html_e_td_td);
           chprintf(chp, "%sc%sc%s", html_select, html_id_tag, html_e_tag);
@@ -1471,8 +1448,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
                     (node[i].number   == conf.trigger[webTrigger].toNumber))
                      { chprintf(chp, "%s", html_selected); }
                 else { chprintf(chp, "%s", html_e_tag); }
-                chprintf(chp, "%s - ", node[i].name);
-                printNodeAddress(chp, node[i].address, node[i].type, node[i].function, node[i].number);
+                printNodeAddress(chp, node[i].address, node[i].type, node[i].function, node[i].number, true);
                 chprintf(chp, "%s", html_e_option);
               }
             } else {
@@ -1620,7 +1596,7 @@ err_t httpd_post_receive_data(void *connection, struct pbuf *p) {
 
   //DBG_HTTP("-PD-connection: %u\r\n", (uint32_t *)connection);
   if (current_connection == connection) {
-    //DBG_HTTP("p->payload: %s\r\n", p->payload);
+    DBG_HTTP("p->payload: %s\r\n", p->payload);
     //DBG_HTTP("p->ref: %u\r\n", p->ref);
     //DBG_HTTP("p->next: %u\r\n", p->next);
     //DBG_HTTP("p->tot_len: %u\r\n", p->tot_len);

@@ -292,6 +292,7 @@ const char text_queue[]             = "queue";
 const char text_full[]              = "full";
 const char text_Registration[]      = "Registration";
 const char text_not_found[]         = "not found";
+const char text_activated[]         = "activated";
 
 void printNodeType(BaseSequentialStream *chp, const char type) {
   switch(type){
@@ -320,16 +321,18 @@ void printNodeFunction(BaseSequentialStream *chp, const char function) {
 }
 
 void printNodeAddress(BaseSequentialStream *chp, const uint8_t address, const char type,
-                      const char function, const uint8_t number) {
+                      const char function, const uint8_t number, const bool printName) {
   uint8_t nodeIndex = 0;
   // If address is defined
   if (address) {
     if (address < RADIO_UNIT_OFFSET) { chprintf(chp, "W:%u:", address); }
     else                             { chprintf(chp, "R:%u:", address-RADIO_UNIT_OFFSET); }
     chprintf(chp, "%c:%c:%u - ", type, function, number);
-    nodeIndex = getNodeIndex(address, type, function, number);
-    if (nodeIndex != DUMMY_NO_VALUE) chprintf(chp, "%s ", node[nodeIndex].name);
-    else chprintf(chp, "%s ", text_not_found);
+    if (printName) {
+      nodeIndex = getNodeIndex(address, type, function, number);
+      if (nodeIndex != DUMMY_NO_VALUE) chprintf(chp, "%s ", node[nodeIndex].name);
+      else chprintf(chp, "%s ", text_not_found);
+    }
   } else {
     chprintf(chp, "%s", NOT_SET);
   }
@@ -436,7 +439,7 @@ static uint8_t decodeLog(char *in, char *out, bool full){
       printNodeType(chp, in[3]); chprintf(chp, ":");
       printNodeFunction(chp, in[4]);
       chprintf(chp, " %s ", text_address);
-      printNodeAddress(chp, (uint8_t)in[2], (uint8_t)in[3], (uint8_t)in[4], (uint8_t)in[5]);
+      printNodeAddress(chp, (uint8_t)in[2], (uint8_t)in[3], (uint8_t)in[4], (uint8_t)in[5], false);
       if (in[1] != 'E') {chprintf(chp, "%s ", text_is);}
       switch(in[1]){
         case 'Z' : chprintf(chp, "%s", text_removed); break;
@@ -539,6 +542,15 @@ static uint8_t decodeLog(char *in, char *out, bool full){
         case 'R' : chprintf(chp, "%s", text_Registration); break;
         case 'A' : chprintf(chp, "%s", text_Alarm); break;
         case 'N' : chprintf(chp, "%s", text_Node); break;
+        default : chprintf(chp, "%s", text_unknown); break;
+      }
+      chprintf(chp, " %s %s", text_queue, text_full);
+    break;
+    case 'R': // Triggers
+      chprintf(chp, "%s %u. %s", text_Trigger, (uint8_t)in[2], conf.trigger[(uint8_t)in[2]].name);
+      switch(in[1]){
+        case 'A' : chprintf(chp, "%s", text_activated); break;
+        case 'N' : chprintf(chp, "de%s", text_activated); break;
         default : chprintf(chp, "%s", text_unknown); break;
       }
       chprintf(chp, " %s %s", text_queue, text_full);

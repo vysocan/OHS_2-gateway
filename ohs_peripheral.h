@@ -104,6 +104,8 @@ static const ADCConversionGroup adcgrpcfg1 = {
   ADC_SMPR2_SMP_AN8(ADC_SAMPLE_15) |
   ADC_SMPR2_SMP_AN9(ADC_SAMPLE_15) , /* Sample times for channels 0-9 */
   0, /* SQR1 Conversion sequence 13-16*/
+  0, /* HRT */
+  0, /* LTR */
   ADC_SQR2_SQ7_N(ADC_CHANNEL_IN10)  |
   ADC_SQR2_SQ8_N(ADC_CHANNEL_IN12) |
   ADC_SQR2_SQ9_N(ADC_CHANNEL_IN8) |

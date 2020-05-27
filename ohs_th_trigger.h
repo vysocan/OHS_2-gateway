@@ -81,7 +81,7 @@ static THD_FUNCTION(TriggerThread, arg) {
                 break;
               default: found = 1; break; // Always
             }
-            DBG_TRIG(" , cond %s y/n %u", triggerCondition[conf.trigger[i].condition], found);
+            DBG_TRIG(" , cond: %s, y/n: %u", triggerCondition[conf.trigger[i].condition], found);
             if (found) {
               // Logging enabled & not triggered
               if ((GET_CONF_TRIGGER_ALERT(conf.trigger[i].setting)) &&
