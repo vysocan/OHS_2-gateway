@@ -37,25 +37,37 @@
 #endif
 
 #define HTTP_POST_DATA_SIZE 1024
-#define HTTP_ALERT_MSG_SIZE 128
+#define HTTP_ALERT_MSG_SIZE 80
 static void *current_connection;
 static void *valid_connection;
 static char current_uri[LWIP_HTTPD_MAX_REQUEST_URI_LEN] __attribute__((section(".ram4")));
 static char postData[HTTP_POST_DATA_SIZE] __attribute__((section(".ram4")));
 static char alertMsg[HTTP_ALERT_MSG_SIZE] __attribute__((section(".ram4")));
 
-const char text_i_OK[]              = "<i class='fa fa-check'></i>";
-const char text_i_ALARM[]           = "<i class='fa fa-bell'></i>";
-const char text_i_disabled[]        = "<i class='fa fa-ban'></i>";
-const char text_i_starting[]        = "<i class='fa fa-spinner fa-pulse'></i>";
-const char text_i_home[]            = "<i class='fa fa-home'></i>";
-const char text_i_question[]        = "<i class='fa fa-question'></i>";
-const char text_i_zone[]            = "<i class='fa fa-square-o'></i>";
-const char text_i_qlobe[]           = "<i class='fa fa-globe'></i>";
-const char text_i_auth[]            = "<i class='fa fa-lock'></i>";
-const char text_i_contact[]         = "<i class='fa fa-address-card-o'></i>";
-const char text_i_key[]             = "<i class='fa fa-key'></i>";
-const char text_i_sens[]            = "<i class='fa fa-share-alt'></i>";
+const char text_i_home[]            = "<i class='icon'>&#xe800;</i>";
+const char text_i_contact[]         = "<i class='icon'>&#xe801;</i>";
+const char text_i_key[]             = "<i class='icon'>&#xe802;</i>";
+const char text_i_alert[]           = "<i class='icon'>&#xe803;</i>";
+const char text_i_time[]            = "<i class='icon'>&#xe804;</i>";
+const char text_i_OK[]              = "<i class='icon'>&#xe805;</i>";
+const char text_i_disabled[]        = "<i class='icon'>&#xe806;</i>";
+const char text_i_setting[]         = "<i class='icon'>&#xe807;</i>";
+const char text_i_calendar[]        = "<i class='icon'>&#xe808;</i>";
+const char text_i_globe[]           = "<i class='icon'>&#xe809;</i>";
+const char text_i_lock[]            = "<i class='icon'>&#xe80a;</i>";
+const char text_i_lock_closed[]     = "<i class='icon'>&#xe80b;</i>";
+const char text_i_zone[]            = "<i class='icon'>&#xf096;</i>";
+const char text_i_network[]         = "<i class='icon'>&#xf0e8;</i>";
+const char text_i_alarm[]           = "<i class='icon'>&#xf0f3;</i>";
+const char text_i_starting[]        = "<i class='icon'>&#xf110;</i>";
+const char text_i_code[]            = "<i class='icon'>&#xf121;</i>";
+const char text_i_question[]        = "<i class='icon'>&#xf191;</i>";
+const char text_i_trigger[]         = "<i class='icon'>&#xf192;</i>";
+const char text_i_script[]          = "<i class='icon'>&#xf1c9;</i>";
+const char text_i_option[]          = "<i class='icon'>&#xf1de;</i>";
+const char text_i_nodes[]           = "<i class='icon'>&#xf1e0;</i>";
+const char text_i_group[]           = "<i class='icon'>&#xf24d;</i>";
+const char text_i_hash[]            = "<i class='icon'>&#xf292;</i>";
 const char html_tr_td[]             = "<tr><td>";
 const char html_e_td_td[]           = "</td><td>";
 const char html_e_td_e_tr[]         = "</td></tr>";
@@ -401,15 +413,28 @@ int fs_open_custom(struct fs_file *file, const char *name){
           GET_CONF_TRIGGER_PASS_OFF(conf.trigger[webTrigger].setting) ? chprintf(chp, JSen2) : chprintf(chp, JSdis2);
           chprintf(chp, "sd(document.getElementById('y'));"); // Type select
           break;
+        case PAGE_TCL:
+          chprintf(chp, "ca();"); // Close alerts
+          break;
       }
       chprintf(chp, "\"><div class='wrp'><div class='sb'>\r\n");
       chprintf(chp, "<div class='tt'>OHS 2.0 - %u.%u</div>\r\n", OHS_MAJOR, OHS_MINOR);
+      // Navigation
       chprintf(chp, "<ul class='nav'>\r\n");
       for (uint8_t i = 0; i < ARRAY_SIZE(webPage); ++i) {
         if (htmlPage == i) chprintf(chp, "<li><a class='active' href='%s'>%s</a></li>\r\n", webPage[i].link, webPage[i].name);
         else chprintf(chp, "<li><a href='%s'>%s</a></li>\r\n", webPage[i].link, webPage[i].name);
       }
-      chprintf(chp, "</ul></div><div class='mb'><h1>%s</h1>\r\n", webPage[htmlPage].name);
+      // Main Body
+      chprintf(chp, "</ul></div><div class='mb'>\r\n");
+      // Alert div
+      if (strlen(alertMsg)) {
+        chprintf(chp, "<div class='alrt' id='at'><span class='cbtn' onclick=\"this.parentElement.style.display='none';\">&times;</span>");
+        chprintf(chp, "<b>Error!</b><br><br>");
+        chprintf(chp, "%s%s", alertMsg, html_div_e);
+      }
+      // Header
+      chprintf(chp, "<h1>%s</h1>\r\n", webPage[htmlPage].name);
       chprintf(chp, "%s%s%s%s", html_form_1, webPage[htmlPage].link, html_form_2, html_table);
       // Common html page end
 
@@ -637,7 +662,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
               if (GET_CONF_ZONE_ENABLED(conf.zone[i])) {
                 switch(zone[i].lastEvent){
                   case 'O': chprintf(chp, "%s", text_i_OK); break;
-                  case 'P': chprintf(chp, "%s", text_i_ALARM); break;
+                  case 'P': chprintf(chp, "%s", text_i_alarm); break;
                   case 'N': chprintf(chp, "%s", text_i_starting); break;
                   default: chprintf(chp, "%s", text_tamper); break;
                 }
@@ -816,7 +841,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
             if (GET_GROUP_ALARM(group[i].setting) == 0) {
               if (GET_GROUP_WAIT_AUTH(group[i].setting)) { chprintf(chp, "%s", text_i_starting); }
               else                                       { chprintf(chp, "%s", text_i_OK); }
-            } else { chprintf(chp, "%s", text_i_ALARM); }
+            } else { chprintf(chp, "%s", text_i_alarm); }
             chprintf(chp, "%s", html_e_td_e_tr);
           }
           chprintf(chp, "%s%s", html_e_table, html_table);
@@ -2028,19 +2053,36 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   if (webScript == DUMMY_NO_VALUE) {
                     // For new script append linked list
                     scriptp = umm_malloc(sizeof(struct scriptLL_t));
-                    //if (checkPointer(scriptp, html_noSpace)) {}
-                    scriptp->name = umm_malloc(NAME_LENGTH + 1);
-                    strncpy(scriptp->name, &scriptName[0], NAME_LENGTH);
-                    number = strlen(tclCmd);
-                    scriptp->cmd = umm_malloc(number + 1);
-                    memset(scriptp->cmd + number, 0, 1);
-                    strncpy(scriptp->cmd, &tclCmd[0], number);
-                    scriptp->next = scriptLL;
-                    scriptLL = scriptp;
-                    // uBS
-                    uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd));
-                    // new script is added to top of linked list, no need to do pointer check
-                    webScript = 1;
+                    if (scriptp == NULL) {
+                      chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+                    } else {
+                      //if (checkPointer(scriptp, html_noSpace)) {}
+                      scriptp->name = umm_malloc(NAME_LENGTH + 1);
+                      if (scriptp->name == NULL) {
+                        free(scriptp);
+                        chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+                      } else {
+                        strncpy(scriptp->name, &scriptName[0], NAME_LENGTH);
+                        number = strlen(tclCmd);
+                        scriptp->cmd = umm_malloc(number + 1);
+                        if (scriptp->cmd == NULL) {
+                          free(scriptp);
+                          free(scriptp->name);
+                          chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+                        } else {
+                          memset(scriptp->cmd + number, 0, 1);
+                          strncpy(scriptp->cmd, &tclCmd[0], number);
+                          scriptp->next = scriptLL;
+                          scriptLL = scriptp;
+                          // uBS
+                          if (uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd)) != UBS_RSLT_OK) {
+                            chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_storage);
+                          }
+                          // new script is added to top of linked list, no need to do pointer check
+                          webScript = 1;
+                        }
+                      }
+                    }
                   } else {
                     // For old script replace values
                     number = 1;
@@ -2060,9 +2102,15 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                       //scriptp->cmd = umm_realloc(scriptp->cmd, number + 1);
                       umm_free(scriptp->cmd);
                       scriptp->cmd = umm_malloc(number + 1);
-                      strncpy(scriptp->cmd, &tclCmd[0], number);
-                      memset(scriptp->cmd + number, 0, 1);
-                      uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd));
+                      if (scriptp->cmd == NULL) {
+                        chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+                      } else {
+                        strncpy(scriptp->cmd, &tclCmd[0], number);
+                        memset(scriptp->cmd + number, 0, 1);
+                        if (uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd)) != UBS_RSLT_OK) {
+                          chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_storage);
+                        }
+                      }
                     }
                   }
                 break;

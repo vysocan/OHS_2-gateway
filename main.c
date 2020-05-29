@@ -120,8 +120,8 @@ int main(void) {
   chBSemObjectInit(&emailSem, false);
   chBSemObjectInit(&cbTimerSem, false);
   chBSemObjectInit(&cbTriggerSem, false);
-
-  sdStart(&SD3,  &serialCfg); // Debug port
+  // Debug port
+  sdStart(&SD3,  &serialCfg);
   chprintf(console, "\r\nOHS v.%u.%u start\r\n", OHS_MAJOR, OHS_MINOR);
   // GPRS modem
   gprsInit(&SD6);
@@ -130,7 +130,6 @@ int main(void) {
   // RS485
   rs485Start(&RS485D2, &rs485cfg);
   chprintf(console, "RS485 timeout: %d(uS)/%d(tick)\r\n", RS485D2.oneByteTimeUS, RS485D2.oneByteTimeI);
-
   // Initializes a serial-over-USB CDC driver.
   sduObjectInit(&SDU1);
   sduStart(&SDU1, &serusbcfg);
@@ -150,6 +149,7 @@ int main(void) {
   memset(&gprsModemInfo[0], 0, sizeof(gprsModemInfo));
   memset(&gprsSmsText[0], 0, sizeof(gprsSmsText));
   memset(&logText[0], 0, LOG_TEXT_LENGTH);
+  memset(alertMsg, 0 , HTTP_ALERT_MSG_SIZE); // Empty alert message
 
   shellInit();
 

@@ -29,8 +29,23 @@
 #define UBS_DATA_SIZE         (UBS_BLOCK_SIZE - UBS_HEADER_BLOCK_SIZE)
 #define UBS_FIRST_DATA_SIZE   (UBS_DATA_SIZE - UBS_NAME_SIZE)
 #define UBS_CMD_BUF_SIZE      (1 + UBS_POINTER_SIZE)
+/*
+ * Sanity checks
+ */
+#if UBS_NAME_SIZE > UBS_DATA_SIZE
+  #error Size of master block name larger then block data size!
+#endif
+
+#if UBS_DATA_SIZE > UBS_HEADER_ALLOW_SIZE
+  #error Size of data is larger then UBS_HEADER_ALLOW_SIZE!
+#endif
 // Statistics
 #define UBS_SPACE_MAX         ((UBS_BLOCK_COUNT * UBS_DATA_SIZE) - UBS_NAME_SIZE)
+// Defines
+#define UBS_RSLT_OK        (1)
+#define UBS_RSLT_NOK       (0)
+#define UBS_RSLT_NOT_FOUND (-1)
+#define UBS_RSLT_TOO_LARGE (-2)
 
 // FRAM on SPI related
 #define CMD_25AA_WRSR     0x01  // Write status register

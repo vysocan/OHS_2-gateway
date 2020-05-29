@@ -34,34 +34,12 @@
 #endif
 
 /*
- * Sanity checks
- */
-#if UBS_NAME_SIZE > UBS_DATA_SIZE
-  #error Size of master block name larger then block data size!
-#endif
-
-#if UBS_DATA_SIZE > UBS_HEADER_ALLOW_SIZE
-  #error Size of data is larger then UBS_HEADER_ALLOW_SIZE!
-#endif
-/*
  * Macros
  */
 #define UBS_GET_MASTER_FLAG(x)     ((x) & 0b1)
 #define UBS_GET_BLOCK_DATA_SIZE(x) ((x >> 1U) & UBS_HEADER_ALLOW_SIZE)
-
 #define UBS_SET_MASTER_FLAG(x)       x |= 1
 #define UBS_SET_BLOCK_DATA_SIZE(x,y) x |= (y << 1U)
-//#define UBS_SET_MASTER_FLAG(x,y)     x = (((x)&(0b11111110))|(((y & 0b1) << 0U)&(0b00000001)))
-//#define UBS_SET_BLOCK_DATA_SIZE(x,y) x = (((x)&(0b00000001))|(((y & 0b1111111) << 1U)&(0b11111110)))
-
-
-/*
- * Defines
- */
-#define UBS_RSLT_OK        (1)
-#define UBS_RSLT_NOK       (0)
-#define UBS_RSLT_NOT_FOUND (-1)
-#define UBS_RSLT_TOO_LARGE (-2)
 /*
  * Variables
  */
@@ -292,6 +270,8 @@ int8_t uBSWrite(void* name, uint8_t nameSize, void *data, uint16_t dataSize) {
     address = UBS_END_ADDRESS;
     uBSGetFreeBlock(&address);
   }
+
+  if ((newBlocks - oldBlocks) > uBSFreeBlocks) return UBS_RSLT_TOO_LARGE;
 
   DBG("uBS Write address %u, newBlocks: %u, oldBlocks:%u\r\n", address, newBlocks, oldBlocks);
 

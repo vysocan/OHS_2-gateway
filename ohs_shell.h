@@ -278,7 +278,9 @@ const char text_Timer[]             = "Timer";
 const char text_timer[]             = "timer";
 const char text_kB[]                = "kB";
 const char text_Heap[]              = "Heap";
+const char text_heap[]              = "heap";
 const char text_Storage[]           = "Storage";
+const char text_storage[]           = "storage";
 const char text_Fragmentation[]     = "Fragmentation";
 const char text_Evaluate[]          = "Evaluate";
 const char text_script[]            = "script";
@@ -293,6 +295,7 @@ const char text_full[]              = "full";
 const char text_Registration[]      = "Registration";
 const char text_not_found[]         = "not found";
 const char text_activated[]         = "activated";
+const char text_error_free[]        = "Not enough free space in ";
 
 void printNodeType(BaseSequentialStream *chp, const char type) {
   switch(type){

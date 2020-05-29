@@ -345,7 +345,7 @@ void disarmGroup(uint8_t groupNum, uint8_t master, uint8_t hop) {
   // we have alarm
   if (GET_GROUP_ALARM(group[groupNum].setting)) {
     CLEAR_GROUP_ALARM(group[groupNum].setting); // Set this group alarm off
-    /* *** ToDo: add bitwise reset of OUTs instead of full reset ? */
+    /* *** TODO OHS: add bitwise reset of OUTs instead of full reset ? */
     //+++OUTs = 0; // Reset outs
     //+++pinOUT1.write(LOW); pinOUT2.write(LOW); // Turn off OUT 1 & 2
   }
