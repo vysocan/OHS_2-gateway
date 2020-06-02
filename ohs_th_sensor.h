@@ -26,6 +26,7 @@ static THD_FUNCTION(SensorThread, arg) {
   chRegSetThreadName(arg);
   msg_t    msg;
   sensorEvent_t *inMsg;
+  triggerEvent_t *outMsgTrig;
   uint8_t  nodeIndex;
   uint8_t  lastNode = DUMMY_NO_VALUE;
   uint32_t lastNodeTime = 0;
@@ -55,15 +56,15 @@ static THD_FUNCTION(SensorThread, arg) {
             CLEAR_NODE_BATT_LOW(node[nodeIndex].setting); // switch OFF battery low flag
           }
           // Triggers
-          sensorEvent_t *outMsgT = chPoolAlloc(&trigger_pool);
-          if (outMsgT != NULL) {
+          outMsgTrig = chPoolAlloc(&trigger_pool);
+          if (outMsgTrig != NULL) {
             //memcpy(outMsg, inMsg, sizeof(sensorEvent_t));
-            outMsgT->address = inMsg->address;
-            outMsgT->function = inMsg->function;
-            outMsgT->number = inMsg->number;
-            outMsgT->type = inMsg->type;
-            outMsgT->value = inMsg->value;
-            msg = chMBPostTimeout(&trigger_mb, (msg_t)outMsgT, TIME_IMMEDIATE);
+            outMsgTrig->address = inMsg->address;
+            outMsgTrig->function = inMsg->function;
+            outMsgTrig->number = inMsg->number;
+            outMsgTrig->type = inMsg->type;
+            outMsgTrig->value = inMsg->value;
+            msg = chMBPostTimeout(&trigger_mb, (msg_t)outMsgTrig, TIME_IMMEDIATE);
             if (msg != MSG_OK) {
               //chprintf(console, "S-MB full %d\r\n", temp);
             }
@@ -82,9 +83,10 @@ static THD_FUNCTION(SensorThread, arg) {
           lastNodeTime = timeNow + 1; // add 1-2 second(s)
         }
       }
-    }else {
+    } else {
       DBG_SENSOR("Sensor ERROR\r\n");
     }
+
     chPoolFree(&sensor_pool, inMsg);
   }
 }

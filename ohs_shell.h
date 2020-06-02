@@ -42,8 +42,8 @@ static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
   uint32_t used_pct;
 
   chprintf(chp, "\r\n");
-  chprintf(chp, "     begin        end   size   used    %% prio     state         name\r\n");
-  chprintf(chp, "--------------------------------------------------------------------\r\n");
+  chprintf(chp, "   begin      end   size   used    %% prio     state         name\r\n");
+  chprintf(chp, "--------------------------------------------------------------\r\n");
 
   tp = chRegFirstThread();
   do {
@@ -55,6 +55,7 @@ static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
 #endif
 
     uint8_t *begin = (uint8_t *)stklimit;
+    //uint8_t *begin = (uint32_t)tp->ctx.sp;
     uint8_t *end = (uint8_t *)tp;
     sz = end - begin;
 
@@ -64,7 +65,7 @@ static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
 
     used_pct = (n * 100) / sz;
 
-    chprintf(chp, "0x%08lx 0x%08lx %6u %6u %3u%% %4lu %9s %12s\r\n",
+    chprintf(chp, "%08lx %08lx %6u %6u %3u%% %4lu %9s %12s\r\n",
              stklimit, (uint32_t)tp, sz, n, used_pct, (uint32_t)tp->prio, states[tp->state], tp->name == NULL ? "" : tp->name);
 
     tp = chRegNextThread(tp);
@@ -663,20 +664,20 @@ ERROR:
 static void cmd_debug(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
 
-  if (argc != 1) {
-    shellUsage(chp, "debug on/off");
-    return;
+  if (argc == 1) {
+    if (strcmp(argv[0], "on") == 0) {
+      // Reroute all console to USB
+      console = (BaseSequentialStream*)&SDU1;
+      return;
+    } else if (strcmp(argv[0], "off") == 0) {
+      // Reroute all console back to SD3
+      console = (BaseSequentialStream*)&SD3;
+      chprintf(chp, "\r\nstopped\r\n");
+      return;
+    }
   }
-  // Reroute all console to USB
-  if ((argc == 1) && (strcmp(argv[0], "on") == 0)){
-    console = (BaseSequentialStream*)&SDU1;
-  }
-
-  // Reroute all console back to SD3
-  if ((argc == 1) && (strcmp(argv[0], "off") == 0)){
-    console = (BaseSequentialStream*)&SD3;
-    chprintf(chp, "\r\nstopped\r\n");
-  }
+  // Rest is error
+  shellUsage(chp, "debug on|off");
 }
 
 // Routing console to USB
@@ -705,21 +706,20 @@ static void cmd_ubs(BaseSequentialStream *chp, int argc, char *argv[]) {
   return;
 
   ERROR:
-    shellUsage(chp, "status, format");
-    return;
+    shellUsage(chp, "ubs status|format");
 }
 
 // Commands
 static const ShellCommand commands[] = {
   {"date",  cmd_date},
   {"log",  cmd_log},
-  {"threads",  cmd_threads},
+  {"mythreads",  cmd_threads},
   {"debug",  cmd_debug},
   {"ubs",  cmd_ubs},
   {NULL, NULL}
 };
 
-static const ShellConfig shell_cfg1 = {
+static const ShellConfig shell_cfg = {
   (BaseSequentialStream *)&SDU1,
   commands
 };

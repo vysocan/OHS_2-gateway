@@ -39,6 +39,16 @@
 /* Fixed settings mandated by the ChibiOS integration.*/
 #include "static_lwipopts.h"
 
+/* OHS overides */
+#define MEMP_NUM_SYS_TIMEOUT (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 3)
+#define MEMP_NUM_UDP_PCB 7 // , +1 MDSN
+#define MEMP_NUM_TCP_PCB 6
+#define MEMP_NUM_TCP_PCB_LISTEN 10
+#define MEMP_NUM_PBUF 20
+#define MEMP_NUM_RAW_PCB 6
+#define MEMP_NUM_TCP_SEG 12
+#define PBUF_POOL_SIZE 16
+
 /* Optional, application-specific settings.*/
 #if !defined(TCPIP_MBOX_SIZE)
 #define TCPIP_MBOX_SIZE                 MEMP_NUM_PBUF
@@ -88,16 +98,6 @@
 #define SNTP_SERVER_DNS 1
 #define SNTP_UPDATE_DELAY 900000 // SNTP update every *900 seconds
 //#define SNTP_SERVER_ADDRESS "195.113.144.201"
-
-
-#define MEMP_NUM_SYS_TIMEOUT (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 3)
-#define MEMP_NUM_UDP_PCB 7 // , +1 MDSN
-#define MEMP_NUM_TCP_PCB 6
-#define MEMP_NUM_TCP_PCB_LISTEN 10
-#define MEMP_NUM_PBUF 20
-#define MEMP_NUM_RAW_PCB 6
-#define MEMP_NUM_TCP_SEG 12
-#define PBUF_POOL_SIZE 16
 
 // Maximum segment size
 #define TCP_MSS 1024

@@ -41,10 +41,10 @@ binary_semaphore_t cbTriggerSem;
 #define UMM_MALLOC_CFG_HEAP_SIZE (1024*16)
 #define TCL_SCRIPT_LENGTH        (512)
 #define TCL_OUTPUT_LENGTH        (1024*2)
-static char my_umm_heap[UMM_MALLOC_CFG_HEAP_SIZE] __attribute__((section(".ram4")));
-static char tclOutput[TCL_OUTPUT_LENGTH] __attribute__((section(".ram4")));
+char my_umm_heap[UMM_MALLOC_CFG_HEAP_SIZE] __attribute__((section(".ram4")));
+char tclOutput[TCL_OUTPUT_LENGTH] __attribute__((section(".ram4")));
 // TODO OHS When tclCmd is in ram4 char[11] gets corrupted
-static char tclCmd[TCL_SCRIPT_LENGTH];// __attribute__((section(".ram4")));
+char tclCmd[TCL_SCRIPT_LENGTH];// __attribute__((section(".ram4")));
 // TCL
 #include "tcl.h"
 struct tcl tcl;
@@ -110,6 +110,8 @@ static void GetTimeTm(struct tm *timp) {
 msg_t resp;
 struct tm *ptm;
 
+#define SHELL_WA_SIZE THD_WORKING_AREA_SIZE(2048)
+
 // Application entry point.
 int main(void) {
   halInit();
@@ -125,6 +127,7 @@ int main(void) {
   chprintf(console, "\r\nOHS v.%u.%u start\r\n", OHS_MAJOR, OHS_MINOR);
   // GPRS modem
   gprsInit(&SD6);
+
   // Init nodes
   initRuntimeNodes();
   // RS485
@@ -163,7 +166,7 @@ int main(void) {
   chPoolObjectInit(&sensor_pool, sizeof(sensorEvent_t), NULL);
   chPoolObjectInit(&alert_pool, sizeof(alertEvent_t), NULL);
   chPoolObjectInit(&script_pool, sizeof(scriptEvent_t), NULL);
-  chPoolObjectInit(&trigger_pool, sizeof(sensorEvent_t), NULL);
+  chPoolObjectInit(&trigger_pool, sizeof(triggerEvent_t), NULL);
   //chPoolLoadArray(&alarmEvent_pool, alarmEvent_pool_queue, ALARMEVENT_FIFO_SIZE);
   for(uint8_t i = 0; i < ALARMEVENT_FIFO_SIZE; i++) { chPoolFree(&alarmEvent_pool, &alarmEvent_pool_queue[i]); }
   for(uint8_t i = 0; i < LOGGER_FIFO_SIZE; i++) { chPoolFree(&logger_pool, &logger_pool_queue[i]); }
@@ -206,8 +209,8 @@ int main(void) {
   chThdCreateStatic(waTriggerThread, sizeof(waTriggerThread), NORMALPRIO - 1, TriggerThread, (void*)"trigger");
   chThdCreateStatic(waTclThread, sizeof(waTclThread), LOWPRIO + 1, tclThread, (void*)"tcl");
   chThdCreateStatic(waHeartBeatThread, sizeof(waHeartBeatThread), LOWPRIO, HeartBeatThread, (void*)"heartbeat");
-  static THD_WORKING_AREA(waShell, 1024);
-  chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg1);
+  //static THD_WORKING_AREA(waShell, 2048);
+  //chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg);
 
   // Ethernet
   macAddr[0] = LWIP_ETHADDR_0; macAddr[1] = LWIP_ETHADDR_1; macAddr[2] = LWIP_ETHADDR_2;
@@ -225,7 +228,8 @@ int main(void) {
   lwipInit(&lwip_opts);
   httpd_init();
   sntp_init();
-  mdns_resp_init();
+  // TODO OHS implement MDNS
+  //mdns_resp_init();
 
   // Read last groups state
   readFromBkpRTC((uint8_t*)&group, sizeof(group), 0);
@@ -261,14 +265,15 @@ int main(void) {
 
   // Idle runner
   while (true) {
-    chThdSleepMilliseconds(10000);
+    chThdSleepMilliseconds(100);
 
-    /*
+
     if (SDU1.config->usbp->state == USB_ACTIVE) {
-      thread_t *shelltp = chThdCreateFromHeap(NULL, SHELL_WA_SIZE,"shell", NORMALPRIO + 1, shellThread, (void *)&shell_cfg1);
+      thread_t *shelltp = chThdCreateFromHeap(NULL, SHELL_WA_SIZE,
+                                              "shell", NORMALPRIO + 1, shellThread, (void *)&shell_cfg);
       chThdWait(shelltp);               // Waiting termination.
     }
-    */
+
 
     /*
     tt = calculateDST(2020-1980, 3, 0, 0, 2);

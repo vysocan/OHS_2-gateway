@@ -28,6 +28,7 @@ static THD_FUNCTION(ZoneThread, arg) {
   msg_t    msg;
   uint16_t val, vBatCounter = 0;
   uint8_t  groupNum = DUMMY_NO_VALUE;
+  triggerEvent_t *outMsgTrig;
 
   // Delay to allow PIR to settle up during power on
   chThdSleepSeconds(SECONDS_PER_MINUTE);
@@ -137,7 +138,7 @@ static THD_FUNCTION(ZoneThread, arg) {
             if (!(GET_ZONE_ALARM(zone[i].setting)) && (group[groupNum].armDelay == 0)){
               // if group not enabled log error to log.
               if (!(GET_CONF_GROUP_ENABLED(conf.group[groupNum]))) {
-                if (!(GET_GROUP_DISABLED_FLAG(group[groupNum].setting))) {
+                if (!(GET_GROUP_DISABLED_FLAG(group[groupNum].setting)) && (groupNum < ALARM_GROUPS)) {
                   SET_GROUP_DISABLED_FLAG(group[groupNum].setting); // Set logged disabled bit On
                   tmpLog[0] = 'G'; tmpLog[1] = 'F'; tmpLog[2] = groupNum;  pushToLog(tmpLog, 3);
                 }
@@ -178,7 +179,7 @@ static THD_FUNCTION(ZoneThread, arg) {
             if (!(GET_ZONE_ALARM(zone[i].setting))){
               // if group not enabled log error to log.
               if (!(GET_CONF_GROUP_ENABLED(conf.group[groupNum]))) {
-                if (!(GET_GROUP_DISABLED_FLAG(group[groupNum].setting))) {
+                if (!(GET_GROUP_DISABLED_FLAG(group[groupNum].setting)) && (groupNum < ALARM_GROUPS)) {
                   SET_GROUP_DISABLED_FLAG(group[groupNum].setting); // Set logged disabled bit On
                   tmpLog[0] = 'G'; tmpLog[1] = 'F'; tmpLog[2] = groupNum;  pushToLog(tmpLog, 3);
                 }
@@ -210,17 +211,17 @@ static THD_FUNCTION(ZoneThread, arg) {
             break;
         }
         // Triggers
-        sensorEvent_t *outMsgT = chPoolAlloc(&trigger_pool);
-        if (outMsgT != NULL) {
-          outMsgT->type = 'Z';
-          outMsgT->address = 0;
-          outMsgT->function = ' ';
-          outMsgT->number = i;
+        outMsgTrig = chPoolAlloc(&trigger_pool);
+        if (outMsgTrig != NULL) {
+          outMsgTrig->type = 'Z';
+          outMsgTrig->address = 0;
+          outMsgTrig->function = ' ';
+          outMsgTrig->number = i;
           // As defined in zoneState[], 0 = OK
-          if (zone[i].lastEvent == 'O') outMsgT->value = 0;
-          else if (zone[i].lastEvent == 'P') outMsgT->value = 1;
-          else outMsgT->value = 2;
-          msg = chMBPostTimeout(&trigger_mb, (msg_t)outMsgT, TIME_IMMEDIATE);
+          if (zone[i].lastEvent == 'O') outMsgTrig->value = 0;
+          else if (zone[i].lastEvent == 'P') outMsgTrig->value = 1;
+          else outMsgTrig->value = 2;
+          msg = chMBPostTimeout(&trigger_mb, (msg_t)outMsgTrig, TIME_IMMEDIATE);
           if (msg != MSG_OK) {
             //chprintf(console, "S-MB full %d\r\n", temp);
           }

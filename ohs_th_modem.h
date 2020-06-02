@@ -65,21 +65,22 @@ static THD_FUNCTION(ModemThread, arg) {
 
       // AT checks
       if ((counter == 30) && (gsmStatus == gprs_OK)) {
+        chprintf(console, "Modem alive check.\r\n"); chThdSleepMilliseconds(50);
         gprsIsAlive = gprsSendCmd(AT_is_alive);
         if (gprsIsAlive == 1) {
           if (gprsSetSMS != 1) {
             gprsSetSMS = gprsSendCmd(AT_set_sms_to_text);                      // Set modem to text SMS format
-            //chprintf(console, "AT_set_sms_to_text: %d\r\n", gprsSetSMS);
+            chprintf(console, "AT_set_sms_to_text: %d\r\n", gprsSetSMS);
             if (gprsSetSMS == 1) gprsSetSMS = gprsSendCmd(AT_set_sms_receive); // Set modem to dump SMS to serial
             resp = gprsSendCmdWR(AT_model_info, (uint8_t*)gprsModemInfo, sizeof(gprsModemInfo));      // Get model
             resp = gprsSendCmd(AT_set_ATD);
           }
           resp = gprsSendCmdWRI(AT_registered, tempText, sizeof(tempText), 3);
           if (resp > 0) gprsReg = strtol((char*)tempText, NULL, 10);
-          //chprintf(console, "gprsReg: %d, %d\r\n", gprsReg, resp);
+          chprintf(console, "gprsReg: %d, %d\r\n", gprsReg, resp);
           resp = gprsSendCmdWRI(AT_signal_strength, tempText, sizeof(tempText), 2);
           if (resp > 0) gprsStrength = 4 + ((strtol((char*)tempText, NULL, 10)) * 3);
-          //chprintf(console, "gprsStrength: %d, %d\r\n", gprsStrength, resp);
+          chprintf(console, "gprsStrength: %d, %d\r\n", gprsStrength, resp);
         } else {
           gprsReg = 4; gprsStrength = 0; gprsSetSMS = 0;
           gsmStatus = gprs_ForceReset;

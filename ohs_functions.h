@@ -307,15 +307,15 @@ void armGroup(uint8_t groupNum, uint8_t master, armType_t armType, uint8_t hop) 
       // Save group state, here we save armDelay and armType
       writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
       // Triggers
-      sensorEvent_t *outMsgT = chPoolAlloc(&trigger_pool);
-      if (outMsgT != NULL) {
-        outMsgT->type = 'G';
-        outMsgT->address = 0;
-        outMsgT->function = ' ';
-        outMsgT->number = groupNum;
+      triggerEvent_t *outMsgTrig = chPoolAlloc(&trigger_pool);
+      if (outMsgTrig != NULL) {
+        outMsgTrig->type = 'G';
+        outMsgTrig->address = 0;
+        outMsgTrig->function = ' ';
+        outMsgTrig->number = groupNum;
         // As defined in groupState[], 0 = disarmed
-        outMsgT->value = (float)(armType + 1);
-        msg_t msg = chMBPostTimeout(&trigger_mb, (msg_t)outMsgT, TIME_IMMEDIATE);
+        outMsgTrig->value = (float)(armType + 1);
+        msg_t msg = chMBPostTimeout(&trigger_mb, (msg_t)outMsgTrig, TIME_IMMEDIATE);
         if (msg != MSG_OK) {
           //chprintf(console, "S-MB full %d\r\n", temp);
         }
@@ -365,15 +365,15 @@ void disarmGroup(uint8_t groupNum, uint8_t master, uint8_t hop) {
   // Save group state
   writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
   // Triggers
-  sensorEvent_t *outMsg = chPoolAlloc(&trigger_pool);
-  if (outMsg != NULL) {
-    outMsg->type = 'G';
-    outMsg->address = 0;
-    outMsg->function = ' ';
-    outMsg->number = groupNum;
+  triggerEvent_t *outMsgTrig = chPoolAlloc(&trigger_pool);
+  if (outMsgTrig != NULL) {
+    outMsgTrig->type = 'G';
+    outMsgTrig->address = 0;
+    outMsgTrig->function = ' ';
+    outMsgTrig->number = groupNum;
     // As defined in groupState[], 0 = disarmed
-    outMsg->value = 0;
-    msg_t msg = chMBPostTimeout(&trigger_mb, (msg_t)outMsg, TIME_IMMEDIATE);
+    outMsgTrig->value = 0;
+    msg_t msg = chMBPostTimeout(&trigger_mb, (msg_t)outMsgTrig, TIME_IMMEDIATE);
     if (msg != MSG_OK) {
       //chprintf(console, "S-MB full %d\r\n", temp);
     }

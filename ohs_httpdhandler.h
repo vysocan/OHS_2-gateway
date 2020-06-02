@@ -40,9 +40,9 @@
 #define HTTP_ALERT_MSG_SIZE 80
 static void *current_connection;
 static void *valid_connection;
-static char current_uri[LWIP_HTTPD_MAX_REQUEST_URI_LEN] __attribute__((section(".ram4")));
-static char postData[HTTP_POST_DATA_SIZE] __attribute__((section(".ram4")));
-static char alertMsg[HTTP_ALERT_MSG_SIZE] __attribute__((section(".ram4")));
+char current_uri[LWIP_HTTPD_MAX_REQUEST_URI_LEN] __attribute__((section(".ram4")));
+char postData[HTTP_POST_DATA_SIZE] __attribute__((section(".ram4")));
+char alertMsg[HTTP_ALERT_MSG_SIZE] __attribute__((section(".ram4")));
 
 const char text_i_home[]            = "<i class='icon'>&#xe800;</i>";
 const char text_i_contact[]         = "<i class='icon'>&#xe801;</i>";
@@ -1089,7 +1089,11 @@ int fs_open_custom(struct fs_file *file, const char *name){
           // Buttons
           chprintf(chp, "%s%s%s%s", html_Run, html_Refresh, html_Save, html_Restart);
           // Output
-          chprintf(chp, "%s<pre>Last output:\r\n%s</pre>", html_br, &tclOutput[0]);
+          chprintf(chp, "%s<pre>Last output:\r\n%.*s</pre>", html_br, strlen(tclOutput), tclOutput);
+          for (uint16_t j = 0; j < strlen(tclOutput); j++) {
+            DBG_HTTP("-%x", tclOutput[j]);
+          }
+          DBG_HTTP("\r\n");
           break;
         case PAGE_TIMER:
           chprintf(chp, "%s#", html_tr_th);
@@ -1621,7 +1625,7 @@ err_t httpd_post_receive_data(void *connection, struct pbuf *p) {
 
   //DBG_HTTP("-PD-connection: %u\r\n", (uint32_t *)connection);
   if (current_connection == connection) {
-    DBG_HTTP("p->payload: %s\r\n", p->payload);
+    DBG_HTTP("p->payload: '%.*s'\r\n", p->len, p->payload);
     //DBG_HTTP("p->ref: %u\r\n", p->ref);
     //DBG_HTTP("p->next: %u\r\n", p->next);
     //DBG_HTTP("p->tot_len: %u\r\n", p->tot_len);
@@ -1646,6 +1650,7 @@ err_t httpd_post_receive_data(void *connection, struct pbuf *p) {
   return ERR_VAL;
 }
 
+// TODO OHS use it or remove it
 bool checkPointer(void *pointer, const char *message) {
   if (pointer == NULL) return false;
   chsnprintf(alertMsg, LWIP_MIN(HTTP_ALERT_MSG_SIZE, sizeof(message) + 4), html_br, message);
@@ -1998,8 +2003,6 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
             } while (repeat);
             break;
           case PAGE_TCL:
-            // TODO OHS Add fade away notifications. Saved, ...
-            // https://fvsch.com/transition-fade/test5.html#test1
             do{
               repeat = getPostData(&postDataP, &name[0], sizeof(name), &valueP, &valueLen);
               DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
@@ -2026,6 +2029,21 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   }
                   break;
                 case 'n': // name
+                  // For existing scripts do rename
+                  if (webScript != DUMMY_NO_VALUE) {
+                    DBG_HTTP("Rename: '%s' -> '%.*s'\r\n", scriptName, valueLen, valueP);
+                    number = 1;
+                    // Find pointer to script
+                    for (scriptp = scriptLL; scriptp != NULL; scriptp = scriptp->next) {
+                      if (number == webScript) break;
+                      number++;
+                    }
+                    strncpy(scriptp->name, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+                    memset(scriptp->name + LWIP_MIN(valueLen, NAME_LENGTH - 1), 0, 1);
+                    // uBS rename
+                    uBSRename(scriptName, strlen(scriptName),
+                              valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+                  }
                   strncpy(scriptName, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
                   scriptName[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
                   break;
@@ -2049,7 +2067,6 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   tclCmd[LWIP_MIN(valueLen, TCL_SCRIPT_LENGTH - 1)] = 0;
                 break;
                 case 'e': // save
-                  // TODO OHS Add malloc, realloc checks for return NULL pointer.
                   if (webScript == DUMMY_NO_VALUE) {
                     // For new script append linked list
                     scriptp = umm_malloc(sizeof(struct scriptLL_t));
@@ -2059,19 +2076,19 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                       //if (checkPointer(scriptp, html_noSpace)) {}
                       scriptp->name = umm_malloc(NAME_LENGTH + 1);
                       if (scriptp->name == NULL) {
-                        free(scriptp);
+                        umm_free(scriptp);
                         chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
                       } else {
                         strncpy(scriptp->name, &scriptName[0], NAME_LENGTH);
                         number = strlen(tclCmd);
                         scriptp->cmd = umm_malloc(number + 1);
                         if (scriptp->cmd == NULL) {
-                          free(scriptp);
-                          free(scriptp->name);
+                          umm_free(scriptp->name);
+                          umm_free(scriptp);
                           chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
                         } else {
-                          memset(scriptp->cmd + number, 0, 1);
                           strncpy(scriptp->cmd, &tclCmd[0], number);
+                          memset(scriptp->cmd + number, 0, 1);
                           scriptp->next = scriptLL;
                           scriptLL = scriptp;
                           // uBS
@@ -2092,12 +2109,6 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                       number++;
                     }
                     if (scriptp != NULL) {
-                      // Do we need to rename it
-                      if (strcmp(scriptp->name, &scriptName[0]) != 0) {
-                        DBG_HTTP("Rename: %x, %x\r\n", scriptp, scriptp->name);
-                        strncpy(scriptp->name, &scriptName[0], NAME_LENGTH);
-                        uBSRename(scriptp->name, &scriptName[0], NAME_LENGTH);
-                      }
                       number = strlen(tclCmd);
                       //scriptp->cmd = umm_realloc(scriptp->cmd, number + 1);
                       umm_free(scriptp->cmd);
@@ -2107,6 +2118,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                       } else {
                         strncpy(scriptp->cmd, &tclCmd[0], number);
                         memset(scriptp->cmd + number, 0, 1);
+                        DBG_HTTP("->%d", uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd)));
                         if (uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd)) != UBS_RSLT_OK) {
                           chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_storage);
                         }

@@ -31,12 +31,13 @@
 #define AT_DOWNLOAD        "DOWNLOAD"  //
 #define AT_HTTPDATA        "AT+HTTPDATA="
 #define AT_DATA_SIZE       "+HTTPREAD:"
-
+//
+#define AT_RING_BUFFER_SIZE 256
 /*
  * GSM data ring buffer
  */
 typedef struct {
-  uint8_t data[256];
+  uint8_t data[AT_RING_BUFFER_SIZE];
   uint8_t head;
   uint8_t tail;
   uint8_t message;

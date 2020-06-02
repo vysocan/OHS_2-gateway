@@ -12,7 +12,8 @@
 #error "In mcuconf.h STM32_BKPRAM_ENABLE must be TRUE!"
 #endif
 
-#define STM32_UUID ((uint32_t *)UID_BASE) // STM32 UID
+// STM32 UID as Ethernet MAC
+#define STM32_UUID ((uint32_t *)UID_BASE)
 
 #define OHS_MAJOR        1
 #define OHS_MINOR        1
@@ -353,7 +354,13 @@ typedef struct {
 
 // Trigger events
 #define TRIGGER_FIFO_SIZE 10
-// Trigger event struct = sensorEvent_t
+typedef struct {
+  char    type;     // = 'S';
+  uint8_t address;  // = 0;
+  char    function; // = ' ';
+  uint8_t number;   // = 0;
+  float   value;    // = 0.0;
+} triggerEvent_t;
 
 // TCL callback
 typedef void (*script_cb_t) (char *result);
@@ -368,6 +375,7 @@ typedef struct {
   void   *callback;
   void  **result;
 } scriptEvent_t;
+
 // Script ll
 struct scriptLL_t{
   char              *name;
@@ -447,7 +455,7 @@ static scriptEvent_t script_pool_queue[SCRIPT_FIFO_SIZE];
 static MEMORYPOOL_DECL(script_pool, sizeof(scriptEvent_t), PORT_NATURAL_ALIGN, NULL);
 
 static sensorEvent_t trigger_pool_queue[TRIGGER_FIFO_SIZE];
-static MEMORYPOOL_DECL(trigger_pool, sizeof(sensorEvent_t), PORT_NATURAL_ALIGN, NULL);
+static MEMORYPOOL_DECL(trigger_pool, sizeof(triggerEvent_t), PORT_NATURAL_ALIGN, NULL);
 
 // Triggers
 typedef struct {
@@ -558,6 +566,7 @@ typedef struct {
   uint8_t  openAlarm; // minutes
   char     dateTimeFormat[NAME_LENGTH];
 
+  // TODO OHS Dynamic zones should not be stored in conf? Or just clear IS PRESENT flag on start.
   uint16_t zone[ALARM_ZONES];
   char     zoneName[ALARM_ZONES][NAME_LENGTH];
   uint8_t  zoneAddress[ALARM_ZONES-HW_ZONES]; // Only for remote zone address
@@ -659,7 +668,9 @@ typedef struct {
   char name[NAME_LENGTH]; // = "";
 } node_t;
 node_t node[NODE_SIZE] __attribute__((section(".ram4")));
-
+/*
+ * Initialize node runtime struct
+ */
 void initRuntimeNodes(void){
   for(uint8_t i = 0; i < NODE_SIZE; i++) {
     node[i].address  = 0;
@@ -673,8 +684,9 @@ void initRuntimeNodes(void){
     node[i].value    = 0;
   }
 }
-
-// Set default to runtime structs
+/*
+ * Initialize group runtime struct
+ */
 void initRuntimeGroups(void){
   for(uint8_t i = 0; i < ALARM_GROUPS; i++) {
   //                      |- Disabled group log once flag
@@ -690,6 +702,9 @@ void initRuntimeGroups(void){
     group[i].armDelay = 0;
   }
 }
+/*
+ * Initialize zone runtime struct
+ */
 void initRuntimeZones(void){
   for(uint8_t i = 0; i < ALARM_ZONES; i++) {
     zone[i].lastPIR   = startTime;
@@ -707,11 +722,9 @@ void initRuntimeZones(void){
     zone[i].setting    = 0b00000000;
   }
 }
-
 /*
- * SRAM/RTC backup related functions
+ * Write to backup SRAM
  */
-// Write to backup SRAM
 int16_t writeToBkpSRAM(uint8_t *data, uint16_t size, uint16_t offset){
   if (size + offset >= BACKUP_SRAM_SIZE) osalSysHalt("SRAM out of region"); // Data out of BACKUP_SRAM_SIZE region
   uint16_t i = 0;
@@ -721,7 +734,9 @@ int16_t writeToBkpSRAM(uint8_t *data, uint16_t size, uint16_t offset){
   }
   return i;
 }
-// Read from backup SRAM
+/*
+ * Read from backup SRAM
+ */
 int16_t readFromBkpSRAM(uint8_t *data, uint16_t size, uint16_t offset){
   if (size + offset >= BACKUP_SRAM_SIZE) osalSysHalt("SRAM out of region");; // Data out of BACKUP_SRAM_SIZE region
   uint16_t i = 0;
@@ -731,8 +746,9 @@ int16_t readFromBkpSRAM(uint8_t *data, uint16_t size, uint16_t offset){
   }
   return i;
 }
-
-// Write to backup RTC
+/*
+ * Write to backup RTC
+ */
 int16_t writeToBkpRTC(uint8_t *data, uint8_t size, uint8_t offset){
   if (size + offset >= BACKUP_RTC_SIZE) osalSysHalt("RTC out of region"); // Data out of BACKUP_RTC_SIZE region
   if (offset % 4) osalSysHalt("RCT misaligned");                          // Offset is not aligned to to unint32_t registers
@@ -748,7 +764,9 @@ int16_t writeToBkpRTC(uint8_t *data, uint8_t size, uint8_t offset){
   }
   return i;
 }
-// Read from backup RTC
+/*
+ * Read from backup RTC
+ */
 int16_t readFromBkpRTC(uint8_t *data, uint8_t size, uint8_t offset){
   if (size + offset >= BACKUP_RTC_SIZE) osalSysHalt("RTC out of region"); // Data out of BACKUP_RTC_SIZE region
   if (offset % 4) osalSysHalt("RCT misaligned");                          // Offset is not aligned to to unint32_t registers
@@ -761,8 +779,9 @@ int16_t readFromBkpRTC(uint8_t *data, uint8_t size, uint8_t offset){
   }
   return i;
 }
-
-// Set conf default values
+/*
+ * Set conf struct default values
+ */
 void setConfDefault(void){
   conf.versionMajor   = OHS_MAJOR;
   conf.versionMinor   = OHS_MINOR;
@@ -836,9 +855,6 @@ void setConfDefault(void){
     memset(&conf.contactName[i][0], 0x00, NAME_LENGTH);
     memset(&conf.contactPhone[i][0], 0x00, PHONE_LENGTH);
     memset(&conf.contactEmail[i][0], 0x00, EMAIL_LENGTH);
-    //strcpy(conf.contactName[i], NOT_SET);
-    //strcpy(conf.contactPhone[i], NOT_SET);
-    //strcpy(conf.contactEmail[i], NOT_SET);
   }
 
   for(uint8_t i = 0; i < KEYS_SIZE; i++) {
@@ -922,8 +938,9 @@ void setConfDefault(void){
   }
 
 }
-
-// TODO OHS Add malloc, realloc checks for return NULL pointer.
+/*
+ * Load scripts form uBS to UMM heap.
+ */
 void initScripts(struct scriptLL_t **pointer) {
   char     blockName[NAME_LENGTH] = {0};
   uint32_t blockAddress = 0;
@@ -931,20 +948,37 @@ void initScripts(struct scriptLL_t **pointer) {
   struct scriptLL_t* var;
 
   while (uBSSeekAll(&blockAddress, &blockName, NAME_LENGTH)) {
-    chprintf(console, "Found %s at %u\r\n", blockName, blockAddress);
     var = umm_malloc(sizeof(struct scriptLL_t));
-
-    var->name = umm_malloc(NAME_LENGTH);
-    strncpy(var->name, &blockName[0], NAME_LENGTH);
-
-    cmdSize = TCL_SCRIPT_LENGTH;
-    uBSRead(&blockName[0], NAME_LENGTH, &tclCmd[0], &cmdSize);
-    var->cmd = umm_malloc(cmdSize + 1);
-    strncpy(var->cmd, &tclCmd[0], cmdSize);
-    chprintf(console, "CMD %s, size %u\r\n", var->cmd, cmdSize);
-
-    var->next = *pointer;
-    *pointer = var;
+    if (var != NULL) {
+      // name
+      var->name = umm_malloc(NAME_LENGTH);
+      if (var->name == NULL) {
+        umm_free(var);
+        chprintf(console, "CMD heap full, name.\r\n");
+      } else {
+        strncpy(var->name, &blockName[0], NAME_LENGTH);
+        // cmd
+        cmdSize = TCL_SCRIPT_LENGTH;
+        if (uBSRead(&blockName[0], NAME_LENGTH, &tclCmd[0], &cmdSize) != UBS_RSLT_OK) {
+          umm_free(var);
+          chprintf(console, "uBS storage needs format!\r\n");
+          break;
+        }
+        var->cmd = umm_malloc(cmdSize + 1);
+        if (var->cmd == NULL) {
+          umm_free(var->name);
+          umm_free(var);
+          chprintf(console, "CMD heap full, cmd.\r\n");
+        } else {
+          strncpy(var->cmd, &tclCmd[0], cmdSize);
+          // Link it
+          var->next = *pointer;
+          *pointer = var;
+        }
+      }
+    } else {
+      chprintf(console, "CMD heap full.\r\n");
+    }
   }
   // Clear tclCmd on end
   memset(&tclCmd[0], '\0', TCL_SCRIPT_LENGTH);
