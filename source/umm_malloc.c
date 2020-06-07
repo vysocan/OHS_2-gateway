@@ -231,7 +231,7 @@ void umm_init(const void *start, const size_t size) {
 //  umm_numblocks = (UMM_MALLOC_CFG_HEAP_SIZE / sizeof(umm_block));
 //  memset(umm_heap, 0x00, UMM_MALLOC_CFG_HEAP_SIZE);
 
-  DBGLOG_INFO("UMM p %x, size %u\r\n",  umm_heap, size);
+  DBGLOG_INFO("UMM address %x, size %u\r\n",  umm_heap, size);
 
 
   /* setup initial blank heap structure */

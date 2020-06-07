@@ -1,5 +1,10 @@
 #include <gprs.h>
 
+/* TODO OHS rewrite the gprs to use UART driver or create special driver,
+ * since iqueue is created and not used.
+ * Queues are blocking.
+ */
+
 #ifndef GPRS_DEBUG
 #define GPRS_DEBUG 0
 #endif
@@ -11,13 +16,14 @@
 #endif
 
 gprsRingBuffer_t gprsRingBuffer;
-static uint8_t gprsATreply[128];
+static uint8_t gprsATreply[80];
 static BaseSequentialStream* gprsStream;// = (BaseSequentialStream*)&SD6;
-
+/*
+ * Callbacks
+ */
 void txend1_cb(SerialDriver *sdp) {
   (void)sdp;
 }
-
 void txend2_cb(SerialDriver *sdp) {
   (void)sdp;
 
@@ -40,11 +46,14 @@ static SerialConfig gprs_cfg = {
     0, 0, 0
     ,txend1_cb, txend2_cb, rxchar_cb, rxerr_cb
 };
-
+/*
+ *
+ */
 static void gprsInitRingBuffer(gprsRingBuffer_t *what){
   what->head = 0;
   what->tail = 0;
   what->message = 0;
+  memset(&what->data[0], 0, AT_RING_BUFFER_SIZE);
 }
 /*
  * Init
@@ -59,7 +68,8 @@ void gprsInit(SerialDriver *sdp) {
  */
 void gprsFlushRX(void) {
   memset(&gprsRingBuffer.data[0], 0, AT_RING_BUFFER_SIZE);
-  gprsRingBuffer.tail = gprsRingBuffer.head = 0;
+  gprsRingBuffer.tail = 0;
+  gprsRingBuffer.head = 0;
   gprsRingBuffer.message = 0;
 }
 /*

@@ -5,6 +5,8 @@
 */
 // Optimize stack and overflow
 #define PORT_INT_REQUIRED_STACK 128
+// Remove input queue for GPRS
+#define STM32_SERIAL_USART6_IN_BUF_SIZE 0
 
 #include <string.h>
 #include <stdlib.h>
@@ -44,7 +46,7 @@ binary_semaphore_t cbTriggerSem;
 char my_umm_heap[UMM_MALLOC_CFG_HEAP_SIZE] __attribute__((section(".ram4")));
 char tclOutput[TCL_OUTPUT_LENGTH] __attribute__((section(".ram4")));
 // TODO OHS When tclCmd is in ram4 char[11] gets corrupted
-char tclCmd[TCL_SCRIPT_LENGTH];// __attribute__((section(".ram4")));
+char tclCmd[TCL_SCRIPT_LENGTH] __attribute__((section(".ram4")));
 // TCL
 #include "tcl.h"
 struct tcl tcl;
@@ -178,20 +180,16 @@ int main(void) {
 
   spiStart(&SPID1, &spi1cfg);  // SPI
   rfm69Start(&rfm69cfg);       // RFM69
-  rfm69SetHighPower(true);
-  // rfm69AutoPower(-80); /
-  rfm69Encrypt("ABCDABCDABCDABCD");
+  rfm69SetHighPower(true);     // long range version
 
   // Activates the ADC1 driver
   adcStart(&ADCD1, NULL);
 
   // UMM / TCL
   umm_init(&my_umm_heap[0], UMM_MALLOC_CFG_HEAP_SIZE);
-
-  // uBS init and load scripts
+  // uBS init
   //uBSFormat();
   uBSInit();
-  //chprintf(console, "uBS, free space: %u\r\n", uBSGetFreeSpace());
 
   // Create thread(s).
   chThdCreateStatic(waZoneThread, sizeof(waZoneThread), NORMALPRIO, ZoneThread, (void*)"zone");
@@ -245,6 +243,8 @@ int main(void) {
   }
   //setConfDefault(); // Load OHS default conf.
 
+  // RFM69 key
+  if (conf.radioKey[0] != 0) rfm69Encrypt(conf.radioKey);
   // SMTP
   smtp_set_server_addr(conf.SMTPAddress);
   smtp_set_server_port(conf.SMTPPort);
@@ -257,7 +257,6 @@ int main(void) {
   pushToLogText("Ss");
   // Initialize zones state
   initRuntimeZones();
-
   // Initialize timers
   for (uint8_t i = 0; i < TIMER_SIZE; i++) {
     if (GET_CONF_TIMER_ENABLED(conf.timer[i].setting)) setTimer(i, true);

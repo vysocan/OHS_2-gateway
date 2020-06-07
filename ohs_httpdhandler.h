@@ -92,6 +92,7 @@ const char html_n_tag_3[]           = "' max='";
 const char html_p_tag_1[]           = "<input type='password' maxlength='";
 const char html_s_tag_2[]           = "' size='";
 const char html_s_tag_3[]           = "' name='";
+const char html_s_tag_4[]           = "' minlength='";
 const char html_radio_s[]           = "<div class='rm'>";
 const char html_radio_sl[]          = "<div class='rml'>";
 const char html_radio_sb[]          = "<div class='rmb'>";
@@ -319,8 +320,18 @@ void printTextInput(BaseSequentialStream *chp, const char name, const char *valu
   chprintf(chp, "%s%c%s", html_id_tag, name, html_e_tag);
 }
 
-void printPassInput(BaseSequentialStream *chp, const char name, const char *value, const uint8_t size){
-  chprintf(chp, "%s%u%s%u%s", html_p_tag_1, size - 1, html_s_tag_2, size - 1, html_s_tag_3);
+void printTextInputWMin(BaseSequentialStream *chp, const char name, const char *value,
+                        const uint8_t size, const uint8_t minSize){
+  chprintf(chp, "%s%u%s%u", html_t_tag_1, size - 1, html_s_tag_2, size - 1);
+  chprintf(chp, "%s%u%s", html_s_tag_4, minSize - 1, html_s_tag_3);
+  chprintf(chp, "%c%s%s", name, html_m_tag, value);
+  chprintf(chp, "%s%c%s", html_id_tag, name, html_e_tag);
+}
+
+void printPassInput(BaseSequentialStream *chp, const char name, const char *value,
+                    const uint8_t size, const uint8_t minSize){
+  chprintf(chp, "%s%u%s%u", html_p_tag_1, size - 1, html_s_tag_2, size - 1);
+  chprintf(chp, "%s%u%s", html_s_tag_4, minSize - 1, html_s_tag_3);
   chprintf(chp, "%c%s%s", name, html_m_tag, value);
   chprintf(chp, "%s%c%s", html_id_tag, name, html_e_tag);
 }
@@ -928,8 +939,14 @@ int fs_open_custom(struct fs_file *file, const char *name){
           printTextInput(chp, 'u', conf.user, NAME_LENGTH);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Admin, text_password,
                    html_e_td_td);
-          printPassInput(chp, 'p', conf.password, NAME_LENGTH); chprintf(chp, "%s", html_br);
-          printPassInput(chp, 'P', conf.password, NAME_LENGTH);
+          printPassInput(chp, 'p', conf.password, NAME_LENGTH, 8); chprintf(chp, "%s", html_br);
+          printPassInput(chp, 'P', conf.password, NAME_LENGTH, 8);
+          chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
+
+          chprintf(chp, "<h1>%s</h1>\r\n%s", text_Radio, html_table);
+          chprintf(chp, "%s%s%s", html_tr_td, text_Key, html_e_td_td);
+          printTextInputWMin(chp, 'K', conf.radioKey, RADIO_KEY_SIZE, RADIO_KEY_SIZE);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Frequency, html_e_td_td);
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
 
           chprintf(chp, "<h1>%s</h1>\r\n%s", text_SMTP, html_table);
@@ -940,8 +957,8 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_User, text_name, html_e_td_td);
           printTextInput(chp, 'c', conf.SMTPUser, EMAIL_LENGTH);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_User, text_password, html_e_td_td);
-          printPassInput(chp, 'd', conf.SMTPPassword, NAME_LENGTH); chprintf(chp, "%s", html_br);
-          printPassInput(chp, 'D', conf.SMTPPassword, NAME_LENGTH);
+          printPassInput(chp, 'd', conf.SMTPPassword, NAME_LENGTH, 1); chprintf(chp, "%s", html_br);
+          printPassInput(chp, 'D', conf.SMTPPassword, NAME_LENGTH, 1);
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
 
           chprintf(chp, "<h1>%s</h1>\r\n%s", text_NTP, html_table);
@@ -1049,20 +1066,14 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s %u%%", text_Used, (uint8_t)((UBS_BLOCK_COUNT - uBSFreeBlocks) / (float)(UBS_BLOCK_COUNT / (float)100)));
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
 
-          chprintf(chp, "<i class='fas fa-code' title=\"");
-          tcl_list_cmd(&tcl, &chp);
-          chprintf(chp, "\"></i>");
-          chprintf(chp, "<i class='fas fa-hashtag' title=\"");
-          tcl_list_var(&tcl, &chp);
-          chprintf(chp, "\"></i>");
+          chprintf(chp, "<i class='icon' title=\"");
+          tcl_list_cmd(&tcl, &chp, "|", 0);
+          chprintf(chp, "\">&#xf121;</i>");
+          chprintf(chp, "<i class='icon' title=\"");
+          tcl_list_var(&tcl, &chp, "\r\n");
+          chprintf(chp, "\">&#xf292;</i> Variables");
           chprintf(chp, "%s%s", html_br, html_br);
           // Script area
-          /*
-          for (uint16_t var = 0; var < strlen(tclCmd); var++) {
-            DBG_HTTP("%u %c-%x|", var, tclCmd[var], tclCmd[var]);
-          }
-          DBG_HTTP("\r\n");
-          */
           printTextArea(chp, 's', tclCmd, TCL_SCRIPT_LENGTH, 120, 20);
           chprintf(chp, "%s%s", html_br, html_br);
           // Select script
@@ -1203,7 +1214,6 @@ int fs_open_custom(struct fs_file *file, const char *name){
                     (node[i].number   == conf.timer[webTimer].toNumber))
                      { chprintf(chp, "%s", html_selected); }
                 else { chprintf(chp, "%s", html_e_tag); }
-                chprintf(chp, "%s - ", node[i].name);
                 printNodeAddress(chp, node[i].address, node[i].type, node[i].function, node[i].number, true);
                 chprintf(chp, "%s", html_e_option);
               }
@@ -1986,6 +1996,10 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   strncpy(conf.dateTimeFormat, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
                   conf.dateTimeFormat[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
                 break;
+                case 'K': // radio key
+                  strncpy(conf.radioKey, valueP, LWIP_MIN(valueLen, RADIO_KEY_SIZE - 1));
+                  conf.radioKey[LWIP_MIN(valueLen, RADIO_KEY_SIZE - 1)] = 0;
+                break;
                 case 'e': // save
                   writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
                 break;
@@ -2029,8 +2043,8 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   }
                   break;
                 case 'n': // name
-                  // For existing scripts do rename
-                  if (webScript != DUMMY_NO_VALUE) {
+                  // For existing scripts do rename when name differs
+                  if ((webScript != DUMMY_NO_VALUE) && (strcmp(scriptName, valueP))) {
                     DBG_HTTP("Rename: '%s' -> '%.*s'\r\n", scriptName, valueLen, valueP);
                     number = 1;
                     // Find pointer to script

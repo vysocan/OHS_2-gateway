@@ -741,21 +741,33 @@ void tcl_destroy(struct tcl* tcl) {
   DBG("FREE tcl_destroy %x.", tcl->result);
   tcl_free(tcl->result);
 }
-
-void tcl_list_var(struct tcl* tcl, BaseSequentialStream **output) {
+/*
+ *
+ */
+void tcl_list_var(struct tcl* tcl, BaseSequentialStream **output, char *separator) {
   struct tcl_var* var;
 
-  chprintf(*output, "Variables:\r\n");
   for (var = tcl->env->vars; var != NULL; var = var->next) {
-    chprintf(*output, "%s = '%s'\r\n", var->name, var->value);
+    chprintf(*output, "%s = '%s'", var->name, var->value);
+    if (separator) chprintf(*output, "%s", separator);
   }
 }
-
-void tcl_list_cmd(struct tcl* tcl, BaseSequentialStream **output) {
+/*
+ *
+ * Options, as binary flags on bits
+ * 1 - print arity
+ * 2 - print also math commands
+ */
+void tcl_list_cmd(struct tcl* tcl, BaseSequentialStream **output, char *separator,
+                  const uint8_t options) {
   struct tcl_cmd* cmd;
 
-  chprintf(*output, "Commands, name (arguments):\r\n");
   for (cmd = tcl->cmds; cmd != NULL; cmd = cmd->next) {
-    chprintf(*output, "%s (%u)\r\n", cmd->name, (cmd->arity ? cmd->arity - 1 : 0));
+    // math commands option
+    if ((cmd->fn == tcl_cmd_math) && !((options >> 1) & 0b1)) continue;
+
+    chprintf(*output, "%s", cmd->name);
+    if (options & 0b1) chprintf(*output, " (%u)", (cmd->arity ? cmd->arity - 1 : 0));
+    if (separator) chprintf(*output, "%s", separator);
   }
 }

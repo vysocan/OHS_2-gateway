@@ -115,8 +115,9 @@ void tcl_init(struct tcl* tcl, uint16_t max_iterations, BaseSequentialStream *ou
 void tcl_destroy(struct tcl* tcl);
 
 // Print commands, variables to output
-void tcl_list_var(struct tcl* tcl, BaseSequentialStream **output);
-void tcl_list_cmd(struct tcl* tcl, BaseSequentialStream **output);
+void tcl_list_var(struct tcl* tcl, BaseSequentialStream **output, char *separator);
+void tcl_list_cmd(struct tcl* tcl, BaseSequentialStream **output, char *separator,
+                  const uint8_t options);
 
 #ifdef __cplusplus
 }

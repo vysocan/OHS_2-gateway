@@ -45,6 +45,7 @@
 #define ALARM_TAMPER     0
 #define ALARM_UNBALANCED 500
 
+#define RADIO_KEY_SIZE    17    // 16 + 1 for null termination
 #define RADIO_UNIT_OFFSET 15
 #define REGISTRATION_SIZE 22
 #define NODE_SIZE         50    // Number of nodes
@@ -615,6 +616,8 @@ typedef struct {
 
   trigger_t trigger[TRIGGER_SIZE];
 
+  char     radioKey[RADIO_KEY_SIZE];
+
 } config_t;
 config_t conf __attribute__((section(".ram4")));
 // Check conf size fits to backup SRAM
@@ -720,6 +723,10 @@ void initRuntimeZones(void){
     //                     ||||||||- Free
     //                     76543210
     zone[i].setting    = 0b00000000;
+    // Force disconnected to all remote zones
+    if (i >= HW_ZONES) {
+      CLEAR_CONF_ZONE_IS_PRESENT(conf.zone[i]);
+    }
   }
 }
 /*
@@ -937,6 +944,7 @@ void setConfDefault(void){
     conf.trigger[i].hysteresis = 0;
   }
 
+  memset(&conf.radioKey[0], 0, RADIO_KEY_SIZE);
 }
 /*
  * Load scripts form uBS to UMM heap.
