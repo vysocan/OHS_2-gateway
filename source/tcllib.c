@@ -757,17 +757,21 @@ void tcl_list_var(struct tcl* tcl, BaseSequentialStream **output, char *separato
  * Options, as binary flags on bits
  * 1 - print arity
  * 2 - print also math commands
+ * 3 - print also flow commands
+ * 4 - print other then math & flow commands
  */
 void tcl_list_cmd(struct tcl* tcl, BaseSequentialStream **output, char *separator,
                   const uint8_t options) {
   struct tcl_cmd* cmd;
 
   for (cmd = tcl->cmds; cmd != NULL; cmd = cmd->next) {
-    // math commands option
+    // command options
     if ((cmd->fn == tcl_cmd_math) && !((options >> 1) & 0b1)) continue;
+    if ((cmd->fn == tcl_cmd_flow) && !((options >> 2) & 0b1)) continue;
+    if ((cmd->fn != tcl_cmd_math) && (cmd->fn != tcl_cmd_flow) && !((options >> 3) & 0b1)) continue;
 
     chprintf(*output, "%s", cmd->name);
     if (options & 0b1) chprintf(*output, " (%u)", (cmd->arity ? cmd->arity - 1 : 0));
-    if (separator) chprintf(*output, "%s", separator);
+    if ((separator) && (cmd->next != NULL)) chprintf(*output, "%s", separator);
   }
 }

@@ -360,7 +360,7 @@ void printTimeInput(BaseSequentialStream *chp, const char name, const uint8_t ho
 void printTextArea(BaseSequentialStream *chp, const char name, const char *value,
                    const uint16_t maxSize, const uint8_t cols, const uint8_t rows){
   chprintf(chp, "%s%c%s%c%s%u", html_textarea_1, name, html_textarea_2, name, html_textarea_3, rows);
-  chprintf(chp, "%s%u%s%u%s", html_textarea_4, cols, html_textarea_5, maxSize - 1, html_e_tag);
+  chprintf(chp, "%s%u%s%u' class='input' spellcheck='false'>", html_textarea_4, cols, html_textarea_5, maxSize - 1);
   chprintf(chp, "%s%s", value, html_textarea_e);
 }
 
@@ -406,6 +406,33 @@ int fs_open_custom(struct fs_file *file, const char *name){
       // Common html page start
       chprintf(chp, "<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>Open home security</title>\r\n");
       chprintf(chp, "<link rel='stylesheet' href='/css/OHS.css'>\r\n");
+      switch (htmlPage) {
+        case PAGE_TCL:
+          chprintf(chp, "<style>.ldt .variable{color:green;}"
+                        ".ldt .comment{color:grey;}"
+                        ".ldt .number{color:navy;}"
+                        ".ldt .keyword {color:blue;font-weight:bold;display:inline-block;margin-bottom:-1px;}"
+                        ".ldt .op{color:red;}"
+                        ".ldt .define{color:black;}"
+                        ".ldt .braces{color:brown;}</style>\r\n");
+          chprintf(chp, "<script src='/js/LDTPmin.js' type='text/javascript'></script>\r\n"
+                        "<script src='/js/LDTmin.js' type='text/javascript'></script>\r\n");
+          // Regex with c double slash
+          chprintf(chp, "<script type='text/javascript'>function $(e){return document.getElementById(e);};"
+                        "var prs=new Parser({"
+                            "whitespace: /\\s+/,"
+                            "variable: /[\\$\\%\\@](\\->|\\w)+(?!\\w)|\\${\\w*}?/,"
+                            "comment: /\\/\\*([^\\*]|\\*[^\\/])*(\\*\\/?)?|(\\/\\/|#)[^\\r\\n]*/,"
+                            "number: /0x[\\dA-Fa-f]+|-?(\\d+\\.?\\d*|\\.\\d+)/,"
+                            "keyword: /(group|node|strc|while|if|proc|puts|subst|set|continue|break|return)(?!\\w|=)/,"
+                            "define: /[$A-Z_a-z0-9]+/,"
+                            "op: /[\\+\\-\\*\\/=<>!]=?|[\\(\\)\\.\\|]/,"
+                            "braces: /[\\{\\}\\[\\]]/,"
+                            "other: /\\S+/,});"
+                        "window.onload = function(){ltd=new TextareaDecorator($('s'),prs);};"
+                        "</script>\r\n");
+          break;
+      }
       chprintf(chp, "%sEnDis.js'>%s", html_script_src, html_e_script);
       chprintf(chp, "</head>\r\n<body onload=\"");
       // JavaScript enable/disable on body load
@@ -1067,7 +1094,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
 
           chprintf(chp, "<i class='icon' title=\"");
-          tcl_list_cmd(&tcl, &chp, "|", 0);
+          tcl_list_cmd(&tcl, &chp, "|", 0b00000000);
           chprintf(chp, "\">&#xf121;</i>");
           chprintf(chp, "<i class='icon' title=\"");
           tcl_list_var(&tcl, &chp, "\r\n");
