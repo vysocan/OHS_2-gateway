@@ -1,3 +1,11 @@
+/*
+ * Modem handler to parse AT commands
+ * Version 1.0
+ * Adam Baron 2020
+ *
+ *
+ */
+
 #include <gprs.h>
 
 /* TODO OHS rewrite the gprs to use UART driver or create special driver,
@@ -26,11 +34,9 @@ void txend1_cb(SerialDriver *sdp) {
 }
 void txend2_cb(SerialDriver *sdp) {
   (void)sdp;
-
 }
 void rxchar_cb(SerialDriver *sdp, uint8_t c) {
   (void)sdp;
-  //(void)c;
   gprsRingBuffer.data[gprsRingBuffer.head++] = c;
   if (c == 0x0A) gprsRingBuffer.message++; // we have a one line message
 }
@@ -42,12 +48,12 @@ void rxerr_cb(SerialDriver *sdp, eventflags_t e) {
  * GPRS default configuration
  */
 static SerialConfig gprs_cfg = {
-    115200,
-    0, 0, 0
-    ,txend1_cb, txend2_cb, rxchar_cb, rxerr_cb
+  115200,
+  0, 0, 0
+  ,txend1_cb, txend2_cb, rxchar_cb, rxerr_cb
 };
 /*
- *
+ * Initialize ring buffer
  */
 static void gprsInitRingBuffer(gprsRingBuffer_t *what){
   what->head = 0;
@@ -73,19 +79,19 @@ void gprsFlushRX(void) {
   gprsRingBuffer.message = 0;
 }
 /*
- * gprsRead one byte
+ * gprsRead Read one byte
  */
 static uint8_t gprsRead(void) {
   uint8_t rb = gprsRingBuffer.data[gprsRingBuffer.tail++];
   // In case not aligned to 256: rx_buffer.tail = (rx_buffer.tail + 1) % GSM_USART_RX_BUFFER_SIZE;
-  // We have a line message
+  // If a message is found
   if (rb == 0x0A) gprsRingBuffer.message--;
   return rb;
 }
 /*
- * gprsReadMsg message
+ * gprsReadMsg Read a message
  */
-uint8_t gprsReadMsg(uint8_t *where, uint8_t response_len) {
+uint8_t gprsReadMsg(uint8_t *where, uint8_t responseLength) {
   if (gprsRingBuffer.message == 0) return 0; // no message
   DBG("Msg: %d\r\n", gprsRingBuffer.message);// chThdSleepMilliseconds(50);
   uint8_t count = 0;
@@ -94,18 +100,17 @@ uint8_t gprsReadMsg(uint8_t *where, uint8_t response_len) {
     rb = gprsRead();
     DBG("%x|%d, ", rb, count);
     // not CR and NL
-    if ((rb != 0x0A) && (rb != 0x0D) && (count < response_len)) where[count++] = rb;
+    if ((rb != 0x0A) && (rb != 0x0D) && (count < responseLength)) where[count++] = rb;
     // NL or empty buffer
   } while ((rb != 0x0A) && (gprsRingBuffer.tail != gprsRingBuffer.head));
   where[count] = 0; // Terminate
   DBG("\r\n");
   return count;
 }
-
 /*
  * Wait and read a message
  */
-static uint8_t gprsWaitAndReadMsg(uint8_t *where, uint8_t response_len, uint16_t wait) {
+static uint8_t gprsWaitAndReadMsg(uint8_t *where, uint8_t responseLength, uint16_t wait) {
   uint16_t waitCount = 0;
   uint8_t  count, rb;
 
@@ -124,7 +129,7 @@ static uint8_t gprsWaitAndReadMsg(uint8_t *where, uint8_t response_len, uint16_t
       rb = gprsRead();
       DBG("%x|%d, ", rb, count);
       // not CR and NL
-      if ((rb != 0x0A) && (rb != 0x0D) && (count < response_len)) where[count++] = rb;
+      if ((rb != 0x0A) && (rb != 0x0D) && (count < responseLength)) where[count++] = rb;
       // NL or empty buffer
     } while ((rb != 0x0A) && (gprsRingBuffer.tail != gprsRingBuffer.head));
     where[count] = 0; // Terminate
@@ -164,19 +169,22 @@ int8_t gprsSendCmd(char *what){
 
   return 1;
 }
-
 /*
  * Send command and wait for response
+ *
  */
-int8_t gprsSendCmdWR(char *what, uint8_t *response, uint8_t response_len) {
-  uint8_t resp, ret;
+int8_t gprsSendCmdWR(char *what, uint8_t *response, uint8_t responseLength) {
+  uint8_t resp;
 
   //[SEND] AT+CSQ
   //AT+CSQ
   //+CSQ: 24,0
   //
   //OK
+
   gprsFlushRX();
+  // NULL response
+  memset(response, 0, responseLength);
 
   chprintf(gprsStream, "%s\r", what);
   DBG("SCWR*>%s\r\n", (char*)what);
@@ -189,26 +197,28 @@ int8_t gprsSendCmdWR(char *what, uint8_t *response, uint8_t response_len) {
   if (memcmp(what, gprsATreply, resp) != 0) return -1; // compare echo
 
   // Get output
-  ret = gprsWaitAndReadMsg(response, response_len, AT_WAIT);
-  response[ret] = 0;                            // terminate the response by null
+  resp = gprsWaitAndReadMsg(response, responseLength, AT_WAIT);
+  // done in above //response[respLength] = 0;   // terminate the response by null
   DBG("2>%s<\r\n", (char*)response);
-  if (resp == 0) return -12;                    // timeout reached
+  if (resp == 0) return -12;                     // timeout reached
 
   // Get OK / ERROR
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
   DBG("3>%s\r\n", (char*)gprsATreply);
-  if (resp == 0) return -13;                    // timeout reached
-  if (resp != strlen(AT_OK)) return -23;        // 'OK' size
+  if (resp == 0) return -13;                     // timeout reached
+  if (resp != strlen(AT_OK)) return -23;         // 'OK' size
   if (memcmp(AT_OK, gprsATreply, resp) != 0) return -3; // compare OK
 
-  return ret;                                   // size of reply
+  return 1;                                      // All OK
 }
-
 /*
  * Send command and wait for response, get specific index
+ *
+ * Returns index number
+ * Maximum response to AT query is limited to sizeof(gprsATreply).
  */
-int8_t gprsSendCmdWRI(char *what, uint8_t *response, uint8_t response_len, uint8_t index) {
-  uint8_t resp, ret;
+int8_t gprsSendCmdWRI(char *what, uint8_t *response, uint8_t responseLength, uint8_t index) {
+  uint8_t resp, respIndex;
   char* pch;
 
   //[SEND] AT+CSQ
@@ -216,7 +226,10 @@ int8_t gprsSendCmdWRI(char *what, uint8_t *response, uint8_t response_len, uint8
   //+CSQ: 24,0
   //
   //OK
+
   gprsFlushRX();
+  // NULL response
+  memset(response, 0, responseLength);
 
   chprintf(gprsStream, "%s\r", what);
   DBG("SCWRI*>%s\r\n", (char*)what);
@@ -229,22 +242,21 @@ int8_t gprsSendCmdWRI(char *what, uint8_t *response, uint8_t response_len, uint8
   if (memcmp(what, gprsATreply, resp) != 0) return -1; // compare echo
 
   // Get output
-  ret = gprsWaitAndReadMsg(response, response_len, AT_WAIT);
-  response[ret] = 0;                            // terminate the response by null
-  DBG("2>%s<\r\n", (char*)response);
+  resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
+  // done in above //response[resp] = 0;                            // terminate the response by null
+  DBG("2>%s<\r\n", (char*)gprsATreply);
   if (resp == 0) return -12;                    // timeout reached
 
   // Get index
-  pch = strtok((char*)response," ,.-");
-  ret = 1;
+  pch = strtok((char*)gprsATreply," ,.-");
+  respIndex = 1;
   while (pch != NULL){
-    DBG(">%u>%s<\r\n", ret, pch);
-    if (ret == index) break;
+    DBG(">i:%u>%s<\r\n", respIndex, pch);
+    if (respIndex == index) break;
     pch = strtok(NULL, " ,.-");
-    ret++;
+    respIndex++;
   }
-  strncpy((char*)response, pch, response_len);
-  response[response_len] = 0;                    // NULL terminate
+  strncpy((char*)response, pch, responseLength - 1);
   DBG("3>%s<\r\n", (char*)response);
 
   // Get OK / ERROR
@@ -254,9 +266,8 @@ int8_t gprsSendCmdWRI(char *what, uint8_t *response, uint8_t response_len, uint8
   if (resp != strlen(AT_OK)) return -23;        // 'OK' size
   if (memcmp(AT_OK, gprsATreply, resp) != 0) return -3; // compare OK
 
-  return ret;                                   // index returned
+  return respIndex;                             // index returned
 }
-
 /*
  * Send SMS, begin
  */
@@ -275,7 +286,6 @@ int8_t gprsSendSMSBegin(char *number) {
 
   return 1;
 }
-
 /*
  * Send SMS, end
  */
