@@ -10,7 +10,15 @@
 
 #include "hal.h"
 #include "chprintf.h"
-
+/*
+ * uBS feature definitions
+ *
+ * FREE_MAP   - Creates free block map. Free blocks are then searched in memory map
+ *              rather then in FRAM.
+ * MASTER_MAP - Creates master block map. Not yet implemented.
+ */
+#define UBS_USE_FREE_MAP      0 // Put 0 / 1
+#define UBS_USE_MASTER_MAP    0 // Put 0 / 1
 /*
  * uBS data block definitions
  */
@@ -29,6 +37,7 @@
 #define UBS_DATA_SIZE         (UBS_BLOCK_SIZE - UBS_HEADER_BLOCK_SIZE)
 #define UBS_FIRST_DATA_SIZE   (UBS_DATA_SIZE - UBS_NAME_SIZE)
 #define UBS_CMD_BUF_SIZE      (1 + UBS_ADDRESS_SIZE)
+#define UBS_MAP_SIZE          (UBS_BLOCK_COUNT/8) + ((UBS_BLOCK_COUNT%8) ? 1 : 0)
 /*
  * Sanity checks
  */
@@ -41,7 +50,7 @@
 #endif
 // Statistics
 #define UBS_SPACE_MAX         ((UBS_BLOCK_COUNT * UBS_DATA_SIZE) - UBS_NAME_SIZE)
-// Defines
+// Status replies
 #define UBS_RSLT_OK        (1)
 #define UBS_RSLT_NOK       (0)
 #define UBS_RSLT_NOT_FOUND (-1)
@@ -58,7 +67,7 @@
 #define CMD_25AA_RDID     0x9F  // Read FRAM ID
 #define STATUS_25AA_WEL   0b00000010  // write enable latch (1 == write enable)
 
-extern uint16_t uBSFreeSpace;
+extern uint32_t uBSFreeSpace;
 extern uint16_t uBSFreeBlocks;
 
 void uBSFormat(void);
