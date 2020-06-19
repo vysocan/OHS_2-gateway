@@ -112,6 +112,7 @@ const char durationSelect[][10] = {
 };
 
 const char text_System[]            = "System";
+const char text_info[]              = "information";
 const char text_started[]           = "started";
 const char text_Undefined[]         = "Undefined";
 const char text_removed[]           = "removed";

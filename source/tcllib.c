@@ -355,13 +355,13 @@ int tcl_subst(struct tcl* tcl, const char* s, size_t len) {
   switch (s[0]) {
   case '{':
     if (len <= 1) {
-      TCL_ERROR("len <= 1 subst(%.*s)", (int)len, s);
+      TCL_ERROR("Length of subst(%.*s) is too small", (int)len, s);
       return tcl_result(tcl, FERROR, tcl_alloc("", 0));
     }
     return tcl_result(tcl, FNORMAL, tcl_alloc(s + 1, len - 2));
   case '$': {
     if (len >= MAX_VAR_LENGTH) {
-      TCL_ERROR("len >= MAX_VAR_LENGTH subst(%.*s)", (int)len, s);
+      TCL_ERROR("Length of subst(%.*s) reached maximum(%u)", (int)len, s, MAX_VAR_LENGTH);
       return tcl_result(tcl, FERROR, tcl_alloc("", 0));
     }
     char buf[5 + MAX_VAR_LENGTH] = "set ";

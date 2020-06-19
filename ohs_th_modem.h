@@ -81,6 +81,8 @@ static THD_FUNCTION(ModemThread, arg) {
           resp = gprsSendCmdWRI(AT_signal_strength, tempText, sizeof(tempText), 2);
           if (resp > 0) gprsStrength = 4 + ((strtol((char*)tempText, NULL, 10)) * 3);
           chprintf(console, "gprsStrength: %d, %d\r\n", gprsStrength, resp);
+          resp = gprsSendCmdWR(AT_system_info, (uint8_t*)gprsSystemInfo, sizeof(gprsSystemInfo));
+          chprintf(console, "System: %s, %d\r\n", gprsSystemInfo, resp);
         } else {
           gprsReg = 4; gprsStrength = 0; gprsSetSMS = 0;
           gsmStatus = gprs_ForceReset;

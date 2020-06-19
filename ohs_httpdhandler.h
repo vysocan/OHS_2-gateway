@@ -406,33 +406,6 @@ int fs_open_custom(struct fs_file *file, const char *name){
       // Common html page start
       chprintf(chp, "<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>Open home security</title>\r\n");
       chprintf(chp, "<link rel='stylesheet' href='/css/OHS.css'>\r\n");
-      switch (htmlPage) {
-        case PAGE_TCL:
-          chprintf(chp, "<style>.ldt .variable{color:green;}"
-                        ".ldt .comment{color:grey;}"
-                        ".ldt .number{color:navy;}"
-                        ".ldt .keyword {color:blue;font-weight:bold;display:inline-block;margin-bottom:-1px;}"
-                        ".ldt .op{color:red;}"
-                        ".ldt .define{color:black;}"
-                        ".ldt .braces{color:brown;}</style>\r\n");
-          chprintf(chp, "<script src='/js/LDTPmin.js' type='text/javascript'></script>\r\n"
-                        "<script src='/js/LDTmin.js' type='text/javascript'></script>\r\n");
-          // Regex with c double slash
-          chprintf(chp, "<script type='text/javascript'>function $(e){return document.getElementById(e);};"
-                        "var prs=new Parser({"
-                            "whitespace: /\\s+/,"
-                            "variable: /[\\$\\%\\@](\\->|\\w)+(?!\\w)|\\${\\w*}?/,"
-                            "comment: /\\/\\*([^\\*]|\\*[^\\/])*(\\*\\/?)?|(\\/\\/|#)[^\\r\\n]*/,"
-                            "number: /0x[\\dA-Fa-f]+|-?(\\d+\\.?\\d*|\\.\\d+)/,"
-                            "keyword: /(group|node|strc|while|if|proc|puts|subst|set|continue|break|return)(?!\\w|=)/,"
-                            "define: /[$A-Z_a-z0-9]+/,"
-                            "op: /[\\+\\-\\*\\/=<>!]=?|[\\(\\)\\.\\|]/,"
-                            "braces: /[\\{\\}\\[\\]]/,"
-                            "other: /\\S+/,});"
-                        "window.onload = function(){ltd=new TextareaDecorator($('s'),prs);};"
-                        "</script>\r\n");
-          break;
-      }
       chprintf(chp, "%sEnDis.js'>%s", html_script_src, html_e_script);
       chprintf(chp, "</head>\r\n<body onload=\"");
       // JavaScript enable/disable on body load
@@ -470,6 +443,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
         chprintf(chp, "<div class='alrt' id='at'><span class='cbtn' onclick=\"this.parentElement.style.display='none';\">&times;</span>");
         chprintf(chp, "<b>Error!</b><br><br>");
         chprintf(chp, "%s%s", alertMsg, html_div_e);
+        memset(alertMsg, 0 , HTTP_ALERT_MSG_SIZE); // Empty alert message
       }
       // Header
       chprintf(chp, "<h1>%s</h1>\r\n", webPage[htmlPage].name);
@@ -941,11 +915,13 @@ int fs_open_custom(struct fs_file *file, const char *name){
             case 0 : chprintf(chp, "%s", text_i_OK); break;
             case 1 : chprintf(chp, "%s", text_i_home); break;
             case 2 : chprintf(chp, "%s", text_i_starting); break;
-            case 3 : chprintf(chp, "%s %s", text_registration, text_denied); break;
-            case 5 : chprintf(chp, "%s", text_roaming); break;
+            case 3 : chprintf(chp, "%s", text_i_disabled); break;
+            case 5 : chprintf(chp, "%s", text_i_globe); break;
             default : chprintf(chp, "%s", text_i_question);; break; // case 4
           }
           chprintf(chp, "%s%s %s%s%u%%", html_e_td_e_tr_tr_td, text_Signal, text_strength, html_e_td_td, gprsStrength);
+          // +CPSI: GSM,Online,230-02,0x0726,4285,69 // remove +CPSI: &[7]
+          chprintf(chp, "%s%s %s%s%s%", html_e_td_e_tr_tr_td, text_System, text_info, html_e_td_td, &gprsSystemInfo[7]);
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           // Buttons
           chprintf(chp, "%s%s", html_Apply, html_Save);
@@ -1128,10 +1104,8 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s%s%s", html_Run, html_Refresh, html_Save, html_Restart);
           // Output
           chprintf(chp, "%s<pre>Last output:\r\n%.*s</pre>", html_br, strlen(tclOutput), tclOutput);
-          for (uint16_t j = 0; j < strlen(tclOutput); j++) {
-            DBG_HTTP("-%x", tclOutput[j]);
-          }
-          DBG_HTTP("\r\n");
+          //for (uint16_t j = 0; j < strlen(tclOutput); j++) { DBG_HTTP("-%x", tclOutput[j]); }
+          //DBG_HTTP("\r\n");
           break;
         case PAGE_TIMER:
           chprintf(chp, "%s#", html_tr_th);
@@ -1592,7 +1566,6 @@ err_t httpd_post_begin(void *connection, const char *uri, const char *http_reque
     chsnprintf(response_uri, response_uri_len, uri);
     chsnprintf(current_uri, response_uri_len, uri);
     memset(postData, 0 , HTTP_POST_DATA_SIZE); // Empty POST data buffer
-    memset(alertMsg, 0 , HTTP_ALERT_MSG_SIZE); // Empty alert message
     return ERR_OK;
   }
   return ERR_VAL;
@@ -2071,22 +2044,22 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   break;
                 case 'n': // name
                   // For existing scripts do rename when name differs
-                  if ((webScript != DUMMY_NO_VALUE) && (strcmp(scriptName, valueP))) {
-                    DBG_HTTP("Rename: '%s' -> '%.*s'\r\n", scriptName, valueLen, valueP);
+                  if ((webScript != DUMMY_NO_VALUE) && (memcmp(scriptName, valueP, LWIP_MIN(valueLen, strlen(scriptName))))) {
+                    DBG_HTTP("Rename: '%s' -> '%.*s'; %d;%d\r\n", scriptName, valueLen, valueP);
                     number = 1;
                     // Find pointer to script
                     for (scriptp = scriptLL; scriptp != NULL; scriptp = scriptp->next) {
                       if (number == webScript) break;
                       number++;
                     }
+                    memset(scriptp->name, 0, NAME_LENGTH); // Make sure all is 0, as it gets stored in uBS
                     strncpy(scriptp->name, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
-                    memset(scriptp->name + LWIP_MIN(valueLen, NAME_LENGTH - 1), 0, 1);
                     // uBS rename
                     uBSRename(scriptName, strlen(scriptName),
                               valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
                   }
+                  memset(&scriptName[0], 0, NAME_LENGTH); // Make sure all is 0, as it gets stored in uBS
                   strncpy(scriptName, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
-                  scriptName[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
                   break;
                 case 'R': // Run
                   outMsg = chPoolAlloc(&script_pool);
@@ -2115,14 +2088,14 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                       chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
                     } else {
                       //if (checkPointer(scriptp, html_noSpace)) {}
-                      scriptp->name = umm_malloc(NAME_LENGTH + 1);
+                      scriptp->name = umm_malloc(NAME_LENGTH);
                       if (scriptp->name == NULL) {
                         umm_free(scriptp);
                         chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
                       } else {
                         strncpy(scriptp->name, &scriptName[0], NAME_LENGTH);
                         number = strlen(tclCmd);
-                        scriptp->cmd = umm_malloc(number + 1);
+                        scriptp->cmd = umm_malloc(number + 1); // + NULL
                         if (scriptp->cmd == NULL) {
                           umm_free(scriptp->name);
                           umm_free(scriptp);
@@ -2159,7 +2132,8 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                       } else {
                         strncpy(scriptp->cmd, &tclCmd[0], number);
                         memset(scriptp->cmd + number, 0, 1);
-                        DBG_HTTP("->%d", uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd)));
+                        for (int i = 0; i < UBS_NAME_SIZE; i++) { DBG_HTTP("%x;", scriptName[i]); }
+                        DBG_HTTP("\r\n");
                         if (uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd)) != UBS_RSLT_OK) {
                           chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_storage);
                         }

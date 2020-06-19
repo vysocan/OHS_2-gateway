@@ -76,6 +76,7 @@ volatile int8_t gprsSetSMS = 0;
 volatile int8_t gprsReg = 2;
 volatile int8_t gprsStrength = 0;
 char gprsModemInfo[20] __attribute__((section(".ram4"))); // SIMCOM_SIM7600x-x
+char gprsSystemInfo[80] __attribute__((section(".ram4")));
 char gprsSmsText[128] __attribute__((section(".ram4")));
 
 // LWIP
@@ -100,7 +101,6 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 #include "ohs_th_trigger.h"
 #include "ohs_th_tcl.h"
 #include "ohs_th_heartbeat.h"
-
 /*
 // helper function
 static void GetTimeTm(struct tm *timp) {
@@ -108,9 +108,10 @@ static void GetTimeTm(struct tm *timp) {
   rtcConvertDateTimeToStructTm(&timespec, timp, NULL);
 }
 */
-
+/*
 msg_t resp;
 struct tm *ptm;
+*/
 
 #define SHELL_WA_SIZE THD_WORKING_AREA_SIZE(2048)
 
@@ -153,6 +154,7 @@ int main(void) {
   memset(&tclOutput[0], 0, TCL_OUTPUT_LENGTH);
   memset(&gprsModemInfo[0], 0, sizeof(gprsModemInfo));
   memset(&gprsSmsText[0], 0, sizeof(gprsSmsText));
+  memset(&gprsSystemInfo[0], 0, sizeof(gprsSystemInfo));
   memset(&logText[0], 0, LOG_TEXT_LENGTH);
   memset(alertMsg, 0 , HTTP_ALERT_MSG_SIZE); // Empty alert message
 
@@ -266,24 +268,11 @@ int main(void) {
   while (true) {
     chThdSleepMilliseconds(100);
 
-
+    // USB shell
     if (SDU1.config->usbp->state == USB_ACTIVE) {
       thread_t *shelltp = chThdCreateFromHeap(NULL, SHELL_WA_SIZE,
                                               "shell", NORMALPRIO + 1, shellThread, (void *)&shell_cfg);
-      chThdWait(shelltp);               // Waiting termination.
+      chThdWait(shelltp); // Waiting termination.
     }
-
-
-    /*
-    tt = calculateDST(2020-1980, 3, 0, 0, 2);
-    chprintf(console, "DST s %d \r\n", tt);
-    ptm = gmtime(&tt);
-    chprintf(console, "DST s %s \r\n", asctime(ptm));
-
-    tt = calculateDST(2020-1980, 10, 0, 0, 3);
-    chprintf(console, "DST e %d \r\n", tt);
-    ptm = gmtime(&tt);
-    chprintf(console, "DST e %s \r\n", asctime(ptm));
-    */
   }
 }
