@@ -93,9 +93,13 @@ static uint8_t gprsRead(void) {
  */
 uint8_t gprsReadMsg(uint8_t *where, uint8_t responseLength) {
   if (gprsRingBuffer.message == 0) return 0; // no message
-  DBG("Msg: %d\r\n", gprsRingBuffer.message);// chThdSleepMilliseconds(50);
+
   uint8_t count = 0;
   uint8_t rb;
+
+  responseLength--; // Subtract one to allow NULL termination
+
+  DBG("Msg: %d\r\n", gprsRingBuffer.message);// chThdSleepMilliseconds(50);
   do {
     rb = gprsRead();
     DBG("%x|%d, ", rb, count);
@@ -105,6 +109,7 @@ uint8_t gprsReadMsg(uint8_t *where, uint8_t responseLength) {
   } while ((rb != 0x0A) && (gprsRingBuffer.tail != gprsRingBuffer.head));
   where[count] = 0; // Terminate
   DBG("\r\n");
+
   return count;
 }
 /*
@@ -113,6 +118,8 @@ uint8_t gprsReadMsg(uint8_t *where, uint8_t responseLength) {
 static uint8_t gprsWaitAndReadMsg(uint8_t *where, uint8_t responseLength, uint16_t wait) {
   uint16_t waitCount = 0;
   uint8_t  count, rb;
+
+  responseLength--; // Subtract one to allow NULL termination
 
   DBG("WaitMsg: %d\r\n", gprsRingBuffer.message);// chThdSleepMilliseconds(50);
   do {
@@ -243,7 +250,7 @@ int8_t gprsSendCmdWRI(char *what, uint8_t *response, uint8_t responseLength, uin
 
   // Get output
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
-  // done in above //response[resp] = 0;                            // terminate the response by null
+  // done in above //response[resp] = 0;        // terminate the response by null
   DBG("2>%s<\r\n", (char*)gprsATreply);
   if (resp == 0) return -12;                    // timeout reached
 
