@@ -432,7 +432,7 @@ int8_t uBSRead(void* name, uint8_t nameSize, void *data, uint16_t *dataSize) {
   if (*dataSize == 0) return UBS_RSLT_NOK;
 
   // NULL the data first
-  memset(data, 0, dataSize);
+  memset(data, 0, *dataSize);
 
   DBG("uBS Read name: %s, readSize %u\r\n", name, readSize);
   if (uBSSeekName(name, nameSize, &address) != UBS_RSLT_OK) {
