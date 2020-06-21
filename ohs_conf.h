@@ -51,6 +51,7 @@
 #define NODE_SIZE         50    // Number of nodes
 
 #define DUMMY_NO_VALUE    255
+#define DUMMY_GROUP       15
 
 #define AC_POWER_DELAY    60    // seconds
 
@@ -156,9 +157,12 @@
 #define SET_CONF_KEY_ENABLED(x)     x |= 1
 #define CLEAR_CONF_KEY_ENABLED(x)   x &= ~1
 
-#define GET_CONF_SYSTEM_FLAG_RTC_LOW(x)    ((x) & 0b1)
-#define SET_CONF_SYSTEM_FLAG_RTC_LOW(x)    x |= 1
-#define CLEAR_CONF_SYSTEM_FLAG_RTC_LOW(x)  x &= ~1
+#define GET_CONF_SYSTEM_FLAG_RTC_LOW(x)      ((x) & 0b1)
+#define GET_CONF_SYSTEM_FLAG_RADIO_FREQ(x)   ((x >> 1U) & 0b1)
+#define SET_CONF_SYSTEM_FLAG_RTC_LOW(x)      x |= 1
+#define SET_CONF_SYSTEM_FLAG_RADIO_FREQ(x)   x |= (1 << 1U)
+#define CLEAR_CONF_SYSTEM_FLAG_RTC_LOW(x)    x &= ~1
+#define CLEAR_CONF_SYSTEM_FLAG_RADIO_FREQ(x) x &= ~(1 << 1U)
 
 #define GET_CONF_TIMER_ENABLED(x)     ((x) & 0b1)
 #define GET_CONF_TIMER_TYPE(x)        ((x >> 1U) & 0b1)
@@ -273,7 +277,6 @@
 #define ARRAY_SIZE(x) sizeof(x)/sizeof(x[0])
 
 // Global vars
-uint32_t lastKey;
 char tmpLog[LOGGER_MSG_LENGTH]; // Temporary logger string
 // RTC related
 static RTCDateTime timespec;
@@ -904,7 +907,7 @@ void setConfDefault(void){
 
   //                   |||||-
   //                   ||||||-
-  //                   |||||||-
+  //                   |||||||- Radio frequency
   //                   ||||||||- RTC low flag, let's check on power On.
   conf.systemFlags = 0b00000000;
 

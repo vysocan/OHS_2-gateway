@@ -76,12 +76,9 @@ static THD_FUNCTION(ZoneThread, arg) {
       }
     }
     vBatCounter++;
-
     /*
-    for(uint8_t i = 0; i < ADC_GRP1_NUM_CHANNELS; i++) {
-      chprintf(console, " > %d", adcSamples[i]);
-    }
-    chprintf(console, "\r\n");
+    for(uint8_t i = 0; i < ADC_GRP1_NUM_CHANNELS; i++) { DBG_ZONE(" > %d", adcSamples[i]); }
+    DBG_ZONE("\r\n");
     */
 
     for(uint8_t i = 0; i < ALARM_ZONES; i++) {
@@ -223,7 +220,7 @@ static THD_FUNCTION(ZoneThread, arg) {
           else outMsgTrig->value = 2;
           msg = chMBPostTimeout(&trigger_mb, (msg_t)outMsgTrig, TIME_IMMEDIATE);
           if (msg != MSG_OK) {
-            //chprintf(console, "S-MB full %d\r\n", temp);
+            //DBG_ZONE("S-MB full %d\r\n", temp);
           }
         } else {
           pushToLogText("FT"); // Trigger queue is full

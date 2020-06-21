@@ -1,11 +1,12 @@
 /*
-  OHS gateway code for HW v 2.0.x
-  Adam Baron 2020
-
-*/
+ * OHS gateway code for HW v 2.0.x
+ * Adam Baron 2020
+ *
+ *
+ */
 // Optimize stack and overflow
 #define PORT_INT_REQUIRED_STACK 128
-// Remove input queue for GPRS
+// Remove input queue for GPRS to save RAM
 #define STM32_SERIAL_USART6_IN_BUF_SIZE 0
 
 #include <string.h>
@@ -31,7 +32,7 @@ BaseSequentialStream* console = (BaseSequentialStream*)&SD3;
 // Semaphores
 binary_semaphore_t gprsSem;
 binary_semaphore_t emailSem;
-// TCL CB semaphores
+// TCL callback semaphores
 binary_semaphore_t cbTimerSem;
 binary_semaphore_t cbTriggerSem;
 
@@ -43,9 +44,8 @@ binary_semaphore_t cbTriggerSem;
 #define UMM_MALLOC_CFG_HEAP_SIZE (1024*16)
 #define TCL_SCRIPT_LENGTH        (512)
 #define TCL_OUTPUT_LENGTH        (1024*2)
-char my_umm_heap[UMM_MALLOC_CFG_HEAP_SIZE] __attribute__((section(".ram4")));
+char ohsUmmHeap[UMM_MALLOC_CFG_HEAP_SIZE] __attribute__((section(".ram4")));
 char tclOutput[TCL_OUTPUT_LENGTH] __attribute__((section(".ram4")));
-// TODO OHS When tclCmd is in ram4 char[11] gets corrupted
 char tclCmd[TCL_SCRIPT_LENGTH] __attribute__((section(".ram4")));
 // TCL
 #include "tcl.h"
@@ -101,17 +101,6 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 #include "ohs_th_trigger.h"
 #include "ohs_th_tcl.h"
 #include "ohs_th_heartbeat.h"
-/*
-// helper function
-static void GetTimeTm(struct tm *timp) {
-  rtcGetTime(&RTCD1, &timespec);
-  rtcConvertDateTimeToStructTm(&timespec, timp, NULL);
-}
-*/
-/*
-msg_t resp;
-struct tm *ptm;
-*/
 
 #define SHELL_WA_SIZE THD_WORKING_AREA_SIZE(2048)
 
@@ -188,8 +177,8 @@ int main(void) {
   adcStart(&ADCD1, NULL);
 
   // UMM / TCL
-  umm_init(&my_umm_heap[0], UMM_MALLOC_CFG_HEAP_SIZE);
-  // uBS init
+  umm_init(&ohsUmmHeap[0], UMM_MALLOC_CFG_HEAP_SIZE);
+  // uBS for FRAM
   //uBSFormat();
   uBSInit();
 

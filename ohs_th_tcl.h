@@ -133,7 +133,7 @@ static THD_FUNCTION(tclThread, arg) {
   tcl_register(&tcl, "group", tcl_cmd_group, 3, NULL);
 
   // Process umm info
-  umm_info(&my_umm_heap[0], true);
+  umm_info(&ohsUmmHeap[0], true);
 
   while (true) {
     msg = chMBFetchTimeout(&script_mb, (msg_t*)&inMsg, TIME_INFINITE);
@@ -163,7 +163,7 @@ static THD_FUNCTION(tclThread, arg) {
         script_cb(inMsg->callback, tcl_string(tcl.result));
       }
       // Process umm info
-      umm_info(&my_umm_heap[0], true);
+      umm_info(&ohsUmmHeap[0], true);
     } else {
       DBG_TCL("Script MB ERROR\r\n");
     }

@@ -39,15 +39,15 @@
 /* Fixed settings mandated by the ChibiOS integration.*/
 #include "static_lwipopts.h"
 
-/* OHS overides */
-#define MEMP_NUM_SYS_TIMEOUT (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 3)
-#define MEMP_NUM_UDP_PCB 7 // , +1 MDSN
-#define MEMP_NUM_TCP_PCB 6
+/* OHS overrides */
+#define MEMP_NUM_SYS_TIMEOUT    (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 3)
+#define MEMP_NUM_UDP_PCB        7 // , +1 MDSN
+#define MEMP_NUM_TCP_PCB        6
 #define MEMP_NUM_TCP_PCB_LISTEN 10
-#define MEMP_NUM_PBUF 20
-#define MEMP_NUM_RAW_PCB 6
-#define MEMP_NUM_TCP_SEG 12
-#define PBUF_POOL_SIZE 16
+#define MEMP_NUM_PBUF           20
+#define MEMP_NUM_RAW_PCB        6
+#define MEMP_NUM_TCP_SEG        12
+#define PBUF_POOL_SIZE          16
 
 /* Optional, application-specific settings.*/
 #if !defined(TCPIP_MBOX_SIZE)
@@ -65,6 +65,11 @@
 #define LWIP_THREAD_PRIORITY            (LOWPRIO + 10)
 #endif
 
+// HTTPD
+#define LWIP_HTTPD_CUSTOM_FILES         1
+#define LWIP_HTTPD_DYNAMIC_HEADERS      1
+#define LWIP_HTTPD_SUPPORT_POST         1
+#define MEM_SIZE                        16000
 // DNS
 #define LWIP_RAND() ((uint32_t)rand())
 #define LWIP_DNS 1
@@ -77,9 +82,8 @@
 // Rename thread name
 #define TCPIP_THREAD_NAME               "tcpip"
 
-
 // LWIP DEBUG
-//#define LWIP_DEBUG   LWIP_DBG_ON
+#define LWIP_DEBUG   LWIP_DBG_ON
 //#define HTTPD_DEBUG  LWIP_DBG_ON
 //#define ETHARP_DEBUG LWIP_DBG_ON
 //#define NETIF_DEBUG  LWIP_DBG_ON
@@ -96,7 +100,7 @@
 
 //SNTP
 #define SNTP_SERVER_DNS 1
-#define SNTP_UPDATE_DELAY 900000 // SNTP update every *900 seconds
+#define SNTP_UPDATE_DELAY 3600000 // SNTP update every 1 hour
 //#define SNTP_SERVER_ADDRESS "195.113.144.201"
 
 // Maximum segment size
@@ -110,7 +114,7 @@
 #define SNTP_SET_SYSTEM_TIME(sec) rtcSetTimeUnixSec(&RTCD1, (sec))
 */
 
-/*
+/* Test function to verify SNTP_SET_SYSTEM_TIME macro
 void SetTimeUnixA(time_t ut){
   RTCDateTime _ts;
   struct tm* _pt;
@@ -120,6 +124,7 @@ void SetTimeUnixA(time_t ut){
   rtcSetTime(&RTCD1, &_ts);
 }
 */
+
 /*
 #define SNTP_SET_SYSTEM_TIME(sec) \
   do{time_t rawtime = (sec);\
@@ -128,7 +133,8 @@ void SetTimeUnixA(time_t ut){
      rtcSetTime(&RTCD1, &_ts);}while(0)
 */
 
-// TODO OHS Get rid of struct tm in SNTP_SET_SYSTEM_TIME, by using my own convert functions.
+/* SET new driver
+ * DONE - Get rid of struct tm in SNTP_SET_SYSTEM_TIME, by using my own convert functions.
 #define SNTP_SET_SYSTEM_TIME(sec) \
   do{time_t rawtime = (sec);\
      RTCDateTime _ts;\
@@ -136,15 +142,16 @@ void SetTimeUnixA(time_t ut){
      _pt = gmtime(&rawtime);\
      rtcConvertStructTmToDateTime(_pt, 0, &_ts);\
      rtcSetTime(&RTCD1, &_ts);}while(0)
+*/
 
-
-/* old
+/* GET old RTC driver
 #define SNTP_GET_SYSTEM_TIME(sec, us) \
     do{uint64_t time = rtcGetTimeUnixUsec(&RTCD1);\
        (sec) = time / 1000000;\
        (us) = time % 1000000;}while(0)
 */
-/*
+
+/* GET new driver
 #define SNTP_GET_SYSTEM_TIME(sec, us) \
     do{struct tm timestamp;\
        rtcGetTime(&RTCD1, &timespec);\

@@ -3,18 +3,14 @@
  *
  *  Created on: 23. 2. 2020
  *      Author: adam
- */
-
-#ifndef OHS_PERIPHERAL_H_
-#define OHS_PERIPHERAL_H_
-
-/*
+ *
  * Peripheral configurations
  */
-
-// SPI macros
-// Peripherial Clock 42MHz SPI2 SPI3
-// Peripherial Clock 84MHz SPI1                                SPI1        SPI2/3
+/*
+ * SPI macros
+ * Peripherial Clock 42MHz SPI2 SPI3
+ * Peripherial Clock 84MHz SPI1
+ *                                                             SPI1        SPI2/3   */
 #define SPI_BaudRatePrescaler_2         ((uint16_t)0x0000) //  42 MHz      21 MHZ
 #define SPI_BaudRatePrescaler_4         ((uint16_t)0x0008) //  21 MHz      10.5 MHz
 #define SPI_BaudRatePrescaler_8         ((uint16_t)0x0010) //  10.5 MHz    5.25 MHz
@@ -23,8 +19,12 @@
 #define SPI_BaudRatePrescaler_64        ((uint16_t)0x0028) //  1.3125 MHz  656.25 KHz
 #define SPI_BaudRatePrescaler_128       ((uint16_t)0x0030) //  656.25 KHz  328.125 KHz
 #define SPI_BaudRatePrescaler_256       ((uint16_t)0x0038) //  328.125 KHz 164.06 KHz
+
+#ifndef OHS_PERIPHERAL_H_
+#define OHS_PERIPHERAL_H_
 /*
- * Maximum speed SPI configuration (40MHz, CPHA=0, CPOL=0, MSb first). FM25V05-G Cypress FRAM
+ * FM25V05-G Cypress FRAM
+ * Maximum speed SPI configuration (40MHz, CPHA=0, CPOL=0, MSb first).
  */
 const SPIConfig spi1cfg = {
   false,
@@ -34,7 +34,9 @@ const SPIConfig spi1cfg = {
   SPI_BaudRatePrescaler_4,
   0
 };
-
+/*
+ * RFM69HW SPI setting
+ */
 const SPIConfig spi3cfg = {
   false,
   NULL,
@@ -43,7 +45,9 @@ const SPIConfig spi3cfg = {
   SPI_BaudRatePrescaler_32,
   0
 };
-
+/*
+ * Console default setting
+ */
 static SerialConfig serialCfg = {
   115200,
   0,
@@ -51,15 +55,18 @@ static SerialConfig serialCfg = {
   0,
   NULL, NULL, NULL, NULL
 };
-
+/*
+ * RS485 default setting
+ */
 static RS485Config rs485cfg = {
   19200,          // speed
   0,              // address
   GPIOD,          // port
   GPIOD_USART2_DE // pad
 };
-
-// RFM69
+/*
+ * RFM69 configuration
+ */
 rfm69Config_t rfm69cfg = {
   &SPID3,
   &spi3cfg,
@@ -68,22 +75,24 @@ rfm69Config_t rfm69cfg = {
   1,
   100
 };
-
-// ADC related
+/*
+ * ADC related
+ */
 #define ADC_GRP1_NUM_CHANNELS 11
 #define ADC_GRP1_BUF_DEPTH    1
 #define ADC_SCALING_VBAT      (0.0016f) // 3.3V/4095*2
 static adcsample_t adcSamples[ADC_GRP1_NUM_CHANNELS * ADC_GRP1_BUF_DEPTH];
-
+/*
+ * ADC callback
+ */
 static void adcerrorcallback(ADCDriver *adcp, adcerror_t err) {
   (void)adcp;
   (void)err;
 }
-
 /*
  * ADC conversion group.
- * Mode:        Linear buffer, 1 sample(s) of 10 channel(s), SW triggered.
- * Channels:    IN_0,3,4,5,6,8,9,10,12,13, VBAT.
+ * Mode:        Linear buffer, 1 sample(s) of 11 channel(s), SW triggered.
+ * Channels:    IN_0,3,4,5,6,8,9,10,12,13 and VBAT.
  */
 static const ADCConversionGroup adcgrpcfg1 = {
   FALSE,

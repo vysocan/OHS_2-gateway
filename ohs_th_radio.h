@@ -8,6 +8,16 @@
 #ifndef OHS_TH_RADIO_H_
 #define OHS_TH_RADIO_H_
 
+#ifndef RADIO_DEBUG
+#define RADIO_DEBUG 1
+#endif
+
+#if RADIO_DEBUG
+#define DBG_RADIO(...) {chprintf(console, __VA_ARGS__);}
+#else
+#define DBG_RADIO(...)
+#endif
+
 /*
  * RFM69 thread
  */
@@ -19,16 +29,15 @@ static THD_FUNCTION(RadioThread, arg) {
   uint8_t nodeIndex;
 
   while (true) {
+    // Wait for packet
     resp = chBSemWaitTimeout(&rfm69DataReceived, TIME_INFINITE);
-    chprintf(console, "@%u\r\n", chVTGetSystemTimeX());
 
+    // Process packet
     if ((resp == MSG_OK) && (rfm69GetData() == RF69_RSLT_OK)) {
-      chprintf(console, "Time %u\r\n", chVTGetSystemTimeX());
-      chprintf(console, "Radio sender: %u, RSSI: %d, Data: ", rfm69Data.senderId, rfm69Data.rssi);
-      for(uint8_t i = 0; i < rfm69Data.length; i++) {
-        chprintf(console, "%u, ", rfm69Data.data[i]);
-      }
-      chprintf(console, "\r\n");
+      DBG_RADIO("Time %u\r\n", chVTGetSystemTimeX());
+      DBG_RADIO("Radio sender: %u, RSSI: %d, Data: ", rfm69Data.senderId, rfm69Data.rssi);
+      for(uint8_t i = 0; i < rfm69Data.length; i++) { DBG_RADIO("%u, ", rfm69Data.data[i]); }
+      DBG_RADIO("\r\n");
 
       // Do some logic on received packet
       switch(rfm69Data.data[0]) {
@@ -58,7 +67,7 @@ static THD_FUNCTION(RadioThread, arg) {
 
               msg_t msg = chMBPostTimeout(&registration_mb, (msg_t)outMsg, TIME_IMMEDIATE);
               if (msg != MSG_OK) {
-                //chprintf(console, "R-MB full %d\r\n", temp);
+                //DBG_RADIO("R-MB full %d\r\n", temp);
               }
             } else {
               pushToLogText("FR"); // Registration queue is full
@@ -69,7 +78,7 @@ static THD_FUNCTION(RadioThread, arg) {
         case 'K': // iButtons keys
           nodeIndex = getNodeIndex(rfm69Data.senderId + RADIO_UNIT_OFFSET, rfm69Data.data[0],
                                    rfm69Data.data[1], rfm69Data.data[2] - (rfm69Data.data[2] % 2));
-          chprintf(console, "Received Key, node index: %d\r\n", nodeIndex);
+          DBG_RADIO("Received Key, node index: %d\r\n", nodeIndex);
           // Node index found
           if (nodeIndex != DUMMY_NO_VALUE) {
             node[nodeIndex].lastOK = getTimeUnixSec(); // Update timestamp
@@ -104,7 +113,7 @@ static THD_FUNCTION(RadioThread, arg) {
 
               msg_t msg = chMBPostTimeout(&sensor_mb, (msg_t)outMsg, TIME_IMMEDIATE);
               if (msg != MSG_OK) {
-                //chprintf(console, "S-MB full %d\r\n", temp);
+                //DBG_RADIO("S-MB full %d\r\n", temp);
               }
             } else {
               pushToLogText("FS"); // Sensor queue is full

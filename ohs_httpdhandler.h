@@ -292,9 +292,9 @@ void selectGroup(BaseSequentialStream *chp, uint8_t selected, char name) {
     GET_CONF_GROUP_ENABLED(conf.group[i]) ? chprintf(chp, "%s", text_On) : chprintf(chp, "%s", text_Off);
     chprintf(chp, "%s", html_e_option);
   }
-  chprintf(chp, "%s15", html_option);
-  if (selected == 15) { chprintf(chp, "%s", html_selected); }
-  else                { chprintf(chp, "%s", html_e_tag); }
+  chprintf(chp, "%s%u", html_option, DUMMY_GROUP);
+  if (selected == DUMMY_GROUP) { chprintf(chp, "%s", html_selected); }
+  else                         { chprintf(chp, "%s", html_e_tag); }
   chprintf(chp, "%s%s", NOT_SET, html_e_option);
   chprintf(chp, "%s", html_e_select);
 }
@@ -950,6 +950,8 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s%s", html_tr_td, text_Key, html_e_td_td);
           printTextInputWMin(chp, 'K', conf.radioKey, RADIO_KEY_SIZE, RADIO_KEY_SIZE);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Frequency, html_e_td_td);
+          printTwoButton(chp, "1", GET_CONF_SYSTEM_FLAG_RADIO_FREQ(conf.systemFlags), 1, 0b00,
+                                   "868 Mhz", "915 Mhz");
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
 
           chprintf(chp, "<h1>%s</h1>\r\n%s", text_SMTP, html_table);
@@ -1551,7 +1553,7 @@ err_t httpd_post_begin(void *connection, const char *uri, const char *http_reque
   LWIP_UNUSED_ARG(content_len);
   LWIP_UNUSED_ARG(post_auto_wnd);
 
-  //DBG_HTTP("-PB-connection: %u\r\n", (uint32_t *)connection);
+  DBG_HTTP("-PB-connection: %u\r\n", (uint32_t *)connection);
   //DBG_HTTP("-PB-uri: %s\r\n", (char *)uri);
   //DBG_HTTP("-PB-http_request: %s\r\n", (char *)http_request);
   //DBG_HTTP("-PB-http_request_len: %u\r\n", http_request_len);
@@ -1633,7 +1635,7 @@ bool getPostData(char **pPostData, char *pName, uint8_t nameLen, char **pValue, 
 
 err_t httpd_post_receive_data(void *connection, struct pbuf *p) {
 
-  //DBG_HTTP("-PD-connection: %u\r\n", (uint32_t *)connection);
+  DBG_HTTP("-PD-connection: %u\r\n", (uint32_t *)connection);
   if (current_connection == connection) {
     DBG_HTTP("p->payload: '%.*s'\r\n", p->len, p->payload);
     //DBG_HTTP("p->ref: %u\r\n", p->ref);
@@ -1678,7 +1680,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
   bool repeat;
   char *postDataP = &postData[0], *endP, *valueP;
 
-  //DBG_HTTP("-PE-connection: %u\r\n", (uint32_t *)connection);
+  DBG_HTTP("-PE-connection: %u\r\n", (uint32_t *)connection);
   processPostData(postData);
   DBG_HTTP("-PE-postData: %s\r\n", postData);
 
@@ -1696,7 +1698,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   if (number != webNode) { webNode = number; repeat = 0; }
                 break;
                 case 'R': // Re-registration
-                  resp = sendCmd(15, NODE_CMD_REGISTRATION); // call all to register
+                  resp = sendCmd(15, NODE_CMD_REGISTRATION); // Broadcast to register
                 break;
                 case 'A': // Apply
                   message[0] = 'R';

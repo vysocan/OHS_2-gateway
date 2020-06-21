@@ -20,7 +20,7 @@
 #include "chprintf.h"
 
 #ifndef RFM69_DEBUG
-#define RFM69_DEBUG 1
+#define RFM69_DEBUG 0
 #endif
 
 #if RFM69_DEBUG

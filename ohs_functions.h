@@ -154,20 +154,10 @@ void convertUnixSecondToRTCDateTime(RTCDateTime* dateTime, uint32_t unixSeconds)
   dateTime->day = unixSeconds + 1;
 }
 /*
- *
+ * Macro for LWIP SMTP
  */
-void setTimeUnixSec(time_t unix_time) {
-  struct tm tim;
-  struct tm *canary;
-
-  /* If the conversion is successful the function returns a pointer
-     to the object the result was written into.*/
-  canary = localtime_r(&unix_time, &tim);
-  osalDbgCheck(&tim == canary);
-
-  rtcConvertStructTmToDateTime(&tim, 0, &timespec);
-  rtcSetTime(&RTCD1, &timespec);
-}
+#define SNTP_SET_SYSTEM_TIME(sec) \
+  do{convertUnixSecondToRTCDateTime(&timespec, (sec)); rtcSetTime(&RTCD1, &timespec);} while(0)
 /*
  * Logger
  */
@@ -328,7 +318,7 @@ void armGroup(uint8_t groupNum, uint8_t master, armType_t armType, uint8_t hop) 
   // If Arm another group is set and another group is not original(master)
   // and hop is lower then ALR_GROUPS
   resp = GET_CONF_GROUP_ARM_CHAIN(conf.group[groupNum]); // Temp variable
-  if ((resp != 15) &&
+  if ((resp != DUMMY_GROUP) &&
       (resp != master) &&
       (master != DUMMY_NO_VALUE) &&
       (hop <= ALARM_GROUPS)) {
@@ -384,7 +374,7 @@ void disarmGroup(uint8_t groupNum, uint8_t master, uint8_t hop) {
   // If Disarm another group is set and another group is not original(master)
   // and hop is lower then ALR_GROUPS
   resp = GET_CONF_GROUP_DISARM_CHAIN(conf.group[groupNum]); // Temp variable
-  if ((resp != 15) &&
+  if ((resp != DUMMY_GROUP) &&
       (resp != master) &&
       (master != DUMMY_NO_VALUE) &&
       (hop <= ALARM_GROUPS)) {
@@ -448,7 +438,6 @@ void checkKey(uint8_t groupNum, armType_t armType, uint8_t *key, uint8_t length)
       else if (i == KEYS_SIZE-1) {
         // Log unknown keys
         tmpLog[0] = 'A'; tmpLog[1] = 'U'; memcpy(&tmpLog[2], &keyHash, KEY_LENGTH); pushToLog(tmpLog, 10);
-        lastKey = keyHash; // store last unknown key
       }
     } // for
   } else {

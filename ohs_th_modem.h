@@ -8,6 +8,16 @@
 #ifndef OHS_TH_MODEM_H_
 #define OHS_TH_MODEM_H_
 
+#ifndef MODEM_DEBUG
+#define MODEM_DEBUG 1
+#endif
+
+#if MODEM_DEBUG
+#define DBG_MODEM(...) {chprintf(console, __VA_ARGS__);}
+#else
+#define DBG_MODEM(...)
+#endif
+
 #define GPRS_PWR_ON_DELAY  500  // Power On impulse
 #define GPRS_PWR_OFF_DELAY 3000 // Power Off impulse should be > 2.5 sec.
 /*
@@ -29,7 +39,7 @@ static THD_FUNCTION(ModemThread, arg) {
       if ((counter == 15) && (gsmStatus != gprs_OK) && (gsmStatus != gprs_Failed)) {
         // GPIOD_GSM_STATUS check
         if (palReadPad(GPIOD, GPIOD_GSM_STATUS)) {
-          chprintf(console, "Starting modem: ");
+          DBG_MODEM("Starting modem: ");
           palSetPad(GPIOD, GPIOD_GSM_PWRKEY);
           chThdSleepMilliseconds(GPRS_PWR_ON_DELAY);
           palClearPad(GPIOD, GPIOD_GSM_PWRKEY);
@@ -37,21 +47,21 @@ static THD_FUNCTION(ModemThread, arg) {
           // Wait for status high
           tmp = 0;
           do {
-            chprintf(console, ".");
+            DBG_MODEM(".");
             chThdSleepMilliseconds(AT_DELAY);
             tmp++;
           } while ((palReadPad(GPIOD, GPIOD_GSM_STATUS)) && (tmp != 0));
           if (tmp != 0) {
             gsmStatus = gprs_OK;
-            chprintf(console, " started.\r\n");
+            DBG_MODEM(" started.\r\n");
             pushToLogText("MO");
           } else {
             gsmStatus = gprs_Failed;
-            chprintf(console, " failed!\r\n");
+            DBG_MODEM(" failed!\r\n");
             pushToLogText("ME");
           }
         } else {
-          chprintf(console, "Modem already on.\r\n");
+          DBG_MODEM("Modem already on.\r\n");
           gsmStatus = gprs_OK;
         }
       }
@@ -65,28 +75,29 @@ static THD_FUNCTION(ModemThread, arg) {
 
       // AT checks
       if ((counter == 30) && (gsmStatus == gprs_OK)) {
-        chprintf(console, "Modem alive check.\r\n"); chThdSleepMilliseconds(50);
+        DBG_MODEM("Modem alive check: ");
         gprsIsAlive = gprsSendCmd(AT_is_alive);
         if (gprsIsAlive == 1) {
+          DBG_MODEM("OK.\r\n");
           if (gprsSetSMS != 1) {
             gprsSetSMS = gprsSendCmd(AT_set_sms_to_text);                      // Set modem to text SMS format
-            chprintf(console, "AT_set_sms_to_text: %d\r\n", gprsSetSMS);
+            //DBG_MODEM("AT_set_sms_to_text: %d\r\n", gprsSetSMS);
             if (gprsSetSMS == 1) gprsSetSMS = gprsSendCmd(AT_set_sms_receive); // Set modem to dump SMS to serial
             resp = gprsSendCmdWR(AT_model_info, (uint8_t*)gprsModemInfo, sizeof(gprsModemInfo));      // Get model
             resp = gprsSendCmd(AT_set_ATD);
           }
           resp = gprsSendCmdWRI(AT_registered, tempText, sizeof(tempText), 3);
           if (resp > 0) gprsReg = strtol((char*)tempText, NULL, 10);
-          chprintf(console, "gprsReg: %d, %d\r\n", gprsReg, resp);
+          //DBG_MODEM("gprsReg: %d, %d\r\n", gprsReg, resp);
           resp = gprsSendCmdWRI(AT_signal_strength, tempText, sizeof(tempText), 2);
           if (resp > 0) gprsStrength = 4 + ((strtol((char*)tempText, NULL, 10)) * 3);
-          chprintf(console, "gprsStrength: %d, %d\r\n", gprsStrength, resp);
+          //DBG_MODEM("gprsStrength: %d, %d\r\n", gprsStrength, resp);
           resp = gprsSendCmdWR(AT_system_info, (uint8_t*)gprsSystemInfo, sizeof(gprsSystemInfo));
-          chprintf(console, "System: %s, %d\r\n", gprsSystemInfo, resp);
+          //DBG_MODEM("System: %s, %d\r\n", gprsSystemInfo, resp);
         } else {
           gprsReg = 4; gprsStrength = 0; gprsSetSMS = 0;
           gsmStatus = gprs_ForceReset;
-          chprintf(console, "Modem not responding.\r\n");
+          DBG_MODEM("Not responding.\r\n");
         }
 
         // if modem registration changes log it
@@ -98,7 +109,7 @@ static THD_FUNCTION(ModemThread, arg) {
 
       // Stop modem if requested
       if (gsmStatus == gprs_ForceReset) {
-        chprintf(console, "Stopping modem: ");
+        DBG_MODEM("Stopping modem: ");
         palSetPad(GPIOD, GPIOD_GSM_PWRKEY);
         chThdSleepMilliseconds(GPRS_PWR_OFF_DELAY);
         palClearPad(GPIOD, GPIOD_GSM_PWRKEY);
@@ -106,24 +117,24 @@ static THD_FUNCTION(ModemThread, arg) {
         // Wait for status low
         tmp = 0;
         do {
-          chprintf(console, ".");
+          DBG_MODEM(".");
           chThdSleepMilliseconds(AT_DELAY*2); // It takes twice much time to stop
           tmp++;
         } while ((!palReadPad(GPIOD, GPIOD_GSM_STATUS)) && (tmp != 0));
         gsmStatus = gprs_NotInitialized;
         gprsLastStatus = DUMMY_NO_VALUE;
         if (tmp != 0) {
-          chprintf(console, " stopped.\r\n");
+          DBG_MODEM(" stopped.\r\n");
           pushToLogText("MF");
         } else {
-          chprintf(console, " failed!\r\n");
+          DBG_MODEM(" failed!\r\n");
           pushToLogText("ME");
         }
       }
 
       // Read incoming SMS or missed messages
       while(gprsReadMsg((uint8_t*)gprsSmsText, sizeof(gprsSmsText))) {
-        chprintf(console, "Modem: %s.\r\n", gprsSmsText);
+        DBG_MODEM("Modem: %s.\r\n", gprsSmsText);
       }
 
       chBSemSignal(&gprsSem);

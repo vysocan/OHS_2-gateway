@@ -28,52 +28,6 @@ volatile uint16_t FRAMReadPos  = 0;
 static char rxBuffer[FRAM_MSG_SIZE];
 static char txBuffer[3];
 
-static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
-  (void)argv;
-  if (argc > 0) {
-    shellUsage(chp, "threads");
-    return;
-  }
-
-  static const char *states[] = {CH_STATE_NAMES};
-  thread_t *tp;
-  size_t n = 0;
-  size_t sz;
-  uint32_t used_pct;
-
-  chprintf(chp, "\r\n");
-  chprintf(chp, "   begin      end   size   used    %% prio     state         name\r\n");
-  chprintf(chp, "--------------------------------------------------------------\r\n");
-
-  tp = chRegFirstThread();
-  do {
-     n = 0;
-#if (CH_DBG_ENABLE_STACK_CHECK == TRUE) || (CH_CFG_USE_DYNAMIC == TRUE)
-    uint32_t stklimit = (uint32_t)tp->wabase;
-#else
-    uint32_t stklimit = 0U;
-#endif
-
-    uint8_t *begin = (uint8_t *)stklimit;
-    //uint8_t *begin = (uint32_t)tp->ctx.sp;
-    uint8_t *end = (uint8_t *)tp;
-    sz = end - begin;
-
-    while(begin < end) {
-      if(*begin++ == CH_DBG_STACK_FILL_VALUE) ++n;
-    }
-
-    used_pct = (n * 100) / sz;
-
-    chprintf(chp, "%08lx %08lx %6u %6u %3u%% %4lu %9s %12s\r\n",
-             stklimit, (uint32_t)tp, sz, n, used_pct, (uint32_t)tp->prio, states[tp->state], tp->name == NULL ? "" : tp->name);
-
-    tp = chRegNextThread(tp);
-  } while (tp != NULL);
-
-  chprintf(chp, "\r\n");
-}
-
 const char weekNumber[][7] = {
 // 12345678901234567890
   "Last",
@@ -194,9 +148,6 @@ const char text_local[]             = "local";
 const char text_battery[]           = "battery";
 const char text_analog[]            = "analog";
 const char text_digital[]           = "digital";
-//const char text_seconds[]           = "second(s)";
-//const char text_hours[]             = "hour(s)";
-//const char text_days[]              = "day(s)";
 const char text_Zone[]              = "Zone";
 const char text_zone[]              = "zone";
 const char text_delay[]             = "delay";
@@ -255,7 +206,6 @@ const char text_end[]               = "end";
 const char text_start[]             = "start";
 const char text_DS[]                = "Daylight saving";
 const char text_Standard[]          = "Standard";
-//const char text_minutes[]           = "minute(s)";
 const char text_format[]            = "format";
 const char text_oclock[]            = "o'clock";
 const char text_Balanced[]          = "Balanced";
@@ -300,7 +250,9 @@ const char text_Registration[]      = "Registration";
 const char text_not_found[]         = "not found";
 const char text_activated[]         = "activated";
 const char text_error_free[]        = "Not enough free space in ";
-
+/*
+ * Print node type
+ */
 void printNodeType(BaseSequentialStream *chp, const char type) {
   switch(type){
     case 'K': chprintf(chp, "%s", text_Authentication); break;
@@ -309,7 +261,9 @@ void printNodeType(BaseSequentialStream *chp, const char type) {
     default: chprintf(chp, "%s", text_Undefined); break;
   }
 }
-
+/*
+ * Print node function
+ */
 void printNodeFunction(BaseSequentialStream *chp, const char function) {
   switch(function){
     case 'i': chprintf(chp, "%s", text_iButton); break;
@@ -326,7 +280,10 @@ void printNodeFunction(BaseSequentialStream *chp, const char function) {
     default : chprintf(chp, "%s", text_Undefined); break;
   }
 }
-
+/*
+ * Print node address and node name or NOT_SET.
+ * printName: If name is known print also name or not_found
+ */
 void printNodeAddress(BaseSequentialStream *chp, const uint8_t address, const char type,
                       const char function, const uint8_t number, const bool printName) {
   uint8_t nodeIndex = 0;
@@ -334,17 +291,19 @@ void printNodeAddress(BaseSequentialStream *chp, const uint8_t address, const ch
   if (address) {
     if (address < RADIO_UNIT_OFFSET) { chprintf(chp, "W:%u:", address); }
     else                             { chprintf(chp, "R:%u:", address-RADIO_UNIT_OFFSET); }
-    chprintf(chp, "%c:%c:%u - ", type, function, number);
+    chprintf(chp, "%c:%c:%u", type, function, number);
     if (printName) {
       nodeIndex = getNodeIndex(address, type, function, number);
-      if (nodeIndex != DUMMY_NO_VALUE) chprintf(chp, "%s ", node[nodeIndex].name);
-      else chprintf(chp, "%s ", text_not_found);
+      if (nodeIndex != DUMMY_NO_VALUE) chprintf(chp, " - %s", node[nodeIndex].name);
+      else chprintf(chp, " - %s", text_not_found);
     }
   } else {
     chprintf(chp, "%s", NOT_SET);
   }
 }
-
+/*
+ * Print formated time stamp according to user defined strftime
+ */
 void printFrmTimestamp(BaseSequentialStream *chp, time_t *value) {
   struct tm *ptm;
   char   dateTime[30];
@@ -354,7 +313,9 @@ void printFrmTimestamp(BaseSequentialStream *chp, time_t *value) {
   if (strftime(dateTime, 30, conf.dateTimeFormat, ptm) != 0) chprintf(chp, "%s", dateTime);
   else chprintf(chp, "%s", text_unknown);
 }
-
+/*
+ * Print formated up time as days and time
+ */
 void printFrmUpTime(BaseSequentialStream *chp, time_t *value) {
   uint16_t days = *value / (time_t)SECONDS_PER_DAY;
   *value -= (days * (time_t)SECONDS_PER_DAY);
@@ -365,28 +326,33 @@ void printFrmUpTime(BaseSequentialStream *chp, time_t *value) {
 
   chprintf(chp, "%u day(s), %02u:%02u:%02u", days, hours, minutes, (uint32_t)*value);
 }
-
+/*
+ * Print key HEX value
+ */
 void printKey(BaseSequentialStream *chp, const char *value){
   for (uint8_t i = KEY_LENGTH; i > 0 ; i--) {
     chprintf(chp, "%02x", value[i - 1]);
   }
 }
-
+/*
+ * Print group number and name, or NOT_SET
+ */
 void printGroup(BaseSequentialStream *chp, const uint8_t value) {
   if (value < ALARM_GROUPS) {
     chprintf(chp, "%u. %s ", value + 1, conf.groupName[value]);
   } else chprintf(chp, "%s ", NOT_SET);
 }
-
+/*
+ * Print zone number and name
+ */
 void printZone(BaseSequentialStream *chp, const uint8_t value) {
   if (value < ALARM_ZONES) {
     chprintf(chp, "%u. %s ", value + 1, conf.zoneName[value]);
   } else chprintf(chp, "%s ", NOT_SET);
 }
-
 /*
  * Decode log entries to string
- * full: decode full string or just short version for alerts.html
+ * full: decode full string, or just short version for alerts.html
  */
 static uint8_t decodeLog(char *in, char *out, bool full){
   uint8_t groupNum = DUMMY_NO_VALUE;
@@ -572,7 +538,6 @@ static uint8_t decodeLog(char *in, char *out, bool full){
 
   return groupNum;
 }
-
 /*
  * Console applet to show log entries
  */
@@ -612,7 +577,6 @@ ERROR:
   shellUsage(chp, "log\r\n       log N - where N is log last entry point");
   return;
 }
-
 /*
  * Console applet for date set and get
  */
@@ -640,30 +604,23 @@ static void cmd_date(BaseSequentialStream *chp, int argc, char *argv[]) {
   if ((argc == 2) && (strcmp(argv[0], "set") == 0)){
     unix_time = atol(argv[1]);
     if (unix_time > 0){
-      // TODO OHS Check if to remove the setTimeUnixSec
-      //setTimeUnixSec(unix_time);
       convertUnixSecondToRTCDateTime(&timespec, unix_time);
       rtcSetTime(&RTCD1, &timespec);
       return;
     }
-    else{
-      goto ERROR;
-    }
-  }
-  else{
-    goto ERROR;
   }
 
-ERROR:
+  // Rest is error
   chprintf(chp, "Usage: date\r\n");
   chprintf(chp, "       date set N\r\n");
   chprintf(chp, "where N is time in seconds sins Unix epoch\r\n");
-  chprintf(chp, "you can get current N value from unix console by the command:\r\n");
+  chprintf(chp, "You can get current N value from unix console by the command:\r\n");
   chprintf(chp, "%s", "date +\%s\r\n");
   return;
 }
-
-// Routing console to USB
+/*
+ * Applet to route console to USB
+ */
 static void cmd_debug(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
 
@@ -671,19 +628,21 @@ static void cmd_debug(BaseSequentialStream *chp, int argc, char *argv[]) {
     if (strcmp(argv[0], "on") == 0) {
       // Reroute all console to USB
       console = (BaseSequentialStream*)&SDU1;
+      chprintf(chp, "\r\nDebug ON.\r\n");
       return;
     } else if (strcmp(argv[0], "off") == 0) {
       // Reroute all console back to SD3
       console = (BaseSequentialStream*)&SD3;
-      chprintf(chp, "\r\nstopped\r\n");
+      chprintf(chp, "\r\nDebug OFF.\r\n");
       return;
     }
   }
   // Rest is error
   shellUsage(chp, "debug on|off");
 }
-
-// Routing console to USB
+/*
+ * Applet to uBS
+ */
 static void cmd_ubs(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
 
@@ -711,8 +670,57 @@ static void cmd_ubs(BaseSequentialStream *chp, int argc, char *argv[]) {
   ERROR:
     shellUsage(chp, "ubs status|format");
 }
+/*
+ * Applet to show threads
+ */
+static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
+  (void)argv;
+  if (argc > 0) {
+    shellUsage(chp, "threads");
+    return;
+  }
 
-// Commands
+  static const char *states[] = {CH_STATE_NAMES};
+  thread_t *tp;
+  size_t n = 0;
+  size_t sz;
+  uint32_t used_pct;
+
+  chprintf(chp, "\r\n");
+  chprintf(chp, "   begin      end   size   used    %% prio     state         name\r\n");
+  chprintf(chp, "--------------------------------------------------------------\r\n");
+
+  tp = chRegFirstThread();
+  do {
+     n = 0;
+#if (CH_DBG_ENABLE_STACK_CHECK == TRUE) || (CH_CFG_USE_DYNAMIC == TRUE)
+    uint32_t stklimit = (uint32_t)tp->wabase;
+#else
+    uint32_t stklimit = 0U;
+#endif
+
+    uint8_t *begin = (uint8_t *)stklimit;
+    //uint8_t *begin = (uint32_t)tp->ctx.sp;
+    uint8_t *end = (uint8_t *)tp;
+    sz = end - begin;
+
+    while(begin < end) {
+      if(*begin++ == CH_DBG_STACK_FILL_VALUE) ++n;
+    }
+
+    used_pct = (n * 100) / sz;
+
+    chprintf(chp, "%08lx %08lx %6u %6u %3u%% %4lu %9s %12s\r\n",
+             stklimit, (uint32_t)tp, sz, n, used_pct, (uint32_t)tp->prio, states[tp->state], tp->name == NULL ? "" : tp->name);
+
+    tp = chRegNextThread(tp);
+  } while (tp != NULL);
+
+  chprintf(chp, "\r\n");
+}
+/*
+ * Shell commands
+ */
 static const ShellCommand commands[] = {
   {"date",  cmd_date},
   {"log",  cmd_log},
@@ -721,7 +729,9 @@ static const ShellCommand commands[] = {
   {"ubs",  cmd_ubs},
   {NULL, NULL}
 };
-
+/*
+ * ShellConfig
+ */
 static const ShellConfig shell_cfg = {
   (BaseSequentialStream *)&SDU1,
   commands
