@@ -59,7 +59,6 @@ char logText[LOG_TEXT_LENGTH] __attribute__((section(".ram4"))); // To decode lo
 // OHS includes
 #include "ohs_conf.h"
 #include "ohs_functions.h"
-#include "ohs_shell.h"
 #include "ohs_peripheral.h"
 
 // GPRS
@@ -86,6 +85,8 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 #include "lwip/apps/smtp.h"
 #include "lwip/apps/mdns.h"
 #include "ohs_httpdhandler.h"
+// Shell functions
+#include "ohs_shell.h"
 
 // Thread handling
 #include "ohs_th_zone.h"
@@ -234,6 +235,7 @@ int main(void) {
   }
   //setConfDefault(); // Load OHS default conf.
 
+  // TODO OHS Allow driver to set frequency
   // RFM69 key
   if (conf.radioKey[0] != 0) rfm69Encrypt(conf.radioKey);
   // SMTP

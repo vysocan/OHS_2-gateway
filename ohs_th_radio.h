@@ -34,7 +34,6 @@ static THD_FUNCTION(RadioThread, arg) {
 
     // Process packet
     if ((resp == MSG_OK) && (rfm69GetData() == RF69_RSLT_OK)) {
-      DBG_RADIO("Time %u\r\n", chVTGetSystemTimeX());
       DBG_RADIO("Radio sender: %u, RSSI: %d, Data: ", rfm69Data.senderId, rfm69Data.rssi);
       for(uint8_t i = 0; i < rfm69Data.length; i++) { DBG_RADIO("%u, ", rfm69Data.data[i]); }
       DBG_RADIO("\r\n");

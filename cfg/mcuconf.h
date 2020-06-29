@@ -32,10 +32,11 @@
  */
 
 #define STM32F4xx_MCUCONF
-#define STM32F405_MCUCONF
-#define STM32F415_MCUCONF
-#define STM32F407_MCUCONF
-#define STM32F417_MCUCONF
+//#define STM32F405_MCUCONF
+//#define STM32F415_MCUCONF
+//#define STM32F407_MCUCONF
+//#define STM32F417_MCUCONF
+#define STM32F437_MCUCONF
 
 /*
  * HAL driver system settings.

@@ -109,6 +109,14 @@
 // Number of rx pbufs to enqueue to parse an incoming request (up to the first newline)
 #define LWIP_HTTPD_REQ_QUEUELEN 7
 
+#define LWIP_NETIF_EXT_STATUS_CALLBACK 1
+
+// Checks
+#if !LWIP_NETIF_EXT_STATUS_CALLBACK
+#error "This tests needs LWIP_NETIF_EXT_STATUS_CALLBACK enabled"
+#endif
+
+
 //ChibiOS RTC drivers
 /* old
 #define SNTP_SET_SYSTEM_TIME(sec) rtcSetTimeUnixSec(&RTCD1, (sec))
@@ -135,6 +143,7 @@ void SetTimeUnixA(time_t ut){
 
 /* SET new driver
  * DONE - Get rid of struct tm in SNTP_SET_SYSTEM_TIME, by using my own convert functions.
+ */
 #define SNTP_SET_SYSTEM_TIME(sec) \
   do{time_t rawtime = (sec);\
      RTCDateTime _ts;\
@@ -142,7 +151,7 @@ void SetTimeUnixA(time_t ut){
      _pt = gmtime(&rawtime);\
      rtcConvertStructTmToDateTime(_pt, 0, &_ts);\
      rtcSetTime(&RTCD1, &_ts);}while(0)
-*/
+
 
 /* GET old RTC driver
 #define SNTP_GET_SYSTEM_TIME(sec, us) \

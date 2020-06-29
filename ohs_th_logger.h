@@ -17,7 +17,7 @@ static THD_FUNCTION(LoggerThread, arg) {
   chRegSetThreadName(arg);
   msg_t    msg;
   loggerEvent_t *inMsg;
-  char     buffer[FRAM_MSG_SIZE+3];
+  char     buffer[FRAM_MSG_SIZE + FRAM_HEADER_SIZE];
   uint8_t  flag;
 
   while (true) {
@@ -48,16 +48,17 @@ static THD_FUNCTION(LoggerThread, arg) {
       spiUnselect(&SPID1);
 
       buffer[0] = CMD_25AA_WRITE;
-      buffer[1] = (FRAMWritePos >> 8) & 0xFF;
-      buffer[2] = FRAMWritePos & 0xFF;
+      buffer[1] = 0;
+      buffer[2] = (FRAMWritePos >> 8) & 0xFF;
+      buffer[3] = FRAMWritePos & 0xFF;
 
       timeConv.val = inMsg->timestamp;
-      memcpy(&buffer[3], &timeConv.ch[0], sizeof(timeConv.ch)); // Copy time to buffer
-      memcpy(&buffer[7], &inMsg->text[0], LOGGER_MSG_LENGTH);   // Copy text to buffer
-      buffer[FRAM_MSG_SIZE+2] = flag;                           // Set flag
+      memcpy(&buffer[FRAM_HEADER_SIZE], &timeConv.ch[0], sizeof(timeConv.ch));  // Copy time to buffer
+      memcpy(&buffer[FRAM_HEADER_SIZE + 4], &inMsg->text[0], LOGGER_MSG_LENGTH); // Copy text to buffer
+      buffer[FRAM_MSG_SIZE + FRAM_HEADER_SIZE - 1] = flag; // Set flag
 
       spiSelect(&SPID1);
-      spiSend(&SPID1, FRAM_MSG_SIZE+3, buffer);
+      spiSend(&SPID1, FRAM_MSG_SIZE + FRAM_HEADER_SIZE, buffer);
       spiUnselect(&SPID1);
       spiReleaseBus(&SPID1);
 

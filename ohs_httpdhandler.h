@@ -755,11 +755,12 @@ int fs_open_custom(struct fs_file *file, const char *name){
             chprintf(chp, "%s%u.%s", html_tr_td, (logAddress / FRAM_MSG_SIZE) + 1 , html_e_td_td);
 
             txBuffer[0] = CMD_25AA_READ;
-            txBuffer[1] = (logAddress >> 8) & 0xFF;
-            txBuffer[2] = logAddress & 0xFF;
+            txBuffer[1] = 0;
+            txBuffer[2] = (logAddress >> 8) & 0xFF;
+            txBuffer[3] = logAddress & 0xFF;
 
             spiSelect(&SPID1);                  // Slave Select assertion.
-            spiSend(&SPID1, 3, txBuffer);       // Send read command
+            spiSend(&SPID1, FRAM_HEADER_SIZE, txBuffer); // Send read command
             spiReceive(&SPID1, FRAM_MSG_SIZE, rxBuffer);
             spiUnselect(&SPID1);                // Slave Select de-assertion.
 

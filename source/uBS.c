@@ -44,7 +44,6 @@
  * Variables
  */
 static uint8_t  uBSCmdBuf[UBS_CMD_BUF_SIZE];
-//static uint8_t  uBSBlockBuf[UBS_BLOCK_SIZE];
 uint32_t uBSFreeSpace = 0;
 uint16_t uBSFreeBlocks = 0;
 #if UBS_USE_FREE_MAP > 0
@@ -65,9 +64,6 @@ static int8_t uBSReadBlock(uint32_t address, uint8_t *data, uint8_t size) {
   for (uint8_t i = 0; i < UBS_ADDRESS_SIZE; i++) {
     uBSCmdBuf[1 + i] = (address >> ((UBS_ADDRESS_SIZE - i - 1) * 8)) & 0xFF;
   }
-
-  uBSCmdBuf[1] = (address >> 8) & 0xFF;
-  uBSCmdBuf[2] = address & 0xFF;
 
   spiAcquireBus(&SPID1);
   spiSelect(&SPID1);
@@ -95,6 +91,7 @@ static void uBSWriteBlock(uint32_t address, uint8_t* data, uint8_t size) {
   for (uint8_t i = 0; i < UBS_ADDRESS_SIZE; i++) {
     uBSCmdBuf[1 + i] = (address >> ((UBS_ADDRESS_SIZE - i - 1) * 8)) & 0xFF;
   }
+
   spiSelect(&SPID1);
   spiSend(&SPID1, UBS_CMD_BUF_SIZE, uBSCmdBuf);
   spiSend(&SPID1, size, data);
@@ -262,6 +259,10 @@ int8_t uBSInit(void) {
     // Clear whole free map
     memset(&uBSFreeMap[0], 0, UBS_MAP_SIZE);
   #endif
+  #if UBS_USE_MASTER_MAP > 0
+    // Clear whole master map
+    memset(&uBSMasterMap[0], 0, UBS_MAP_SIZE);
+  #endif
 
   while (address < UBS_ADDRESS_END) {
     if (uBSReadBlock(address, &readBuf[0], UBS_HEADER_SIZE) != UBS_RSLT_OK)
@@ -275,6 +276,13 @@ int8_t uBSInit(void) {
             (1 << (((address - UBS_ADDRESS_START) / UBS_BLOCK_SIZE) % 8));
       #endif
     }
+    #if UBS_USE_MASTER_MAP > 0
+      if (UBS_GET_MASTER_FLAG(readBuf[0])) {
+        // Set free bit
+        uBSMasterMap[((address - UBS_ADDRESS_START) / UBS_BLOCK_SIZE) / 8] |=
+              (1 << (((address - UBS_ADDRESS_START) / UBS_BLOCK_SIZE) % 8));
+      }
+    #endif
     address += UBS_BLOCK_SIZE;
   }
   if (uBSFreeSpace > 0) uBSFreeSpace -= UBS_NAME_SIZE; // Remove one name size of master block

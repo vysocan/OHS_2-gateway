@@ -28,7 +28,6 @@
 #define KEYS_SIZE        20     // # of keys
 #define TIMER_SIZE       10     // # of timers
 #define TRIGGER_SIZE     10     // # of timers
-//#define SCRIPT_SIZE      10     // # of scripts
 #define KEY_LENGTH       4      // sizeof(uint32_t)
 #define NAME_LENGTH      16     //
 #define PHONE_LENGTH     14     //
@@ -56,6 +55,7 @@
 #define AC_POWER_DELAY    60    // seconds
 
 #define LOGGER_MSG_LENGTH 11
+#define LOGGER_OUTPUT_LEN 20    // How many entries to show
 
 // Parameter checks
 #if NODE_SIZE >= DUMMY_NO_VALUE
@@ -273,7 +273,7 @@
 #define CLEAR_NODE_BATT_LOW(x) x &= ~(1 << 5U)
 #define CLEAR_NODE_MQTT_PUB(x) x &= ~(1 << 7U)
 
-// Helper macros
+// Helper macros. Do not use in functions parameter!
 #define ARRAY_SIZE(x) sizeof(x)/sizeof(x[0])
 
 // Global vars
@@ -394,7 +394,7 @@ typedef struct {
   char    name[6];
 } alertType_t;
 
-// Logger keeps info about this as bit flags of uint8_t, maximum number of alert types is 8.
+// Logger keeps info about this as bit flags of uint8_t, maximum number of alert types is 8 bits(uint8_t).
 const alertType_t alertType[] = {
   // 1234567890
   { "SMS" },

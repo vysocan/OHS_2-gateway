@@ -17,20 +17,20 @@
  *              rather then in FRAM.
  * MASTER_MAP - Creates master block map. Not yet implemented.
  */
-#define UBS_USE_FREE_MAP      0 // Put 0 / 1
-#define UBS_USE_MASTER_MAP    0 // Put 0 / 1
+#define UBS_USE_FREE_MAP      0 // Put 0 or 1
+#define UBS_USE_MASTER_MAP    0 // Put 0 or 1
 /*
  * uBS data block definitions
  */
 // Editable
-#define UBS_BLOCK_SIZE        32
-#define UBS_BLOCK_COUNT       256
+#define UBS_BLOCK_SIZE        128
+#define UBS_BLOCK_COUNT       512
 #define UBS_NAME_SIZE         16
-#define UBS_ADDRESS_START     16384
+#define UBS_ADDRESS_START     65536
 // Fixed
 #define UBS_ADDRESS_END       (UBS_ADDRESS_START + (UBS_BLOCK_SIZE * UBS_BLOCK_COUNT))
 #define UBS_HEADER_SIZE       1
-#define UBS_ADDRESS_SIZE      2
+#define UBS_ADDRESS_SIZE      3
 #define UBS_HEADER_BLOCK_SIZE (UBS_HEADER_SIZE + UBS_ADDRESS_SIZE)
 // Helpers
 #define UBS_HEADER_ALLOW_SIZE 127 //((UBS_HEADER_SIZE * 255) >> 1)
@@ -47,6 +47,10 @@
 
 #if UBS_DATA_SIZE > UBS_HEADER_ALLOW_SIZE
   #error Size of data is larger then UBS_HEADER_ALLOW_SIZE!
+#endif
+
+#if UBS_BLOCK_SIZE > (UBS_HEADER_SIZE * 256)
+  #error Size of blok is larger then uint8_t size!
 #endif
 // Statistics
 #define UBS_SPACE_MAX         ((UBS_BLOCK_COUNT * UBS_DATA_SIZE) - UBS_NAME_SIZE)

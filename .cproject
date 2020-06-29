@@ -43,6 +43,16 @@
                             							
                             <tool id="org.eclipse.cdt.build.core.settings.holder.1873650595" name="Assembly" superClass="org.eclipse.cdt.build.core.settings.holder">
                                 								
+                                <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="org.eclipse.cdt.build.core.settings.holder.undef.incpaths.1688796842" superClass="org.eclipse.cdt.build.core.settings.holder.undef.incpaths" valueType="undefIncludePath">
+                                    									
+                                    <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/workspace_Adam/OHS-STM32F407"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/workspace_Adam/OHS-STM32F407/cfg"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/workspace_Adam/OHS-STM32F407/source/"/>
+                                    								
+                                </option>
+                                								
                                 <inputType id="org.eclipse.cdt.build.core.settings.holder.inType.1337802279" languageId="org.eclipse.cdt.core.assembly" languageName="Assembly" sourceContentType="org.eclipse.cdt.core.asmSource" superClass="org.eclipse.cdt.build.core.settings.holder.inType"/>
                                 							
                             </tool>
@@ -93,7 +103,15 @@
     	
     <storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
     	
-    <storageModule moduleId="refreshScope"/>
+    <storageModule moduleId="refreshScope" versionNumber="2">
+        		
+        <configuration configurationName="Default">
+            			
+            <resource resourceType="PROJECT" workspacePath="/OHS-STM32F4xx"/>
+            		
+        </configuration>
+        	
+    </storageModule>
     	
     <storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
     
