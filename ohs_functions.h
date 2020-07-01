@@ -584,7 +584,9 @@ void disarmGroup(uint8_t groupNum, uint8_t master, uint8_t hop) {
     CLEAR_GROUP_ALARM(group[groupNum].setting); // Set this group alarm off
     /* *** TODO OHS: add bitwise reset of OUTs instead of full reset ? */
     //+++OUTs = 0; // Reset outs
-    //+++pinOUT1.write(LOW); pinOUT2.write(LOW); // Turn off OUT 1 & 2
+    // Turn off relays
+    palClearPad(GPIOB, GPIOB_RELAY_1);
+    palClearPad(GPIOB, GPIOB_RELAY_2);
   }
   // Set each member zone of this group
   for (uint8_t j=0; j < ALARM_ZONES; j++){

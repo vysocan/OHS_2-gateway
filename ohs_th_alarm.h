@@ -56,13 +56,13 @@ static THD_FUNCTION(AEThread, arg) {
         sendCmdToGrp(groupNum, NODE_CMD_ALARM, 'K');
         // Combine alarms, so that next alarm will not disable ongoing one
         if (inMsg->type == 'P') {
-          //++OUTs = ((((conf.group[groupNum] >> 4) & B1) | (OUTs >> 0) & B1) | (((conf.group[groupNum] >> 3) & B1) | (OUTs >> 1) & B1) << 1);
+          if (GET_CONF_GROUP_PIR1(group[groupNum].setting)) palSetPad(GPIOB, GPIOB_RELAY_1);
+          if (GET_CONF_GROUP_PIR2(group[groupNum].setting)) palSetPad(GPIOB, GPIOB_RELAY_2);
         } else {
-          //++OUTs = ((((conf.group[groupNum] >> 2) & B1) | (OUTs >> 0) & B1) | (((conf.group[groupNum] >> 1) & B1) | (OUTs >> 1) & B1) << 1);
+          if (GET_CONF_GROUP_TAMPER1(group[groupNum].setting)) palSetPad(GPIOB, GPIOB_RELAY_1);
+          if (GET_CONF_GROUP_TAMPER2(group[groupNum].setting)) palSetPad(GPIOB, GPIOB_RELAY_2);
         }
-        // Trigger OUT 1 & 2
-        //++pinOUT1.write(((OUTs >> 0) & B1));
-        //++pinOUT2.write(((OUTs >> 1) & B1));
+        // TODO OHS create alarms with delays, some states require not continuous sirens
         tmpLog[0] = 'S'; tmpLog[1] = 'X';  tmpLog[2] = groupNum;  pushToLog(tmpLog, 3); // ALARM no auth.
         //++publishGroup(groupNum, 'T');
       }
