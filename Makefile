@@ -118,7 +118,7 @@ include $(CHIBIOS)/os/various/shell/shell.mk
 include $(CHIBIOS)/os/various/lwip_bindings/lwip.mk
 
 # Define linker script file here
-LDSCRIPT= $(STARTUPLD)/STM32F437xG.ld
+LDSCRIPT= $(CONFDIR)/STM32F437xG.ld
 
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
