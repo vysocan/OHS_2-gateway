@@ -15,6 +15,10 @@
 */
 
 /*
+ * Copied from F429 by Adam Baron
+ */
+
+/*
  * ST32F437xG memory setup.
  * Note: Use of ram1, ram2 and ram3 is mutually exclusive with use of ram0.
  */
