@@ -129,8 +129,10 @@ static THD_FUNCTION(tclThread, arg) {
   tclChp = (BaseSequentialStream *)(void *)&ms;
 
   tcl_init(&tcl, conf.tclIteration, tclChp);
-  tcl_register(&tcl, "node", tcl_cmd_node, 2, NULL);
-  tcl_register(&tcl, "group", tcl_cmd_group, 3, NULL);
+  tcl_register(&tcl, "node", tcl_cmd_node, 2, NULL,
+               "return value of given node");
+  tcl_register(&tcl, "group", tcl_cmd_group, 3, NULL,
+               "return value of given group");
 
   // Process umm info
   umm_info(&ohsUmmHeap[0], true);

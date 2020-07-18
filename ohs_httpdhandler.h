@@ -1072,12 +1072,12 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s %u%%", text_Used, (uint8_t)((UBS_BLOCK_COUNT - uBSFreeBlocks) / (float)(UBS_BLOCK_COUNT / (float)100)));
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
 
-          chprintf(chp, "<i class='icon' title=\"");
-          tcl_list_cmd(&tcl, &chp, "|", 0b00000000);
+          chprintf(chp, "<i class='icon' style='font-size:20px;' title=\"");
+          tcl_list_cmd(&tcl, &chp, "\r\n", 0b00111100);
           chprintf(chp, "\">&#xf121;</i>");
-          chprintf(chp, "<i class='icon' title=\"");
+          chprintf(chp, "<i class='icon' style='font-size:20px;' title=\"");
           tcl_list_var(&tcl, &chp, "\r\n");
-          chprintf(chp, "\">&#xf292;</i> Variables");
+          chprintf(chp, "\">&#xf292;</i>");
           chprintf(chp, "%s%s", html_br, html_br);
           // Script area
           printTextArea(chp, 's', tclCmd, TCL_SCRIPT_LENGTH, 120, 20);

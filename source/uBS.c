@@ -24,7 +24,7 @@
 #include <string.h>
 
 #ifndef UBS_DEBUG
-#define UBS_DEBUG 1
+#define UBS_DEBUG 0
 #endif
 
 #if UBS_DEBUG

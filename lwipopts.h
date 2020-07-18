@@ -40,7 +40,7 @@
 #include "static_lwipopts.h"
 
 /* OHS overrides */
-#define MEMP_NUM_SYS_TIMEOUT    (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 3)
+#define MEMP_NUM_SYS_TIMEOUT    (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 4) // +1 MDSN,
 #define MEMP_NUM_UDP_PCB        7 // , +1 MDSN
 #define MEMP_NUM_TCP_PCB        6
 #define MEMP_NUM_TCP_PCB_LISTEN 10
@@ -78,7 +78,7 @@
 // MDNS
 #define LWIP_IGMP 1
 #define LWIP_MDNS_RESPONDER 1
-#define LWIP_NUM_NETIF_CLIENT_DATA 1 // +1 MDSN
+#define LWIP_NUM_NETIF_CLIENT_DATA (LWIP_MDNS_RESPONDER) // +1 MDSN
 // Rename thread name
 #define TCPIP_THREAD_NAME               "tcpip"
 
@@ -95,8 +95,8 @@
 // SMTP
 //#define SMTP_DEBUG LWIP_DBG_ON
 // MDNS
-//#define IGMP_DEBUG LWIP_DBG_ON
-//#define MDNS_DEBUG LWIP_DBG_ON
+#define IGMP_DEBUG LWIP_DBG_ON
+#define MDNS_DEBUG LWIP_DBG_ON
 
 //SNTP
 #define SNTP_SERVER_DNS 1

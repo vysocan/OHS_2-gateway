@@ -947,7 +947,7 @@ static uint8_t decodeLog(char *in, char *out, bool full){
       printNodeFunction(chp, in[4]);
       chprintf(chp, " %s ", text_address);
       printNodeAddress(chp, (uint8_t)in[2], (uint8_t)in[3], (uint8_t)in[4], (uint8_t)in[5], false);
-      if (in[1] != 'E') {chprintf(chp, "%s ", text_is);}
+      if (in[1] != 'E') {chprintf(chp, " %s ", text_is);}
       switch(in[1]){
         case 'Z' : chprintf(chp, "%s", text_removed); break;
         case 'F' : chprintf(chp, "%s", text_disabled); break;

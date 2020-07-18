@@ -595,7 +595,6 @@ typedef struct {
   uint8_t  timeStdMonth;  //1=Jan, 2=Feb, ... 12=Dec
   uint8_t  timeStdHour;   //0-23
   int16_t  timeStdOffset; //offset from UTC in minutes
-
   uint8_t  timeDstWeekNum;//First, Second, Third, Fourth, or Last week of the month
   uint8_t  timeDstDow;    //day of week, 1=Sun, 2=Mon, ... 7=Sat
   uint8_t  timeDstMonth;  //1=Jan, 2=Feb, ... 12=Dec
@@ -617,7 +616,7 @@ typedef struct {
 
   calendar_t timer[TIMER_SIZE];
 
-  trigger_t trigger[TRIGGER_SIZE];
+  trigger_t  trigger[TRIGGER_SIZE];
 
   char     radioKey[RADIO_KEY_SIZE];
 
@@ -965,7 +964,7 @@ void initScripts(struct scriptLL_t **pointer) {
       var->name = umm_malloc(NAME_LENGTH);
       if (var->name == NULL) {
         umm_free(var);
-        chprintf(console, "CMD heap full, name.\r\n");
+        chprintf(console, "CMD heap full (name)!\r\n");
       } else {
         strncpy(var->name, &blockName[0], NAME_LENGTH);
         // cmd
@@ -979,7 +978,7 @@ void initScripts(struct scriptLL_t **pointer) {
         if (var->cmd == NULL) {
           umm_free(var->name);
           umm_free(var);
-          chprintf(console, "CMD heap full, cmd.\r\n");
+          chprintf(console, "CMD heap full (cmd)!\r\n");
         } else {
           strncpy(var->cmd, &tclCmd[0], cmdSize);
           // Link it
@@ -988,7 +987,7 @@ void initScripts(struct scriptLL_t **pointer) {
         }
       }
     } else {
-      chprintf(console, "CMD heap full.\r\n");
+      chprintf(console, "CMD heap full!\r\n");
     }
   }
   // Clear tclCmd on end

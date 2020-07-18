@@ -37,7 +37,10 @@
 // OHS changes
 uint16_t              tcl_iteration;
 BaseSequentialStream *tcl_output;
-//bool                  tcl_output_flag;
+
+#ifndef TCL_DISABLE_MATH
+  const char* math[] = { "+", "-", "*", "/", ">", ">=", "<", "<=", "==", "!=" };
+#endif
 
 struct tcl;
 int tcl_eval(struct tcl* tcl, const char* s, size_t len);
@@ -468,12 +471,13 @@ int tcl_eval(struct tcl* tcl, const char* s, size_t len) {
 /* --------------------------------- */
 /* --------------------------------- */
 void tcl_register(struct tcl* tcl, const char* name, tcl_cmd_fn_t fn, int arity,
-    void* arg) {
+    void* arg, const char* description) {
   struct tcl_cmd* cmd = tcl_malloc(sizeof(struct tcl_cmd));
   cmd->name = tcl_alloc(name, strlen(name));
   cmd->fn = fn;
   cmd->arg = arg;
   cmd->arity = arity;
+  cmd->description = description;
   cmd->next = tcl->cmds;
   tcl->cmds = cmd;
 }
@@ -533,7 +537,7 @@ static int tcl_user_proc(struct tcl* tcl, tcl_value_t* args, void* arg) {
 static int tcl_cmd_proc(struct tcl* tcl, tcl_value_t* args, void* arg) {
   (void)arg;
   tcl_value_t* name = tcl_list_at(args, 1);
-  tcl_register(tcl, tcl_string(name), tcl_user_proc, 0, tcl_dup(args));
+  tcl_register(tcl, tcl_string(name), tcl_user_proc, 0, tcl_dup(args), NULL);
   DBG("FREE tcl_cmd_proc %x.", name);
   tcl_free(name);
   return tcl_result(tcl, FNORMAL, tcl_alloc("", 0));
@@ -707,23 +711,32 @@ void tcl_init(struct tcl* tcl, uint16_t max_iterations, BaseSequentialStream *ou
   tcl->env = tcl_env_alloc(NULL);
   tcl->result = tcl_alloc("", 0);
   tcl->cmds = NULL;
-  tcl_register(tcl, "set", tcl_cmd_set, 0, NULL);
-  tcl_register(tcl, "subst", tcl_cmd_subst, 2, NULL);
+  tcl_register(tcl, "set", tcl_cmd_set, 0, NULL,
+               "assigns value to the variable (if any) and returns the current variable value");
+  tcl_register(tcl, "subst", tcl_cmd_subst, 2, NULL,
+               "does command substitution in the argument string");
 #ifndef TCL_DISABLE_PUTS
-  tcl_register(tcl, "puts", tcl_cmd_puts, 2, NULL);
+  tcl_register(tcl, "puts", tcl_cmd_puts, 2, NULL,
+               "prints argument to the stdout, followed by a newline");
 #endif
-  tcl_register(tcl, "proc", tcl_cmd_proc, 4, NULL);
-  tcl_register(tcl, "if", tcl_cmd_if, 0, NULL);
-  tcl_register(tcl, "while", tcl_cmd_while, 3, NULL);
-  tcl_register(tcl, "return", tcl_cmd_flow, 0, NULL);
-  tcl_register(tcl, "break", tcl_cmd_flow, 1, NULL);
-  tcl_register(tcl, "continue", tcl_cmd_flow, 1, NULL);
+  tcl_register(tcl, "proc", tcl_cmd_proc, 4, NULL,
+               "creates a new user defined command");
+  tcl_register(tcl, "if", tcl_cmd_if, 0, NULL,
+               "does a simple 'if {cond} {then} {cond2} {then2} {else}'");
+  tcl_register(tcl, "while", tcl_cmd_while, 3, NULL,
+               "runs a while loop 'while {cond} {body}', use of 'break',"
+               "'continue' or 'return' is allowed");
+  tcl_register(tcl, "return", tcl_cmd_flow, 0, NULL,
+               "return from procedure, or set return code");
+  tcl_register(tcl, "break", tcl_cmd_flow, 1, NULL,
+               "forces loop to terminate");
+  tcl_register(tcl, "continue", tcl_cmd_flow, 1, NULL,
+               "forces the next iteration of the loop");
 #ifndef TCL_DISABLE_MATH
-  const char* math[] = { "+", "-", "*", "/", ">", ">=", "<", "<=", "==", "!=" };
   for (unsigned int i = 0; i < (sizeof(math) / sizeof(math[0])); i++) {
-    tcl_register(tcl, math[i], tcl_cmd_math, 3, NULL);
+    tcl_register(tcl, math[i], tcl_cmd_math, 3, NULL, NULL);
   }
-  tcl_register(tcl, "strc", tcl_cmd_strcmp, 3, NULL);
+  tcl_register(tcl, "strc", tcl_cmd_strcmp, 3, NULL, NULL);
 #endif
 }
 
@@ -755,23 +768,37 @@ void tcl_list_var(struct tcl* tcl, BaseSequentialStream **output, char *separato
 /*
  *
  * Options, as binary flags on bits
- * 1 - print arity
- * 2 - print also math commands
- * 3 - print also flow commands
- * 4 - print other then math & flow commands
+ * 0 - print arity
+ * 1 - print math commands
+ * 2 - print flow commands
+ * 3 - print other then math & flow commands
+ * 4 - print description
+ * 5 - print math description
  */
 void tcl_list_cmd(struct tcl* tcl, BaseSequentialStream **output, char *separator,
                   const uint8_t options) {
   struct tcl_cmd* cmd;
 
   for (cmd = tcl->cmds; cmd != NULL; cmd = cmd->next) {
-    // command options
-    if ((cmd->fn == tcl_cmd_math) && !((options >> 1) & 0b1)) continue;
+    // Command options
+    if ((cmd->fn == tcl_cmd_math) && !((options >> 1) & 0b1)) continue;;
     if ((cmd->fn == tcl_cmd_flow) && !((options >> 2) & 0b1)) continue;
     if ((cmd->fn != tcl_cmd_math) && (cmd->fn != tcl_cmd_flow) && !((options >> 3) & 0b1)) continue;
 
     chprintf(*output, "%s", cmd->name);
     if (options & 0b1) chprintf(*output, " (%u)", (cmd->arity ? cmd->arity - 1 : 0));
+    if ((options >> 4) & 0b1)  chprintf(*output, " - %s.", cmd->description);
     if ((separator) && (cmd->next != NULL)) chprintf(*output, "%s", separator);
   }
+#ifndef TCL_DISABLE_MATH
+  // Math commands description
+  if ((options >> 5) & 0b1) {
+    if (separator) chprintf(*output, "%s", separator);
+    chprintf(*output, "operators ");
+    for (uint8_t i = 0; i < (sizeof(math) / sizeof(math[0])); i++) {
+      chprintf(*output, "%s %s", (i ? "," : ""), math[i]);
+    }
+    chprintf(*output, ".");
+  }
+#endif
 }

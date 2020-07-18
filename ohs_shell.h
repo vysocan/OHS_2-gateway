@@ -18,7 +18,7 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
   if (argc == 1) { FRAMReadPos = (atoi(argv[0]) - LOGGER_OUTPUT_LEN + 1) * FRAM_MSG_SIZE; }
   if (argc == 0) { FRAMReadPos = FRAMWritePos - (FRAM_MSG_SIZE * LOGGER_OUTPUT_LEN); }
 
-  spiAcquireBus(&SPID1);              // Acquire ownership of the bus.
+  spiAcquireBus(&SPID1);                // Acquire ownership of the bus.
   for(uint16_t i = 0; i < LOGGER_OUTPUT_LEN; i++) {
     txBuffer[0] = CMD_25AA_READ;
     txBuffer[1] = 0;
@@ -33,14 +33,19 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
     memcpy(&timeConv.ch[0], &rxBuffer[0], sizeof(timeConv.ch)); // Prepare timestamp
     decodeLog(&rxBuffer[4], logText, true);
 
-    chprintf(chp, "#%d\t", (FRAMReadPos/FRAM_MSG_SIZE));
+    chprintf(chp, "#%4u : ", (FRAMReadPos/FRAM_MSG_SIZE));
     printFrmTimestamp(chp, &timeConv.val);
-    chprintf(chp, " : %s", logText);
-    chprintf(chp, " Flags: %x\r\n", rxBuffer[FRAM_MSG_SIZE-1]);
+    chprintf(chp, " : %s.", logText);
+    chprintf(chp, " : Flags: ");
+    for (uint8_t j = 0; j < ARRAY_SIZE(alertType); j++) {
+      if ((((uint8_t)rxBuffer[FRAM_MSG_SIZE-1] >> j) & 0b1) == 1)
+        chprintf(chp, "%s, ", alertType[(uint8_t)rxBuffer[FRAM_MSG_SIZE-1]].name);
+    }
+    chprintf(chp, "\r\n");
 
-    FRAMReadPos += FRAM_MSG_SIZE; // Advance for next read
+    FRAMReadPos += FRAM_MSG_SIZE;       // Advance for next read
   }
-  spiReleaseBus(&SPID1);              // Ownership release.
+  spiReleaseBus(&SPID1);                // Ownership release.
   return;
 
 ERROR:
@@ -65,7 +70,8 @@ static void cmd_date(BaseSequentialStream *chp, int argc, char *argv[]) {
     else{
       ptm = gmtime(&unix_time);
       strftime(dateTime, 30, conf.dateTimeFormat, ptm); // Format date time as needed
-      chprintf(chp, "Current: %d %s,", unix_time, &durationSelect[0][0]);
+      chprintf(chp, "Current: %d ", unix_time);
+      chprintf(chp, "%s, ", durationSelect[0]);
       chprintf(chp, "%s\r\n", dateTime);
     }
     return;
@@ -83,7 +89,7 @@ static void cmd_date(BaseSequentialStream *chp, int argc, char *argv[]) {
   // Rest is error
   chprintf(chp, "Usage: date\r\n");
   chprintf(chp, "       date set N\r\n");
-  chprintf(chp, "where N is time in seconds sins Unix epoch\r\n");
+  chprintf(chp, "where N is time in seconds since Unix epoch\r\n");
   chprintf(chp, "You can get current N value from unix console by the command:\r\n");
   chprintf(chp, "%s", "date +\%s\r\n");
   return;
@@ -119,11 +125,12 @@ static void cmd_ubs(BaseSequentialStream *chp, int argc, char *argv[]) {
   if (argc == 1) {
     switch (argv[0][0]) {
       case 's':
-        chprintf(chp, "uBS     total    free    used\r\n");
-        chprintf(chp, "blocks: %5u   %5u   %5u\r\n", UBS_BLOCK_COUNT, uBSFreeBlocks,
-                 UBS_BLOCK_COUNT - uBSFreeBlocks);
-        chprintf(chp, "space:  %5u   %5u   %5u\r\n", UBS_SPACE_MAX, uBSFreeSpace,
-                 UBS_SPACE_MAX - uBSFreeSpace);
+        chprintf(chp, "uBS      total    free    used\r\n");
+        chprintf(chp, "------------------------------\r\n");
+        chprintf(chp, "blocks : %5u   %5u   %5u\r\n",
+                 UBS_BLOCK_COUNT, uBSFreeBlocks, UBS_BLOCK_COUNT - uBSFreeBlocks);
+        chprintf(chp, "bytes  : %5u   %5u   %5u\r\n",
+                 UBS_SPACE_MAX, uBSFreeSpace, UBS_SPACE_MAX - uBSFreeSpace);
         break;
       case 'f':
         uBSFormat();
@@ -147,21 +154,20 @@ static void cmd_net(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argc;
   (void)argv;
 
-  struct netif* thisif = netif_get_by_index(0);
-
-  chprintf(chp, "Network:\r\n");
-  chprintf(chp, "MAC address : %02x:%02x:%02x:%02x:%02x:%02x\r\n",
-           thisif->hwaddr[0], thisif->hwaddr[1], thisif->hwaddr[2],
-           thisif->hwaddr[3], thisif->hwaddr[4], thisif->hwaddr[5]);
-  chprintf(chp, "IP address  : %u.%u.%u.%u\r\n",
-           thisif->ip_addr.addr & 0xff, (thisif->ip_addr.addr >> 8) & 0xff,
-           (thisif->ip_addr.addr >> 16) & 0xff, (thisif->ip_addr.addr >> 24) & 0xff);
-  //chprintf(chp, "Netmask     : %u.%u.%u.%u\r\n",
-  //           thisif->netmask.addr & 0xff, (thisif->netmask.addr >> 8) & 0xff,
-  //           (thisif->netmask.addr >> 16) & 0xff, (thisif->netmask.addr >> 24) & 0xff);
-  chprintf(chp, "Gateway     : %u.%u.%u.%u\r\n",
-           thisif->gw.addr & 0xff, (thisif->gw.addr >> 8) & 0xff,
-           (thisif->gw.addr >> 16) & 0xff, (thisif->gw.addr >> 24) & 0xff);
+  //chprintf(chp, "Network:\r\n-------------------------------\r\n");
+  chprintf(chp, "IP address : %u.%u.%u.%u\r\n",
+           netInfo.ip & 0xff, (netInfo.ip >> 8) & 0xff,
+           (netInfo.ip >> 16) & 0xff, (netInfo.ip >> 24) & 0xff);
+  chprintf(chp, "Netmask    : %u.%u.%u.%u\r\n",
+           netInfo.mask & 0xff, (netInfo.mask >> 8) & 0xff,
+           (netInfo.mask >> 16) & 0xff, (netInfo.mask >> 24) & 0xff);
+  chprintf(chp, "Gateway    : %u.%u.%u.%u\r\n",
+           netInfo.gw & 0xff, (netInfo.gw >> 8) & 0xff,
+           (netInfo.gw >> 16) & 0xff, (netInfo.gw >> 24) & 0xff);
+  chprintf(chp, "Flags      : %u\r\n", netInfo.status);
+  chprintf(chp, "MAC        : %02x:%02x:%02x:%02x:%02x:%02x\r\n",
+           macAddr[0], macAddr[1], macAddr[2],
+           macAddr[3], macAddr[4], macAddr[5]);
 }
 /*
  * Applet to show threads

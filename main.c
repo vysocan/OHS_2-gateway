@@ -13,7 +13,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <stdbool.h>
 
 #include "ch.h"
 #include "hal.h"
@@ -85,6 +84,7 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 #include "lwip/apps/smtp.h"
 #include "lwip/apps/mdns.h"
 #include "ohs_httpdhandler.h"
+
 // Shell functions
 #include "ohs_shell.h"
 
@@ -104,6 +104,23 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 #include "ohs_th_heartbeat.h"
 
 #define SHELL_WA_SIZE THD_WORKING_AREA_SIZE(2048)
+
+#if LWIP_MDNS_RESPONDER
+static void srv_txt(struct mdns_service *service, void *txt_userdata){
+  err_t res;
+  LWIP_UNUSED_ARG(txt_userdata);
+
+  res = mdns_resp_add_service_txtitem(service, "path=/", 6);
+  chprintf(console, "mdns add service txt status %d.\r\n", res);
+}
+#endif
+
+#if LWIP_MDNS_RESPONDER
+static void mdns_example_report(struct netif* netif, u8_t result, s8_t service){
+  chprintf(console,"mdns status[netif %d][service %d]: %d\r\n", netif->num, service, result);
+}
+#endif
+
 
 // Application entry point.
 int main(void) {
@@ -146,7 +163,7 @@ int main(void) {
   memset(&gprsSmsText[0], 0, sizeof(gprsSmsText));
   memset(&gprsSystemInfo[0], 0, sizeof(gprsSystemInfo));
   memset(&logText[0], 0, LOG_TEXT_LENGTH);
-  memset(alertMsg, 0 , HTTP_ALERT_MSG_SIZE); // Empty alert message
+  memset(&alertMsg[0], 0 , HTTP_ALERT_MSG_SIZE); // Empty alert message
 
   shellInit();
 
@@ -219,7 +236,14 @@ int main(void) {
   httpd_init();
   sntp_init();
   // TODO OHS implement MDNS
-  //mdns_resp_init();
+  chThdSleepMilliseconds(100);
+  mdns_resp_register_name_result_cb(mdns_example_report);
+  mdns_resp_init();
+  mdns_resp_add_netif(netif_default, "OHS");
+  //chprintf(console, "netif_default %x\r\n", netif_default);
+  //mdns_resp_add_service(netif_default, "ohs", "_http", DNSSD_PROTO_TCP, 80, srv_txt, NULL);
+  //mdns_resp_announce(netif_default);
+  chThdSleepMilliseconds(100);
 
   // Read last groups state
   readFromBkpRTC((uint8_t*)&group, sizeof(group), 0);
