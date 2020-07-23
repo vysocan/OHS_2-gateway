@@ -75,9 +75,10 @@
 #define LWIP_DNS 1
 // DHCP
 #define LWIP_DHCP 1
+// IGMP
+#define LWIP_IGMP 0
 // MDNS
-#define LWIP_IGMP 1
-#define LWIP_MDNS_RESPONDER 1
+#define LWIP_MDNS_RESPONDER 0
 #define LWIP_NUM_NETIF_CLIENT_DATA (LWIP_MDNS_RESPONDER) // +1 MDSN
 // Rename thread name
 #define TCPIP_THREAD_NAME               "tcpip"
@@ -95,8 +96,8 @@
 // SMTP
 //#define SMTP_DEBUG LWIP_DBG_ON
 // MDNS
-#define IGMP_DEBUG LWIP_DBG_ON
-#define MDNS_DEBUG LWIP_DBG_ON
+//#define IGMP_DEBUG LWIP_DBG_ON
+//#define MDNS_DEBUG LWIP_DBG_ON
 
 //SNTP
 #define SNTP_SERVER_DNS 1

@@ -27,7 +27,7 @@
 #endif
 
 #ifndef HTTP_DEBUG
-#define HTTP_DEBUG 1
+#define HTTP_DEBUG 0
 #endif
 
 #if HTTP_DEBUG
@@ -374,16 +374,20 @@ void printDurationSelect(BaseSequentialStream *chp, const char name, const uint8
    }
    chprintf(chp, "%s", html_e_select);
 }
-
+/*
+ * LWIP custom file init.
+ */
 void genfiles_ex_init(void) {
   /* nothing to do here yet */
 }
-
+// HTML pages variables
 uint8_t webNode = 0, webContact = 0, webKey = 0, webZone = 0, webGroup = 0,
     webTimer = 0, webScript = DUMMY_NO_VALUE, webTrigger = 0;
 char scriptName[NAME_LENGTH];
 static uint16_t webLog = 0;
-
+/*
+ * LWIP open custom file
+ */
 int fs_open_custom(struct fs_file *file, const char *name){
   char temp[3] = "";
   uint16_t logAddress;
@@ -442,7 +446,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
       if (strlen(alertMsg)) {
         chprintf(chp, "<div class='alrt' id='at'><span class='cbtn' onclick=\"this.parentElement.style.display='none';\">&times;</span>");
         chprintf(chp, "<b>Error!</b><br><br>");
-        chprintf(chp, "%s%s", alertMsg, html_div_e);
+        chprintf(chp, "%s.%s", alertMsg, html_div_e);
         memset(alertMsg, 0 , HTTP_ALERT_MSG_SIZE); // Empty alert message
       }
       // Header
@@ -1536,7 +1540,9 @@ int fs_open_custom(struct fs_file *file, const char *name){
   }
   return 0;
 }
-
+/*
+ * LWIP close custom file
+ */
 void fs_close_custom(struct fs_file *file)
 {
   if (file && file->pextension) {
@@ -1544,7 +1550,9 @@ void fs_close_custom(struct fs_file *file)
     file->pextension = NULL;
   }
 }
-
+/*
+ * Receiving POST
+ */
 err_t httpd_post_begin(void *connection, const char *uri, const char *http_request,
                  u16_t http_request_len, int content_len, char *response_uri,
                  u16_t response_uri_len, u8_t *post_auto_wnd) {
@@ -1573,7 +1581,9 @@ err_t httpd_post_begin(void *connection, const char *uri, const char *http_reque
   }
   return ERR_VAL;
 }
-
+/*
+ * Pre-process POST data.
+ */
 void processPostData(char *pSource){
   uint8_t ch, ch1, ch2;
   char *pDest = pSource;
@@ -1598,7 +1608,9 @@ void processPostData(char *pSource){
   }
   *pDest = 0;
 }
-
+/*
+ * Parse POST data.
+ */
 bool getPostData(char **pPostData, char *pName, uint8_t nameLen, char **pValue, uint16_t *pValueLen){
   uint8_t ch;
   *pValueLen = 0;
@@ -1633,7 +1645,9 @@ bool getPostData(char **pPostData, char *pName, uint8_t nameLen, char **pValue, 
   }
   return false; // Null is end
 }
-
+/*
+ * Receiving POST
+ */
 err_t httpd_post_receive_data(void *connection, struct pbuf *p) {
 
   DBG_HTTP("-PD-connection: %u\r\n", (uint32_t *)connection);
@@ -1662,14 +1676,9 @@ err_t httpd_post_receive_data(void *connection, struct pbuf *p) {
   pbuf_free(p);
   return ERR_VAL;
 }
-
-// TODO OHS use it or remove it
-bool checkPointer(void *pointer, const char *message) {
-  if (pointer == NULL) return false;
-  chsnprintf(alertMsg, LWIP_MIN(HTTP_ALERT_MSG_SIZE, sizeof(message) + 4), html_br, message);
-  return true;
-}
-
+/*
+ * When POST is finished.
+ */
 void httpd_post_finished(void *connection, char *response_uri, u16_t response_uri_len) {
   LWIP_UNUSED_ARG(connection);
   LWIP_UNUSED_ARG(response_uri_len);
@@ -2085,6 +2094,10 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                 break;
                 case 'e': // save
                   if (webScript == DUMMY_NO_VALUE) {
+                    if (!strlen(scriptName)) {
+                      chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "Not allowed to save empty name");
+                      break;
+                    }
                     // For new script append linked list
                     scriptp = umm_malloc(sizeof(struct scriptLL_t));
                     if (scriptp == NULL) {

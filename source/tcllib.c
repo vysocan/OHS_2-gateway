@@ -25,10 +25,10 @@
                     chprintf(tcl_output, "\r\n");}
 #define TCL_WARNING(...) {chprintf(tcl_output, "Warning: ");\
                     chprintf(tcl_output, __VA_ARGS__);\
-                    chprintf(tcl_output, "\r\n");}
+                    chprintf(tcl_output, ".\r\n");}
 #define TCL_ERROR(...) {chprintf(tcl_output, "Error: ");\
                     chprintf(tcl_output, __VA_ARGS__);\
-                    chprintf(tcl_output, "\r\n");}
+                    chprintf(tcl_output, ".\r\n");}
 
 #ifndef MAX_VAR_LENGTH
 #define MAX_VAR_LENGTH 256
@@ -65,7 +65,7 @@ int tcl_next(const char* s, size_t n, const char** from, const char** to, int* q
 
   // Check for endless loop
   if (!tcl_iteration) {
-    TCL_ERROR("Maximum iteration reached.");
+    TCL_ERROR("Maximum iteration reached");
     return TERROR;
   }
   tcl_iteration--;
@@ -131,7 +131,7 @@ int tcl_next(const char* s, size_t n, const char** from, const char** to, int* q
   }
   *to = s + i;
   if (i == n) {
-    TCL_ERROR("Continuation expected '%.*s'.", n, s);
+    TCL_ERROR("Continuation expected '%.*s'", n, s);
     return TERROR;
   }
   if (*q) {
@@ -326,7 +326,7 @@ tcl_value_t* tcl_var(struct tcl* tcl, tcl_value_t* name, tcl_value_t* v) {
   }
   // Error reporting
   if ((var == NULL) && (v == NULL)) {
-    TCL_WARNING("Variable '%s' is empty.", name);
+    TCL_WARNING("Variable '%s' is empty", name);
   }
   if (var == NULL) {
     VAR("- Allocate new %s.", name);
@@ -431,12 +431,12 @@ int tcl_eval(struct tcl* tcl, const char* s, size_t len) {
                 r = cmd->fn(tcl, list, cmd->arg);
                 // Error reporting
                 if (r == FERROR) {
-                  TCL_WARNING("Command '%s' returned ERROR.", tcl_string(cmdname));
+                  TCL_WARNING("Command '%s' returned ERROR", tcl_string(cmdname));
                 }
                 break;
               } else {
                 // Error reporting
-                TCL_ERROR("Expected %u argument(s) after '%s', received %u, at '%s'.",
+                TCL_ERROR("Expected %u argument(s) after '%s', received %u, at '%s'",
                       cmd->arity-1, tcl_string(cmdname), tcl_list_length(list)-1, list);
                 break;
               }
@@ -444,7 +444,7 @@ int tcl_eval(struct tcl* tcl, const char* s, size_t len) {
           }
           // Error reporting
           if (cmd == NULL) {
-            TCL_ERROR("Command '%s' unknown.", tcl_string(cmdname));
+            TCL_ERROR("Command '%s' unknown", tcl_string(cmdname));
           }
           DBG("FREE tcl_eval cmdname %x.", cmdname);
           tcl_free(cmdname);
@@ -643,7 +643,7 @@ static int tcl_cmd_while(struct tcl* tcl, tcl_value_t* args, void* arg) {
 #ifndef TCL_DISABLE_MATH
 static int tcl_cmd_math(struct tcl* tcl, tcl_value_t* args, void* arg) {
   (void)arg;
-  char buf[16];
+  char buf[10];
   tcl_value_t* opval = tcl_list_at(args, 0);
   tcl_value_t* aval = tcl_list_at(args, 1);
   tcl_value_t* bval = tcl_list_at(args, 2);
@@ -660,7 +660,7 @@ static int tcl_cmd_math(struct tcl* tcl, tcl_value_t* args, void* arg) {
   } else if (op[0] == '/') {
     // Error reporting
     if (b == 0) {
-      TCL_ERROR("Can't divide by 0.");
+      TCL_ERROR("Can't divide by 0");
       tcl_free(opval);
       tcl_free(aval);
       tcl_free(bval);
@@ -690,18 +690,47 @@ static int tcl_cmd_math(struct tcl* tcl, tcl_value_t* args, void* arg) {
   return tcl_result(tcl, FNORMAL, tcl_alloc(&buf[0], strlen(buf)));
 }
 #endif
+/*
+ * Return the string length of int value
+ */
+uint8_t lenHelper(unsigned x) {
+    if (x < 10)   return 1;
+    if (x < 100)  return 2;
+    if (x < 1000) return 3;
+    return 1;
+}
 
-static int tcl_cmd_strcmp(struct tcl* tcl, tcl_value_t* args, void* arg) {
+#define SUBCMD(s1,s2)       (!strcmp(s1,s2)) //((*s1)==(*s2) && !strcmp(s1,s2))
+#define ARITY(cond,cmd,num) if (!(cond)) {TCL_ERROR("'%s' expected %u argument(s)", cmd, num);\
+                            return tcl_result(tcl, FERROR, tcl_alloc("", 0));}
+/*
+ * String manipulation
+ */
+static int tcl_cmd_string(struct tcl* tcl, tcl_value_t* args, void* arg) {
   (void)arg;
   int r;
-  tcl_value_t* aval = tcl_list_at(args, 1);
-  tcl_value_t* bval = tcl_list_at(args, 2);
 
-  if (!strcmp(aval, bval)) r = tcl_result(tcl, FNORMAL, tcl_alloc("1", 1));
-  else                     r = tcl_result(tcl, FNORMAL, tcl_alloc("0", 1));
+  tcl_value_t* sub_cmd = tcl_list_at(args, 1);
+  tcl_value_t* aval = tcl_list_at(args, 2);
 
+  if (SUBCMD(sub_cmd, "compare")) {
+    ARITY((tcl_list_length(args) == 4), sub_cmd, 2);
+    tcl_value_t* bval = tcl_list_at(args, 3);
+    if (!strcmp(aval, bval)) r = tcl_result(tcl, FNORMAL, tcl_alloc("1", 1));
+    else                     r = tcl_result(tcl, FNORMAL, tcl_alloc("0", 1));
+    tcl_free(bval);
+  } else if (SUBCMD(sub_cmd, "length")) {
+    ARITY((tcl_list_length(args) == 3), sub_cmd, 1);
+    char buf[lenHelper(MAX_VAR_LENGTH) + 1];
+    chsnprintf(&buf[0], sizeof(buf), "%d", strlen(aval));
+    r = tcl_result(tcl, FNORMAL, tcl_alloc(buf, lenHelper(strlen(aval))));
+  } else {
+    TCL_ERROR("Unknown sub command");
+    r = tcl_result(tcl, FERROR, tcl_alloc("", 0));
+  }
+
+  tcl_free(sub_cmd);
   tcl_free(aval);
-  tcl_free(bval);
   return r;
 }
 
@@ -736,7 +765,8 @@ void tcl_init(struct tcl* tcl, uint16_t max_iterations, BaseSequentialStream *ou
   for (unsigned int i = 0; i < (sizeof(math) / sizeof(math[0])); i++) {
     tcl_register(tcl, math[i], tcl_cmd_math, 3, NULL, NULL);
   }
-  tcl_register(tcl, "strc", tcl_cmd_strcmp, 3, NULL, NULL);
+  tcl_register(tcl, "string", tcl_cmd_string, 0, NULL,
+               "string manipulation, sub commands 'compare s1 s2', 'length s1'");
 #endif
 }
 
@@ -755,17 +785,18 @@ void tcl_destroy(struct tcl* tcl) {
   tcl_free(tcl->result);
 }
 /*
- *
+ * Print tcl.env.vars to stream
  */
 void tcl_list_var(struct tcl* tcl, BaseSequentialStream **output, char *separator) {
   struct tcl_var* var;
 
   for (var = tcl->env->vars; var != NULL; var = var->next) {
-    chprintf(*output, "%s = '%s'", var->name, var->value);
+    chprintf(*output, "%s = %s", var->name, var->value);
     if (separator) chprintf(*output, "%s", separator);
   }
 }
 /*
+ * Print registered tcl.cmds to stream
  *
  * Options, as binary flags on bits
  * 0 - print arity

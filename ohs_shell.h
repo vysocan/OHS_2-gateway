@@ -15,7 +15,15 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
 
   if (argc > 1)  { goto ERROR; }
-  if (argc == 1) { FRAMReadPos = (atoi(argv[0]) - LOGGER_OUTPUT_LEN + 1) * FRAM_MSG_SIZE; }
+  // TODO OHS Implement format of logger
+  if (argc == 1) {
+    /*
+    if (strcmp(argv[0], "format") == 0) {
+      goto FORMAT;
+    } else {
+    */
+      FRAMReadPos = (atoi(argv[0]) - LOGGER_OUTPUT_LEN + 1) * FRAM_MSG_SIZE;
+    }
   if (argc == 0) { FRAMReadPos = FRAMWritePos - (FRAM_MSG_SIZE * LOGGER_OUTPUT_LEN); }
 
   spiAcquireBus(&SPID1);                // Acquire ownership of the bus.
@@ -46,6 +54,32 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
     FRAMReadPos += FRAM_MSG_SIZE;       // Advance for next read
   }
   spiReleaseBus(&SPID1);                // Ownership release.
+  return;
+
+  /*
+FORMAT:
+
+  char buffer[FRAM_MSG_SIZE + FRAM_HEADER_SIZE];
+  // SPI
+  spiAcquireBus(&SPID1);
+
+  spiSelect(&SPID1);
+  buffer[0] = CMD_25AA_WREN;
+  spiSend(&SPID1, 1, buffer);
+  spiUnselect(&SPID1);
+
+  buffer[0] = CMD_25AA_WRITE;
+  buffer[1] = 0;
+  buffer[2] = 0;
+  buffer[3] = 0;
+
+  memset(&buffer[FRAM_HEADER_SIZE], 0xff, FRAM_MSG_SIZE);
+
+  spiSelect(&SPID1);
+  spiSend(&SPID1, FRAM_MSG_SIZE + FRAM_HEADER_SIZE, buffer);
+  spiUnselect(&SPID1);
+  spiReleaseBus(&SPID1);
+*/
   return;
 
 ERROR:
@@ -172,6 +206,7 @@ static void cmd_net(BaseSequentialStream *chp, int argc, char *argv[]) {
 /*
  * Applet to show threads
  */
+/*
 static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
   if (argc > 0) {
@@ -217,13 +252,14 @@ static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
 
   chprintf(chp, "\r\n");
 }
+*/
 /*
  * Shell commands
  */
 static const ShellCommand commands[] = {
   {"date",  cmd_date},
   {"log",  cmd_log},
-  {"mythreads",  cmd_threads},
+  //{"mythreads",  cmd_threads},
   {"debug",  cmd_debug},
   {"ubs",  cmd_ubs},
   {"network",  cmd_net},

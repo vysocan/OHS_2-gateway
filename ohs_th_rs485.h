@@ -8,7 +8,6 @@
 #ifndef OHS_TH_RS485_H_
 #define OHS_TH_RS485_H_
 
-
 /*
  * RS485 thread
  */
@@ -35,12 +34,11 @@ static THD_FUNCTION(RS485Thread, arg) {
     //resp = chBSemWait(&RS485D2.received);
     if (flags & RS485_MSG_RECEIVED){
       resp = rs485GetMsg(&RS485D2, &rs485Msg);
-      chprintf(console, "RS485 received: %u, ", resp);
+      chprintf(console, "RS485: %u, ", resp);
       chprintf(console, "from %u, ", rs485Msg.address);
       chprintf(console, "ctrl %u, ", rs485Msg.ctrl);
-      chprintf(console, "length %u\r\n", rs485Msg.length);
+      chprintf(console, "length %u, Data: ", rs485Msg.length);
       //chprintf(console, "ib %d, ob %d\r\n", RS485D2.ib[1], RS485D2.ob[1]);
-      chprintf(console, "Data: ");
       for(uint8_t i = 0; i < rs485Msg.length; i++) {
         chprintf(console, "%u-%x, ", i, rs485Msg.data[i]);
       }

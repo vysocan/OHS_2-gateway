@@ -120,9 +120,9 @@ static void mdns_example_report(struct netif* netif, u8_t result, s8_t service){
   chprintf(console,"mdns status[netif %d][service %d]: %d\r\n", netif->num, service, result);
 }
 #endif
-
-
-// Application entry point.
+/*
+ * Application entry point.
+ */
 int main(void) {
   halInit();
   chSysInit();
@@ -233,23 +233,27 @@ int main(void) {
   };
 
   lwipInit(&lwip_opts);
+  //ETH->MACFFR |= ETH_MACFFR_PAM;
   httpd_init();
   sntp_init();
-  // TODO OHS implement MDNS
+  // TODO OHS implement IGMP and MDNS
+#if LWIP_MDNS_RESPONDER
   chThdSleepMilliseconds(100);
   mdns_resp_register_name_result_cb(mdns_example_report);
   mdns_resp_init();
-  mdns_resp_add_netif(netif_default, "OHS");
+  mdns_resp_add_netif(netif_default, "ohs");
   //chprintf(console, "netif_default %x\r\n", netif_default);
-  //mdns_resp_add_service(netif_default, "ohs", "_http", DNSSD_PROTO_TCP, 80, srv_txt, NULL);
+  mdns_resp_add_service(netif_default, "ohs", "_http", DNSSD_PROTO_TCP, 80, srv_txt, NULL);
   //mdns_resp_announce(netif_default);
   chThdSleepMilliseconds(100);
+#endif
 
   // Read last groups state
   readFromBkpRTC((uint8_t*)&group, sizeof(group), 0);
   // Read conf.
   readFromBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
   chprintf(console, "Size of conf: %u, group: %u\r\n", sizeof(conf), sizeof(group));
+
   // Check if we have new major version update
   if (conf.versionMajor != OHS_MAJOR) {
     setConfDefault(); // Load OHS default conf.
