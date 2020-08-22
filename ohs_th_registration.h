@@ -8,8 +8,6 @@
 #ifndef OHS_TH_REGISTRATION_H_
 #define OHS_TH_REGISTRATION_H_
 
-
-
 /*
  * Registration thread
  */
@@ -23,7 +21,7 @@ static THD_FUNCTION(RegistrationThread, arg) {
   while (true) {
     msg = chMBFetchTimeout(&registration_mb, (msg_t*)&inMsg, TIME_INFINITE);
     if (msg == MSG_OK) {
-      chprintf(console, "Registration for node %c-%c\r\n", inMsg->type, inMsg->function);
+      chprintf(console, "Registration for %c-%c\r\n", inMsg->type, inMsg->function);
       switch(inMsg->type){
         case 'K':
         case 'S':
@@ -35,7 +33,7 @@ static THD_FUNCTION(RegistrationThread, arg) {
             node[nodeIndex].lastOK  = getTimeUnixSec();
             node[nodeIndex].value    = 0; // Reset value
             memcpy(&node[nodeIndex].name, &inMsg->name, NAME_LENGTH); // node[nodeIndex].name[NAME_LENGTH-1] = 0;
-            chprintf(console, "Re-registred as: %d\r\n", nodeIndex);
+            chprintf(console, "Re-registered as: %d\r\n", nodeIndex);
           } else {
             nodeIndex = getNodeFreeIndex(); // Find empty slot
             if (nodeIndex == DUMMY_NO_VALUE) {
@@ -75,6 +73,7 @@ static THD_FUNCTION(RegistrationThread, arg) {
               else                    CLEAR_CONF_ZONE_TYPE(conf.zone[inMsg->number]); // force "Digital"
               conf.zoneAddress[inMsg->number-HW_ZONES] = inMsg->address; // copy address
               memcpy(&conf.zoneName[inMsg->number], &inMsg->name, NAME_LENGTH);
+              chprintf(console, "Registered zone #%d - %s\r\n", inMsg->number, conf.zoneName[inMsg->number]);
             } else { tmpLog[1] = 'E'; } // Log data
             tmpLog[2] = inMsg->number; pushToLog(tmpLog, 3);
           break;
@@ -89,6 +88,5 @@ static THD_FUNCTION(RegistrationThread, arg) {
     chPoolFree(&registration_pool, inMsg);
   }
 }
-
 
 #endif /* OHS_TH_REGISTRATION_H_ */

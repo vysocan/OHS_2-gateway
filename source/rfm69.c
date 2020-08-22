@@ -45,7 +45,7 @@ uint32_t           rfm69PacketAckFailed;
 #endif
 // Semaphores
 binary_semaphore_t rfm69DataReceived;
-binary_semaphore_t rfm69Received;
+binary_semaphore_t rfm69AckReceived;
 binary_semaphore_t rfm69Lock;
 
 /*
@@ -294,7 +294,7 @@ static void rfm69IsrCb(void *arg){
 
   chSysLockFromISR();
   if (transceiverMode == RF69_MODE_RX) chBSemSignalI(&rfm69DataReceived);
-  if (transceiverMode == RF69_MODE_RX_WAIT_ACK) chBSemSignalI(&rfm69Received);
+  if (transceiverMode == RF69_MODE_RX_WAIT_ACK) chBSemSignalI(&rfm69AckReceived);
   chSysUnlockFromISR();
 }
 
@@ -332,7 +332,7 @@ int8_t rfm69GetData(void) {
   uint8_t rxBuffer[RFM69_INTERRUPT_DATA_SIZE];
   uint8_t txBuffer[1] = {REG_FIFO & 0x7F};
 
-  DBG("RFM GD: datamode %u, flag %x\r\n", transceiverMode, rfm69ReadRegister(REG_IRQFLAGS2));
+  DBG("RFM GD: Mode %u, flag %x\r\n", transceiverMode, rfm69ReadRegister(REG_IRQFLAGS2));
 
   if (rfm69ReadRegister(REG_IRQFLAGS2) & RF_IRQFLAGS2_PAYLOADREADY) {
     // Lock
@@ -344,6 +344,9 @@ int8_t rfm69GetData(void) {
     spiSelect(rfm69Config.spidp);
     spiSend(rfm69Config.spidp, 1, (void *)&txBuffer[0]);
     spiReceive(rfm69Config.spidp, RFM69_INTERRUPT_DATA_SIZE, rxBuffer);
+
+    //for(uint8_t q = 0; q < RFM69_INTERRUPT_DATA_SIZE; q++) { DBG("%u,", rxBuffer[q]); }
+    //DBG("\r\n");
 
     rfm69Data.payloadLength = rxBuffer[0] > 66 ? 66 : rxBuffer[0]; // precaution
     rfm69Data.targetId = rxBuffer[1] | (((uint16_t)rxBuffer[3] & 0x0C) << 6); //10 bit address (most significant 2 bits stored in bits(2,3) of CTL byte
@@ -454,13 +457,12 @@ int8_t rfm69Send(uint16_t toAddress, const void* buffer, uint8_t bufferSize, boo
   // If ACK not requested we are done.
   if (!requestAck) return RF69_RSLT_OK;
 
-  DBG("RFM SendWA wait ACK\r\n");
-  DBG("Time %u\r\n", chVTGetSystemTimeX());
+  DBG("RFM SendWA wait ACK, time %u\r\n", chVTGetSystemTimeX());
 
   // Wait ACK
-  chBSemReset(&rfm69Received, true);
-  resp = chBSemWaitTimeout(&rfm69Received, TIME_MS2I(RFM69_ACK_TIMEOUT_MS));
-  DBG("Time %u\r\n", chVTGetSystemTimeX());
+  chBSemReset(&rfm69AckReceived, true);
+  resp = chBSemWaitTimeout(&rfm69AckReceived, TIME_MS2I(RFM69_ACK_TIMEOUT_MS));
+  DBG("RFM time %u\r\n", chVTGetSystemTimeX());
   if (resp != MSG_OK) {
     DBG("RFM SendWA ACK timeout\r\n");
     rfm69SetMode(RF69_MODE_RX);
@@ -567,7 +569,7 @@ void rfm69Start(rfm69Config_t *rfm69cfg) {
   rfm69PowerLevel = 31;
 
   // Semaphores
-  chBSemObjectInit(&rfm69Received, true);
+  chBSemObjectInit(&rfm69AckReceived, true);
   chBSemObjectInit(&rfm69DataReceived, true);
   chBSemObjectInit(&rfm69Lock, false);
 

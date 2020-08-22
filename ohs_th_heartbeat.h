@@ -18,7 +18,7 @@ static THD_FUNCTION(HeartBeatThread, arg) {
   systime_t time;
 
   while (true) {
-    time = serusbcfg.usbp->state == USB_ACTIVE ? 250 : 500;
+    time = serusbcfg.usbp->state == USB_ACTIVE ? 100 : 500;
 
     palSetPad(GPIOC, GPIOC_HEARTBEAT);
     chThdSleepMilliseconds(time);

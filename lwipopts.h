@@ -117,6 +117,7 @@
 #error "This tests needs LWIP_NETIF_EXT_STATUS_CALLBACK enabled"
 #endif
 
+#define LWIP_NETIF_HOSTNAME 1
 
 //ChibiOS RTC drivers
 /* old

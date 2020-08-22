@@ -41,12 +41,12 @@ binary_semaphore_t cbTriggerSem;
 #include "umm_malloc.h"
 #include "umm_malloc_cfg.h"
 #define UMM_MALLOC_CFG_HEAP_SIZE (1024*16)
+char ohsUmmHeap[UMM_MALLOC_CFG_HEAP_SIZE] __attribute__((section(".ram4")));
+// TCL
 #define TCL_SCRIPT_LENGTH        (512)
 #define TCL_OUTPUT_LENGTH        (1024*2)
-char ohsUmmHeap[UMM_MALLOC_CFG_HEAP_SIZE] __attribute__((section(".ram4")));
 char tclOutput[TCL_OUTPUT_LENGTH] __attribute__((section(".ram4")));
 char tclCmd[TCL_SCRIPT_LENGTH] __attribute__((section(".ram4")));
-// TCL
 #include "tcl.h"
 struct tcl tcl;
 // uBS
@@ -126,7 +126,6 @@ static void mdns_example_report(struct netif* netif, u8_t result, s8_t service){
 int main(void) {
   halInit();
   chSysInit();
-
   // Semaphores
   chBSemObjectInit(&gprsSem, false);
   chBSemObjectInit(&emailSem, false);
@@ -137,7 +136,6 @@ int main(void) {
   chprintf(console, "\r\nOHS v.%u.%u start\r\n", OHS_MAJOR, OHS_MINOR);
   // GPRS modem
   gprsInit(&SD6);
-
   // Init nodes
   initRuntimeNodes();
   // RS485
@@ -187,17 +185,18 @@ int main(void) {
   for(uint8_t i = 0; i < SCRIPT_FIFO_SIZE; i++) { chPoolFree(&script_pool, &script_pool_queue[i]); }
   for(uint8_t i = 0; i < TRIGGER_FIFO_SIZE; i++) { chPoolFree(&trigger_pool, &trigger_pool_queue[i]); }
 
-  spiStart(&SPID1, &spi1cfg);  // SPI
-  rfm69Start(&rfm69cfg);       // RFM69
+  // SPI
+  spiStart(&SPID1, &spi1cfg);
+  // RFM69
+  rfm69Start(&rfm69cfg);
   rfm69SetHighPower(true);     // long range version
 
-  // Activates the ADC1 driver
+  // ADC1 driver
   adcStart(&ADCD1, NULL);
 
-  // UMM / TCL
+  // UMM heap for TCL
   umm_init(&ohsUmmHeap[0], UMM_MALLOC_CFG_HEAP_SIZE);
   // uBS for FRAM
-  //uBSFormat();
   uBSInit();
 
   // Create thread(s).
@@ -227,7 +226,7 @@ int main(void) {
   struct lwipthread_opts lwip_opts =
   { &macAddr[0], 0, 0, 0, NET_ADDRESS_DHCP
     #if LWIP_NETIF_HOSTNAME
-      ,0
+      ,"OHS"
     #endif
     ,NULL, NULL
   };
@@ -250,13 +249,13 @@ int main(void) {
 
   // Read last groups state
   readFromBkpRTC((uint8_t*)&group, sizeof(group), 0);
-  // Read conf.
+  // Read conf struct
   readFromBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
   chprintf(console, "Size of conf: %u, group: %u\r\n", sizeof(conf), sizeof(group));
 
   // Check if we have new major version update
   if (conf.versionMajor != OHS_MAJOR) {
-    setConfDefault(); // Load OHS default conf.
+    setConfDefault();    // Load OHS default conf.
     initRuntimeGroups(); // Initialize runtime variables
     writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
     writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);

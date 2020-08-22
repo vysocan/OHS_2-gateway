@@ -27,7 +27,7 @@
 #endif
 
 #ifndef HTTP_DEBUG
-#define HTTP_DEBUG 0
+#define HTTP_DEBUG 1
 #endif
 
 #if HTTP_DEBUG
@@ -380,7 +380,7 @@ void printDurationSelect(BaseSequentialStream *chp, const char name, const uint8
 void genfiles_ex_init(void) {
   /* nothing to do here yet */
 }
-// HTML pages variables
+// HTML pages global variables
 uint8_t webNode = 0, webContact = 0, webKey = 0, webZone = 0, webGroup = 0,
     webTimer = 0, webScript = DUMMY_NO_VALUE, webTrigger = 0;
 char scriptName[NAME_LENGTH];
@@ -775,7 +775,8 @@ int fs_open_custom(struct fs_file *file, const char *name){
             chprintf(chp, "%s%s.", html_e_td_td, logText);
             chprintf(chp, "%s", html_e_td_td);
             for (uint8_t j = 0; j < ARRAY_SIZE(alertType); j++) {
-              if ((((uint8_t)rxBuffer[FRAM_MSG_SIZE-1] >> j) & 0b1) == 1) chprintf(chp, "%s ", alertType[j].name);
+              if ((((uint8_t)rxBuffer[FRAM_MSG_SIZE-1] >> j) & 0b1) == 1)
+                chprintf(chp, "%s ", alertType[j].name);
             }
           }
           spiReleaseBus(&SPID1);              // Ownership release.
@@ -929,7 +930,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s %s%s%s%", html_e_td_e_tr_tr_td, text_System, text_info, html_e_td_td, &gprsSystemInfo[7]);
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           // Buttons
-          chprintf(chp, "%s%s", html_Apply, html_Save);
+          //chprintf(chp, "%s%s", html_Apply, html_Save);
           break;
         case PAGE_SETTING:
           // Information table
@@ -1576,72 +1577,82 @@ err_t httpd_post_begin(void *connection, const char *uri, const char *http_reque
     current_connection = connection;
     chsnprintf(response_uri, response_uri_len, uri);
     chsnprintf(current_uri, response_uri_len, uri);
-    memset(postData, 0 , HTTP_POST_DATA_SIZE); // Empty POST data buffer
+    memset(postData, 0, HTTP_POST_DATA_SIZE); // Empty POST data buffer
     return ERR_OK;
   }
   return ERR_VAL;
 }
 /*
- * Pre-process POST data.
+ * Parse POST data.
+ *
+ * Parsing and processing modifies *pPostData buffer.
  */
-void processPostData(char *pSource){
+bool getPostData(char **pPostData, char *pName, uint8_t nameLen, char **pValue, uint16_t *pValueLen){
   uint8_t ch, ch1, ch2;
-  char *pDest = pSource;
+  char *pTail = (*pPostData); // Used as tail that overwrite the *pPostData
 
-  while (*pSource != 0){
-    ch = *pSource; pSource++;
+  *pValueLen = 0;             // Set value length = 0
+  memset(pName, 0, nameLen);  // Clear out name
+  (*pValue) = NULL;           // Clear out value as NULL terminated
+
+  while (**pPostData != 0){
+    ch = **pPostData; (*pPostData)++;
+    //DBG_HTTP("ch:%c, ", ch);
     switch (ch) {
       case '+': ch = ' ';
+        *pTail = ch;
+        //DBG_HTTP("pTail:%s\r\n", pTail);
+        pTail++;
         break;
       case '%':  // handle URL encoded characters by converting back to original form
-        ch1 = *pSource; pSource++;
-        ch2 = *pSource; pSource++;
+        ch1 = **pPostData; (*pPostData)++;
+        ch2 = **pPostData; (*pPostData)++;
         if (ch1 == 0 || ch2 == 0) {
-          ch = 0;
+          *pTail = 0;
+          pTail++;
           continue;
         }
         char hex[3] = { ch1, ch2, 0 };
         ch = strtoul(hex, NULL, 16);
+        *pTail = ch;
+        //DBG_HTTP("pTail:%s\r\n", pTail);
+        pTail++;
         break;
-    }
-    *pDest = ch; pDest++;
-  }
-  *pDest = 0;
-}
-/*
- * Parse POST data.
- */
-bool getPostData(char **pPostData, char *pName, uint8_t nameLen, char **pValue, uint16_t *pValueLen){
-  uint8_t ch;
-  *pValueLen = 0;
-
-  // clear out name and value so they'll be NULL terminated
-  memset(pName, 0, nameLen);
-  (*pValue) = NULL;
-
-  while (**pPostData != 0){
-    ch = **pPostData; (*pPostData)++;
-    switch (ch) {
       case '=': // that's end of name, switch to storing value
+        //DBG_HTTP("pTail:%s\r\n", pTail);
+        pTail++;
         nameLen = 0;
         (*pValue) = (*pPostData);
         continue; // do not store '='
         break;
       case '&': // that's end of pair, go away
+        // null rest of *pPostData up to pTail
+        while (pTail != (*pPostData)) {
+          *pTail = 0; pTail++;
+        }
+        //DBG_HTTP("--*pValue:%s\r\n", *pValue);
         return true;
         break;
+      default:
+        *pTail = ch;
+        //DBG_HTTP("pTail:%s\r\n", pTail);
+        pTail++;
+        break;
     }
-
     // check against 1 so we don't overwrite the final NULL
     if (nameLen > 1) {
       *pName++ = ch;
       --nameLen;
     } else {
-      if (nameLen == 0)  {
+      if (nameLen == 0) {
         (*pValueLen)++;
       }
     }
-    //DBG_HTTP("ch-%c, nameLen-%u, valueLen-%u, %s\r\n", ch, nameLen, *valueLen, *pValue);
+    //DBG_HTTP("nameLen:%u, valueLen:%u, value:%s\r\n", nameLen, *pValueLen, *pValue);
+  }
+  // null rest of *pPostData up to pTail
+  while (pTail != (*pPostData)) {
+    *pTail = 0; pTail++;
   }
   return false; // Null is end
 }
@@ -1691,8 +1702,6 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
   char *postDataP = &postData[0], *endP, *valueP;
 
   DBG_HTTP("-PE-connection: %u\r\n", (uint32_t *)connection);
-  processPostData(postData);
-  DBG_HTTP("-PE-postData: %s\r\n", postData);
 
   if (current_connection == connection) {
     for (uint8_t htmlPage = 0; htmlPage < ARRAY_SIZE(webPage); ++htmlPage) {

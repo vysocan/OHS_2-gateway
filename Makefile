@@ -119,6 +119,7 @@ include $(CHIBIOS)/os/various/lwip_bindings/lwip.mk
 
 # Define linker script file here
 LDSCRIPT= $(CONFDIR)/STM32F437xG.ld
+#LDSCRIPT= $(STARTUPLD)/STM32F407xG.ld
 
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -135,6 +136,12 @@ CPPSRC = $(ALLCPPSRC)
 # List ASM source files here.
 ASMSRC = $(ALLASMSRC)
 
+# DFU
+#TMPVAR := $(ALLXASMSRC)
+#ALLXASMSRC = $(filter-out crt0_v7m.S, $(TMPVAR))
+#ALLXASMSRC += $(CONFDIR)/crt0_v7m.S
+# DFU
+ALLXASMSRC += $(CONFDIR)/DFU.S
 # List ASM with preprocessor source files here.
 ASMXSRC = $(ALLXASMSRC)
 

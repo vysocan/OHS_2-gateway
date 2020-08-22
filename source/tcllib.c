@@ -19,17 +19,6 @@
 //#define VAR(...) {chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__); chprintf((BaseSequentialStream*) &SD3, "\r\n");}
 #define VAR(...)
 
-// tcl_output
-#define TCL_TRACE(...) {chprintf(tcl_output, "Trace: ");\
-                    chprintf(tcl_output, __VA_ARGS__);\
-                    chprintf(tcl_output, "\r\n");}
-#define TCL_WARNING(...) {chprintf(tcl_output, "Warning: ");\
-                    chprintf(tcl_output, __VA_ARGS__);\
-                    chprintf(tcl_output, ".\r\n");}
-#define TCL_ERROR(...) {chprintf(tcl_output, "Error: ");\
-                    chprintf(tcl_output, __VA_ARGS__);\
-                    chprintf(tcl_output, ".\r\n");}
-
 #ifndef MAX_VAR_LENGTH
 #define MAX_VAR_LENGTH 256
 #endif
@@ -292,7 +281,10 @@ struct tcl_env* tcl_env_free(struct tcl_env* env) {
   tcl_free(env);
   return parent;
 }
-
+/*
+ * Variable type tests
+ */
+/*
 static int tcl_is_digit(char c) { return (c >= '0' && c <= '9'); }
 
 tcl_var_t tcl_var_type(tcl_value_t * val) {
@@ -313,6 +305,7 @@ tcl_var_t tcl_var_type(tcl_value_t * val) {
   }
   return var_type;
 }
+*/
 
 tcl_value_t* tcl_var(struct tcl* tcl, tcl_value_t* name, tcl_value_t* v) {
   struct tcl_var* var;
@@ -697,43 +690,43 @@ uint8_t lenHelper(unsigned x) {
     if (x < 10)   return 1;
     if (x < 100)  return 2;
     if (x < 1000) return 3;
-    return 1;
+    else return 4;
 }
-
-#define SUBCMD(s1,s2)       (!strcmp(s1,s2)) //((*s1)==(*s2) && !strcmp(s1,s2))
-#define ARITY(cond,cmd,num) if (!(cond)) {TCL_ERROR("'%s' expected %u argument(s)", cmd, num);\
-                            return tcl_result(tcl, FERROR, tcl_alloc("", 0));}
 /*
  * String manipulation
  */
 static int tcl_cmd_string(struct tcl* tcl, tcl_value_t* args, void* arg) {
   (void)arg;
-  int r;
+  uint8_t ret;
 
   tcl_value_t* sub_cmd = tcl_list_at(args, 1);
-  tcl_value_t* aval = tcl_list_at(args, 2);
 
   if (SUBCMD(sub_cmd, "compare")) {
     ARITY((tcl_list_length(args) == 4), sub_cmd, 2);
+    tcl_value_t* aval = tcl_list_at(args, 2);
     tcl_value_t* bval = tcl_list_at(args, 3);
-    if (!strcmp(aval, bval)) r = tcl_result(tcl, FNORMAL, tcl_alloc("1", 1));
-    else                     r = tcl_result(tcl, FNORMAL, tcl_alloc("0", 1));
+    if (!strcmp(aval, bval)) ret = tcl_result(tcl, FNORMAL, tcl_alloc("1", 1));
+    else                     ret = tcl_result(tcl, FNORMAL, tcl_alloc("0", 1));
     tcl_free(bval);
+    tcl_free(aval);
   } else if (SUBCMD(sub_cmd, "length")) {
     ARITY((tcl_list_length(args) == 3), sub_cmd, 1);
+    tcl_value_t* aval = tcl_list_at(args, 2);
     char buf[lenHelper(MAX_VAR_LENGTH) + 1];
-    chsnprintf(&buf[0], sizeof(buf), "%d", strlen(aval));
-    r = tcl_result(tcl, FNORMAL, tcl_alloc(buf, lenHelper(strlen(aval))));
+    uint8_t resp = chsnprintf(&buf[0], sizeof(buf), "%d", strlen(aval));
+    ret = tcl_result(tcl, FNORMAL, tcl_alloc(buf, resp));
+    tcl_free(aval);
   } else {
-    TCL_ERROR("Unknown sub command");
-    r = tcl_result(tcl, FERROR, tcl_alloc("", 0));
+    SUBCMDERROR("compare|length");
+    ret = tcl_result(tcl, FERROR, tcl_alloc("", 0));
   }
 
   tcl_free(sub_cmd);
-  tcl_free(aval);
-  return r;
+  return ret;
 }
-
+/*
+ *
+ */
 void tcl_init(struct tcl* tcl, uint16_t max_iterations, BaseSequentialStream *output) {
   tcl_output = output;
   tcl_iteration = max_iterations;

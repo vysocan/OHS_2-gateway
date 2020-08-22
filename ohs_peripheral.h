@@ -7,10 +7,10 @@
  * Peripheral configurations
  */
 /*
- * SPI macros
- * Peripherial Clock 42MHz SPI2 SPI3
- * Peripherial Clock 84MHz SPI1
- *                                                             SPI1        SPI2/3   */
+ * SPI macros for 168Mhz
+ * Peripherial Clock /4 = 42MHz for SPI2 SPI3
+ * Peripherial Clock /2 = 84MHz for SPI1 SPI4 SPI5 SPI6
+ *                                                             SPI1/4/5/6  SPI2/3   */
 #define SPI_BaudRatePrescaler_2         ((uint16_t)0x0000) //  42 MHz      21 MHZ
 #define SPI_BaudRatePrescaler_4         ((uint16_t)0x0008) //  21 MHz      10.5 MHz
 #define SPI_BaudRatePrescaler_8         ((uint16_t)0x0010) //  10.5 MHz    5.25 MHz

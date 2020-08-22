@@ -26,7 +26,7 @@ volatile uint16_t FRAMReadPos  = 0;
 
 // FRAM buffers for decode
 static char rxBuffer[FRAM_MSG_SIZE];
-static char txBuffer[FRAM_HEADER_SIZE];
+static char txBuffer[FRAM_HEADER_SIZE + FRAM_MSG_SIZE];
 
 const char weekNumber[][7] = {
 // 12345678901234567890
@@ -100,6 +100,7 @@ const char text_not[]               = "not";
 const char text_strength[]          = "strength";
 const char text_unknown[]           = "unknown";
 const char text_empty[]             = "empty";
+const char text_Empty[]             = "Empty";
 const char text_roaming[]           = "roaming";
 const char text_searching[]         = "searching";
 const char text_network[]           = "network";
@@ -471,7 +472,7 @@ int8_t sendCmd(uint8_t address, uint8_t command) {
   if (address <= RADIO_UNIT_OFFSET) {
     RS485Cmd_t rs485Cmd;
 
-    chprintf(console, "RS485 Send cmd: %d to address: %d\r\n", command, address);
+    chprintf(console, "RS485 send cmd: %d to address: %d\r\n", command, address);
     rs485Cmd.address = address;
     rs485Cmd.length = command;
     if (rs485SendCmdWithACK(&RS485D2, &rs485Cmd, 3) == MSG_OK) resp = 1;
@@ -481,8 +482,13 @@ int8_t sendCmd(uint8_t address, uint8_t command) {
   if (address >= RADIO_UNIT_OFFSET) {
     char radioCmd[] = {'C', command};
 
-    chprintf(console, "Radio Send cmd: %d to address: %d\r\n", command, address - RADIO_UNIT_OFFSET);
-    resp = rfm69Send(address - RADIO_UNIT_OFFSET, radioCmd, sizeof(radioCmd), true);
+    if (address == RADIO_UNIT_OFFSET) {
+      chprintf(console, "Radio send cmd: %d to broadcast.\r\n", command);
+      resp = rfm69Send(255, radioCmd, sizeof(radioCmd), false);
+    } else {
+      chprintf(console, "Radio send cmd: %d to address: %d\r\n", command, address - RADIO_UNIT_OFFSET);
+      resp = rfm69Send(address - RADIO_UNIT_OFFSET, radioCmd, sizeof(radioCmd), true);
+    }
   }
   return resp;
 }
@@ -650,7 +656,7 @@ uint32_t sdbmHash(uint8_t *toHash, uint8_t length) {
  */
 void checkKey(uint8_t groupNum, armType_t armType, uint8_t *key, uint8_t length){
   // Group is allowed and enabled
-  chprintf(console, "Check key for group: %u, arm type: %u\r\n", groupNum, armType);
+  chprintf(console, "Check key for group: %u, type: %s\r\n", groupNum, groupState[armType + 1]); // 0 = disarmed
   if ((groupNum < ALARM_GROUPS) && (GET_CONF_GROUP_ENABLED(conf.group[groupNum]))) {
     // Check all keys
     uint32_t keyHash = sdbmHash(key, length);
@@ -1063,7 +1069,7 @@ static uint8_t decodeLog(char *in, char *out, bool full){
       chprintf(chp, " %s %s", text_queue, text_full);
     break;
     case 0xff:
-      chprintf(chp, "%s", text_empty);
+      chprintf(chp, "%s", text_Empty);
     break;
     default: chprintf(chp, "%s", text_Undefined);
       for(uint16_t ii = 0; ii < LOGGER_MSG_LENGTH; ii++) {

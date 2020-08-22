@@ -15,15 +15,13 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
 
   if (argc > 1)  { goto ERROR; }
-  // TODO OHS Implement format of logger
   if (argc == 1) {
-    /*
     if (strcmp(argv[0], "format") == 0) {
       goto FORMAT;
     } else {
-    */
-      FRAMReadPos = (atoi(argv[0]) - LOGGER_OUTPUT_LEN + 1) * FRAM_MSG_SIZE;
+      FRAMReadPos = (atoi(argv[0]) - LOGGER_OUTPUT_LEN) * FRAM_MSG_SIZE;
     }
+  }
   if (argc == 0) { FRAMReadPos = FRAMWritePos - (FRAM_MSG_SIZE * LOGGER_OUTPUT_LEN); }
 
   spiAcquireBus(&SPID1);                // Acquire ownership of the bus.
@@ -41,49 +39,57 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
     memcpy(&timeConv.ch[0], &rxBuffer[0], sizeof(timeConv.ch)); // Prepare timestamp
     decodeLog(&rxBuffer[4], logText, true);
 
-    chprintf(chp, "#%4u : ", (FRAMReadPos/FRAM_MSG_SIZE));
+    chprintf(chp, "#%4u : ", 1 + (FRAMReadPos/FRAM_MSG_SIZE));
     printFrmTimestamp(chp, &timeConv.val);
     chprintf(chp, " : %s.", logText);
     chprintf(chp, " : Flags: ");
     for (uint8_t j = 0; j < ARRAY_SIZE(alertType); j++) {
       if ((((uint8_t)rxBuffer[FRAM_MSG_SIZE-1] >> j) & 0b1) == 1)
-        chprintf(chp, "%s, ", alertType[(uint8_t)rxBuffer[FRAM_MSG_SIZE-1]].name);
+        chprintf(chp, "%s ", alertType[j].name);
     }
     chprintf(chp, "\r\n");
 
     FRAMReadPos += FRAM_MSG_SIZE;       // Advance for next read
   }
   spiReleaseBus(&SPID1);                // Ownership release.
+  // Show usage if no aguments
+  if (argc == 0) {
+    chprintf(chp, "\r\n");
+    goto ERROR;
+  }
   return;
 
-  /*
 FORMAT:
+  // Set 0xFF as initial/empty state, same as new FRAM
+  memset(&txBuffer[FRAM_HEADER_SIZE], 0xFF, FRAM_MSG_SIZE);
 
-  char buffer[FRAM_MSG_SIZE + FRAM_HEADER_SIZE];
   // SPI
   spiAcquireBus(&SPID1);
-
-  spiSelect(&SPID1);
-  buffer[0] = CMD_25AA_WREN;
-  spiSend(&SPID1, 1, buffer);
-  spiUnselect(&SPID1);
-
-  buffer[0] = CMD_25AA_WRITE;
-  buffer[1] = 0;
-  buffer[2] = 0;
-  buffer[3] = 0;
-
-  memset(&buffer[FRAM_HEADER_SIZE], 0xff, FRAM_MSG_SIZE);
-
-  spiSelect(&SPID1);
-  spiSend(&SPID1, FRAM_MSG_SIZE + FRAM_HEADER_SIZE, buffer);
-  spiUnselect(&SPID1);
+  for(uint32_t i = 0; i < UINT16_MAX; i += FRAM_MSG_SIZE) {
+    spiSelect(&SPID1);
+    txBuffer[0] = CMD_25AA_WREN;
+    spiSend(&SPID1, 1, txBuffer);
+    spiUnselect(&SPID1);
+    // Set start address
+    txBuffer[0] = CMD_25AA_WRITE;
+    txBuffer[1] = 0;
+    txBuffer[2] = (i >> 8) & 0xFF;
+    txBuffer[3] = i & 0xFF;
+    // Write
+    spiSelect(&SPID1);
+    spiSend(&SPID1, FRAM_HEADER_SIZE + FRAM_MSG_SIZE, txBuffer);
+    spiUnselect(&SPID1);
+  }
   spiReleaseBus(&SPID1);
-*/
+
+  FRAMReadPos = FRAMWritePos = 0;
+  chprintf(chp, "Log formated.\r\n");
   return;
 
 ERROR:
-  shellUsage(chp, "log\r\n       log N - where N is log last entry point");
+  chprintf(chp, "Usage: log - show this, current log entry.\r\n");
+  chprintf(chp, "       log N - where N is log last entry number(1 - 4096).\r\n");
+  chprintf(chp, "       log format - erase all log entries.\r\n");
   return;
 }
 /*
@@ -122,8 +128,7 @@ static void cmd_date(BaseSequentialStream *chp, int argc, char *argv[]) {
 
   // Rest is error
   chprintf(chp, "Usage: date\r\n");
-  chprintf(chp, "       date set N\r\n");
-  chprintf(chp, "where N is time in seconds since Unix epoch\r\n");
+  chprintf(chp, "       date set N - where N is time in seconds since Unix epoch\r\n.\r\n");
   chprintf(chp, "You can get current N value from unix console by the command:\r\n");
   chprintf(chp, "%s", "date +\%s\r\n");
   return;
@@ -154,7 +159,6 @@ static void cmd_debug(BaseSequentialStream *chp, int argc, char *argv[]) {
  * Applet to uBS
  */
 static void cmd_ubs(BaseSequentialStream *chp, int argc, char *argv[]) {
-  (void)argv;
 
   if (argc == 1) {
     switch (argv[0][0]) {
@@ -202,6 +206,29 @@ static void cmd_net(BaseSequentialStream *chp, int argc, char *argv[]) {
   chprintf(chp, "MAC        : %02x:%02x:%02x:%02x:%02x:%02x\r\n",
            macAddr[0], macAddr[1], macAddr[2],
            macAddr[3], macAddr[4], macAddr[5]);
+}
+/*
+ * Applet to allow DFU upgrade
+ */
+static void cmd_boot(BaseSequentialStream *chp, int argc, char *argv[]) {
+
+  if (argc == 1) {
+    if (strcmp(argv[0], "dfu") == 0) {
+      chprintf(chp, "Reboot DfuSe.\r\n");
+      // Leave DFU breadcrumb which assmebly startup code would check
+      *((unsigned long *)0x2002FFF0) = 0xDEADBEEF; // End of RAM F437
+      //*((unsigned long *)0x2001FFF0) = 0xDEADBEEF; // End of RAM F407
+      // Reset PHY
+      palClearPad(GPIOE, GPIOE_ETH_RESET);
+      chThdSleepMilliseconds(10);
+      // And now reboot
+      NVIC_SystemReset();
+      return;
+    }
+  }
+
+  // Rest is error
+  shellUsage(chp, "boot dfu - reboot to DfuSe firmware upgrade mode.");
 }
 /*
  * Applet to show threads
@@ -263,6 +290,7 @@ static const ShellCommand commands[] = {
   {"debug",  cmd_debug},
   {"ubs",  cmd_ubs},
   {"network",  cmd_net},
+  {"boot",  cmd_boot},
   {NULL, NULL}
 };
 /*

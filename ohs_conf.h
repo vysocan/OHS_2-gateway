@@ -16,7 +16,7 @@
 #define STM32_UUID ((uint32_t *)UID_BASE)
 
 #define OHS_MAJOR        1
-#define OHS_MINOR        1
+#define OHS_MINOR        2
 
 #define BACKUP_SRAM_SIZE 0x1000 // 4kB SRAM size
 #define BACKUP_RTC_SIZE  80     // 80 bytes
@@ -28,7 +28,7 @@
 #define KEYS_SIZE        20     // # of keys
 #define TIMER_SIZE       10     // # of timers
 #define TRIGGER_SIZE     10     // # of timers
-#define KEY_LENGTH       4      // sizeof(uint32_t)
+#define KEY_LENGTH       4      // sizeof(uint32_t) / size of hash
 #define NAME_LENGTH      16     //
 #define PHONE_LENGTH     14     //
 #define EMAIL_LENGTH     30     //
@@ -55,13 +55,12 @@
 #define AC_POWER_DELAY    60    // seconds
 
 #define LOGGER_MSG_LENGTH 11
-#define LOGGER_OUTPUT_LEN 20    // How many entries to show
+#define LOGGER_OUTPUT_LEN 25    // How many entries to show
 
 // Parameter checks
 #if NODE_SIZE >= DUMMY_NO_VALUE
 #error "NODE_SIZE is set to high!"
 #endif
-
 
 // Time related
 #define SECONDS_PER_DAY     86400U
@@ -357,7 +356,7 @@ typedef struct {
 } sensorEvent_t;
 
 // Trigger events
-#define TRIGGER_FIFO_SIZE 10
+#define TRIGGER_FIFO_SIZE 20 // To accommodate various sources like zones, groups, sensors
 typedef struct {
   char    type;     // = 'S';
   uint8_t address;  // = 0;

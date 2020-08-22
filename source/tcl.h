@@ -8,6 +8,33 @@ extern "C" {
 #include "hal.h"
 #include "memstreams.h"
 
+// OHS - Iteration counter
+extern uint16_t tcl_iteration;
+extern BaseSequentialStream *tcl_output;
+
+/*
+ * TCL output formatters
+ */
+#define TCL_TRACE(...) {chprintf(tcl_output, "Trace: ");\
+                    chprintf(tcl_output, __VA_ARGS__);\
+                    chprintf(tcl_output, "\r\n");}
+#define TCL_WARNING(...) {chprintf(tcl_output, "Warning: ");\
+                    chprintf(tcl_output, __VA_ARGS__);\
+                    chprintf(tcl_output, ".\r\n");}
+#define TCL_ERROR(...) {chprintf(tcl_output, "Error: ");\
+                    chprintf(tcl_output, __VA_ARGS__);\
+                    chprintf(tcl_output, ".\r\n");}
+/*
+ * Macro helpers
+ */
+#define SUBCMD(s1,s2)        (!strcmp(s1,s2)) //((*s1)==(*s2) && !strcmp(s1,s2))
+// When using ARRITY you must free all allocations first!
+#define ARITY(cond,scmd,num) if (!(cond)) {TCL_ERROR("'%s' expected %u argument(s)", scmd, num);\
+                             tcl_free(sub_cmd);\
+                             return tcl_result(tcl, FERROR, tcl_alloc("", 0));}
+#define SUBCMDERROR(text)    TCL_ERROR("Unknown sub command, usage: %s", text);
+
+
 struct tcl;
 
 /* Token type and control flow constants */
@@ -24,15 +51,14 @@ enum {
   FBREAK,
   FAGAIN
 };
-// Variable types
+// Adam Variable types
+/*
 enum {
   VARCHAR,
   VARINT,
   VARFLOAT
 };
-
-// OHS - Iteration counter
-extern uint16_t tcl_iteration;
+*/
 
 /* A helper parser struct and macro (requires C99) */
 struct tcl_parser {
@@ -52,7 +78,7 @@ struct tcl_parser {
 typedef char tcl_value_t;
 typedef uint8_t tcl_var_t;
 
-// --- const char* tcl_string(tcl_value_t* v);
+// --- Adam - compiler waring to 'const' --- const char* tcl_string(tcl_value_t* v);
 char* tcl_string(tcl_value_t* v);
 int tcl_int(tcl_value_t* v);
 int tcl_length(tcl_value_t* v);
@@ -69,6 +95,7 @@ tcl_value_t* tcl_append(tcl_value_t* v, tcl_value_t* tail);
 tcl_value_t* tcl_alloc(const char* s, size_t len);
 tcl_value_t* tcl_dup(tcl_value_t* v);
 tcl_value_t* tcl_list_alloc(void);
+int tcl_list_length(tcl_value_t* v);
 void tcl_list_free(tcl_value_t* v);
 tcl_value_t* tcl_list_at(tcl_value_t* v, int index);
 tcl_value_t* tcl_list_append(tcl_value_t* v, tcl_value_t* tail);

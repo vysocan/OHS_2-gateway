@@ -19,7 +19,7 @@
 #endif
 
 /*
- * TCL custom commands
+ * TCL command node
  */
 #define TCL_CMD_NODE_ADDRESS_SIZE 5
 static int tcl_cmd_node(struct tcl* tcl, tcl_value_t* args, void* arg) {
@@ -27,21 +27,21 @@ static int tcl_cmd_node(struct tcl* tcl, tcl_value_t* args, void* arg) {
   char *pch, *index[TCL_CMD_NODE_ADDRESS_SIZE];
   uint8_t indexNum = 0;
   int ret;
-  char buf[16];
+  char buf[10];
 
-  tcl_value_t* location = tcl_list_at(args, 1);
-  //DBG_TCL("*tcl_cmd_node*: %s.\r\n", location);
+  tcl_value_t* nodeAddress = tcl_list_at(args, 1);
+  //DBG_TCL("*tcl_cmd_node*: %s.\r\n", nodeAddress);
 
   // Get index
-  pch = strtok((char*)location,":");
+  pch = strtok((char*)nodeAddress,":");
   while ((pch != NULL) && (indexNum < TCL_CMD_NODE_ADDRESS_SIZE)){
     index[indexNum] = pch;
     pch = strtok(NULL, ":");
     indexNum++;
   }
   if (indexNum == TCL_CMD_NODE_ADDRESS_SIZE) {
-    indexNum = getNodeIndex((*index[0] == 'R' ? RADIO_UNIT_OFFSET : 0) + atoi(index[1]),
-                            *index[2], *index[3], atoi(index[4]));
+    indexNum = getNodeIndex((*index[0] == 'R' ? RADIO_UNIT_OFFSET : 0) + strtoul(index[1], NULL, 0),
+                            *index[2], *index[3], strtoul(index[4], NULL, 0));
     if (indexNum != DUMMY_NO_VALUE) {
       //DBG_TCL("*tcl_cmd_node*: %d.\r\n", indexNum);
       chsnprintf(&buf[0], sizeof(buf), "%.2f", node[indexNum].value);
@@ -54,10 +54,13 @@ static int tcl_cmd_node(struct tcl* tcl, tcl_value_t* args, void* arg) {
   if (indexNum == DUMMY_NO_VALUE) {
     ret = tcl_result(tcl, FERROR, tcl_alloc("", 0));
   }
-  tcl_free(location);
+  // free
+  tcl_free(nodeAddress);
   return ret;
 }
-
+/*
+ * TCL command group
+ */
 static int tcl_cmd_group(struct tcl* tcl, tcl_value_t* args, void* arg) {
   (void)arg;
   int ret;
@@ -66,14 +69,13 @@ static int tcl_cmd_group(struct tcl* tcl, tcl_value_t* args, void* arg) {
   tcl_value_t* groupNumber = tcl_list_at(args, 1);
   tcl_value_t* groupCommand = tcl_list_at(args, 2);
 
-  groupNum = atoi(groupNumber) - 1;
+  groupNum = strtoul(groupNumber, NULL, 0) - 1;
   //DBG_TCL("groupNum: %u.\r\n", groupNum);
   //DBG_TCL("*groupCommand: %c.\r\n", *groupCommand);
 
   if ((groupNum < ALARM_GROUPS) && (GET_CONF_GROUP_ENABLED(conf.group[groupNum]))) {
     switch (*groupCommand) {
       case 'a': // Armed
-      case 'A':
         if (GET_GROUP_ARMED(group[groupNum].setting)) {
           if GET_GROUP_ARMED_HOME(group[groupNum].setting) {
             ret = tcl_result(tcl, FNORMAL, tcl_alloc("2", 1)); // Armed home
@@ -89,31 +91,104 @@ static int tcl_cmd_group(struct tcl* tcl, tcl_value_t* args, void* arg) {
         }
         break;
       case 's': // Status
-      case 'S':
         if (GET_GROUP_ALARM(group[groupNum].setting) == 0) {
           if (GET_GROUP_WAIT_AUTH(group[groupNum].setting)) {
-            ret = tcl_result(tcl, FNORMAL, tcl_alloc("0", 1)); // Awaiting authorization
+            ret = tcl_result(tcl, FNORMAL, tcl_alloc("1", 1)); // Awaiting authorization
           } else {
-            ret = tcl_result(tcl, FNORMAL, tcl_alloc("1", 1)); // OK
+            ret = tcl_result(tcl, FNORMAL, tcl_alloc("2", 1)); // OK
           }
         } else {
-          ret = tcl_result(tcl, FNORMAL, tcl_alloc("-1", 2)); // Alarm
+          ret = tcl_result(tcl, FNORMAL, tcl_alloc("0", 1)); // Alarm
         }
         break;
+      default: SUBCMDERROR("a_rmed|s_tatus"); break;
     }
   } else {
     ret = tcl_result(tcl, FERROR, tcl_alloc("", 0));
   }
-
+  // free
   tcl_free(groupNumber);
   tcl_free(groupCommand);
+  return ret;
+}
+/*
+ * TCL command clock
+ *
+ * Seems it needs a lot of thread memory, + 512B
+ */
+static int tcl_cmd_clock(struct tcl* tcl, tcl_value_t* args, void* arg) {
+  (void)arg;
+  int ret;
+
+  tcl_value_t* sub_cmd = tcl_list_at(args, 1);
+
+  if (SUBCMD(sub_cmd, "seconds")) {
+    ARITY((tcl_list_length(args) == 2), sub_cmd, 0);
+    char buf[11];
+    uint8_t resp = chsnprintf(&buf[0], sizeof(buf), "%u", (uint32_t)getTimeUnixSec());
+    ret = tcl_result(tcl, FNORMAL, tcl_alloc(buf, resp));
+  } else if (SUBCMD(sub_cmd, "format")) {
+    ARITY((tcl_list_length(args) == 3), sub_cmd, 1);
+    tcl_value_t* val = tcl_list_at(args, 2);
+    // Temporary variables
+    time_t tmp = strtoul(val, NULL, 0);
+    struct tm *ptm = gmtime(&tmp);
+    char   buf[30];
+    // Check if return is 0 then format is invalid
+    if (strftime(buf, sizeof(buf), conf.dateTimeFormat, ptm) != 0)
+      ret = tcl_result(tcl, FNORMAL, tcl_alloc(buf, strlen(buf)));
+    else
+      ret = tcl_result(tcl, FERROR, tcl_alloc("", 0));
+    // free
+    tcl_free(val);
+  } else if (SUBCMD(sub_cmd, "add")) {
+    /*
+     * If more precision, or month/year is needed,
+     * then convertUnixSecondToRTCDateTime<>convertRTCDateTimeToUnixSecond can be used.
+     */
+    ARITY((tcl_list_length(args) == 5), sub_cmd, 3);
+    tcl_value_t* val = tcl_list_at(args, 2);
+    tcl_value_t* add = tcl_list_at(args, 3);
+    tcl_value_t* scale = tcl_list_at(args, 4);
+    // Temporary variables
+    time_t tmpVal = strtoul(val, NULL, 0);
+    time_t tmpValOld = tmpVal;
+    time_t tmpAdd = strtoul(add, NULL, 0);
+    char   buf[30];
+    switch(*scale) {
+      case 's': tmpVal += tmpAdd; break;
+      case 'm': tmpVal += tmpAdd * SECONDS_PER_MINUTE; break;
+      case 'h': tmpVal += tmpAdd * SECONDS_PER_HOUR; break;
+      case 'd': tmpVal += tmpAdd * SECONDS_PER_DAY; break;
+      case 'w': tmpVal += tmpAdd * SECONDS_PER_DAY * 7; break;
+      default: SUBCMDERROR("clock add $ s_econds|m_inutes|h_ours|d_ays|w_eeks"); break;
+    }
+    // Check if return is 0 then format is invalid
+    struct tm *ptm = gmtime(&tmpVal);
+    if ((tmpVal != tmpValOld) && (strftime(buf, sizeof(buf), conf.dateTimeFormat, ptm) != 0))
+      ret = tcl_result(tcl, FNORMAL, tcl_alloc(buf, strlen(buf)));
+    else {
+      ret = tcl_result(tcl, FERROR, tcl_alloc("", 0));
+      if (tmpVal == 0) TCL_ERROR("Invalid base value");
+      if (tmpAdd == 0) TCL_ERROR("Invalid add value");
+    }
+    // free
+    tcl_free(scale);
+    tcl_free(add);
+    tcl_free(val);
+  } else {
+    SUBCMDERROR("seconds|format|add");
+    ret = tcl_result(tcl, FERROR, tcl_alloc("", 0));
+  }
+
+  tcl_free(sub_cmd);
   return ret;
 }
 
 /*
  * TCL execution thread
  */
-static THD_WORKING_AREA(waTclThread, 1024);
+static THD_WORKING_AREA(waTclThread, 2048);
 static THD_FUNCTION(tclThread, arg) {
   chRegSetThreadName(arg);
   msg_t  msg;
@@ -133,6 +208,8 @@ static THD_FUNCTION(tclThread, arg) {
                "return value of given node");
   tcl_register(&tcl, "group", tcl_cmd_group, 3, NULL,
                "return value of given group");
+  tcl_register(&tcl, "clock", tcl_cmd_clock, 0, NULL,
+               "time and date manipulation");
 
   // Process umm info
   umm_info(&ohsUmmHeap[0], true);
