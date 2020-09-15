@@ -348,22 +348,22 @@ int8_t rfm69GetData(void) {
     //for(uint8_t q = 0; q < RFM69_INTERRUPT_DATA_SIZE; q++) { DBG("%u,", rxBuffer[q]); }
     //DBG("\r\n");
 
-    rfm69Data.payloadLength = rxBuffer[0] > 66 ? 66 : rxBuffer[0]; // precaution
+    rfm69Data.packetLength = rxBuffer[0] > 66 ? 66 : rxBuffer[0]; // precaution
     rfm69Data.targetId = rxBuffer[1] | (((uint16_t)rxBuffer[3] & 0x0C) << 6); //10 bit address (most significant 2 bits stored in bits(2,3) of CTL byte
     rfm69Data.senderId = rxBuffer[2] | (((uint16_t)rxBuffer[3] & 0x03) << 8); //10 bit address (most significant 2 bits stored in bits(0,1) of CTL byte
 
-    DBG("RFM GD: F:%u, T:%u, PL:%u\r\n", rfm69Data.senderId, rfm69Data.targetId, rfm69Data.payloadLength);
+    DBG("RFM GD: F:%u, T:%u, PL:%u\r\n", rfm69Data.senderId, rfm69Data.targetId, rfm69Data.packetLength);
 
     // Match this node's address, or broadcast address
     if (!(rfm69Data.targetId == rfm69Config.nodeID || rfm69Data.targetId == RF69_BROADCAST_ADDR) ||
-        (rfm69Data.payloadLength < 3)) {
+        (rfm69Data.packetLength < 3)) {
       spiUnselect(rfm69Config.spidp);
       spiReleaseBus(rfm69Config.spidp);
       // Clear data
       rfm69Data.length = 0;
       rfm69Data.senderId = 0;
       rfm69Data.targetId = 0;
-      rfm69Data.payloadLength = 0;
+      rfm69Data.packetLength = 0;
       rfm69Data.ackRequested = 0;
       rfm69Data.ackReceived = 0;
       rfm69Data.rssi = 0;
@@ -373,7 +373,7 @@ int8_t rfm69GetData(void) {
       return RF69_RSLT_NOK;
     }
 
-    rfm69Data.length = rfm69Data.payloadLength - 3;
+    rfm69Data.length = rfm69Data.packetLength - 3;
     rfm69Data.ackReceived = rxBuffer[3] & RF69_CTL_SENDACK; // extract ACK-received flag
     rfm69Data.ackRequested = rxBuffer[3] & RF69_CTL_REQACK; // extract ACK-requested flag
     rfm69Data.ackRssiRequested = rxBuffer[3] & RF69_CTL_RESERVE1; // extract the ACK RSSI request flag

@@ -14,7 +14,7 @@
 #include "hal.h"
 
 #ifndef RFM69_STATISTICS
-#define RFM69_STATISTICS 1
+#define RFM69_STATISTICS 0
 #endif
 
 #define RF69_MAX_DATA_LEN       61 // to take advantage of the built in AES/CRC we want to limit the frame size to the internal FIFO size (66 bytes - 3 bytes overhead - 2 bytes crc)
@@ -68,10 +68,12 @@ typedef struct {
   uint8_t length;
   uint16_t senderId;
   uint16_t targetId;
-  uint8_t payloadLength;
+  uint8_t packetLength;
   uint8_t ackRequested;
   uint8_t ackReceived;
   uint8_t ackRssiRequested;
+  // TODO OHS move byte flags to bit wise flags
+  //uint8_t flags;
   int8_t rssi;
 } rfm69data_t;
 

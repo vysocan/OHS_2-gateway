@@ -1055,6 +1055,7 @@ static uint8_t decodeLog(char *in, char *out, bool full){
         case 'R' : chprintf(chp, "%s", text_Registration); break;
         case 'A' : chprintf(chp, "%s", text_Alarm); break;
         case 'N' : chprintf(chp, "%s", text_Node); break;
+        case 'L' : chprintf(chp, "%s", text_Script); break;
         default : chprintf(chp, "%s", text_unknown); break;
       }
       chprintf(chp, " %s %s", text_queue, text_full);

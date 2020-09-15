@@ -231,7 +231,7 @@ static void cmd_boot(BaseSequentialStream *chp, int argc, char *argv[]) {
   shellUsage(chp, "boot dfu - reboot to DfuSe firmware upgrade mode.");
 }
 /*
- * Applet to show threads
+ * Applet to show threads with used information
  */
 /*
 static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
