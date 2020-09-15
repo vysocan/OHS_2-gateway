@@ -32,7 +32,7 @@ extern BaseSequentialStream *tcl_output;
 #define ARITY(cond,scmd,num) if (!(cond)) {TCL_ERROR("'%s' expected %u argument(s)", scmd, num);\
                              tcl_free(sub_cmd);\
                              return tcl_result(tcl, FERROR, tcl_alloc("", 0));}
-#define SUBCMDERROR(text)    TCL_ERROR("Unknown sub command, usage: %s", text);
+#define SUBCMDERROR(text)    TCL_ERROR("Unknown sub command, allowed: %s", text);
 
 
 struct tcl;
