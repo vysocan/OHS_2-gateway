@@ -28,7 +28,7 @@ uint16_t              tcl_iteration;
 BaseSequentialStream *tcl_output;
 
 #ifndef TCL_DISABLE_MATH
-  const char* math[] = { "+", "-", "*", "/", ">", ">=", "<", "<=", "==", "!=" };
+  const char* math[] = { "+", "-", "*", "/", ">", ">=", "<", "<=", "==", "!=", "&&", "||"};
 #endif
 
 struct tcl;
@@ -146,9 +146,8 @@ int tcl_strcmp(tcl_value_t* u, tcl_value_t* v) {
 }
 
 int tcl_length(tcl_value_t* v) { return v == NULL ? 0 : strlen(v); }
-
-int tcl_int(tcl_value_t* v) { return atoi(v); }
-int tcl_float(tcl_value_t* v) { return atof(v); }
+int tcl_int(tcl_value_t* v) { return strtoul(v, NULL, 0); }
+float tcl_float(tcl_value_t* v) { return strtof(v, NULL); }
 
 tcl_value_t* tcl_append_string(tcl_value_t* v, const char* s, size_t len) {
   size_t n = tcl_length(v);
@@ -634,6 +633,9 @@ static int tcl_cmd_while(struct tcl* tcl, tcl_value_t* args, void* arg) {
 }
 
 #ifndef TCL_DISABLE_MATH
+/*
+ * Math commands
+ */
 static int tcl_cmd_math(struct tcl* tcl, tcl_value_t* args, void* arg) {
   (void)arg;
   char buf[10];
@@ -672,6 +674,10 @@ static int tcl_cmd_math(struct tcl* tcl, tcl_value_t* args, void* arg) {
     c = a == b;
   } else if (op[0] == '!' && op[1] == '=') {
     c = a != b;
+  } else if (op[0] == '&' && op[1] == '&') {
+    c = a && b;
+  } else if (op[0] == '|' && op[1] == '|') {
+    c = a || b;
   }
   // Check for c type, int or float
   if ((float)(int)c == c) chsnprintf(&buf[0], sizeof(buf), "%d", (int)c);
@@ -682,7 +688,24 @@ static int tcl_cmd_math(struct tcl* tcl, tcl_value_t* args, void* arg) {
   tcl_free(bval);
   return tcl_result(tcl, FNORMAL, tcl_alloc(&buf[0], strlen(buf)));
 }
-#endif
+/*
+ * NOT command
+ */
+static int tcl_cmd_not(struct tcl* tcl, tcl_value_t* args, void* arg) {
+  (void)arg;
+  char buf[10];
+
+  tcl_value_t* aval = tcl_list_at(args, 1);
+  float c = !(tcl_float(aval));
+
+  // Check for c type, int or float
+  if ((float)(int)c == c) chsnprintf(&buf[0], sizeof(buf), "%d", (int)c);
+  else chsnprintf(&buf[0], sizeof(buf), "%.2f", c);
+
+  tcl_free(aval);
+  return tcl_result(tcl, FNORMAL, tcl_alloc(&buf[0], strlen(buf)));
+}
+#endif /* TCL_DISABLE_MATH */
 /*
  * Return the string length of int value
  */
@@ -763,9 +786,10 @@ void tcl_init(struct tcl* tcl, uint16_t max_iterations, BaseSequentialStream *ou
   for (unsigned int i = 0; i < (sizeof(math) / sizeof(math[0])); i++) {
     tcl_register(tcl, math[i], tcl_cmd_math, 3, NULL, NULL);
   }
+  tcl_register(tcl, "!", tcl_cmd_not, 2, NULL, NULL);
+#endif
   tcl_register(tcl, "string", tcl_cmd_string, 0, NULL,
                "string manipulation, (c_ompare|l_ength)");
-#endif
 }
 
 void tcl_destroy(struct tcl* tcl) {
@@ -823,7 +847,7 @@ void tcl_list_cmd(struct tcl* tcl, BaseSequentialStream **output, char *separato
   // Math commands description
   if ((options >> 5) & 0b1) {
     if (separator) chprintf(*output, "%s", separator);
-    chprintf(*output, "operators ");
+    chprintf(*output, "operators:");
     for (uint8_t i = 0; i < (sizeof(math) / sizeof(math[0])); i++) {
       chprintf(*output, "%s %s", (i ? "," : ""), math[i]);
     }
