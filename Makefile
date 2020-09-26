@@ -10,7 +10,7 @@ endif
 
 # C specific options here (added to USE_OPT).
 ifeq ($(USE_COPT),)
-  USE_COPT = 
+  USE_COPT = -DWOLFSSL_USER_SETTINGS #-DSTM32F437xx
 endif
 
 # C++ specific options here (added to USE_OPT).
@@ -116,6 +116,9 @@ include $(CHIBIOS)/test/oslib/oslib_test.mk
 include $(CHIBIOS)/os/hal/lib/streams/streams.mk
 include $(CHIBIOS)/os/various/shell/shell.mk
 include $(CHIBIOS)/os/various/lwip_bindings/lwip.mk
+#include $(CHIBIOS)/ext/STM32F4xx_StdPeriph_Driver/stcrypt.mk
+#include $(CHIBIOS)/ext/STM32_Cryptographic_Library/stcryptolib.mk
+include $(CHIBIOS)/os/various/wolfssl_bindings/wolfssl.mk
 
 # Define linker script file here
 LDSCRIPT= $(CONFDIR)/STM32F437xG.ld
@@ -127,7 +130,13 @@ CSRC = $(ALLCSRC) \
        $(TESTSRC) \
        $(CHIBIOS)/os/various/evtimer.c \
        $(CHIBIOS)/os/various/syscalls.c \
+       $(CHIBIOS)/ext/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_rcc.c \
+       $(CHIBIOS)/ext/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_rng.c \
+       $(CHIBIOS)/ext/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_cryp.c \
        main.c
+#       $(CHIBIOS)/ext/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_rcc.c \
+#       $(CHIBIOS)/ext/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_rng.c \
+       
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -146,7 +155,10 @@ ALLXASMSRC += $(CONFDIR)/DFU.S
 ASMXSRC = $(ALLXASMSRC)
 
 # Inclusion directories.
-INCDIR = $(CONFDIR) $(ALLINC) $(TESTINC)
+INCDIR = $(CONFDIR) $(ALLINC) $(TESTINC) \
+	$(CHIBIOS)/ext/STM32F4xx_StdPeriph_Driver/inc \
+	$(CHIBIOS)/ext/STM32_Cryptographic_Library/inc \
+    
 
 # Define C warning options here.
 CWARN = -Wall -Wextra -Wundef -Wstrict-prototypes
@@ -169,13 +181,13 @@ UDEFS =
 UADEFS =
 
 # List all user directories here
-UINCDIR =
+UINCDIR = 
 
 # List the user directory to look for the libraries here
 ULIBDIR =
 
 # List all user libraries here
-ULIBS =
+ULIBS = $(CHIBIOS)/ext/STM32_Cryptographic_Library/binary/EWARM/M4_CryptoFW_RngHW_2_0_6.a
 
 #
 # End of user section
