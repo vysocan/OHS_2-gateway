@@ -39,14 +39,20 @@
 /* Fixed settings mandated by the ChibiOS integration.*/
 #include "static_lwipopts.h"
 
+#define LWIP_PRINT(...)  {chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__); chprintf((BaseSequentialStream*) &SD3, "\r");}
+
+// TODO OHS #define LWIP_RAM_HEAP_POINTER (void *) SOME_ADDRESS Move LWIP to CCM?
+
 /* OHS overrides */
-#define MEMP_NUM_SYS_TIMEOUT    (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 4) // +1 MDSN,
+#define MEMP_NUM_SYS_TIMEOUT    (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 6) // +1 MDSN,
 #define MEMP_NUM_UDP_PCB        7 // , +1 MDSN
-#define MEMP_NUM_TCP_PCB        6
+#define MEMP_NUM_TCP_PCB        7
 #define MEMP_NUM_TCP_PCB_LISTEN 10
 #define MEMP_NUM_PBUF           20
 #define MEMP_NUM_RAW_PCB        6
-#define MEMP_NUM_TCP_SEG        12
+#define MEMP_NUM_TCP_SEG        15
+//#define TCP_SND_QUEUELEN        ((6 * (TCP_SND_BUF) + (TCP_MSS - 1))/(TCP_MSS))
+//#define MEMP_NUM_TCP_SEG        TCP_SND_QUEUELEN
 #define PBUF_POOL_SIZE          16
 
 /* Optional, application-specific settings.*/
@@ -54,7 +60,7 @@
 #define TCPIP_MBOX_SIZE                 MEMP_NUM_PBUF
 #endif
 #if !defined(TCPIP_THREAD_STACKSIZE)
-#define TCPIP_THREAD_STACKSIZE          2048
+#define TCPIP_THREAD_STACKSIZE          1024 * 1
 #endif
 
 /* Use ChibiOS specific priorities. */
@@ -64,6 +70,23 @@
 #if !defined(LWIP_THREAD_PRIORITY)
 #define LWIP_THREAD_PRIORITY            (LOWPRIO + 10)
 #endif
+
+// Statistics options
+#define LWIP_STATS              0
+#if LWIP_STATS
+#define LWIP_STATS_DISPLAY      1
+#define LINK_STATS              1
+#define IP_STATS                1
+#define ICMP_STATS              1
+#define IGMP_STATS              1
+#define IPFRAG_STATS            1
+#define UDP_STATS               1
+#define TCP_STATS               1
+#define MEM_STATS               1
+#define MEMP_STATS              1
+#define PBUF_STATS              1
+#define SYS_STATS               1
+#endif /* LWIP_STATS */
 
 // HTTPD
 #define LWIP_HTTPD_CUSTOM_FILES         1
@@ -78,13 +101,32 @@
 // IGMP
 #define LWIP_IGMP 0
 // MDNS
+// IGMP multicast in hal_mac_lld.c
 #define LWIP_MDNS_RESPONDER 0
 #define LWIP_NUM_NETIF_CLIENT_DATA (LWIP_MDNS_RESPONDER) // +1 MDSN
 // Rename thread name
 #define TCPIP_THREAD_NAME               "tcpip"
 
+/**
+ * DEFAULT_TCP_RECVMBOX_SIZE: The mailbox size for the incoming packets on a
+ * NETCONN_TCP. The queue size value itself is platform-dependent, but is passed
+ * to sys_mbox_new() when the recvmbox is created.
+ */
+#ifndef DEFAULT_TCP_RECVMBOX_SIZE
+#define DEFAULT_TCP_RECVMBOX_SIZE       40
+#endif
+
+/**
+ * DEFAULT_ACCEPTMBOX_SIZE: The mailbox size for the incoming connections.
+ * The queue size value itself is platform-dependent, but is passed to
+ * sys_mbox_new() when the acceptmbox is created.
+ */
+#ifndef DEFAULT_ACCEPTMBOX_SIZE
+#define DEFAULT_ACCEPTMBOX_SIZE         4
+#endif
+
 // LWIP DEBUG
-#define LWIP_DEBUG   LWIP_DBG_ON
+//#define LWIP_DEBUG   LWIP_DBG_ON
 //#define HTTPD_DEBUG  LWIP_DBG_ON
 //#define ETHARP_DEBUG LWIP_DBG_ON
 //#define NETIF_DEBUG  LWIP_DBG_ON
@@ -102,7 +144,6 @@
 //SNTP
 #define SNTP_SERVER_DNS 1
 #define SNTP_UPDATE_DELAY 3600000 // SNTP update every 1 hour
-//#define SNTP_SERVER_ADDRESS "195.113.144.201"
 
 // Maximum segment size
 #define TCP_MSS 1024

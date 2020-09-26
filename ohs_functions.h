@@ -83,6 +83,7 @@ const char text_is[]                = "is";
 const char text_Authentication[]    = "Authentication";
 const char text_Sensor[]            = "Sensor";
 const char text_Input[]             = "Output"; // :) Input on node is Output to GW
+const char text_Output[]            = "Output"; // :) Input on node is Output to GW
 const char text_iButton[]           = "iButton";
 const char text_Temperature[]       = "Temperature";
 const char text_Humidity[]          = "Humidity";
@@ -794,7 +795,7 @@ void printNodeType(BaseSequentialStream *chp, const char type) {
   switch(type){
     case 'K': chprintf(chp, "%s", text_Authentication); break;
     case 'S': chprintf(chp, "%s", text_Sensor); break;
-    case 'I': chprintf(chp, "%s", text_Input); break;
+    case 'I': chprintf(chp, "%s", text_Output); break;
     default: chprintf(chp, "%s", text_Undefined); break;
   }
 }

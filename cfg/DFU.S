@@ -4,6 +4,11 @@
  *
  * We have ChibiOS '_crt0_entry' jumping here and then we jump back.
  * There is probably no stack at this point to invoke a method.
+ *
+ * https://community.st.com/s/question/0D50X00009XkezoSAB/stm32f42xx3xx-usb-device-dfu-within-a-program
+ * http://www.chibios.com/forum/viewtopic.php?f=16&p=35916&sid=7f5d3b0c2e8d74d2144a1f9625dafacf#p35916
+ * https://github.com/rusefi/ChibiOS/commit/1290cfd8491a6e9a5ab4faa2af8f1debcca94e81
+ * https://github.com/rusefi/rusefi/commit/2c99bf035df0986921a0e0b0a5bf98675ef3e8cb
  */
 
 // todo: I have no idea which lines are doing what
