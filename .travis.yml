@@ -11,9 +11,9 @@ script:
   - ./tools/travis/script.sh
 
 deploy:
-  provider: master
+  provider: releases
   api_key: '$GITHUB_API_KEY'
   file: 'build/ch.bin'
   skip_cleanup: true
   on:
-    branch: master
+    tags: flase
