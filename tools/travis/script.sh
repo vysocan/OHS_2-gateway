@@ -4,4 +4,6 @@ set -ex
 
 cd ..
 
+pwd
+
 make -j
