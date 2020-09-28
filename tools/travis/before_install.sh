@@ -14,6 +14,6 @@ arm-none-eabi-gcc --version
 cd -
 cd ..
 
-#mkdir ChibiOS-RT
-#cd ChibiOS-RT
-#git clone https://github.com/ChibiOS/ChibiOS.git .
+mkdir ChibiOS-RT
+cd ChibiOS-RT
+git clone https://github.com/vysocan/OHS_2-chibios.git .
