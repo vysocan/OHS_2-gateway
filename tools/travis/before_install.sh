@@ -14,3 +14,6 @@ cd ..
 cd ..
 
 git clone https://github.com/vysocan/OHS_2-chibios.git chibios_stable-20.3.x
+
+pwd
+ls -la
