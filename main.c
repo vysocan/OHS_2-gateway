@@ -8,20 +8,17 @@
 #define PORT_INT_REQUIRED_STACK 128
 // Remove input queue for GPRS to save RAM
 #define STM32_SERIAL_USART6_IN_BUF_SIZE 0
-//#define assert_param(expr) ((void)0) // TODO OHS remove?
-
-
+// Standard libs
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
-
+// ChibiOS
 #include "ch.h"
 #include "hal.h"
-
+// ChibiOS tests
 #include "rt_test_root.h"
 #include "oslib_test_root.h"
-
 // Added from ChibiOS
 #include "shell.h"
 #include "chprintf.h"
@@ -108,8 +105,9 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 #include "ohs_th_trigger.h"
 #include "ohs_th_tcl.h"
 #include "ohs_th_heartbeat.h"
-#define OHS_HTTPS 1
+#define OHS_HTTPS 0
 #if OHS_HTTPS
+// TODO OHS In wolfdssl_chibios.h: make all chHeap* as umm_*
 #include "crypto.h"
 #include "ohs_th_https.h"
 #endif
@@ -335,5 +333,3 @@ int main(void) {
 
   }
 }
-
-
