@@ -11,7 +11,7 @@ script:
   - ./tools/travis/script.sh
 
 deploy:
-  provider: releases
+  provider: master
   api_key: '$GITHUB_API_KEY'
   file: 'build/ch.bin'
   skip_cleanup: true
