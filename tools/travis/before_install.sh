@@ -10,10 +10,6 @@ export PATH=/tmp/xpack-arm-none-eabi-gcc-9.2.1-1.1/bin:$PATH
 arm-none-eabi-gcc --version
 
 cd -
-cd ..
-cd ..
+cd ../..
 
 git clone https://github.com/vysocan/OHS_2-chibios.git chibios_stable-20.3.x
-
-pwd
-ls -la
