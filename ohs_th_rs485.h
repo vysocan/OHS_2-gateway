@@ -39,7 +39,9 @@ static THD_FUNCTION(RS485Thread, arg) {
       chprintf(console, "ctrl %u, ", rs485Msg.ctrl);
       chprintf(console, "length %u, Data: ", rs485Msg.length);
       //chprintf(console, "ib %d, ob %d\r\n", RS485D2.ib[1], RS485D2.ob[1]);
-      for(uint8_t i = 0; i < rs485Msg.length; i++) { chprintf(console, "%x, ", rs485Msg.data[i]); }
+      if (!rs485Msg.ctrl) {
+        for(uint8_t i = 0; i < rs485Msg.length; i++) { chprintf(console, "%x, ", rs485Msg.data[i]); }
+      }
       chprintf(console, "\r\n");
 
       if (resp == MSG_OK) {

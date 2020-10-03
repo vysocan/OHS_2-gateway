@@ -19,7 +19,7 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
     if (strcmp(argv[0], "format") == 0) {
       goto FORMAT;
     } else {
-      FRAMReadPos = (atoi(argv[0]) - LOGGER_OUTPUT_LEN) * FRAM_MSG_SIZE;
+      FRAMReadPos = (strtoul(argv[0], NULL, 0) - LOGGER_OUTPUT_LEN) * FRAM_MSG_SIZE;
     }
   }
   if (argc == 0) { FRAMReadPos = FRAMWritePos - (FRAM_MSG_SIZE * LOGGER_OUTPUT_LEN); }
@@ -118,19 +118,19 @@ static void cmd_date(BaseSequentialStream *chp, int argc, char *argv[]) {
   }
 
   if ((argc == 2) && (strcmp(argv[0], "set") == 0)){
-    unix_time = atol(argv[1]);
-    if (unix_time > 0){
+    unix_time = strtol(argv[1], NULL, 0);
+    // 315532800 = 1.1.1980 00:00:00
+    if (unix_time > 315532800){
       convertUnixSecondToRTCDateTime(&timespec, unix_time);
       rtcSetTime(&RTCD1, &timespec);
+      chprintf(chp, "Date set.\r\n");
       return;
     }
   }
 
   // Rest is error
   chprintf(chp, "Usage: date\r\n");
-  chprintf(chp, "       date set N - where N is time in seconds since Unix epoch\r\n.\r\n");
-  chprintf(chp, "You can get current N value from unix console by the command:\r\n");
-  chprintf(chp, "%s", "date +\%s\r\n");
+  chprintf(chp, "       date set N - where N is time in seconds since Unix epoch, and higher then 1.1.1980.\r\n");
   return;
 }
 /*

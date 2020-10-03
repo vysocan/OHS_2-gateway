@@ -10,16 +10,30 @@
 
 struct smtp_send_request emailReqest;
 
+// Explain a bit the result state
+static const char *smtpResult[] = {
+  "OK",
+  "Err_UNKNOWN",
+  "Err_CONNECT",
+  "Err_HOSTNAME",
+  "Err_CLOSED",
+  "Err_TIMEOUT",
+  "Err_SVR_RESP",
+  "Err_MEM"
+};
+/*
+ * SMTP result call back
+ */
 void my_smtp_result_fn(void *arg, u8_t smtp_result, u16_t srv_err, err_t err){
-  chprintf(console, "Mail (%u) sent with results: 0x%02x, 0x%04x, 0x%08x\r\n", arg,
-         smtp_result, srv_err, err);
+  if (smtp_result > ARRAY_SIZE(smtpResult)) smtp_result = 1;
+  chprintf(console, "Mail (%u) sent with result: %s. Server response: %d, 0x%08x\r\n", arg,
+           smtpResult[smtp_result], srv_err, err);
   chBSemSignal(&emailSem);
 }
-
 /*
  * Alert handling thread
  */
-static THD_WORKING_AREA(waAlertThread, 256);
+static THD_WORKING_AREA(waAlertThread, 320);
 static THD_FUNCTION(AlertThread, arg) {
   chRegSetThreadName(arg);
   msg_t msg;
@@ -30,7 +44,7 @@ static THD_FUNCTION(AlertThread, arg) {
   while (true) {
     msg = chMBFetchTimeout(&alert_mb, (msg_t*)&inMsg, TIME_INFINITE);
     if (msg == MSG_OK) {
-      chprintf(console, "Alert: %s-%u-", inMsg->text, inMsg->flag);
+      chprintf(console, "Alert: %s, Flags: %u, Text: ", inMsg->text, inMsg->flag);
       groupNum = decodeLog(inMsg->text, gprsSmsText, true);
       chprintf(console, "%s\r\n", gprsSmsText);
 
@@ -79,7 +93,7 @@ static THD_FUNCTION(AlertThread, arg) {
                 if (GET_CONF_CONTACT_ENABLED(conf.contact[j]) &&
                     ((GET_CONF_CONTACT_GROUP(conf.contact[j]) == groupNum) ||
                      (GET_CONF_CONTACT_IS_GLOBAL(conf.contact[j])))) {
-                  if (chBSemWait(&emailSem) == MSG_OK) {
+                  if (chBSemWaitTimeout(&emailSem, TIME_IMMEDIATE) == MSG_OK) {
                     emailReqest.from = &conf.contactEmail[j][0];
                     emailReqest.to   = &conf.contactEmail[j][0];
                     emailReqest.subject = &gprsSmsText[0];
@@ -88,6 +102,8 @@ static THD_FUNCTION(AlertThread, arg) {
                     emailReqest.static_data = 1;
                     smtp_send_mail_int(&emailReqest);
                     // Release semaphore semaphore is done in callback
+                  } else {
+                    chprintf(console, "Email error, pending.\r\n");
                   }
                 }
               }

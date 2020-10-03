@@ -308,7 +308,7 @@ int main(void) {
     if (GET_CONF_TIMER_ENABLED(conf.timer[i].setting)) setTimer(i, true);
   }
 
-  size_t n, total, largest;
+  //size_t n, total, largest;
   // Idle runner
   while (true) {
     chThdSleepMilliseconds(100);
@@ -329,7 +329,7 @@ int main(void) {
     */
     //umm_info(&ohsUmmHeap[0], true);
 
-     chThdSleepMilliseconds(10000);
+    chThdSleepMilliseconds(10000);
 
   }
 }

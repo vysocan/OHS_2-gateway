@@ -403,10 +403,16 @@ void convertUnixSecondToRTCDateTime(RTCDateTime* dateTime, uint32_t unixSeconds)
 /*
  * Macro for LWIP SMTP
  */
+// TODO OHS move it or remove it
 /*
-#define SNTP_SET_SYSTEM_TIME(sec) \
-  do{convertUnixSecondToRTCDateTime(&timespec, (sec)); rtcSetTime(&RTCD1, &timespec);} while(0)
-  */
+#define SNTP_SET_SYSTEM_TIME(sec)\
+  do{\
+    time_t rawtime = (sec);\
+    RTCDateTime _ts;\
+    convertUnixSecondToRTCDateTime(&_ts, rawtime);\
+    rtcSetTime(&RTCD1, &_ts);\
+  }while(0)
+*/
 /*
  * Logger
  */
@@ -933,7 +939,7 @@ static uint8_t decodeLog(char *in, char *out, bool full){
               default:  chprintf(chp, "%s", text_On); break;
             }
           } else {
-            chprintf(chp, " %s", text_state);
+            chprintf(chp, "%s", text_state);
           }
           break;
         case 'R': chprintf(chp, "%s %s ", text_RTC, text_battery);

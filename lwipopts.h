@@ -60,7 +60,7 @@
 #define TCPIP_MBOX_SIZE                 MEMP_NUM_PBUF
 #endif
 #if !defined(TCPIP_THREAD_STACKSIZE)
-#define TCPIP_THREAD_STACKSIZE          1024 * 1
+#define TCPIP_THREAD_STACKSIZE          1024 * 2
 #endif
 
 /* Use ChibiOS specific priorities. */
@@ -175,7 +175,6 @@ void SetTimeUnixA(time_t ut){
   rtcSetTime(&RTCD1, &_ts);
 }
 */
-
 /*
 #define SNTP_SET_SYSTEM_TIME(sec) \
   do{time_t rawtime = (sec);\
@@ -185,7 +184,7 @@ void SetTimeUnixA(time_t ut){
 */
 
 /* SET new driver
- * DONE - Get rid of struct tm in SNTP_SET_SYSTEM_TIME, by using my own convert functions.
+ * TODO OHS Get rid of struct tm in SNTP_SET_SYSTEM_TIME, by using my own convert functions.
  */
 #define SNTP_SET_SYSTEM_TIME(sec) \
   do{time_t rawtime = (sec);\
@@ -194,7 +193,6 @@ void SetTimeUnixA(time_t ut){
      _pt = gmtime(&rawtime);\
      rtcConvertStructTmToDateTime(_pt, 0, &_ts);\
      rtcSetTime(&RTCD1, &_ts);}while(0)
-
 
 /* GET old RTC driver
 #define SNTP_GET_SYSTEM_TIME(sec, us) \
