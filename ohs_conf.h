@@ -35,9 +35,9 @@
 #define URL_LENGTH       32     // URL address
 #define NOT_SET          "not set"
 
-#define ALARM_PIR        3400   // (3380 = 15.2V)
-#define ALARM_PIR_LOW    3050
-#define ALARM_PIR_HI     3650
+#define ALARM_PIR        3300   // (3380 = 15.2V)
+#define ALARM_PIR_LOW    2900
+#define ALARM_PIR_HI     3550
 #define ALARM_OK         1850   // (1850 = 15.2V)
 #define ALARM_OK_LOW     1500
 #define ALARM_OK_HI      2100
