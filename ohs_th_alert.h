@@ -55,6 +55,7 @@ static THD_FUNCTION(AlertThread, arg) {
             case 0: // SMS
               for (uint8_t j = 0; j < CONTACTS_SIZE; j++) {
                 if (GET_CONF_CONTACT_ENABLED(conf.contact[j]) &&
+                    (isPhoneNum(&conf.contactPhone[j][0])) &&
                     ((GET_CONF_CONTACT_GROUP(conf.contact[j]) == groupNum) ||
                      (GET_CONF_CONTACT_IS_GLOBAL(conf.contact[j])))) {
                   // Wait for GPRS
@@ -72,6 +73,7 @@ static THD_FUNCTION(AlertThread, arg) {
             case 1: // Page
               for (uint8_t j = 0; j < CONTACTS_SIZE; j++) {
                 if (GET_CONF_CONTACT_ENABLED(conf.contact[j]) &&
+                    (isPhoneNum(&conf.contactPhone[j][0])) &&
                     ((GET_CONF_CONTACT_GROUP(conf.contact[j]) == groupNum) ||
                      (GET_CONF_CONTACT_IS_GLOBAL(conf.contact[j])))) {
                   // Wait for GPRS

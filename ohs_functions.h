@@ -795,6 +795,22 @@ void setTimer(const uint8_t timerIndex, const bool restart) {
   CLEAR_CONF_TIMER_TRIGGERED(conf.timer[timerIndex].setting); // switch OFF Is triggered
 }
 /*
+ * Is char* a valid phone number
+ * valid 0..9+ && len => 9
+ */
+bool isPhoneNum(const char* num) {
+  bool ret = true;
+  uint8_t len = 0;
+
+  while (*num) {
+    if (((*num < '0') || (*num > '9')) && (*num != '+')) ret = false;
+    num++; len++;
+  }
+  if (len < 9) ret = false;
+
+  return ret;
+}
+/*
  * Print node type
  */
 void printNodeType(BaseSequentialStream *chp, const char type) {
