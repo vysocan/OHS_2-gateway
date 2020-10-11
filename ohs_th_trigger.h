@@ -26,7 +26,6 @@ void cbTrigger (char *result) {
   // Result is ready
   chBSemSignal(&cbTriggerSem);
 }
-
 /*
  * Trigger thread
  */

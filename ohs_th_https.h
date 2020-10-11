@@ -8,7 +8,7 @@
 #ifndef OHS_TH_HTTPS_H_
 #define OHS_TH_HTTPS_H_
 
-#if OHS_HTTPS
+#ifdef OHS_HTTPS
 
 #define WOLFSSL_STM32F4
 #include "wolfssl_chibios.h"
@@ -277,7 +277,7 @@ THD_FUNCTION(https_server, p) {
     }
     /* New connection: a new SSL connector is spawned */
     https_server_serve(newsc);
-    umm_info(&ohsUmmHeap[0], true);
+    //umm_info(&ohsUmmHeap[0], true);
     sslconn_close(newsc);
   }
 }
