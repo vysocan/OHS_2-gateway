@@ -72,7 +72,6 @@ static THD_FUNCTION(ServiceThread, arg) {
       }
     }
 
-
     // Battery check - The signal is "Low" when the voltage of battery is under 11V
     if (palReadPad(GPIOD, GPIOD_BAT_OK) == 0) {
       pushToLogText("SBL"); // Battery low

@@ -103,6 +103,7 @@ const char html_select[]            = "<select name='";
 const char html_Apply[]             = "<input type='submit' name='A' value='Apply'/>";
 const char html_ApplyValPass[]      = "<input type='submit' name='A' value='Apply' onclick='return pv()'/>";
 const char html_Save[]              = "<input type='submit' name='e' value='Save'/>";
+const char html_LoadDefault[]       = "<input type='submit' name='D' value='Load defaults'/>";
 const char html_Reregister[]        = "<input type='submit' name='R' value='Call registration'/>";
 const char html_Now[]               = "<input type='submit' name='N' value='Now'/>";
 const char html_FR[]                = "<input type='submit' name='R' value='<<'/>";
@@ -930,7 +931,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s %s%s%s%", html_e_td_e_tr_tr_td, text_System, text_info, html_e_td_td, &gprsSystemInfo[7]);
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           // Buttons
-          //chprintf(chp, "%s%s", html_Apply, html_Save);
+          chprintf(chp, "%s%s", html_LoadDefault, html_Save);
           break;
         case PAGE_SETTING:
           // Information table
@@ -2032,7 +2033,12 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
               repeat = getPostData(&postDataP, &name[0], sizeof(name), &valueP, &valueLen);
               DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
               switch(name[0]){
-                case 'A': // Apply
+                case 'e': // save
+                  writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+                break;
+                case 'D': // Load defaults
+                  setConfDefault();    // Load OHS default conf.
+                  initRuntimeGroups(); // Initialize runtime variables
                 break;
               }
             } while (repeat);

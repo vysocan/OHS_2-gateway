@@ -130,7 +130,7 @@ static void cmd_date(BaseSequentialStream *chp, int argc, char *argv[]) {
 
   // Rest is error
   chprintf(chp, "Usage: date\r\n");
-  chprintf(chp, "       date set N - where N is time in seconds since Unix epoch, and higher then 1.1.1980.\r\n");
+  chprintf(chp, "       date set N - where N is time in seconds since Unix epoch, and greater then 1.1.1980(315532801).\r\n");
   return;
 }
 /*

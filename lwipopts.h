@@ -92,10 +92,15 @@
 #define LWIP_HTTPD_CUSTOM_FILES         1
 #define LWIP_HTTPD_DYNAMIC_HEADERS      1
 #define LWIP_HTTPD_SUPPORT_POST         1
-#define MEM_SIZE                        16000
+#define MEM_SIZE                        20000
 // DNS
 #define LWIP_RAND() ((uint32_t)rand())
 #define LWIP_DNS 1
+#define DNS_TABLE_SIZE                  4   /** DNS maximum number of entries to maintain locally. */
+#define DNS_MAX_NAME_LENGTH             256 /** DNS maximum host name length supported in the name table. */
+#define DNS_SERVER_ADDRESS(ipaddr)      (((ipaddr)->addr) = 134744072)
+#define DNS_MAX_SERVERS                 2   /** The maximum of DNS servers */
+#define DNS_DOES_NAME_CHECK             1   /** DNS do a name checking between the query and the response. */
 // DHCP
 #define LWIP_DHCP 1
 // IGMP
@@ -133,6 +138,7 @@
 //#define ICMP_DEBUG LWIP_DBG_ON
 //#define IP_DEBUG LWIP_DBG_ON
 //#define DNS_DEBUG LWIP_DBG_ON
+//#define SOCKETS_DEBUG LWIP_DBG_ON
 // SNTP
 //#define SNTP_DEBUG LWIP_DBG_ON
 // SMTP
@@ -141,9 +147,11 @@
 //#define IGMP_DEBUG LWIP_DBG_ON
 //#define MDNS_DEBUG LWIP_DBG_ON
 
-//SNTP
-#define SNTP_SERVER_DNS 1
-#define SNTP_UPDATE_DELAY 3600000 // SNTP update every 1 hour
+// SNTP
+#define SNTP_SERVER_DNS         1
+#define SNTP_STARTUP_DELAY      1
+#define SNTP_STARTUP_DELAY_FUNC (20000) // SNTP first query after 20 seconds
+#define SNTP_UPDATE_DELAY       3600000 // SNTP update every 1 hour
 
 // Maximum segment size
 #define TCP_MSS 1024
@@ -192,7 +200,9 @@ void SetTimeUnixA(time_t ut){
      struct tm* _pt;\
      _pt = gmtime(&rawtime);\
      rtcConvertStructTmToDateTime(_pt, 0, &_ts);\
-     rtcSetTime(&RTCD1, &_ts);}while(0)
+     rtcSetTime(&RTCD1, &_ts);\
+     chprintf((BaseSequentialStream *)&SD3, "SNTP: %d\n\r", rawtime);\
+  }while(0)
 
 /* GET old RTC driver
 #define SNTP_GET_SYSTEM_TIME(sec, us) \
