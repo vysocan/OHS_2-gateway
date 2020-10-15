@@ -38,6 +38,7 @@
 
 /* Fixed settings mandated by the ChibiOS integration.*/
 #include "static_lwipopts.h"
+#include "date_time.h"
 
 #define LWIP_PRINT(...)  {chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__); chprintf((BaseSequentialStream*) &SD3, "\r");}
 
@@ -149,9 +150,9 @@
 
 // SNTP
 #define SNTP_SERVER_DNS         1
-#define SNTP_STARTUP_DELAY      1
+#define SNTP_STARTUP_DELAY      1       // enable
 #define SNTP_STARTUP_DELAY_FUNC (20000) // SNTP first query after 20 seconds
-#define SNTP_UPDATE_DELAY       3600000 // SNTP update every 1 hour
+#define SNTP_UPDATE_DELAY       1800000 // SNTP update every 30 minutes
 
 // Maximum segment size
 #define TCP_MSS 1024
@@ -169,31 +170,29 @@
 #define LWIP_NETIF_HOSTNAME 1
 
 //ChibiOS RTC drivers
-/* old
-#define SNTP_SET_SYSTEM_TIME(sec) rtcSetTimeUnixSec(&RTCD1, (sec))
-*/
-
 /* Test function to verify SNTP_SET_SYSTEM_TIME macro
 void SetTimeUnixA(time_t ut){
   RTCDateTime _ts;
   struct tm* _pt;
-
   _pt = gmtime(&ut);
   rtcConvertStructTmToDateTime( _pt, 0, &_ts);
   rtcSetTime(&RTCD1, &_ts);
 }
 */
 /*
+ * new SNTP_SET_SYSTEM_TIME function
+ */
 #define SNTP_SET_SYSTEM_TIME(sec) \
   do{time_t rawtime = (sec);\
      RTCDateTime _ts;\
      convertUnixSecondToRTCDateTime(&_ts, rawtime);\
-     rtcSetTime(&RTCD1, &_ts);}while(0)
-*/
-
-/* SET new driver
- * TODO OHS Get rid of struct tm in SNTP_SET_SYSTEM_TIME, by using my own convert functions.
+     rtcSetTime(&RTCD1, &_ts);\
+     chprintf((BaseSequentialStream *)&SD3, "SNTP: %d\n\r", rawtime);\
+   }while(0)
+/*
+ * old SNTP_SET_SYSTEM_TIME function
  */
+/*
 #define SNTP_SET_SYSTEM_TIME(sec) \
   do{time_t rawtime = (sec);\
      RTCDateTime _ts;\
@@ -203,15 +202,9 @@ void SetTimeUnixA(time_t ut){
      rtcSetTime(&RTCD1, &_ts);\
      chprintf((BaseSequentialStream *)&SD3, "SNTP: %d\n\r", rawtime);\
   }while(0)
-
-/* GET old RTC driver
-#define SNTP_GET_SYSTEM_TIME(sec, us) \
-    do{uint64_t time = rtcGetTimeUnixUsec(&RTCD1);\
-       (sec) = time / 1000000;\
-       (us) = time % 1000000;}while(0)
 */
 
-/* GET new driver
+/* SNTP_GET_SYSTEM_TIME new RTC driver
 #define SNTP_GET_SYSTEM_TIME(sec, us) \
     do{struct tm timestamp;\
        rtcGetTime(&RTCD1, &timespec);\
