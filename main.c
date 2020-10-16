@@ -1,3 +1,4 @@
+
 /*
  * OHS gateway code for HW v 2.0.x
  * Adam Baron 2020
@@ -8,6 +9,14 @@
 #define PORT_INT_REQUIRED_STACK 128
 // Remove input queue for GPRS to save RAM
 #define STM32_SERIAL_USART6_IN_BUF_SIZE 0
+/*
+ * OHS features
+ */
+//#define OHS_SSL
+//#define OHS_HTTPS
+//#define OHS_HTTPS_CLIENT
+//#define OHS_ALERT_TELEGRAM
+
 // Standard libs
 #include <string.h>
 #include <stdlib.h>
@@ -56,6 +65,7 @@ char logText[LOG_TEXT_LENGTH] __attribute__((section(".ram4"))); // To decode lo
 
 // OHS includes
 #include "ohs_conf.h"
+#include "date_time.h"
 #include "ohs_functions.h"
 #include "ohs_peripheral.h"
 
@@ -91,6 +101,21 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 // Shell functions
 #include "ohs_shell.h"
 
+//
+#ifdef OHS_SSL
+#include "crypto.h"
+#include "wolfssl_chibios.h"
+#endif
+//
+#ifdef OHS_HTTPS_CLIENT
+#include <httpc.h>
+#endif
+//
+#ifdef OHS_ALERT_TELEGRAM
+#include "lwip/netdb.h"
+#include "lwip/sockets.h"
+#endif
+
 // Thread handling
 #include "ohs_th_zone.h"
 #include "ohs_th_alarm.h"
@@ -104,15 +129,15 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 #include "ohs_th_radio.h"
 #include "ohs_th_trigger.h"
 #include "ohs_th_tcl.h"
+//static THD_WORKING_AREA(waShell, 3*1024);
 #include "ohs_th_heartbeat.h"
-#define OHS_HTTPS 0
-#if OHS_HTTPS
+
+#define SHELL_WA_SIZE THD_WORKING_AREA_SIZE(2*1024)
+
+#if defined(OHS_CRYPTO) && defined(OHS_HTTPS)
 // TODO OHS In wolfdssl_chibios.h: make all chHeap* as umm_*
-#include "crypto.h"
 #include "ohs_th_https.h"
 #endif
-
-#define SHELL_WA_SIZE THD_WORKING_AREA_SIZE(2*2048)
 
 #if LWIP_MDNS_RESPONDER
 static void srv_txt(struct mdns_service *service, void *txt_userdata){
@@ -138,7 +163,7 @@ int main(void) {
   chSysInit();
 
   // Initialize RNG
-  #if OHS_HTTPS
+  #ifdef OHS_SSL
     rccEnableAHB2(RCC_AHB2ENR_RNGEN, 0);
     RNG->CR |= RNG_CR_IE;
     RNG->CR |= RNG_CR_RNGEN;
@@ -248,9 +273,8 @@ int main(void) {
   chThdCreateStatic(waRadioThread, sizeof(waRadioThread), NORMALPRIO, RadioThread, (void*)"radio");
   chThdCreateStatic(waTriggerThread, sizeof(waTriggerThread), NORMALPRIO - 1, TriggerThread, (void*)"trigger");
   chThdCreateStatic(waTclThread, sizeof(waTclThread), LOWPRIO + 1, tclThread, (void*)"tcl");
-  chThdCreateStatic(waHeartBeatThread, sizeof(waHeartBeatThread), LOWPRIO, HeartBeatThread, (void*)"heartbeat");
-  //static THD_WORKING_AREA(waShell, 2048);
   //chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg);
+  chThdCreateStatic(waHeartBeatThread, sizeof(waHeartBeatThread), LOWPRIO, HeartBeatThread, (void*)"heartbeat");
 
   stats_init();
   //ETH->MACFFR |= ETH_MACFFR_PAM;
@@ -268,7 +292,7 @@ int main(void) {
   chThdSleepMilliseconds(100);
 #endif
 
-#if OHS_HTTPS
+#ifdef OHS_HTTPS
   chThdCreateStatic(wa_https_server, sizeof(wa_https_server), NORMALPRIO + 1, https_server, NULL);
 #endif
 
@@ -286,7 +310,6 @@ int main(void) {
     writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
     writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
   }
-  //setConfDefault(); // Load OHS default conf.
 
   // TODO OHS Allow driver to set frequency
   // RFM69 key
@@ -308,6 +331,10 @@ int main(void) {
     if (GET_CONF_TIMER_ENABLED(conf.timer[i].setting)) setTimer(i, true);
   }
 
+#ifdef OHS_SSL
+  wolfSSL_Init();
+#endif
+
   //size_t n, total, largest;
   // Idle runner
   while (true) {
@@ -326,10 +353,10 @@ int main(void) {
     chprintf(console, "heap fragments   : %u" SHELL_NEWLINE_STR, n);
     chprintf(console, "heap free total  : %u bytes" SHELL_NEWLINE_STR, total);
     chprintf(console, "heap free largest: %u bytes" SHELL_NEWLINE_STR, largest);
+    umm_info(&ohsUmmHeap[0], true);
     */
-    //umm_info(&ohsUmmHeap[0], true);
-
-    chThdSleepMilliseconds(10000);
-
+    //chThdSleepMilliseconds(10000);
+    //int ret = wolfSSL_get_ciphers(&tclOutput[0], (int)sizeof(tclOutput));
+    //https_client();
   }
 }
