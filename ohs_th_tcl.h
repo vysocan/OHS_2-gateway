@@ -193,6 +193,54 @@ static int tcl_cmd_clock(struct tcl* tcl, tcl_value_t* args, void* arg) {
   tcl_free(sub_cmd);
   return ret;
 }
+/*
+ * TCL timer command
+ */
+static int tcl_cmd_timer(struct tcl* tcl, tcl_value_t* args, void* arg) {
+  (void)arg;
+  int ret;
+
+  tcl_value_t* timerNumber = tcl_list_at(args, 1);
+  uint8_t timerNum = strtoul(timerNumber, NULL, 0) - 1;
+
+  if ((timerNum < TIMER_SIZE) && (GET_CONF_TIMER_ENABLED(conf.timer[timerNum].setting))) {
+    if (GET_CONF_TIMER_TRIGGERED(conf.timer[timerNum].setting)) {
+      ret = tcl_result(tcl, FNORMAL, tcl_alloc("1", 1));
+    } else {
+      ret = tcl_result(tcl, FNORMAL, tcl_alloc("0", 1));
+    }
+  } else {
+    TCL_ERROR("Timer #%s not enabled", timerNumber);
+    ret = tcl_result(tcl, FERROR, tcl_alloc("", 0));
+  }
+  // free
+  tcl_free(timerNumber);
+  return ret;
+}
+/*
+ * TCL trigger command
+ */
+static int tcl_cmd_trigger(struct tcl* tcl, tcl_value_t* args, void* arg) {
+  (void)arg;
+  int ret;
+
+  tcl_value_t* triggerNumber = tcl_list_at(args, 1);
+  uint8_t triggerNum = strtoul(triggerNumber, NULL, 0) - 1;
+
+  if ((triggerNum < TRIGGER_SIZE) && (GET_CONF_TRIGGER_ENABLED(conf.trigger[triggerNum].setting))) {
+    if (GET_CONF_TRIGGER_TRIGGERED(conf.trigger[triggerNum].setting)) {
+      ret = tcl_result(tcl, FNORMAL, tcl_alloc("1", 1));
+    } else {
+      ret = tcl_result(tcl, FNORMAL, tcl_alloc("0", 1));
+    }
+  } else {
+    TCL_ERROR("Trigger #%s not enabled", triggerNumber);
+    ret = tcl_result(tcl, FERROR, tcl_alloc("", 0));
+  }
+  // free
+  tcl_free(triggerNumber);
+  return ret;
+}
 
 /*
  * TCL execution thread
@@ -219,6 +267,10 @@ static THD_FUNCTION(tclThread, arg) {
                "return value of given group. (group $(number) a_rmed|s_tatus)");
   tcl_register(&tcl, "clock", tcl_cmd_clock, 0, NULL,
                "time and date manipulation. (clock seconds|format|add)");
+  tcl_register(&tcl, "timer", tcl_cmd_timer, 0, NULL,
+               "timer status. (timer $(number))");
+  tcl_register(&tcl, "trigger", tcl_cmd_trigger, 0, NULL,
+                 "trigger status. (trigger $(number))");
 
   // Process umm info
   umm_info(&ohsUmmHeap[0], true);

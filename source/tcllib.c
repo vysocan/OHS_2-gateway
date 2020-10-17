@@ -786,7 +786,8 @@ void tcl_init(struct tcl* tcl, uint16_t max_iterations, BaseSequentialStream *ou
   for (unsigned int i = 0; i < (sizeof(math) / sizeof(math[0])); i++) {
     tcl_register(tcl, math[i], tcl_cmd_math, 3, NULL, NULL);
   }
-  tcl_register(tcl, "!", tcl_cmd_not, 2, NULL, NULL);
+  tcl_register(tcl, "!", tcl_cmd_not, 2, NULL,
+               "logical not");
 #endif
   tcl_register(tcl, "string", tcl_cmd_string, 0, NULL,
                "string manipulation, (c_ompare|l_ength)");
