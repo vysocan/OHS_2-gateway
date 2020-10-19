@@ -26,7 +26,7 @@ static int tcl_cmd_node(struct tcl* tcl, tcl_value_t* args, void* arg) {
   (void)arg;
   char *pch, *index[TCL_CMD_NODE_ADDRESS_SIZE];
   uint8_t indexNum = 0;
-  int ret;
+  uint8_t ret;
   char buf[10];
 
   tcl_value_t* nodeAddress = tcl_list_at(args, 1);
@@ -62,7 +62,7 @@ static int tcl_cmd_node(struct tcl* tcl, tcl_value_t* args, void* arg) {
  */
 static int tcl_cmd_group(struct tcl* tcl, tcl_value_t* args, void* arg) {
   (void)arg;
-  int ret;
+  uint8_t ret;
 
   tcl_value_t* groupNumber = tcl_list_at(args, 1);
   tcl_value_t* groupCommand = tcl_list_at(args, 2);
@@ -121,7 +121,7 @@ static int tcl_cmd_group(struct tcl* tcl, tcl_value_t* args, void* arg) {
 static int tcl_cmd_clock(struct tcl* tcl, tcl_value_t* args, void* arg) {
   (void)arg;
 
-  int  ret;
+  uint8_t ret;
   char buf[30];
   tcl_value_t* val;
 
@@ -198,7 +198,7 @@ static int tcl_cmd_clock(struct tcl* tcl, tcl_value_t* args, void* arg) {
  */
 static int tcl_cmd_timer(struct tcl* tcl, tcl_value_t* args, void* arg) {
   (void)arg;
-  int ret;
+  uint8_t ret;
 
   tcl_value_t* timerNumber = tcl_list_at(args, 1);
   uint8_t timerNum = strtoul(timerNumber, NULL, 0) - 1;
@@ -222,7 +222,7 @@ static int tcl_cmd_timer(struct tcl* tcl, tcl_value_t* args, void* arg) {
  */
 static int tcl_cmd_trigger(struct tcl* tcl, tcl_value_t* args, void* arg) {
   (void)arg;
-  int ret;
+  uint8_t ret;
 
   tcl_value_t* triggerNumber = tcl_list_at(args, 1);
   uint8_t triggerNum = strtoul(triggerNumber, NULL, 0) - 1;
@@ -239,6 +239,76 @@ static int tcl_cmd_trigger(struct tcl* tcl, tcl_value_t* args, void* arg) {
   }
   // free
   tcl_free(triggerNumber);
+  return ret;
+}
+/*
+ * TCL find index command
+ */
+static int tcl_cmd_findex(struct tcl* tcl, tcl_value_t* args, void* arg) {
+  (void)arg;
+  uint8_t ret, resp = 0;
+  char buf[4];
+
+  // Allocate
+  tcl_value_t* sub_cmd = tcl_list_at(args, 1);
+  tcl_value_t* name = tcl_list_at(args, 2);
+
+  switch (*sub_cmd++) {
+     case 'z': // zone
+       for (uint8_t zoneNum=0; zoneNum < ALARM_ZONES ; zoneNum++){
+         if (!(strcmp(name, conf.zoneName[zoneNum]))) {
+           resp = chsnprintf(&buf[0], sizeof(buf), "%u", zoneNum + 1);
+           ret = tcl_result(tcl, FNORMAL, tcl_alloc(buf, resp));
+           break;
+         }
+       }
+       // Not found
+       if (!resp) ret = tcl_result(tcl, FERROR, tcl_alloc("0", 1));
+       break;
+     case 'g': // group
+       for (uint8_t groupNum=0; groupNum < ALARM_ZONES ; groupNum++){
+         if (!(strcmp(name, conf.groupName[groupNum]))) {
+           resp = chsnprintf(&buf[0], sizeof(buf), "%u", groupNum + 1);
+           ret = tcl_result(tcl, FNORMAL, tcl_alloc(buf, resp));
+           break;
+         }
+       }
+       // Not found
+       if (!resp) ret = tcl_result(tcl, FERROR, tcl_alloc("0", 1));
+       break;
+     case 't': // trigger or timer
+       if (*sub_cmd == 'r') {
+         for (uint8_t trigNum=0; trigNum < TRIGGER_SIZE ; trigNum++){
+           if (!(strcmp(name, conf.trigger[trigNum].name))) {
+             resp = chsnprintf(&buf[0], sizeof(buf), "%u", trigNum + 1);
+             ret = tcl_result(tcl, FNORMAL, tcl_alloc(buf, resp));
+             break;
+           }
+         }
+       } else if (*sub_cmd == 'i') {
+         for (uint8_t timerNum=0; timerNum < TIMER_SIZE ; timerNum++){
+           if (!(strcmp(name, conf.timer[timerNum].name))) {
+             resp = chsnprintf(&buf[0], sizeof(buf), "%u", timerNum + 1);
+             ret = tcl_result(tcl, FNORMAL, tcl_alloc(buf, resp));
+             break;
+           }
+         }
+       } else {
+         SUBCMDERROR("z_one|g_roup|ti_mer|tr_igger");
+         ret = tcl_result(tcl, FERROR, tcl_alloc("", 0));
+       }
+       // Not found
+       if (!resp) ret = tcl_result(tcl, FERROR, tcl_alloc("0", 1));
+       break;
+     default: // error
+       SUBCMDERROR("z_one|g_roup|ti_mer|tr_igger");
+       ret = tcl_result(tcl, FERROR, tcl_alloc("", 0));
+       break;
+   }
+
+  // free
+  tcl_free(name);
+  tcl_free(sub_cmd);
   return ret;
 }
 
@@ -267,10 +337,12 @@ static THD_FUNCTION(tclThread, arg) {
                "return value of given group. (group $(number) a_rmed|s_tatus)");
   tcl_register(&tcl, "clock", tcl_cmd_clock, 0, NULL,
                "time and date manipulation. (clock seconds|format|add)");
-  tcl_register(&tcl, "timer", tcl_cmd_timer, 0, NULL,
+  tcl_register(&tcl, "timer", tcl_cmd_timer, 2, NULL,
                "timer status. (timer $(number))");
-  tcl_register(&tcl, "trigger", tcl_cmd_trigger, 0, NULL,
+  tcl_register(&tcl, "trigger", tcl_cmd_trigger, 2, NULL,
                  "trigger status. (trigger $(number))");
+  tcl_register(&tcl, "findex", tcl_cmd_findex, 3, NULL,
+                   "find index. (findex z_one|g_roup|ti_mer|tr_igger $(name)");
 
   // Process umm info
   umm_info(&ohsUmmHeap[0], true);
