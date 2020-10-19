@@ -7,6 +7,10 @@
 #include "date_time.h"
 #include "chprintf.h"
 
+// SNTP timestamp to compare
+//volatile uint32_t RTCTimestamp = 0;
+volatile int32_t  RTCDeviation = 0;
+
 /*
  * Days in a month
  */
@@ -134,4 +138,82 @@ void convertUnixSecondToRTCDateTime(RTCDateTime* dateTime, uint32_t unixSeconds)
   dateTime->month++;
   // Get day, day starts with 1
   dateTime->day = unixSeconds + 1;
+}
+#define RECALPF_TIMEOUT                 ((uint32_t) 0x00001000)
+#define RTC_SmoothCalibPeriod_32sec     ((uint8_t)0b00) /*!<  if RTCCLK = 32768 Hz, Smooth calibation
+                                                             period is 32s,  else 2exp20 RTCCLK seconds */
+#define RTC_SmoothCalibPeriod_16sec     ((uint8_t)0b01) /*!<  if RTCCLK = 32768 Hz, Smooth calibation
+                                                             period is 16s, else 2exp19 RTCCLK seconds */
+#define RTC_SmoothCalibPeriod_8sec      ((uint8_t)0b10) /*!<  if RTCCLK = 32768 Hz, Smooth calibation
+                                                             period is 8s, else 2exp18 RTCCLK seconds */
+#define RTC_SmoothCalibPlusPulses_Set   ((uint8_t)0b1) /*!<  The number of RTCCLK pulses added
+                                                                during a X -second window = Y - CALM[8:0].
+                                                                 with Y = 512, 256, 128 when X = 32, 16, 8 */
+#define RTC_SmoothCalibPlusPulses_Reset ((uint8_t)0b0) /*!<  The number of RTCCLK pulses subbstited
+                                                                 during a 32-second window =   CALM[8:0]. */
+#define IS_RTC_SMOOTH_CALIB_PERIOD(PERIOD) (((PERIOD) == RTC_SmoothCalibPeriod_32sec) || \
+                                            ((PERIOD) == RTC_SmoothCalibPeriod_16sec) || \
+                                            ((PERIOD) == RTC_SmoothCalibPeriod_8sec))
+#define IS_RTC_SMOOTH_CALIB_PLUS(PLUS)     (((PLUS) == RTC_SmoothCalibPlusPulses_Set) || \
+                                            ((PLUS) == RTC_SmoothCalibPlusPulses_Reset))
+#define IS_RTC_SMOOTH_CALIB_MINUS(VALUE)   ((VALUE) <= 0x000001FF)
+#define RTC_CALP (15U)
+#define RTC_CALW (13U)
+/*
+ * @brief  Configures the Smooth Calibration Settings.
+ * @param  RTC_SmoothCalibPeriod : Select the Smooth Calibration Period.
+ *   This parameter can be can be one of the following values:
+ *     @arg RTC_SmoothCalibPeriod_32sec : The smooth calibration periode is 32s.
+ *     @arg RTC_SmoothCalibPeriod_16sec : The smooth calibration periode is 16s.
+ *     @arg RTC_SmoothCalibPeriod_8sec  : The smooth calibartion periode is 8s.
+ * @param  RTC_SmoothCalibPlusPulses : Select to Set or reset the CALP bit.
+ *   This parameter can be one of the following values:
+ *     @arg RTC_SmoothCalibPlusPulses_Set  : Add one RTCCLK puls every 2**11 pulses.
+ *     @arg RTC_SmoothCalibPlusPulses_Reset: No RTCCLK pulses are added.
+ * @param  RTC_SmouthCalibMinusPulsesValue: Select the value of CALM[8:0] bits.
+ *   This parameter can be one any value from 0 to 0x000001FF.
+ * @retval An ErrorStatus enumeration value:
+ *          - SUCCESS: RTC Calib registers are configured
+ *          - ERROR: RTC Calib registers are not configured
+ */
+uint8_t RTC_SmoothCalibConfig(uint8_t RTC_SmoothCalibPeriod,
+                              uint8_t RTC_SmoothCalibPlusPulses,
+                              uint16_t RTC_SmouthCalibMinusPulsesValue) {
+  uint8_t status = 0;
+  uint32_t recalpfcount = 0;
+
+  /* Check the parameters */
+  chDbgCheck(IS_RTC_SMOOTH_CALIB_PERIOD(RTC_SmoothCalibPeriod));
+  chDbgCheck(IS_RTC_SMOOTH_CALIB_PLUS(RTC_SmoothCalibPlusPulses));
+  chDbgCheck(IS_RTC_SMOOTH_CALIB_MINUS(RTC_SmouthCalibMinusPulsesValue));
+
+  /* Disable the write protection for RTC registers */
+  RTC->WPR = 0xCA;
+  RTC->WPR = 0x53;
+
+  /* check if a calibration is pending*/
+  if ((RTC->ISR & RTC_ISR_RECALPF) != RESET) {
+    /* wait until the Calibration is completed*/
+    while (((RTC->ISR & RTC_ISR_RECALPF) != RESET) && (recalpfcount != RECALPF_TIMEOUT)) {
+      recalpfcount++;
+    }
+  }
+
+  /* check if the calibration pending is completed or if there is no calibration operation at all*/
+  if ((RTC->ISR & RTC_ISR_RECALPF) == RESET) {
+    /* Configure the Smooth calibration settings */
+    RTC->CALR = (uint32_t)((RTC_SmoothCalibPeriod << RTC_CALW)
+              | (uint32_t)(RTC_SmoothCalibPlusPulses << RTC_CALP)
+              | (uint32_t)RTC_SmouthCalibMinusPulsesValue);
+    status = 1;
+  } else {
+    status = 0;
+  }
+
+  chprintf((BaseSequentialStream *)&SD3, "RTC->CALR: %d\n\r", RTC->CALR);
+
+  /* Enable the write protection for RTC registers */
+  RTC->WPR = 0xFF;
+
+  return status;
 }

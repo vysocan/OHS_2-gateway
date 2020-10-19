@@ -130,6 +130,7 @@ const char text_Type[]              = "Type";
 const char text_type[]              = "type";
 const char text_publish[]           = "publish";
 const char text_Last[]              = "Last";
+const char text_devation[]          = "deviation";
 const char text_message[]           = "message";
 const char text_Queued[]            = "Queued";
 const char text_Value[]             = "Value";

@@ -1036,12 +1036,15 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s %s ", html_e_select, text_at);
           printIntInput(chp, 'h', conf.timeStdHour , 2, 0, 23);
           chprintf(chp, " %s", text_oclock);
-          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Standard, text_offset, html_e_td_td);
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td,
+                   text_Standard, text_offset, html_e_td_td);
           printIntInput(chp, 'o', conf.timeStdOffset, 5, -1440, 1440);
           chprintf(chp, " %s%s", durationSelect[1], html_e_td_e_tr_tr_td);
-          chprintf(chp, " %s %s%s", text_Time, text_format, html_e_td_td);
+          chprintf(chp, "%s %s%s", text_Time, text_format, html_e_td_td);
           printTextInput(chp, 'g', conf.dateTimeFormat, NAME_LENGTH);
-          chprintf(chp, "%s%s%s", html_e_td_e_tr, html_e_table);
+          chprintf(chp, "%s%s %s%s%d %s", html_e_td_e_tr_tr_td, text_Last,
+                   text_devation, html_e_td_td, RTCDeviation, durationSelect[0]);
+          chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
 
           // JavaScript
           chprintf(chp, "%s%s%s", html_script, JSCredential, html_e_script);

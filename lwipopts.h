@@ -40,7 +40,7 @@
 #include "static_lwipopts.h"
 #include "date_time.h"
 
-#define LWIP_PRINT(...)  {chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__); chprintf((BaseSequentialStream*) &SD3, "\r");}
+#define LWIP_PRINT(...)  {chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__); chprintf((BaseSequentialStream*) &SD3, "\r\n");}
 
 // TODO OHS #define LWIP_RAM_HEAP_POINTER (void *) SOME_ADDRESS Move LWIP to CCM?
 
@@ -152,7 +152,7 @@
 #define SNTP_SERVER_DNS         1
 #define SNTP_STARTUP_DELAY      1       // enable
 #define SNTP_STARTUP_DELAY_FUNC (20000) // SNTP first query after 20 seconds
-#define SNTP_UPDATE_DELAY       1800000 // SNTP update every 30 minutes
+#define SNTP_UPDATE_DELAY       3600000 // SNTP update every 30 minutes
 
 // Maximum segment size
 #define TCP_MSS 1024
@@ -181,13 +181,16 @@ void SetTimeUnixA(time_t ut){
 */
 /*
  * new SNTP_SET_SYSTEM_TIME function
+ *
+ *      chprintf((BaseSequentialStream *)&SD3, "SNTP: %d\n\r", timestamp);\
  */
 #define SNTP_SET_SYSTEM_TIME(sec) \
-  do{time_t rawtime = (sec);\
+  do{time_t timestamp = (sec);\
      RTCDateTime _ts;\
-     convertUnixSecondToRTCDateTime(&_ts, rawtime);\
+     rtcGetTime(&RTCD1, &_ts);\
+     RTCDeviation = convertRTCDateTimeToUnixSecond(&_ts) - (uint32_t)timestamp;\
+     convertUnixSecondToRTCDateTime(&_ts, timestamp);\
      rtcSetTime(&RTCD1, &_ts);\
-     chprintf((BaseSequentialStream *)&SD3, "SNTP: %d\n\r", rawtime);\
    }while(0)
 /*
  * old SNTP_SET_SYSTEM_TIME function
