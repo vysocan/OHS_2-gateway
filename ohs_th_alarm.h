@@ -20,7 +20,8 @@ static THD_FUNCTION(AEThread, arg) {
   chRegSetThreadName(arg);
   msg_t msg;
   alarmEvent_t *inMsg;
-  uint8_t groupNum, wait, count;
+  uint8_t groupNum, wait;
+  uint16_t count;
 
   while (true) {
     msg = chMBFetchTimeout(&alarmEvent_mb, (msg_t*)&inMsg, TIME_INFINITE);
@@ -42,9 +43,13 @@ static THD_FUNCTION(AEThread, arg) {
       while ((wait > 0) && !(GET_GROUP_ALARM(group[groupNum].setting)) && (GET_GROUP_WAIT_AUTH(group[groupNum].setting))) {
         sendCmdToGrp(groupNum, NODE_CMD_ALARM + wait, 'K');
         count = 0;
-        //       Authentication On                    time of one alarm period      NOT group has alarm already
-        while (GET_GROUP_WAIT_AUTH(group[groupNum].setting) && (count < (10*conf.armDelay)) && !(GET_GROUP_ALARM(group[groupNum].setting))) {
-          chThdSleepMilliseconds(100);
+        // Authentication On && time of one alarm period && NOT group has alarm already
+        // (count < 8 * (conf.armDelay/4)) -> (count < (uint16_t)(2*conf.armDelay)
+        // conf.armDelay must be divided by 4
+        while ((GET_GROUP_WAIT_AUTH(group[groupNum].setting)) &&
+               (count < (uint16_t)(2*conf.armDelay)) &&
+               !(GET_GROUP_ALARM(group[groupNum].setting))) {
+          chThdSleepMilliseconds(125);
           count++;
         }
         //  Authentication On
@@ -72,6 +77,5 @@ static THD_FUNCTION(AEThread, arg) {
     chPoolFree(&alarmEvent_pool, inMsg);
   }
 }
-
 
 #endif /* OHS_TH_ALARM_H_ */
