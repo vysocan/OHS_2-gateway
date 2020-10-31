@@ -80,7 +80,7 @@ rfm69Config_t rfm69cfg = {
  */
 #define ADC_GRP1_NUM_CHANNELS 11
 #define ADC_GRP1_BUF_DEPTH    1
-#define ADC_SCALING_VBAT      (0.0032f) // 3.3V/4095 * (2 for F407) or * (4 fpr F437)
+#define ADC_SCALING_VBAT      (0.0032f) // 3.3V/4095 * (2 for F407) or * (4 for F437)
 static adcsample_t adcSamples[ADC_GRP1_NUM_CHANNELS * ADC_GRP1_BUF_DEPTH];
 /*
  * ADC callback

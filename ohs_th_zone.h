@@ -76,10 +76,11 @@ static THD_FUNCTION(ZoneThread, arg) {
       }
     }
     vBatCounter++;
-    /*
+
+#if ZONE_DEBUG
     for(uint8_t i = 0; i < ADC_GRP1_NUM_CHANNELS; i++) { DBG_ZONE(" > %d", adcSamples[i]); }
     DBG_ZONE("\r\n");
-    */
+#endif
 
     for(uint8_t i = 0; i < ALARM_ZONES; i++) {
       if (GET_CONF_ZONE_ENABLED(conf.zone[i])){

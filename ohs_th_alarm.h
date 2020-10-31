@@ -67,7 +67,7 @@ static THD_FUNCTION(AEThread, arg) {
           if (GET_CONF_GROUP_TAMPER1(conf.group[groupNum])) palSetPad(GPIOB, GPIOB_RELAY_1);
           if (GET_CONF_GROUP_TAMPER2(conf.group[groupNum])) palSetPad(GPIOB, GPIOB_RELAY_2);
         }
-        // TODO OHS create alarms with delays, some states require not continuous sirens
+        // TODO OHS create alarms with delays, some countries require not continuous sirens
         tmpLog[0] = 'S'; tmpLog[1] = 'X';  tmpLog[2] = groupNum;  pushToLog(tmpLog, 3); // ALARM no auth.
         //++publishGroup(groupNum, 'T');
       }

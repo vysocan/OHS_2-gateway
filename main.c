@@ -1,4 +1,3 @@
-
 /*
  * OHS gateway code for HW v 2.0.x
  * Adam Baron 2020
