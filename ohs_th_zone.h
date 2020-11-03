@@ -54,14 +54,12 @@ static THD_FUNCTION(ZoneThread, arg) {
 
     // RTC VBat
     if (vBatCounter == 0) {
-     adcSTM32EnableTSVREFE();     // Enable
-     adcSTM32EnableVBATE();       // Enable VBAT pin
+      adcSTM32EnableVBATE(); // Enable VBAT pin
     }
     adcConvert(&ADCD1, &adcgrpcfg1, adcSamples, ADC_GRP1_BUF_DEPTH); // Do ADC
     // RTC VBat is measured only on vBatCounter overflow
     if (vBatCounter == 3) {
-      adcSTM32DisableVBATE();     // Disable VBAT pin
-      adcSTM32DisableTSVREFE();   // Disable
+      adcSTM32DisableVBATE(); // Disable VBAT pin
       // VBAT does not measure under 1 V
       if (adcSamples[10] < 700) rtcVbat = 0;
       else rtcVbat = (float)adcSamples[10] * ADC_SCALING_VBAT;
