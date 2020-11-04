@@ -57,18 +57,20 @@ static THD_FUNCTION(ZoneThread, arg) {
       adcSTM32EnableVBATE(); // Enable VBAT pin
     }
     adcConvert(&ADCD1, &adcgrpcfg1, adcSamples, ADC_GRP1_BUF_DEPTH); // Do ADC
-    // RTC VBat is measured only on vBatCounter overflow
+    // RTC VBat is measured only on vBatCounter overflow.
+    // ADC thresholds valid for 1/4 scaling factor of STM32F437.
     if (vBatCounter == 3) {
       adcSTM32DisableVBATE(); // Disable VBAT pin
-      // VBAT does not measure under 1 V
-      if (adcSamples[10] < 700) rtcVbat = 0;
+      // VBAT does not measure under 1V, (1V / ADC_SCALING_VBAT = 310)
+      if (adcSamples[10] < 310) rtcVbat = 0;
       else rtcVbat = (float)adcSamples[10] * ADC_SCALING_VBAT;
-      // Lower or higher then ~ 2.5V
-      if ((adcSamples[10] < 1500) && !GET_CONF_SYSTEM_FLAG_RTC_LOW(conf.systemFlags)) {
+      // Lower or higher then ~ 2.5V, (2.5V / ADC_SCALING_VBAT = 775)
+      if ((adcSamples[10] < 775) && !GET_CONF_SYSTEM_FLAG_RTC_LOW(conf.systemFlags)) {
         pushToLogText("SRL");
         SET_CONF_SYSTEM_FLAG_RTC_LOW(conf.systemFlags);
       }
-      if ((adcSamples[10] > 1600) && GET_CONF_SYSTEM_FLAG_RTC_LOW(conf.systemFlags)) {
+      // Lower or higher then ~ 2.8V, (2.8V / ADC_SCALING_VBAT = 870)
+      if ((adcSamples[10] > 870) && GET_CONF_SYSTEM_FLAG_RTC_LOW(conf.systemFlags)) {
         pushToLogText("SRH");
         CLEAR_CONF_SYSTEM_FLAG_RTC_LOW(conf.systemFlags);
       }
