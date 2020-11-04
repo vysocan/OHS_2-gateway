@@ -187,8 +187,6 @@ void SetTimeUnixA(time_t ut){
 #define SNTP_SET_SYSTEM_TIME(sec) \
   do{time_t timestamp = (sec);\
      RTCDateTime _ts;\
-     rtcGetTime(&RTCD1, &_ts);\
-     RTCDeviation = convertRTCDateTimeToUnixSecond(&_ts) - (uint32_t)timestamp;\
      convertUnixSecondToRTCDateTime(&_ts, timestamp);\
      rtcSetTime(&RTCD1, &_ts);\
    }while(0)

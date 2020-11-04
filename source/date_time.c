@@ -9,7 +9,7 @@
 
 // SNTP timestamp to compare
 //volatile uint32_t RTCTimestamp = 0;
-volatile int32_t  RTCDeviation = 0;
+//volatile int32_t  RTCDeviation = 0;
 
 /*
  * Days in a month

@@ -299,7 +299,7 @@ void pushToLog(char *what, uint8_t size) {
  */
 void pushToLogText(char *what) {
   uint8_t len = strlen(what);
-  if (len > LOGGER_MSG_LENGTH) len = LOGGER_MSG_LENGTH;
+  osalDbgCheck(len <= LOGGER_MSG_LENGTH);
   pushToLog(what, len);
 }
 /*

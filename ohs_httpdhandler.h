@@ -796,7 +796,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%ss", html_e_th_th, text_Authentication);
           chprintf(chp, "%s%ss", html_e_th_th, text_Sensor);
           chprintf(chp, "%s%ss", html_e_th_th, text_Contact);
-          chprintf(chp, "%s%s %s", html_e_th_th, text_Alarm, text_trigger);
+          chprintf(chp, "%s%s", html_e_th_th, text_Trigger);
           chprintf(chp, "%s%s", html_e_th_th, text_Armed);
           chprintf(chp, "%s%s%s\r\n", html_e_th_th, text_Status, html_e_th_e_tr);
           // Information table
@@ -805,62 +805,91 @@ int fs_open_custom(struct fs_file *file, const char *name){
             chprintf(chp, "%s%s", conf.groupName[i], html_e_td_td);
             printOkNok(chp, GET_CONF_GROUP_ENABLED(conf.group[i]));
             chprintf(chp, "%s", html_e_td_td);
-            printOkNok(chp, GET_CONF_GROUP_AUTO_ARM(conf.group[i]));
+            if (GET_CONF_GROUP_ENABLED(conf.group[i]))
+              printOkNok(chp, GET_CONF_GROUP_AUTO_ARM(conf.group[i]));
             chprintf(chp, "%s", html_e_td_td);
-            printGroup(chp, GET_CONF_GROUP_ARM_CHAIN(conf.group[i]));
+            if (GET_CONF_GROUP_ENABLED(conf.group[i]))
+              printGroup(chp, GET_CONF_GROUP_ARM_CHAIN(conf.group[i]));
             chprintf(chp, "%s", html_e_td_td);
-            printGroup(chp, GET_CONF_GROUP_DISARM_CHAIN(conf.group[i]));
+            if (GET_CONF_GROUP_ENABLED(conf.group[i]))
+              printGroup(chp, GET_CONF_GROUP_DISARM_CHAIN(conf.group[i]));
             chprintf(chp, "%s", html_e_td_td);
-            logAddress = 0; // Just temp. var.
-            for (uint8_t j = 0; j < ALARM_ZONES; j++) {
-              if (GET_CONF_ZONE_GROUP(conf.zone[j]) == i) {
-                if (logAddress > 0) chprintf(chp, "%s", html_br);
-                chprintf(chp, "%u. %s", j+1, conf.zoneName[j]);
-                logAddress++;
-              }
-            }
-            logAddress = 0; // Just temp. var.
-            chprintf(chp, "%s", html_e_td_td);
-            for (uint8_t j = 0; j < NODE_SIZE; j++) {
-              if ((GET_NODE_GROUP(node[j].setting) == i) && (node[j].type == 'K')) {
-                if (logAddress > 0) chprintf(chp, "%s", html_br);
-                chprintf(chp, "%u. %s", j+1, node[j].name);
-                logAddress++;
-              }
-            }
-            logAddress = 0; // Just temp. var.
-            chprintf(chp, "%s", html_e_td_td);
-            for (uint8_t j = 0; j < NODE_SIZE; j++) {
-              if ((GET_NODE_GROUP(node[j].setting) == i) && (node[j].type == 'S')) {
-                if (logAddress > 0) chprintf(chp, "%s", html_br);
-                chprintf(chp, "%u. %s", j+1, node[j].name);
-                logAddress++;
-              }
-            }
-            logAddress = 0; // Just temp. var.
-            chprintf(chp, "%s", html_e_td_td);
-            for (uint8_t j = 0; j < CONTACTS_SIZE; j++) {
-              if ((GET_CONF_CONTACT_GROUP(conf.contact[j]) == i) ||
-                  (GET_CONF_CONTACT_IS_GLOBAL(conf.contact[j]))){
-                if (logAddress > 0) chprintf(chp, "%s", html_br);
-                chprintf(chp, "%s", conf.contactName[j]);
-                logAddress++;
+            if (GET_CONF_GROUP_ENABLED(conf.group[i])) {
+              logAddress = 0; // Just temp. var.
+              for (uint8_t j = 0; j < ALARM_ZONES; j++) {
+                if ((GET_CONF_ZONE_ENABLED(conf.zone[j])) &&
+                    (GET_CONF_ZONE_GROUP(conf.zone[j]) == i)) {
+                  if (logAddress > 0) chprintf(chp, "%s", html_br);
+                  chprintf(chp, "%u. %s", j+1, conf.zoneName[j]);
+                  logAddress++;
+                }
               }
             }
             chprintf(chp, "%s", html_e_td_td);
-            chprintf(chp, "%s", html_e_td_td);
-            if (GET_GROUP_ARMED(group[i].setting)) {
-              if GET_GROUP_ARMED_HOME(group[i].setting) { chprintf(chp, "%s", text_i_home); }
-              else                                      { chprintf(chp, "%s", text_i_OK); }
-            } else {
-              if (group[i].armDelay > 0) { chprintf(chp, "%s", text_i_starting); }
-              else                       { chprintf(chp, "%s", text_i_disabled); }
+            if (GET_CONF_GROUP_ENABLED(conf.group[i])) {
+              logAddress = 0; // Just temp. var.
+              for (uint8_t j = 0; j < NODE_SIZE; j++) {
+                if (GET_NODE_ENABLED(node[j].setting) &&
+                    (GET_NODE_GROUP(node[j].setting) == i) &&
+                    (node[j].type == 'K')) {
+                  if (logAddress > 0) chprintf(chp, "%s", html_br);
+                  chprintf(chp, "%u. %s", j+1, node[j].name);
+                  logAddress++;
+                }
+              }
             }
             chprintf(chp, "%s", html_e_td_td);
-            if (GET_GROUP_ALARM(group[i].setting) == 0) {
-              if (GET_GROUP_WAIT_AUTH(group[i].setting)) { chprintf(chp, "%s", text_i_starting); }
-              else                                       { chprintf(chp, "%s", text_i_OK); }
-            } else { chprintf(chp, "%s", text_i_alarm); }
+            if (GET_CONF_GROUP_ENABLED(conf.group[i])) {
+              logAddress = 0; // Just temp. var.
+              for (uint8_t j = 0; j < NODE_SIZE; j++) {
+                if (GET_NODE_ENABLED(node[j].setting) &&
+                    (GET_NODE_GROUP(node[j].setting) == i) &&
+                    (node[j].type == 'S')) {
+                  if (logAddress > 0) chprintf(chp, "%s", html_br);
+                  chprintf(chp, "%u. %s", j+1, node[j].name);
+                  logAddress++;
+                }
+              }
+            }
+            chprintf(chp, "%s", html_e_td_td);
+            if (GET_CONF_GROUP_ENABLED(conf.group[i])) {
+              logAddress = 0; // Just temp. var.
+              for (uint8_t j = 0; j < CONTACTS_SIZE; j++) {
+                if (GET_CONF_CONTACT_ENABLED(conf.contact[j]) &&
+                    ((GET_CONF_CONTACT_GROUP(conf.contact[j]) == i) ||
+                     (GET_CONF_CONTACT_IS_GLOBAL(conf.contact[j])))){
+                  if (logAddress > 0) chprintf(chp, "%s", html_br);
+                  chprintf(chp, "%s", conf.contactName[j]);
+                  logAddress++;
+                }
+              }
+            }
+            chprintf(chp, "%s", html_e_td_td); // show relays
+            if (GET_CONF_GROUP_ENABLED(conf.group[i])) {
+              chprintf(chp, "%s:", text_Alarm);
+              if (GET_CONF_GROUP_PIR1(conf.group[i])) chprintf(chp, " %s 1", text_relay);
+              if (GET_CONF_GROUP_PIR2(conf.group[i])) chprintf(chp, " %s 2", text_relay);
+              chprintf(chp, "%s%s:", html_br, text_Tamper);
+              if (GET_CONF_GROUP_TAMPER1(conf.group[i])) chprintf(chp, " %s 1", text_relay);
+              if (GET_CONF_GROUP_TAMPER2(conf.group[i])) chprintf(chp, " %s 2", text_relay);
+            }
+            chprintf(chp, "%s", html_e_td_td);
+            if (GET_CONF_GROUP_ENABLED(conf.group[i])) {
+              if (GET_GROUP_ARMED(group[i].setting)) {
+                if GET_GROUP_ARMED_HOME(group[i].setting) { chprintf(chp, "%s", text_i_home); }
+                else                                      { chprintf(chp, "%s", text_i_OK); }
+              } else {
+                if (group[i].armDelay > 0) { chprintf(chp, "%s", text_i_starting); }
+                else                       { chprintf(chp, "%s", text_i_disabled); }
+              }
+            }
+            chprintf(chp, "%s", html_e_td_td);
+            if (GET_CONF_GROUP_ENABLED(conf.group[i])) {
+              if (GET_GROUP_ALARM(group[i].setting) == 0) {
+                if (GET_GROUP_WAIT_AUTH(group[i].setting)) { chprintf(chp, "%s", text_i_starting); }
+                else                                       { chprintf(chp, "%s", text_i_OK); }
+              } else { chprintf(chp, "%s", text_i_alarm); }
+            }
             chprintf(chp, "%s", html_e_td_e_tr);
           }
           chprintf(chp, "%s%s", html_e_table, html_table);
@@ -1042,8 +1071,6 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, " %s%s", durationSelect[1], html_e_td_e_tr_tr_td);
           chprintf(chp, "%s %s%s", text_Time, text_format, html_e_td_td);
           printTextInput(chp, 'g', conf.dateTimeFormat, NAME_LENGTH);
-          chprintf(chp, "%s%s %s%s%d %s", html_e_td_e_tr_tr_td, text_Last,
-                   text_devation, html_e_td_td, RTCDeviation, durationSelect[0]);
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
 
           // JavaScript
