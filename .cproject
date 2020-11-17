@@ -61,6 +61,8 @@
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/various/shell"/>
                                     									
+                                    <listOptionValue builtIn="false" value="/usr/local/include"/>
+                                    									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/various/wolfssl_bindings"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/common/ext/ST/STM32F4xx"/>
@@ -77,11 +79,15 @@
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/oslib/include"/>
                                     									
+                                    <listOptionValue builtIn="false" value="/usr/include/x86_64-linux-gnu"/>
+                                    									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/ext/wolfssl/wolfssl/wolfcrypt/port/st"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/common/ports/ARMCMx"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/hal/ports/STM32/LLD/DACv1"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="/usr/include"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/workspace_Adam/OHS-STM32F407/cfg"/>
                                     									
@@ -110,6 +116,8 @@
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/various/lwip_bindings"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/workspace_Adam/OHS-STM32F407/source/"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="/usr/lib/gcc/x86_64-linux-gnu/9/include"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/hal/ports/STM32/LLD/QUADSPIv1"/>
                                     									
@@ -149,9 +157,21 @@
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/hal/ports/STM32/LLD/GPIOv2"/>
                                     									
+                                    <listOptionValue builtIn="false" value="/usr/lib/gcc/x86_64-linux-gnu/8/include"/>
+                                    									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/ext/wolfssl"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/common/startup/ARMCMx/devices/STM32F4xx"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="/usr/lib/gcc/x86_64-linux-gnu/8/include-fixed"/>
+                                    								
+                                </option>
+                                								
+                                <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="org.eclipse.cdt.build.core.settings.holder.incpaths.1097230202" name="Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">
+                                    									
+                                    <listOptionValue builtIn="false" value="&quot;/home/vysocan/ChibiStudio/tools/GNU Tools ARM Embedded/9.2.1 2019q4/arm-none-eabi/include&quot;"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="&quot;/home/vysocan/ChibiStudio/tools/GNU Tools ARM Embedded/9.2.1 2019q4/lib/gcc/arm-none-eabi/9.2.1/include&quot;"/>
                                     								
                                 </option>
                                 								
@@ -179,6 +199,8 @@
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/various/shell"/>
                                     									
+                                    <listOptionValue builtIn="false" value="/usr/local/include"/>
+                                    									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/various/wolfssl_bindings"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/common/ext/ST/STM32F4xx"/>
@@ -195,11 +217,15 @@
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/oslib/include"/>
                                     									
+                                    <listOptionValue builtIn="false" value="/usr/include/x86_64-linux-gnu"/>
+                                    									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/ext/wolfssl/wolfssl/wolfcrypt/port/st"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/common/ports/ARMCMx"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/hal/ports/STM32/LLD/DACv1"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="/usr/include"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/workspace_Adam/OHS-STM32F407/cfg"/>
                                     									
@@ -228,6 +254,8 @@
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/various/lwip_bindings"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/workspace_Adam/OHS-STM32F407/source/"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="/usr/lib/gcc/x86_64-linux-gnu/9/include"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/hal/ports/STM32/LLD/QUADSPIv1"/>
                                     									
@@ -267,9 +295,21 @@
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/hal/ports/STM32/LLD/GPIOv2"/>
                                     									
+                                    <listOptionValue builtIn="false" value="/usr/lib/gcc/x86_64-linux-gnu/8/include"/>
+                                    									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/ext/wolfssl"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/common/startup/ARMCMx/devices/STM32F4xx"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="/usr/lib/gcc/x86_64-linux-gnu/8/include-fixed"/>
+                                    								
+                                </option>
+                                								
+                                <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="org.eclipse.cdt.build.core.settings.holder.incpaths.1360887132" name="Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">
+                                    									
+                                    <listOptionValue builtIn="false" value="&quot;/home/vysocan/ChibiStudio/tools/GNU Tools ARM Embedded/9.2.1 2019q4/arm-none-eabi/include&quot;"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="&quot;/home/vysocan/ChibiStudio/tools/GNU Tools ARM Embedded/9.2.1 2019q4/lib/gcc/arm-none-eabi/9.2.1/include&quot;"/>
                                     								
                                 </option>
                                 								
@@ -297,6 +337,8 @@
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/various/shell"/>
                                     									
+                                    <listOptionValue builtIn="false" value="/usr/local/include"/>
+                                    									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/various/wolfssl_bindings"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/common/ext/ST/STM32F4xx"/>
@@ -313,11 +355,15 @@
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/oslib/include"/>
                                     									
+                                    <listOptionValue builtIn="false" value="/usr/include/x86_64-linux-gnu"/>
+                                    									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/ext/wolfssl/wolfssl/wolfcrypt/port/st"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/common/ports/ARMCMx"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/hal/ports/STM32/LLD/DACv1"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="/usr/include"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/workspace_Adam/OHS-STM32F407/cfg"/>
                                     									
@@ -346,6 +392,8 @@
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/various/lwip_bindings"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/workspace_Adam/OHS-STM32F407/source/"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="/usr/lib/gcc/x86_64-linux-gnu/9/include"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/hal/ports/STM32/LLD/QUADSPIv1"/>
                                     									
@@ -385,9 +433,21 @@
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/hal/ports/STM32/LLD/GPIOv2"/>
                                     									
+                                    <listOptionValue builtIn="false" value="/usr/lib/gcc/x86_64-linux-gnu/8/include"/>
+                                    									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/ext/wolfssl"/>
                                     									
                                     <listOptionValue builtIn="false" value="/home/adam/ChibiStudio/chibios_stable-20.3.x/os/common/startup/ARMCMx/devices/STM32F4xx"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="/usr/lib/gcc/x86_64-linux-gnu/8/include-fixed"/>
+                                    								
+                                </option>
+                                								
+                                <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="org.eclipse.cdt.build.core.settings.holder.incpaths.1177877722" name="Include Paths" superClass="org.eclipse.cdt.build.core.settings.holder.incpaths" valueType="includePath">
+                                    									
+                                    <listOptionValue builtIn="false" value="&quot;/home/vysocan/ChibiStudio/tools/GNU Tools ARM Embedded/9.2.1 2019q4/arm-none-eabi/include&quot;"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="&quot;/home/vysocan/ChibiStudio/tools/GNU Tools ARM Embedded/9.2.1 2019q4/lib/gcc/arm-none-eabi/9.2.1/include&quot;"/>
                                     								
                                 </option>
                                 								

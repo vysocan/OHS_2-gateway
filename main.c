@@ -4,6 +4,8 @@
  *
  *
  */
+//TODO OHS rename ch.bin to ohs.bin
+//TODO OHS change Georgia font to ?Tahoma?
 // Optimize stack and overflow
 #define PORT_INT_REQUIRED_STACK 128
 // Remove input queue for GPRS to save RAM
@@ -11,7 +13,7 @@
 /*
  * OHS features
  */
-//#define OHS_SSL
+//#define OHS_WOLFSSL
 //#define OHS_HTTPS
 //#define OHS_HTTPS_CLIENT
 //#define OHS_ALERT_TELEGRAM
@@ -101,7 +103,7 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 #include "ohs_shell.h"
 
 //
-#ifdef OHS_SSL
+#ifdef OHS_WOLFSSL
 #include "crypto.h"
 #include "wolfssl_chibios.h"
 #endif
@@ -162,7 +164,7 @@ int main(void) {
   chSysInit();
 
   // Initialize RNG
-  #ifdef OHS_SSL
+  #ifdef OHS_WOLFSSL
     rccEnableAHB2(RCC_AHB2ENR_RNGEN, 0);
     RNG->CR |= RNG_CR_IE;
     RNG->CR |= RNG_CR_RNGEN;
@@ -330,7 +332,7 @@ int main(void) {
     if (GET_CONF_TIMER_ENABLED(conf.timer[i].setting)) setTimer(i, true);
   }
 
-#ifdef OHS_SSL
+#ifdef OHS_WOLFSSL
   wolfSSL_Init();
 #endif
 
