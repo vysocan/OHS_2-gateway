@@ -2,7 +2,7 @@
  * ohs_peripherial.h
  *
  *  Created on: 23. 2. 2020
- *      Author: adam
+ *      Author: vysocan
  *
  * Peripheral configurations
  */

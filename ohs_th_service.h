@@ -44,8 +44,9 @@ static THD_FUNCTION(ServiceThread, arg) {
   struct scriptLL_t *scrP = NULL;
 
   while (true) {
+    // 1 second sleep, we do not care much about time of execution.
     chThdSleepMilliseconds(1000);
-    // Get current time
+    // Get current time to prevent multiple queries
     timeNow = getTimeUnixSec();
 
     // Remove zombie nodes

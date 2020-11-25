@@ -27,8 +27,5 @@ extern volatile int32_t  RTCDeviation;
 uint32_t calculateDST(uint16_t year, uint8_t month, uint8_t week, uint8_t dow, uint8_t hour);
 uint32_t convertRTCDateTimeToUnixSecond(RTCDateTime *dateTime);
 void convertUnixSecondToRTCDateTime(RTCDateTime* dateTime, uint32_t unixSeconds);
-uint8_t RTC_SmoothCalibConfig(uint8_t RTC_SmoothCalibPeriod,
-                              uint8_t RTC_SmoothCalibPlusPulses,
-                              uint16_t RTC_SmouthCalibMinusPulsesValue);
 
 #endif /* SOURCE_DATE_TIME_H__ */

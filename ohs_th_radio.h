@@ -53,7 +53,7 @@ static THD_FUNCTION(RadioThread, arg) {
               if (index == 0) {
                 // This is needed for sleeping battery nodes, or they wont see reg. command.
                 chThdSleepMilliseconds(5);
-                resp = sendCmd(rfm69Data.senderId, NODE_CMD_REGISTRATION); // call this address to register
+                resp = sendCmd(rfm69Data.senderId + RADIO_UNIT_OFFSET, NODE_CMD_REGISTRATION); // call this address to register
                 DBG_RS485("Unregistered node ping, resp: %d\r\n", resp);
               }
             break;

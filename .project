@@ -79,7 +79,7 @@
 		<link>
 			<name>board</name>
 			<type>2</type>
-			<locationURI>CHIBIOS/os/hal/boards/OHS_204</locationURI>
+			<location>/home/vysocan/ChibiStudio/chibios_stable-20.3.x/os/hal/boards/OHS_204</location>
 		</link>
 	</linkedResources>
 </projectDescription>

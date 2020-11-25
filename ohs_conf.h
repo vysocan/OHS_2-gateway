@@ -8,8 +8,12 @@
 #ifndef OHS_CONF_H_
 #define OHS_CONF_H_
 
+// Do some compile time checks
 #if STM32_BKPRAM_ENABLE == STM32_NO_INIT
 #error "In mcuconf.h STM32_BKPRAM_ENABLE must be TRUE!"
+#endif
+#if STM32_LSI_ENABLED || !STM32_LSE_ENABLED
+#error "We have external oscillator!"
 #endif
 
 // STM32 UID as Ethernet MAC
@@ -823,16 +827,17 @@ void setConfDefault(void){
          conf.zone[i] = 0b11000100 << 8 | 0b00011110; // Analog sensor
         break;
       case  10      :
-         conf.zone[i] = 0b01000010 << 8 | 0b00011110; // Tamper
+         conf.zone[i] = 0b01000010 << 8 | 0b00011110; // BOX Tamper
         break;
       default:
          conf.zone[i] = 0b00000000 << 8 | 0b00011110; // Other zones
          conf.zoneAddress[i-HW_ZONES] = 0;
         break;
     }
-    //strcpy(conf.zoneName[i], NOT_SET);
     memset(&conf.zoneName[i][0], 0x00, NAME_LENGTH);
   }
+  // Let's name special BOX contacts
+  strcpy(conf.zoneName[10], "Box tamper");
 
   for(uint8_t i = 0; i < ALARM_GROUPS; i++) {
     //                  ||||- disarm chain
