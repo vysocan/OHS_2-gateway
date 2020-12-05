@@ -25,12 +25,12 @@
 // Editable
 #define UBS_BLOCK_SIZE        128
 #define UBS_BLOCK_COUNT       512
-#define UBS_NAME_SIZE         16
-#define UBS_ADDRESS_START     65536
+#define UBS_NAME_SIZE         16    // Block name size in bytes
+#define UBS_ADDRESS_START     65536 // Offset of uBS space
 // Fixed
 #define UBS_ADDRESS_END       (UBS_ADDRESS_START + (UBS_BLOCK_SIZE * UBS_BLOCK_COUNT))
-#define UBS_HEADER_SIZE       1
-#define UBS_ADDRESS_SIZE      3
+#define UBS_HEADER_SIZE       1 // Bytes
+#define UBS_ADDRESS_SIZE      3 // Bytes
 #define UBS_HEADER_BLOCK_SIZE (UBS_HEADER_SIZE + UBS_ADDRESS_SIZE)
 // Helpers
 #define UBS_HEADER_ALLOW_SIZE 127 //((UBS_HEADER_SIZE * 255) >> 1)
@@ -38,6 +38,8 @@
 #define UBS_FIRST_DATA_SIZE   (UBS_DATA_SIZE - UBS_NAME_SIZE)
 #define UBS_CMD_BUF_SIZE      (1 + UBS_ADDRESS_SIZE)
 #define UBS_MAP_SIZE          (UBS_BLOCK_COUNT/8) + ((UBS_BLOCK_COUNT%8) ? 1 : 0)
+// Statistics
+#define UBS_SPACE_MAX         ((UBS_BLOCK_COUNT * UBS_DATA_SIZE) - UBS_NAME_SIZE)
 /*
  * Sanity checks
  */
@@ -52,8 +54,6 @@
 #if UBS_BLOCK_SIZE > (UBS_HEADER_SIZE * 256)
   #error Size of blok is larger then uint8_t size!
 #endif
-// Statistics
-#define UBS_SPACE_MAX         ((UBS_BLOCK_COUNT * UBS_DATA_SIZE) - UBS_NAME_SIZE)
 // Status replies
 #define UBS_RSLT_OK        (1)
 #define UBS_RSLT_NOK       (0)
