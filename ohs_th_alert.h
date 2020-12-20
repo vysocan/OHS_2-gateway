@@ -54,13 +54,13 @@ static THD_FUNCTION(AlertThread, arg) {
           switch (i) {
             case 0: // SMS
               for (uint8_t j = 0; j < CONTACTS_SIZE; j++) {
-                if (GET_CONF_CONTACT_ENABLED(conf.contact[j]) &&
-                    (isPhoneNum(&conf.contactPhone[j][0])) &&
-                    ((GET_CONF_CONTACT_GROUP(conf.contact[j]) == groupNum) ||
-                     (GET_CONF_CONTACT_IS_GLOBAL(conf.contact[j])))) {
+                if (GET_CONF_CONTACT_ENABLED(conf.contact[j].setting) &&
+                    (isPhoneNum(&conf.contact[j].phone[0])) &&
+                    ((GET_CONF_CONTACT_GROUP(conf.contact[j].setting) == groupNum) ||
+                     (GET_CONF_CONTACT_IS_GLOBAL(conf.contact[j].setting)))) {
                   // Wait for GPRS
                   if (chBSemWait(&gprsSem) == MSG_OK) {
-                    resp = gprsSendSMSBegin(conf.contactPhone[j]);
+                    resp = gprsSendSMSBegin(conf.contact[j].phone);
                     chprintf(console, "SMS begin: %d\r\n", resp);
                     if (resp == 1) {
                       chprintf(console, "SMS end: %d\r\n", gprsSendSMSEnd(gprsSmsText));
@@ -72,13 +72,13 @@ static THD_FUNCTION(AlertThread, arg) {
               break;
             case 1: // Page
               for (uint8_t j = 0; j < CONTACTS_SIZE; j++) {
-                if (GET_CONF_CONTACT_ENABLED(conf.contact[j]) &&
-                    (isPhoneNum(&conf.contactPhone[j][0])) &&
-                    ((GET_CONF_CONTACT_GROUP(conf.contact[j]) == groupNum) ||
-                     (GET_CONF_CONTACT_IS_GLOBAL(conf.contact[j])))) {
+                if (GET_CONF_CONTACT_ENABLED(conf.contact[j].setting) &&
+                    (isPhoneNum(&conf.contact[j].phone[0])) &&
+                    ((GET_CONF_CONTACT_GROUP(conf.contact[j].setting) == groupNum) ||
+                     (GET_CONF_CONTACT_IS_GLOBAL(conf.contact[j].setting)))) {
                   // Wait for GPRS
                   if (chBSemWait(&gprsSem) == MSG_OK) {
-                    chsnprintf(gprsSmsText, sizeof(gprsSmsText), "%s%s;", AT_D, conf.contactPhone[j]);
+                    chsnprintf(gprsSmsText, sizeof(gprsSmsText), "%s%s;", AT_D, conf.contact[j].phone);
                     resp = gprsSendCmd(gprsSmsText);
                     chprintf(console, "Page begin: %d\r\n", resp);
                     if (resp == 1) {
@@ -92,12 +92,12 @@ static THD_FUNCTION(AlertThread, arg) {
               break;
             case 2: // Email
               for (uint8_t j = 0; j < CONTACTS_SIZE; j++) {
-                if (GET_CONF_CONTACT_ENABLED(conf.contact[j]) &&
-                    ((GET_CONF_CONTACT_GROUP(conf.contact[j]) == groupNum) ||
-                     (GET_CONF_CONTACT_IS_GLOBAL(conf.contact[j])))) {
+                if (GET_CONF_CONTACT_ENABLED(conf.contact[j].setting) &&
+                    ((GET_CONF_CONTACT_GROUP(conf.contact[j].setting) == groupNum) ||
+                     (GET_CONF_CONTACT_IS_GLOBAL(conf.contact[j].setting)))) {
                   if (chBSemWaitTimeout(&emailSem, TIME_IMMEDIATE) == MSG_OK) {
-                    emailReqest.from = &conf.contactEmail[j][0];
-                    emailReqest.to   = &conf.contactEmail[j][0];
+                    emailReqest.from = &conf.contact[j].email[0];
+                    emailReqest.to   = &conf.contact[j].email[0];
                     emailReqest.subject = &gprsSmsText[0];
                     emailReqest.body = &gprsSmsText[0];
                     emailReqest.callback_fn = my_smtp_result_fn;

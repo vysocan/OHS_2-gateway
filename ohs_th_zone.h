@@ -30,24 +30,43 @@ static THD_FUNCTION(ZoneThread, arg) {
   uint8_t  groupNum = DUMMY_NO_VALUE;
   triggerEvent_t *outMsgTrig;
 
-  // Delay to allow PIR to settle up during power on
+  // Delay to allow PIR to settle up during power up
   chThdSleepSeconds(SECONDS_PER_MINUTE);
+
+  // Monitoring started
   pushToLogText("SS");
+  pushToMqtt(typeSystem, 1, functionState);
+
+  // Manage group MQTT publish
+  for (uint8_t i=0; i < ALARM_GROUPS ; i++) {
+    if (GET_CONF_GROUP_ENABLED(conf.group[i].setting) && GET_CONF_GROUP_MQTT_PUB(conf.group[i].setting)) {
+      pushToMqtt(typeGroup, i, functionName);
+      pushToMqtt(typeGroup, i, functionState);
+    }
+  }
+  // Delay to allow MQTT to proceed
+  chThdSleepSeconds(1);
+  // Manage group MQTT publish
+  for (uint8_t i=0; i < ALARM_ZONES ; i++) {
+    if (GET_CONF_ZONE_ENABLED(conf.zone[i]) && GET_CONF_ZONE_MQTT_PUB(conf.zone[i])) {
+      pushToMqtt(typeZone, i, functionName);
+    }
+  }
 
   while (true) {
     chThdSleepMilliseconds(250); // time is used also for arm delay and others ...
 
     // Manage arm delay for each group
-    for (uint8_t i=0; i < ALARM_GROUPS ; i++){
+    for (uint8_t i=0; i < ALARM_GROUPS ; i++) {
       if (group[i].armDelay > 0) {
         group[i].armDelay--;
         if (group[i].armDelay == 0) {
           SET_GROUP_ARMED(group[i].setting); // Arm group
           sendCmdToGrp(i, NODE_CMD_ARMED, 'K');  // Send arm message to all nodes
-          //++ publishGroup(i, 'A');
           tmpLog[0] = 'G'; tmpLog[1] = 'S'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
           // Save group state
           writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
+          if (GET_CONF_GROUP_MQTT_PUB(conf.group[i].setting)) pushToMqtt(typeGroup, i, functionState);
         }
       }
     }
@@ -85,9 +104,9 @@ static THD_FUNCTION(ZoneThread, arg) {
     for(uint8_t i = 0; i < ALARM_ZONES; i++) {
       if (GET_CONF_ZONE_ENABLED(conf.zone[i])){
         // Remote zone
-        if (GET_CONF_ZONE_IS_REMOTE(conf.zone[i])) {
-          // Switch battery zone back to OK after 2 seconds, as battery nodes may not send OK
-          if ((GET_CONF_ZONE_IS_BATTERY(conf.zone[i])) &&
+        if (i > HW_ZONES) {
+          // Switch remote balanced zone back to OK after 2 seconds, as don't send OK
+          if ((i > HW_ZONES) && (GET_CONF_ZONE_BALANCED(conf.zone[i])) &&
               (zone[i].lastEvent != 'O') && (zone[i].lastPIR + 2 < getTimeUnixSec())) {
             zone[i].lastEvent = 'O';
             zone[i].lastOK = getTimeUnixSec();    // update current timestamp
@@ -125,8 +144,8 @@ static THD_FUNCTION(ZoneThread, arg) {
         // Decide zone state
         switch((uint16_t)(val)){
           case ALARM_OK_LOW ... ALARM_OK_HI:
-            // Battery node, they will not send OK only PIR and Tamper
-            if (GET_CONF_ZONE_IS_BATTERY(conf.zone[i]) != 1) {
+            // All but remote balanced node, they will not send OK only PIR and Tamper
+            if (!((i > HW_ZONES) && (GET_CONF_ZONE_BALANCED(conf.zone[i])))) {
               zone[i].lastEvent = 'O';
               zone[i].lastOK = getTimeUnixSec();    // update current timestamp
             }
@@ -135,7 +154,7 @@ static THD_FUNCTION(ZoneThread, arg) {
             //     zone not have alarm                 group delay is 0
             if (!(GET_ZONE_ALARM(zone[i].setting)) && (group[groupNum].armDelay == 0)){
               // if group not enabled log error to log.
-              if (!(GET_CONF_GROUP_ENABLED(conf.group[groupNum]))) {
+              if (!(GET_CONF_GROUP_ENABLED(conf.group[groupNum].setting))) {
                 if (!(GET_GROUP_DISABLED_FLAG(group[groupNum].setting)) && (groupNum < ALARM_GROUPS)) {
                   SET_GROUP_DISABLED_FLAG(group[groupNum].setting); // Set logged disabled bit On
                   tmpLog[0] = 'G'; tmpLog[1] = 'F'; tmpLog[2] = groupNum;  pushToLog(tmpLog, 3);
@@ -166,8 +185,8 @@ static THD_FUNCTION(ZoneThread, arg) {
                 }
               }
             }
-            // Battery node, they will not send OK only PIR and Tamper
-            if (GET_CONF_ZONE_IS_BATTERY(conf.zone[i]) != 1) {
+            // All but remote balanced node, they will not send OK only PIR and Tamper
+            if (!((i > HW_ZONES) && (GET_CONF_ZONE_BALANCED(conf.zone[i])))) {
               zone[i].lastEvent = 'P';
               zone[i].lastPIR = getTimeUnixSec();    // update current timestamp
             }
@@ -176,7 +195,7 @@ static THD_FUNCTION(ZoneThread, arg) {
             //  zone not have alarm
             if (!(GET_ZONE_ALARM(zone[i].setting))){
               // if group not enabled log error to log.
-              if (!(GET_CONF_GROUP_ENABLED(conf.group[groupNum]))) {
+              if (!(GET_CONF_GROUP_ENABLED(conf.group[groupNum].setting))) {
                 if (!(GET_GROUP_DISABLED_FLAG(group[groupNum].setting)) && (groupNum < ALARM_GROUPS)) {
                   SET_GROUP_DISABLED_FLAG(group[groupNum].setting); // Set logged disabled bit On
                   tmpLog[0] = 'G'; tmpLog[1] = 'F'; tmpLog[2] = groupNum;  pushToLog(tmpLog, 3);
@@ -201,35 +220,39 @@ static THD_FUNCTION(ZoneThread, arg) {
                 }
               }
             }
-            // Battery node, they will not send OK only PIR and Tamper
-            if (GET_CONF_ZONE_IS_BATTERY(conf.zone[i]) != 1) {
+            // All but remote balanced node, they will not send OK only PIR and Tamper
+            if (!((i > HW_ZONES) && (GET_CONF_ZONE_BALANCED(conf.zone[i])))) {
               zone[i].lastEvent = 'T';
               zone[i].lastPIR = getTimeUnixSec();    // update current timestamp
             }
             break;
         }
-        // Triggers
-        outMsgTrig = chPoolAlloc(&trigger_pool);
-        if (outMsgTrig != NULL) {
-          outMsgTrig->type = 'Z';
-          outMsgTrig->address = 0;
-          outMsgTrig->function = ' ';
-          outMsgTrig->number = i;
-          // As defined in zoneState[], 0 = OK
-          if (zone[i].lastEvent == 'O') outMsgTrig->value = 0;
-          else if (zone[i].lastEvent == 'P') outMsgTrig->value = 1;
-          else outMsgTrig->value = 2;
-          msg = chMBPostTimeout(&trigger_mb, (msg_t)outMsgTrig, TIME_IMMEDIATE);
-          if (msg != MSG_OK) {
-            //DBG_ZONE("S-MB full %d\r\n", temp);
+        if (zone[i].lastState != zone[i].lastEvent) {
+          zone[i].lastState = zone[i].lastEvent;
+          // Triggers
+          outMsgTrig = chPoolAlloc(&trigger_pool);
+          if (outMsgTrig != NULL) {
+            outMsgTrig->type = 'Z';
+            outMsgTrig->address = 0;
+            outMsgTrig->function = ' ';
+            outMsgTrig->number = i;
+            // As defined in zoneState[], 0 = OK
+            if (zone[i].lastEvent == 'O') outMsgTrig->value = 0;
+            else if (zone[i].lastEvent == 'P') outMsgTrig->value = 1;
+            else outMsgTrig->value = 2;
+            msg = chMBPostTimeout(&trigger_mb, (msg_t)outMsgTrig, TIME_IMMEDIATE);
+            if (msg != MSG_OK) {
+              //DBG_ZONE("S-MB full %d\r\n", temp);
+            }
+          } else {
+            pushToLogText("FT"); // Trigger queue is full
           }
-        } else {
-          pushToLogText("FT"); // Trigger queue is full
+          // MQTT
+          if (GET_CONF_ZONE_MQTT_PUB(conf.zone[i])) pushToMqtt(typeZone, i, functionState);
         }
       } // zone enabled
     } // for each alarm zone
   } // while true
 }
-
 
 #endif /* OHS_TH_ZONE_H_ */

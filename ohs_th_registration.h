@@ -29,9 +29,11 @@ static THD_FUNCTION(RegistrationThread, arg) {
           nodeIndex = getNodeIndex(inMsg->address, inMsg->type, inMsg->function, inMsg->number);
           // Node exists
           if (nodeIndex != DUMMY_NO_VALUE ) {
-            node[nodeIndex].setting  = inMsg->setting;
+            node[nodeIndex].setting = inMsg->setting;
             node[nodeIndex].lastOK  = getTimeUnixSec();
-            node[nodeIndex].value    = 0; // Reset value
+            // Reset value
+            if (node[nodeIndex].function == 'i') node[nodeIndex].value = DUMMY_NO_VALUE;
+            else                                 node[nodeIndex].value = 0;
             memcpy(&node[nodeIndex].name, &inMsg->name, NAME_LENGTH); // node[nodeIndex].name[NAME_LENGTH-1] = 0;
             chprintf(console, "Re-registered as: %d\r\n", nodeIndex);
           } else {
@@ -45,12 +47,17 @@ static THD_FUNCTION(RegistrationThread, arg) {
               node[nodeIndex].number   = inMsg->number;
               node[nodeIndex].setting  = inMsg->setting;
               node[nodeIndex].lastOK  = getTimeUnixSec();
+              // Reset value
+              if (node[nodeIndex].function == 'i') node[nodeIndex].value = DUMMY_NO_VALUE;
+              else                                 node[nodeIndex].value = 0;
               memcpy(&node[nodeIndex].name, &inMsg->name, NAME_LENGTH);
               tmpLog[0] = 'N'; tmpLog[1] = 'R'; tmpLog[2] = inMsg->address; tmpLog[3] = inMsg->type;
                 tmpLog[4] = inMsg->function; tmpLog[5] = inMsg->number;  pushToLog(tmpLog, 6);
               chprintf(console, "Registered as: %d\r\n", nodeIndex);
             }
           }
+          // MQTT publish name
+          if (GET_NODE_MQTT_PUB(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionName);
           break;
           case 'Z': // Zone
             tmpLog[0] = 'Z'; // Log data
@@ -67,13 +74,14 @@ static THD_FUNCTION(RegistrationThread, arg) {
               CLEAR_ZONE_ERROR(zone[inMsg->number].setting); // reset remote zone error flag
               // Force and register
               conf.zone[inMsg->number] = inMsg->setting; // copy setting
-              SET_CONF_ZONE_IS_REMOTE(conf.zone[inMsg->number]); // force "Remote zone"
               SET_CONF_ZONE_IS_PRESENT(conf.zone[inMsg->number]); // force "Present - connected"
               if (inMsg->type == 'A') SET_CONF_ZONE_TYPE(conf.zone[inMsg->number]); // force "Analog"
               else                    CLEAR_CONF_ZONE_TYPE(conf.zone[inMsg->number]); // force "Digital"
               conf.zoneAddress[inMsg->number-HW_ZONES] = inMsg->address; // copy address
               memcpy(&conf.zoneName[inMsg->number], &inMsg->name, NAME_LENGTH);
               chprintf(console, "Registered zone #%d - %s\r\n", inMsg->number, conf.zoneName[inMsg->number]);
+              // MQTT publish name
+              if (GET_CONF_ZONE_MQTT_PUB(conf.zone[inMsg->number])) pushToMqtt(typeZone, inMsg->number, functionName);
             } else { tmpLog[1] = 'E'; } // Log data
             tmpLog[2] = inMsg->number; pushToLog(tmpLog, 3);
           break;

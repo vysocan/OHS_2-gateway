@@ -28,6 +28,25 @@
  * 
  * Author: Simon Goldschmidt
  *
+ * err_enum_t:
+ * ERR_OK           No error, everything OK.
+ * ERR_MEM           Out of memory error.
+ * ERR_BUF           Buffer error.
+ * ERR_TIMEOUT       Timeout.
+ * ERR_RTE           Routing problem.
+ * ERR_INPROGRESS    Operation in progress
+ * ERR_VAL           Illegal value.
+ * ERR_WOULDBLOCK    Operation would block.
+ * ERR_USE           Address in use.
+ * ERR_ALREADY       Already connecting.
+ * ERR_ISCONN        Conn already established.
+ * ERR_CONN          Not connected.
+ * ERR_IF            Low-level netif error
+ * ERR_ABRT          Connection aborted.
+ * ERR_RST           Connection reset.
+ * ERR_CLSD          Connection closed.
+ * ERR_ARG           Illegal argument.
+ *
  */
 #ifndef LWIP_HDR_LWIPOPTS_H__
 #define LWIP_HDR_LWIPOPTS_H__
@@ -147,6 +166,8 @@
 // MDNS
 //#define IGMP_DEBUG LWIP_DBG_ON
 //#define MDNS_DEBUG LWIP_DBG_ON
+// MQTT
+//#define MQTT_DEBUG LWIP_DBG_ON
 
 // SNTP
 #define SNTP_SERVER_DNS         1
@@ -164,21 +185,11 @@
 
 // Checks
 #if !LWIP_NETIF_EXT_STATUS_CALLBACK
-#error "This tests needs LWIP_NETIF_EXT_STATUS_CALLBACK enabled"
+#error "We need LWIP_NETIF_EXT_STATUS_CALLBACK enabled"
 #endif
 
 #define LWIP_NETIF_HOSTNAME 1
 
-//ChibiOS RTC drivers
-/* Test function to verify SNTP_SET_SYSTEM_TIME macro
-void SetTimeUnixA(time_t ut){
-  RTCDateTime _ts;
-  struct tm* _pt;
-  _pt = gmtime(&ut);
-  rtcConvertStructTmToDateTime( _pt, 0, &_ts);
-  rtcSetTime(&RTCD1, &_ts);
-}
-*/
 /*
  * new SNTP_SET_SYSTEM_TIME function
  *
@@ -190,29 +201,5 @@ void SetTimeUnixA(time_t ut){
      convertUnixSecondToRTCDateTime(&_ts, timestamp);\
      rtcSetTime(&RTCD1, &_ts);\
    }while(0)
-/*
- * old SNTP_SET_SYSTEM_TIME function
- */
-/*
-#define SNTP_SET_SYSTEM_TIME(sec) \
-  do{time_t rawtime = (sec);\
-     RTCDateTime _ts;\
-     struct tm* _pt;\
-     _pt = gmtime(&rawtime);\
-     rtcConvertStructTmToDateTime(_pt, 0, &_ts);\
-     rtcSetTime(&RTCD1, &_ts);\
-     chprintf((BaseSequentialStream *)&SD3, "SNTP: %d\n\r", rawtime);\
-  }while(0)
-*/
-
-/* SNTP_GET_SYSTEM_TIME new RTC driver
-#define SNTP_GET_SYSTEM_TIME(sec, us) \
-    do{struct tm timestamp;\
-       rtcGetTime(&RTCD1, &timespec);\
-       rtcConvertDateTimeToStructTm(&timespec, &timestamp, NULL);\
-       uint64_t time = mktime(&timestamp);\
-       (sec) = time / 1000000;\
-       (us) = time % 1000000;}while(0)
-*/
 
 #endif /* LWIP_HDR_LWIPOPTS_H__ */

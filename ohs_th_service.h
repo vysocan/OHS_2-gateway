@@ -36,6 +36,7 @@ static THD_FUNCTION(ServiceThread, arg) {
   chRegSetThreadName(arg);
   time_t  tempTime, timeNow;
   uint8_t counterAC = 1;
+  uint8_t counterMQTT = 225; // Force connect on start 255-30 seconds
   bool    flagAC = false; // Assume power is Off on start
   uint8_t nodeIndex;
   msg_t   resp;
@@ -122,7 +123,8 @@ static THD_FUNCTION(ServiceThread, arg) {
 
     // Group auto arm
     for (uint8_t groupNum=0; groupNum < ALARM_GROUPS ; groupNum++){
-      if (GET_CONF_GROUP_ENABLED(conf.group[groupNum]) && GET_CONF_GROUP_AUTO_ARM(conf.group[groupNum])) {
+      if (GET_CONF_GROUP_ENABLED(conf.group[groupNum].setting)
+          && GET_CONF_GROUP_AUTO_ARM(conf.group[groupNum].setting)) {
         tempTime = 0;
         // List through zones
         for (uint8_t zoneNum=0; zoneNum < ALARM_ZONES ; zoneNum++){
@@ -207,7 +209,8 @@ static THD_FUNCTION(ServiceThread, arg) {
               if (sendData(conf.timer[i].toAddress, message, 6) == 1) {
                 node[nodeIndex].lastOK = timeNow; // update receiving node current timestamp
                 node[nodeIndex].value   = conf.timer[i].constantOn; // update receiving node value
-                // *** publishNode(_update_node); // MQTT
+                // MQTT
+                if (GET_NODE_MQTT_PUB(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionValue);
               }
             }
           }
@@ -228,7 +231,8 @@ static THD_FUNCTION(ServiceThread, arg) {
                 if (sendData(conf.timer[i].toAddress, message, 6) == 1) {
                   node[nodeIndex].lastOK = timeNow; // update receiving node current timestamp
                   node[nodeIndex].value   = conf.timer[i].constantOff; // update receiving node value
-                  // *** publishNode(_update_node); // MQTT
+                  // MQTT
+                  if (GET_NODE_MQTT_PUB(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionValue);
                 }
               }
             }
@@ -260,7 +264,8 @@ static THD_FUNCTION(ServiceThread, arg) {
                 if (sendData(conf.trigger[i].toAddress, message, 6) == 1) {
                   node[nodeIndex].lastOK = timeNow; // update receiving node current timestamp
                   node[nodeIndex].value   = conf.trigger[i].constantOff; // update receiving node value
-                  // *** publishNode(_update_node); // MQTT
+                  // MQTT
+                  if (GET_NODE_MQTT_PUB(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionValue);
                 }
               }
             }
@@ -275,7 +280,17 @@ static THD_FUNCTION(ServiceThread, arg) {
       }
     }
 
-    //
+    // MQTT connection
+    if ((netInfo.status & LWIP_NSC_IPV4_ADDR_VALID) && (!mqtt_client_is_connected(&mqtt_client))) {
+      // Force try connection every counterMQTT overflow
+      if (counterMQTT == 0) CLEAR_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting);
+      // Try to connect if that makes sense
+      if (!GET_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting) &&
+          !GET_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting)) {
+        mqttDoConnect(&mqtt_client);
+      }
+      counterMQTT++;
+    }
   }
 }
 

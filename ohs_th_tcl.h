@@ -71,7 +71,7 @@ static int tcl_cmd_group(struct tcl* tcl, tcl_value_t* args, void* arg) {
   //DBG_TCL("groupNum: %u.\r\n", groupNum);
   //DBG_TCL("*groupCommand: %c.\r\n", *groupCommand);
 
-  if ((groupNum < ALARM_GROUPS) && (GET_CONF_GROUP_ENABLED(conf.group[groupNum]))) {
+  if ((groupNum < ALARM_GROUPS) && (GET_CONF_GROUP_ENABLED(conf.group[groupNum].setting))) {
     switch (*groupCommand) {
       case 'a': // Armed
         if (GET_GROUP_ARMED(group[groupNum].setting)) {
@@ -267,7 +267,7 @@ static int tcl_cmd_findex(struct tcl* tcl, tcl_value_t* args, void* arg) {
        break;
      case 'g': // group
        for (uint8_t groupNum=0; groupNum < ALARM_ZONES ; groupNum++){
-         if (!(strcmp(name, conf.groupName[groupNum]))) {
+         if (!(strcmp(name, conf.group[groupNum].name))) {
            resp = chsnprintf(&buf[0], sizeof(buf), "%u", groupNum + 1);
            ret = tcl_result(tcl, FNORMAL, tcl_alloc(buf, resp));
            break;

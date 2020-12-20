@@ -19,8 +19,9 @@
 // STM32 UID as Ethernet MAC
 #define STM32_UUID ((uint32_t *)UID_BASE)
 
+#define OHS_NAME         "OHS"
 #define OHS_MAJOR        1
-#define OHS_MINOR        2
+#define OHS_MINOR        3
 
 #define BACKUP_SRAM_SIZE 0x1000 // 4kB SRAM size
 #define BACKUP_RTC_SIZE  80     // 80 bytes
@@ -32,10 +33,10 @@
 #define KEYS_SIZE        20     // # of keys
 #define TIMER_SIZE       10     // # of timers
 #define TRIGGER_SIZE     10     // # of timers
-#define KEY_LENGTH       4      // sizeof(uint32_t) / size of hash
+#define KEY_LENGTH       4      // sizeof(uint32_t) = size of hash
 #define NAME_LENGTH      16     //
 #define PHONE_LENGTH     14     //
-#define EMAIL_LENGTH     30     //
+#define EMAIL_LENGTH     32     //
 #define URL_LENGTH       32     // URL address
 #define NOT_SET          "not set"
 
@@ -49,8 +50,8 @@
 #define ALARM_UNBALANCED 500
 
 #define RADIO_KEY_SIZE    17    // 16 + 1 for null termination
-#define RADIO_UNIT_OFFSET 15
-#define REGISTRATION_SIZE 22
+#define RADIO_UNIT_OFFSET 15    // Offset of radio nodes of wired nodes
+#define REGISTRATION_SIZE 22    // Registration packet size
 #define NODE_SIZE         50    // Number of nodes
 
 #define DUMMY_NO_VALUE    255
@@ -58,8 +59,13 @@
 
 #define AC_POWER_DELAY    60    // seconds
 
-#define LOGGER_MSG_LENGTH 11
-#define LOGGER_OUTPUT_LEN 25    // How many entries to show
+#define LOGGER_MSG_LENGTH 11    // Maximum size of logger message
+#define LOGGER_OUTPUT_LEN 25    // How many entries to show at once
+
+// MQTT
+#define MQTT_MAIN_TOPIC   "OHS/"
+#define MQTT_WILL_TOPIC   "state"
+#define MQTT_SET_TOPIC    "set/#"
 
 // Parameter checks
 #if NODE_SIZE >= DUMMY_NO_VALUE
@@ -96,8 +102,9 @@
 #define GET_CONF_ZONE_OPEN_ALARM(x)  ((x >> 8U) & 0b1)
 #define GET_CONF_ZONE_PIR_AS_TMP(x)  ((x >> 9U) & 0b1)
 #define GET_CONF_ZONE_BALANCED(x)    ((x >> 10U) & 0b1)
-#define GET_CONF_ZONE_IS_BATTERY(x)  ((x >> 11U) & 0b1)
-#define GET_CONF_ZONE_IS_REMOTE(x)   ((x >> 12U) & 0b1)
+#define GET_CONF_ZONE_(x)            ((x >> 11U) & 0b1)
+#define GET_CONF_ZONE__(x)           ((x >> 12U) & 0b1)
+#define GET_CONF_ZONE_MQTT_PUB(x)    ((x >> 13U) & 0b1)
 #define GET_CONF_ZONE_IS_PRESENT(x)  ((x >> 14U) & 0b1)
 #define GET_CONF_ZONE_TYPE(x)        ((x >> 15U) & 0b1)
 #define SET_CONF_ZONE_ENABLED(x)     x |= 1
@@ -107,8 +114,9 @@
 #define SET_CONF_ZONE_OPEN_ALARM(x)  x |= (1 << 8U)
 #define SET_CONF_ZONE_PIR_AS_TMP(x)  x |= (1 << 9U)
 #define SET_CONF_ZONE_BALANCED(x)    x |= (1 << 10U)
-#define SET_CONF_ZONE_IS_BATTERY(x)  x |= (1 << 11U)
-#define SET_CONF_ZONE_IS_REMOTE(x)   x |= (1 << 12U)
+#define SET_CONF_ZONE_(x)            x |= (1 << 11U)
+#define SET_CONF_ZONE__(x)           x |= (1 << 12U)
+#define SET_CONF_ZONE_MQTT_PUB(x)    x |= (1 << 13U)
 #define SET_CONF_ZONE_IS_PRESENT(x)  x |= (1 << 14U)
 #define SET_CONF_ZONE_TYPE(x)        x |= (1 << 15U)
 #define CLEAR_CONF_ZONE_ENABLED(x)     x &= ~1
@@ -116,8 +124,9 @@
 #define CLEAR_CONF_ZONE_STILL_OPEN(x)  x &= ~(1 << 8U)
 #define CLEAR_CONF_ZONE_PIR_AS_TMP(x)  x &= ~(1 << 9U)
 #define CLEAR_CONF_ZONE_BALANCED(x)    x &= ~(1 << 10U)
-#define CLEAR_CONF_ZONE_IS_BATTERY(x)  x &= ~(1 << 11U)
-#define CLEAR_CONF_ZONE_IS_REMOTE(x)   x &= ~(1 << 12U)
+#define CLEAR_CONF_ZONE_(x)            x &= ~(1 << 11U)
+#define CLEAR_CONF_ZONE__(x)           x &= ~(1 << 12U)
+#define CLEAR_CONF_ZONE_MQTT_PUB(x)    x &= ~(1 << 13U)
 #define CLEAR_CONF_ZONE_IS_PRESENT(x)  x &= ~(1 << 14U)
 #define CLEAR_CONF_ZONE_TYPE(x)        x &= ~(1 << 15U)
 
@@ -235,6 +244,22 @@
 #define CLEAR_CONF_TRIGGER_ALERT(x)      x &= ~(1 << 6U)
 #define CLEAR_CONF_TRIGGER_RESULT(x)     x &= ~(1 << 9U)
 
+#define GET_CONF_MQTT_SUBSCRIBE(x)           ((x) & 0b1)
+#define GET_CONF_MQTT_ADDRESS_ERROR(x)       ((x >> 8U) & 0b1)
+#define GET_CONF_MQTT_CONNECT_ERROR(x)       ((x >> 9U) & 0b1)
+#define GET_CONF_MQTT_CONNECT_ERROR_LOG(x)   ((x >> 10U) & 0b1)
+#define GET_CONF_MQTT_SUBSCRIBE_ERROR(x)     ((x >> 11U) & 0b1)
+#define SET_CONF_MQTT_SUBSCRIBE(x)           x |= 1
+#define SET_CONF_MQTT_ADDRESS_ERROR(x)       x |= (1 << 8U)
+#define SET_CONF_MQTT_CONNECT_ERROR(x)       x |= (1 << 9U)
+#define SET_CONF_MQTT_CONNECT_ERROR_LOG(x)   x |= (1 << 10U)
+#define SET_CONF_MQTT_SUBSCRIBE_ERROR(x)     x |= (1 << 11U)
+#define CLEAR_CONF_MQTT_SUBSCRIBE(x)         x &= ~1
+#define CLEAR_CONF_MQTT_ADDRESS_ERROR(x)     x &= ~(1 << 8U)
+#define CLEAR_CONF_MQTT_CONNECT_ERROR(x)     x &= ~(1 << 9U)
+#define CLEAR_CONF_MQTT_CONNECT_ERROR_LOG(x) x &= ~(1 << 10U)
+#define CLEAR_CONF_MQTT_SUBSCRIBE_ERROR(x)   x &= ~(1 << 11U)
+
 #define GET_ZONE_ALARM(x)     ((x >> 1U) & 0b1)
 #define GET_ZONE_ERROR(x)     ((x >> 5U) & 0b1)
 #define GET_ZONE_QUEUED(x)    ((x >> 6U) & 0b1)
@@ -292,8 +317,23 @@ uint8_t macAddr[6];
 // Arm type enum
 typedef enum {
   armAway = 0,
-  armHome = 1
+  armHome
 } armType_t;
+
+// MQTT type enum
+typedef enum {
+  typeGroup = 0,
+  typeZone,
+  typeSensor,
+  typeSystem
+} mqttPubType_t;
+
+// MQTT function enum
+typedef enum {
+  functionState = 0,
+  functionValue,
+  functionName
+} mqttPubFunction_t;
 
 // time_t conversion
 union time_tag {
@@ -369,6 +409,15 @@ typedef struct {
   float   value;    // = 0.0;
 } triggerEvent_t;
 
+// Sensor events
+#define MQTT_FIFO_SIZE 20 // To accommodate various sources like zones, groups, sensors
+typedef struct {
+  mqttPubType_t type;         // Group, Sensor, Zone, System
+  uint8_t number;             // index
+  mqttPubFunction_t function; // Name, Value, State, Arm state
+  uint8_t dummy;              // align to 4
+} mqttEvent_t;
+
 // TCL callback
 typedef void (*script_cb_t) (char *result);
 void script_cb(script_cb_t ptrFunc(char *result), char *result) {
@@ -394,7 +443,7 @@ struct scriptLL_t *scriptp = NULL;  // Used as temp pointer
 
 // Alerts
 typedef struct {
-  char    name[6];
+  char name[6];
 } alertType_t;
 
 // Logger keeps info about this as bit flags of uint8_t, maximum number of alert types is 8 bits(uint8_t).
@@ -440,6 +489,9 @@ static MAILBOX_DECL(script_mb, script_mb_buffer, SCRIPT_FIFO_SIZE);
 
 static msg_t        trigger_mb_buffer[TRIGGER_FIFO_SIZE];
 static MAILBOX_DECL(trigger_mb, trigger_mb_buffer, TRIGGER_FIFO_SIZE);
+
+static msg_t        mqtt_mb_buffer[MQTT_FIFO_SIZE];
+static MAILBOX_DECL(mqtt_mb, mqtt_mb_buffer, MQTT_FIFO_SIZE);
 /*
  * Pools
  */
@@ -463,6 +515,9 @@ static MEMORYPOOL_DECL(script_pool, sizeof(scriptEvent_t), PORT_NATURAL_ALIGN, N
 
 static sensorEvent_t trigger_pool_queue[TRIGGER_FIFO_SIZE];
 static MEMORYPOOL_DECL(trigger_pool, sizeof(triggerEvent_t), PORT_NATURAL_ALIGN, NULL);
+
+static mqttEvent_t mqtt_pool_queue[MQTT_FIFO_SIZE];
+static MEMORYPOOL_DECL(mqtt_pool, sizeof(mqttEvent_t), PORT_NATURAL_ALIGN, NULL);
 
 // Triggers
 typedef struct {
@@ -562,6 +617,43 @@ typedef struct {
   char     evalScript[NAME_LENGTH];
 } calendar_t; // timer_t used by ChibiOS
 
+// MQTT struct
+typedef struct {
+  char address[URL_LENGTH];
+  char user[NAME_LENGTH];
+  char password[NAME_LENGTH];
+  uint16_t port;
+  uint16_t setting;
+} mqtt_conf_t;
+
+// Zone struct
+typedef struct {
+  char     name[NAME_LENGTH];
+  uint16_t setting;
+  uint8_t  address;
+} zone_conf_t;
+
+// Group struct
+typedef struct {
+  char     name[NAME_LENGTH];
+  uint16_t setting;
+} group_conf_t;
+
+// Contact struct
+typedef struct {
+  char    name[NAME_LENGTH];
+  char    phone[PHONE_LENGTH];
+  char    email[EMAIL_LENGTH];
+  uint8_t setting;
+} contact_conf_t;
+
+// Key struct
+typedef struct {
+  uint32_t value;
+  uint8_t  setting;
+  uint8_t  contact;
+} key_conf_t;
+
 // Configuration struct
 typedef struct {
   uint8_t  versionMajor;
@@ -569,7 +661,7 @@ typedef struct {
 
   uint16_t logOffset; // FRAM position
   uint8_t  armDelay;
-  uint8_t  autoArm; // minutes
+  uint8_t  autoArm;   // minutes
   uint8_t  openAlarm; // minutes
   char     dateTimeFormat[NAME_LENGTH];
 
@@ -578,17 +670,9 @@ typedef struct {
   char     zoneName[ALARM_ZONES][NAME_LENGTH];
   uint8_t  zoneAddress[ALARM_ZONES-HW_ZONES]; // Only for remote zone address
 
-  uint16_t group[ALARM_GROUPS];
-  char     groupName[ALARM_GROUPS][NAME_LENGTH];
-
-  uint8_t  contact[CONTACTS_SIZE];
-  char     contactName[CONTACTS_SIZE][NAME_LENGTH];
-  char     contactPhone[CONTACTS_SIZE][PHONE_LENGTH];
-  char     contactEmail[CONTACTS_SIZE][EMAIL_LENGTH];
-
-  uint8_t  keySetting[KEYS_SIZE];
-  uint32_t keyValue[KEYS_SIZE];
-  uint8_t  keyContact[KEYS_SIZE];
+  group_conf_t   group[ALARM_GROUPS];
+  contact_conf_t contact[CONTACTS_SIZE];
+  key_conf_t     key[KEYS_SIZE];
 
   uint32_t alert[ARRAY_SIZE(alertType)];
 
@@ -623,6 +707,8 @@ typedef struct {
 
   char     radioKey[RADIO_KEY_SIZE];
 
+  mqtt_conf_t mqtt;
+
 } config_t;
 config_t conf __attribute__((section(".ram4")));
 // Check conf size fits to backup SRAM
@@ -643,6 +729,7 @@ typedef struct {
   time_t  lastOK;
   char    lastEvent;
   uint8_t setting;
+  char    lastState; // Cache lastEvent to release stress from triggers, MQTT, ...
 } zone_t;
 zone_t zone[ALARM_ZONES] __attribute__((section(".ram4")));
 
@@ -676,6 +763,7 @@ typedef struct {
   char name[NAME_LENGTH]; // = "";
 } node_t;
 node_t node[NODE_SIZE] __attribute__((section(".ram4")));
+
 /*
  * Initialize node runtime struct
  */
@@ -683,7 +771,7 @@ void initRuntimeNodes(void){
   for(uint8_t i = 0; i < NODE_SIZE; i++) {
     node[i].address  = 0;
     node[i].function = '\0';
-    node[i].lastOK  = 0;
+    node[i].lastOK   = 0;
     node[i].name[0]  = '\0';
     node[i].number   = 0;
     node[i].queue    = DUMMY_NO_VALUE;
@@ -718,6 +806,7 @@ void initRuntimeZones(void){
     zone[i].lastPIR   = startTime;
     zone[i].lastOK    = startTime;
     zone[i].lastEvent = 'N';
+    zone[i].lastState = 'N';
     //                     |- Full FIFO queue flag
     //                     ||- Message queue
     //                     |||- Error flag, for remote zone
@@ -729,7 +818,7 @@ void initRuntimeZones(void){
     //                     76543210
     zone[i].setting    = 0b00000000;
     // Force disconnected to all remote zones
-    if (i >= HW_ZONES) {
+    if (i > HW_ZONES) {
       CLEAR_CONF_ZONE_IS_PRESENT(conf.zone[i]);
     }
   }
@@ -807,9 +896,9 @@ void setConfDefault(void){
     // Zones setup
     //                    |- HW type Digital 0/ Analog 1
     //                    ||- Present - connected
-    //                    |||- ~ Free ~
-    //                    ||||- Remote zone
-    //                    |||||- Battery powered zone, they don't send OK, only PIR or Tamper.
+    //                    |||- MQTT publish
+    //                    ||||- Free - was Remote zone
+    //                    |||||- Free - was Battery powered zone, they don't send OK, only PIR or Tamper.
     //                    ||||||- Logical type balanced 1/ unbalanced 0. Only Analog zones can be balanced.
     //                    |||||||- PIR as Tamper
     //                    ||||||||- Still open alarm
@@ -857,24 +946,24 @@ void setConfDefault(void){
     //                  ||||||||         |||||||-  Tamper signal output 2
     //                  ||||||||         ||||||||-  Enabled
     //                  54321098         76543210
-    conf.group[i] = 0b11111111 << 8 | 0b00000000;
+    conf.group[i].setting = 0b11111111 << 8 | 0b00000000;
     //strcpy(conf.groupName[i], NOT_SET);
-    memset(&conf.groupName[i][0], 0x00, NAME_LENGTH);
+    memset(&conf.group[i].name[0], 0x00, NAME_LENGTH);
   }
 
   for(uint8_t i = 0; i < CONTACTS_SIZE; i++) {
     // group 16 and disabled
-    conf.contact[i] = 0b00011110;
-    memset(&conf.contactName[i][0], 0x00, NAME_LENGTH);
-    memset(&conf.contactPhone[i][0], 0x00, PHONE_LENGTH);
-    memset(&conf.contactEmail[i][0], 0x00, EMAIL_LENGTH);
+    conf.contact[i].setting = 0b00011110;
+    memset(&conf.contact[i].name[0], 0x00, NAME_LENGTH);
+    memset(&conf.contact[i].phone[0], 0x00, PHONE_LENGTH);
+    memset(&conf.contact[i].email[0], 0x00, EMAIL_LENGTH);
   }
 
   for(uint8_t i = 0; i < KEYS_SIZE; i++) {
     // disabled
-    conf.keySetting[i] = 0b00000000;
-    conf.keyValue[i]   = 0xFFFFFFFF;  // Set key value to FF
-    conf.keyContact[i] = DUMMY_NO_VALUE;
+    conf.key[i].setting = 0b00000000;
+    conf.key[i].value   = 0xFFFFFFFF;  // Set key value to FF
+    conf.key[i].contact = DUMMY_NO_VALUE;
   }
 
   for(uint8_t i = 0; i < ARRAY_SIZE(alertType); i++) {
@@ -951,6 +1040,30 @@ void setConfDefault(void){
   }
 
   memset(&conf.radioKey[0], 0, RADIO_KEY_SIZE);
+
+  strcpy(conf.mqtt.address, "");
+  strcpy(conf.mqtt.user, "");
+  strcpy(conf.mqtt.password, "");
+  conf.mqtt.port = 1883;
+  //                    ||||
+  //                    |||||
+  //                    ||||||- Connect error reported
+  //                    |||||||- Connect error
+  //                    ||||||||- Address resolve error
+  //                    ||||||||
+  //                    ||||||||
+  //                    ||||||||
+  //                    ||||||||         |-
+  //                    ||||||||         ||-
+  //                    ||||||||         |||-
+  //                    ||||||||         ||||-
+  //                    ||||||||         |||||-
+  //                    ||||||||         ||||||-
+  //                    ||||||||         |||||||-
+  //                    ||||||||         ||||||||- Enable global subscribe
+  //                    54321098         76543210
+  conf.mqtt.setting = 0b11111111 << 8 | 0b00000000;
+  conf.mqtt.setting = 0b00000000;
 }
 /*
  * Load scripts form uBS to UMM heap.

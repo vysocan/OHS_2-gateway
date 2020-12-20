@@ -111,8 +111,12 @@ static THD_FUNCTION(RS485Thread, arg) {
                 node[nodeIndex].lastOK = getTimeUnixSec(); // Update timestamp
                 //  Node is enabled
                 if (GET_NODE_ENABLED(node[nodeIndex].setting)) {
-                  checkKey(GET_NODE_GROUP(node[nodeIndex].setting), (rs485Msg.data[2] % 2),
-                           &rs485Msg.data[3], rs485Msg.length - 4);
+                  node[nodeIndex].value = (float)checkKey(GET_NODE_GROUP(node[nodeIndex].setting),
+                           (rs485Msg.data[2] % 2), &rs485Msg.data[3], rs485Msg.length - 4);
+                  // MQTT
+                  if (GET_NODE_MQTT_PUB(node[nodeIndex].setting)) {
+                    pushToMqtt(typeSensor, nodeIndex, functionValue);
+                  }
                 } else {
                   // log disabled remote nodes
                   tmpLog[0] = 'N'; tmpLog[1] = 'F'; tmpLog[2] = rs485Msg.address;

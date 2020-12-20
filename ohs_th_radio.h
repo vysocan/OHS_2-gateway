@@ -92,8 +92,10 @@ static THD_FUNCTION(RadioThread, arg) {
             node[nodeIndex].lastOK = getTimeUnixSec(); // Update timestamp
             //  Node is enabled
             if (GET_NODE_ENABLED(node[nodeIndex].setting)) {
-              checkKey(GET_NODE_GROUP(node[nodeIndex].setting), (rfm69Data.data[2] % 2),
-                       &rfm69Data.data[3], rfm69Data.length - 4);
+              node[nodeIndex].value = (float)checkKey(GET_NODE_GROUP(node[nodeIndex].setting),
+                       (rfm69Data.data[2] % 2), &rfm69Data.data[3], rfm69Data.length - 4);
+              // MQTT
+              if (GET_NODE_MQTT_PUB(node[nodeIndex].setting)) pushToMqtt(typeZone, nodeIndex, functionValue);
             } else {
               // log disabled remote nodes
               tmpLog[0] = 'N'; tmpLog[1] = 'F'; tmpLog[2] = rfm69Data.senderId + RADIO_UNIT_OFFSET;
@@ -137,9 +139,8 @@ static THD_FUNCTION(RadioThread, arg) {
             if ((rfm69Data.data[index] <= ALARM_ZONES) && (rfm69Data.data[index] > HW_ZONES)) {
               // Zone enabled
               if (GET_CONF_ZONE_ENABLED(conf.zone[rfm69Data.data[index]])) {
-                // Zone address and sender address match & zone is remote zone
-                if ((conf.zoneAddress[rfm69Data.data[index]-HW_ZONES] == rfm69Data.senderId + RADIO_UNIT_OFFSET) &&
-                     (GET_CONF_ZONE_IS_REMOTE(conf.zone[rfm69Data.data[index]]))){
+                // Zone address and sender address match = zone is remote zone
+                if (conf.zoneAddress[rfm69Data.data[index]-HW_ZONES] == (rfm69Data.senderId + RADIO_UNIT_OFFSET)){
                   zone[rfm69Data.data[index]].lastEvent = rfm69Data.data[index+1];
                   if (rfm69Data.data[index+1] == 'O') {
                     zone[rfm69Data.data[index]].lastOK = getTimeUnixSec();  // update current timestamp

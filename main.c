@@ -5,7 +5,6 @@
  *
  */
 //TODO OHS rename ch.bin to ohs.bin
-//TODO OHS change Georgia font to ?Tahoma?
 // Optimize stack and overflow
 #define PORT_INT_REQUIRED_STACK 128
 // Remove input queue for GPRS to save RAM
@@ -43,6 +42,8 @@ binary_semaphore_t emailSem;
 // TCL callback semaphores
 binary_semaphore_t cbTimerSem;
 binary_semaphore_t cbTriggerSem;
+// MQTT semaphore
+binary_semaphore_t mqttSem;
 
 // RFM69
 #include "rfm69.h"
@@ -65,10 +66,11 @@ struct tcl tcl;
 char logText[LOG_TEXT_LENGTH] __attribute__((section(".ram4"))); // To decode log text
 
 // OHS includes
+#include "OHS_text_const.h"
 #include "ohs_conf.h"
 #include "date_time.h"
-#include "ohs_functions.h"
 #include "ohs_peripheral.h"
+#include "ohs_functions.h"
 
 // GPRS
 #include "gprs.h"
@@ -98,6 +100,10 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 #include "lwip/apps/smtp.h"
 #include "lwip/apps/mdns.h"
 #include "ohs_httpdhandler.h"
+// MQTT
+#include "lwip/apps/mqtt_priv.h" // Needed to conf.mqtt
+#include "lwip/apps/mqtt.h"
+#include "ohs_mqtt_functions.h"
 
 // Shell functions
 #include "ohs_shell.h"
@@ -130,6 +136,7 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 #include "ohs_th_radio.h"
 #include "ohs_th_trigger.h"
 #include "ohs_th_tcl.h"
+#include "ohs_th_mqtt.h"
 //static THD_WORKING_AREA(waShell, 3*1024);
 #include "ohs_th_heartbeat.h"
 
@@ -175,6 +182,7 @@ int main(void) {
   chBSemObjectInit(&emailSem, false);
   chBSemObjectInit(&cbTimerSem, false);
   chBSemObjectInit(&cbTriggerSem, false);
+  chBSemObjectInit(&mqttSem, false);
   // Debug port
   sdStart(&SD3,  &serialCfg);
   chprintf(console, "\r\nOHS v.%u.%u start\r\n", OHS_MAJOR, OHS_MINOR);
@@ -194,7 +202,7 @@ int main(void) {
   struct lwipthread_opts lwip_opts =
   { &macAddr[0], 0, 0, 0, NET_ADDRESS_DHCP
     #if LWIP_NETIF_HOSTNAME
-      ,"OHS"
+      , OHS_NAME
     #endif
     ,NULL, NULL
   };
@@ -236,6 +244,7 @@ int main(void) {
   chPoolObjectInit(&alert_pool, sizeof(alertEvent_t), NULL);
   chPoolObjectInit(&script_pool, sizeof(scriptEvent_t), NULL);
   chPoolObjectInit(&trigger_pool, sizeof(triggerEvent_t), NULL);
+  chPoolObjectInit(&mqtt_pool, sizeof(mqttEvent_t), NULL);
   //chPoolLoadArray(&alarmEvent_pool, alarmEvent_pool_queue, ALARMEVENT_FIFO_SIZE);
   for(uint8_t i = 0; i < ALARMEVENT_FIFO_SIZE; i++) { chPoolFree(&alarmEvent_pool, &alarmEvent_pool_queue[i]); }
   for(uint8_t i = 0; i < LOGGER_FIFO_SIZE; i++) { chPoolFree(&logger_pool, &logger_pool_queue[i]); }
@@ -244,6 +253,7 @@ int main(void) {
   for(uint8_t i = 0; i < ALERT_FIFO_SIZE; i++) { chPoolFree(&alert_pool, &alert_pool_queue[i]); }
   for(uint8_t i = 0; i < SCRIPT_FIFO_SIZE; i++) { chPoolFree(&script_pool, &script_pool_queue[i]); }
   for(uint8_t i = 0; i < TRIGGER_FIFO_SIZE; i++) { chPoolFree(&trigger_pool, &trigger_pool_queue[i]); }
+  for(uint8_t i = 0; i < MQTT_FIFO_SIZE; i++) { chPoolFree(&mqtt_pool, &mqtt_pool_queue[i]); }
 
   // SPI
   spiStart(&SPID1, &spi1cfg);
@@ -265,7 +275,7 @@ int main(void) {
   chThdCreateStatic(waAEThread2, sizeof(waAEThread2), NORMALPRIO + 1, AEThread, (void*)"alarm 2");
   chThdCreateStatic(waAEThread3, sizeof(waAEThread3), NORMALPRIO + 1, AEThread, (void*)"alarm 3");
   chThdCreateStatic(waLoggerThread, sizeof(waLoggerThread), NORMALPRIO, LoggerThread, (void*)"logger");
-  chThdCreateStatic(waRS485Thread, sizeof(waRS485Thread), NORMALPRIO, RS485Thread, (void*)"RS485");
+  chThdCreateStatic(waRS485Thread, sizeof(waRS485Thread), NORMALPRIO, RS485Thread, (void*)"rs485");
   chThdCreateStatic(waRegistrationThread, sizeof(waRegistrationThread), NORMALPRIO - 1, RegistrationThread, (void*)"registration");
   chThdCreateStatic(waSensorThread, sizeof(waSensorThread), NORMALPRIO - 1, SensorThread, (void*)"sensor");
   chThdCreateStatic(waModemThread, sizeof(waModemThread), NORMALPRIO, ModemThread, (void*)"modem");
@@ -274,6 +284,7 @@ int main(void) {
   chThdCreateStatic(waRadioThread, sizeof(waRadioThread), NORMALPRIO, RadioThread, (void*)"radio");
   chThdCreateStatic(waTriggerThread, sizeof(waTriggerThread), NORMALPRIO - 1, TriggerThread, (void*)"trigger");
   chThdCreateStatic(waTclThread, sizeof(waTclThread), LOWPRIO + 1, tclThread, (void*)"tcl");
+  chThdCreateStatic(waMqttThread, sizeof(waMqttThread), NORMALPRIO - 2, MqttThread, (void*)"mqtt");
   //chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg);
   chThdCreateStatic(waHeartBeatThread, sizeof(waHeartBeatThread), LOWPRIO, HeartBeatThread, (void*)"heartbeat");
 
@@ -304,11 +315,21 @@ int main(void) {
   readFromBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
   chprintf(console, "Size of conf: %u, group: %u\r\n", sizeof(conf), sizeof(group));
 
-  // Check if we have new major version update
-  if (conf.versionMajor != OHS_MAJOR) {
-    setConfDefault();    // Load OHS default conf.
-    initRuntimeGroups(); // Initialize runtime variables
+  // Check if we have 1.3 -> 1.4 version update
+    if ((conf.versionMajor == 1) && (conf.versionMinor == 3) && (OHS_MINOR == 4)) {
+      // Set new version conf struct changes
+
+      // Save the changes
+      conf.versionMajor = OHS_MAJOR;
+      conf.versionMinor = OHS_MINOR;
+      writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+    } else if (OHS_MINOR != conf.versionMinor) {
+    // Unknown version change, clear all
+    setConfDefault();
+    // Save the changes
     writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+    // Init and save runtime variables
+    initRuntimeGroups(); // Initialize runtime variables
     writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
   }
 
@@ -321,6 +342,8 @@ int main(void) {
   smtp_set_auth(conf.SMTPUser, conf.SMTPPassword);
   // SNTP
   sntp_setservername(0, conf.SNTPAddress);
+  // MQTT
+  CLEAR_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting); // Force resolve address on start
 
   // Start
   startTime = getTimeUnixSec();
@@ -348,6 +371,7 @@ int main(void) {
       chThdWait(shelltp); // Waiting termination.
     }
 
+    //chThdSleepMilliseconds(10000);
     /*
     n = chHeapStatus(NULL, &total, &largest);
     chprintf(console, "core free memory : %u bytes" SHELL_NEWLINE_STR, chCoreGetStatusX());

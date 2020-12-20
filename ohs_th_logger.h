@@ -8,7 +8,6 @@
 #ifndef OHS_TH_LOGGER_H_
 #define OHS_TH_LOGGER_H_
 
-
 /*
  * Logger thread
  */
@@ -86,7 +85,5 @@ static THD_FUNCTION(LoggerThread, arg) {
     chPoolFree(&logger_pool, inMsg);
   }
 }
-
-
 
 #endif /* OHS_TH_LOGGER_H_ */

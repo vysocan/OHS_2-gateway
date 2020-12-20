@@ -7,6 +7,18 @@
  * Peripheral configurations
  */
 /*
+ * FRAM on SPI related
+ */
+#define CMD_25AA_WRSR     0x01  // Write status register
+#define CMD_25AA_WRITE    0x02
+#define CMD_25AA_READ     0x03
+#define CMD_25AA_WRDI     0x04  // Write Disable
+#define CMD_25AA_RDSR     0x05  // Read Status Register
+#define CMD_25AA_WREN     0x06  // Write Enable
+#define CMD_25AA_RDID     0x9F  // Read FRAM ID
+#define STATUS_25AA_WEL   0b00000010  // write enable latch (1 == write enable)
+//#define STATUS_25AA_WIP   0b00000001  // write in progress
+/*
  * SPI macros for 168Mhz
  * Peripherial Clock /4 = 42MHz for SPI2 SPI3
  * Peripherial Clock /2 = 84MHz for SPI1 SPI4 SPI5 SPI6
