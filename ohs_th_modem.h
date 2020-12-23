@@ -18,8 +18,19 @@
 #define DBG_MODEM(...)
 #endif
 
-#define GPRS_PWR_ON_DELAY  500  // Power On impulse
-#define GPRS_PWR_OFF_DELAY 3000 // Power Off impulse should be > 2.5 sec.
+// Modem power on/off definitions in milliseconds
+#define GPRS_PWR_DELAY     250   // Power On delay
+#define GPRS_PWR_ON_TIME   20000 // Power On wait time, SIM7600 typical 16s
+#define GPRS_PWR_ON_PULSE  500   // Power On impulse, SIM7600 typical 0.5 sec.
+#define GPRS_PWR_OFF_TIME  35000 // Power Off wait time, SIM7600 typical 28s
+#define GPRS_PWR_OFF_PULSE 3000  // Power Off impulse, SIM7600 min 2.5 sec.
+// Sanity checks
+#if (GPRS_PWR_ON_TIME/GPRS_PWR_DELAY) > 255
+  #error Start up time is larger then uint8_t size!
+#endif
+#if (GPRS_PWR_OFF_TIME/GPRS_PWR_DELAY) > 255
+  #error Stop time is larger then uint8_t size!
+#endif
 /*
  * Modem services thread
  */
@@ -41,16 +52,17 @@ static THD_FUNCTION(ModemThread, arg) {
         if (palReadPad(GPIOD, GPIOD_GSM_STATUS)) {
           DBG_MODEM("Starting modem: ");
           palSetPad(GPIOD, GPIOD_GSM_PWRKEY);
-          chThdSleepMilliseconds(GPRS_PWR_ON_DELAY);
+          chThdSleepMilliseconds(GPRS_PWR_ON_PULSE);
           palClearPad(GPIOD, GPIOD_GSM_PWRKEY);
 
           // Wait for status high
           tmp = 0;
           do {
             DBG_MODEM(".");
-            chThdSleepMilliseconds(AT_DELAY);
+            chThdSleepMilliseconds(GPRS_PWR_DELAY);
             tmp++;
-          } while ((palReadPad(GPIOD, GPIOD_GSM_STATUS)) && (tmp != 0));
+          } while ((palReadPad(GPIOD, GPIOD_GSM_STATUS)) &&
+                   (tmp < (uint8_t)(GPRS_PWR_ON_TIME/GPRS_PWR_DELAY)));
           if (tmp != 0) {
             gsmStatus = gprs_OK;
             DBG_MODEM(" started.\r\n");
@@ -111,23 +123,25 @@ static THD_FUNCTION(ModemThread, arg) {
       if (gsmStatus == gprs_ForceReset) {
         DBG_MODEM("Stopping modem: ");
         palSetPad(GPIOD, GPIOD_GSM_PWRKEY);
-        chThdSleepMilliseconds(GPRS_PWR_OFF_DELAY);
+        chThdSleepMilliseconds(GPRS_PWR_OFF_PULSE);
         palClearPad(GPIOD, GPIOD_GSM_PWRKEY);
 
         // Wait for status low
         tmp = 0;
         do {
           DBG_MODEM(".");
-          chThdSleepMilliseconds(AT_DELAY*2); // It takes twice much time to stop
+          chThdSleepMilliseconds(GPRS_PWR_DELAY);
           tmp++;
-        } while ((!palReadPad(GPIOD, GPIOD_GSM_STATUS)) && (tmp != 0));
-        gsmStatus = gprs_NotInitialized;
+        } while ((!palReadPad(GPIOD, GPIOD_GSM_STATUS)) &&
+                 (tmp < (uint8_t)(GPRS_PWR_OFF_TIME/GPRS_PWR_DELAY)));
         gprsLastStatus = DUMMY_NO_VALUE;
         if (tmp != 0) {
           DBG_MODEM(" stopped.\r\n");
+          gsmStatus = gprs_NotInitialized;
           pushToLogText("MF");
         } else {
           DBG_MODEM(" failed!\r\n");
+          gsmStatus = gprs_Failed;
           pushToLogText("ME");
         }
       }

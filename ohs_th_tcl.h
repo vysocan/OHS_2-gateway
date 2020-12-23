@@ -315,7 +315,7 @@ static int tcl_cmd_findex(struct tcl* tcl, tcl_value_t* args, void* arg) {
 /*
  * TCL execution thread
  */
-static THD_WORKING_AREA(waTclThread, 2048);
+static THD_WORKING_AREA(waTclThread, 2176);
 static THD_FUNCTION(tclThread, arg) {
   chRegSetThreadName(arg);
   msg_t  msg;

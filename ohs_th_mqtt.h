@@ -21,15 +21,15 @@
  * MQTT thread
  *
  * Publish topics: MQTT_MAIN_TOPIC
- * /state/ - On/Off
+ * /state {On, Off} - Indicates if system is on
  * /group
  *   /{#} - index of group
  *     /name
- *     /state
+ *     /state {disarmed, arming, armed_home, armed_away, triggered, disarming}
  * /zone
  *   /{#} - index of zone
  *     /name
- *     /state
+ *     /state {OK, alarm, tamper}
  * /sensor
  *   /{address} - node address like W:2:K:i:0
  *     /name
@@ -37,7 +37,7 @@
  *     /function
  *     /value
  */
-static THD_WORKING_AREA(waMqttThread, 256);
+static THD_WORKING_AREA(waMqttThread, 320);
 static THD_FUNCTION(MqttThread, arg) {
   chRegSetThreadName(arg);
   err_t err; // lwip error type
