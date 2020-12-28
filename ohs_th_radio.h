@@ -136,7 +136,7 @@ static THD_FUNCTION(RadioThread, arg) {
           do {
             index++; // Skip 'R'
             // Zone allowed
-            if ((rfm69Data.data[index] <= ALARM_ZONES) && (rfm69Data.data[index] > HW_ZONES)) {
+            if ((rfm69Data.data[index] > HW_ZONES) && (rfm69Data.data[index] <= ALARM_ZONES)) {
               // Zone enabled
               if (GET_CONF_ZONE_ENABLED(conf.zone[rfm69Data.data[index]])) {
                 // Zone address and sender address match = zone is remote zone

@@ -37,7 +37,7 @@
  *     /function
  *     /value
  */
-static THD_WORKING_AREA(waMqttThread, 320);
+static THD_WORKING_AREA(waMqttThread, 384);
 static THD_FUNCTION(MqttThread, arg) {
   chRegSetThreadName(arg);
   err_t err; // lwip error type

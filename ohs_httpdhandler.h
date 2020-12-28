@@ -145,7 +145,7 @@ const char JSdis1[]                 = "dis1();";
 const char JSdis2[]                 = "dis2();";
 const char JSContact[]              = "var e1=document.querySelectorAll(\"#g\");"
                                       "var d1=document.querySelectorAll(\"#xx\");";
-const char JSCredential[]           = "var tc=document.querySelectorAll(\"#p,#d\");";
+const char JSCredential[]           = "var tc=document.querySelectorAll(\"#p\");";
 const char JSZone[]                 = "var e1=document.querySelectorAll(\"#xx\");"
                                       "var d1=document.querySelectorAll(\"#a1,#a0\");";
 const char JSTimer[]                = "var e1=document.querySelectorAll(\"#s,#S\");"
@@ -1015,8 +1015,8 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_User, text_name, html_e_td_td);
           printTextInput(chp, 'c', conf.SMTPUser, EMAIL_LENGTH);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_User, text_password, html_e_td_td);
-          printPassInput(chp, 'd', conf.SMTPPassword, NAME_LENGTH, 1); chprintf(chp, "%s", html_br);
-          printPassInput(chp, 'D', conf.SMTPPassword, NAME_LENGTH, 1);
+          printPassInput(chp, 'd', conf.SMTPPassword, NAME_LENGTH, 1);
+          // chprintf(chp, "%s", html_br); printPassInput(chp, 'D', conf.SMTPPassword, NAME_LENGTH, 1);
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
 
           chprintf(chp, "<h1>%s</h1>\r\n%s", text_MQTT, html_table);
@@ -1027,8 +1027,8 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_User, text_name, html_e_td_td);
           printTextInput(chp, 't', conf.mqtt.user, NAME_LENGTH);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_User, text_password, html_e_td_td);
-          printPassInput(chp, 'r', conf.mqtt.password, NAME_LENGTH, 1); chprintf(chp, "%s", html_br);
-          printPassInput(chp, 'R', conf.mqtt.password, NAME_LENGTH, 1);
+          printPassInput(chp, 'r', conf.mqtt.password, NAME_LENGTH, 1);
+          // chprintf(chp, "%s", html_br); printPassInput(chp, 'R', conf.mqtt.password, NAME_LENGTH, 1);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Connected, html_e_td_td);
           printOkNok(chp, !(GET_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting) | GET_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting)));
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Subscribe, html_e_td_td);

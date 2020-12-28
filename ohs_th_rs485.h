@@ -152,9 +152,43 @@ static THD_FUNCTION(RS485Thread, arg) {
                 index += SENSOR_PACKET_SIZE;
               } while (index < rs485Msg.length);
               break;
+            case 'Z': // Zone
+              index = 0;
+              do {
+                index++; // Skip 'R'
+                // Zone allowed
+                if ((rs485Msg.data[index] > HW_ZONES) && (rs485Msg.data[index] <= ALARM_ZONES)) {
+                  // Zone enabled
+                  if (GET_CONF_ZONE_ENABLED(conf.zone[rs485Msg.data[index]])) {
+                    // Zone address and sender address match = zone is remote zone
+                    if (conf.zoneAddress[rs485Msg.data[index]-HW_ZONES] == (rs485Msg.address + RADIO_UNIT_OFFSET)){
+                      zone[rs485Msg.data[index]].lastEvent = rs485Msg.data[index+1];
+                      if (rs485Msg.data[index+1] == 'O') {
+                        zone[rs485Msg.data[index]].lastOK = getTimeUnixSec();  // update current timestamp
+                      } else {
+                        zone[rs485Msg.data[index]].lastPIR = getTimeUnixSec(); // update current timestamp
+                      }
+                    } else {
+                      // Log error just once
+                      if (!GET_ZONE_ERROR(zone[rs485Msg.data[index]].setting)) {
+                        tmpLog[0] = 'Z'; tmpLog[1] = 'e'; tmpLog[2] = rs485Msg.data[index]; tmpLog[3] = 'M'; pushToLog(tmpLog, 4);
+                        SET_ZONE_ERROR(zone[rs485Msg.data[index]].setting); // Set error flag
+                      }
+                    }
+                  } else {
+                    // Log error just once
+                    if (!GET_ZONE_ERROR(zone[rs485Msg.data[index]].setting)) {
+                      tmpLog[0] = 'Z'; tmpLog[1] = 'e'; tmpLog[2] = rs485Msg.data[index]; tmpLog[3] = 'N'; pushToLog(tmpLog, 4);
+                      SET_ZONE_ERROR(zone[rs485Msg.data[index]].setting); // Set error flag
+                    }
+                  } // else / Zone enabled
+                } // Zone allowed
+                index += 2;
+              } while (index < rs485Msg.length);
+              break;
           } // switch case
         } // data
-      }
+      } // MSG_OK
     } // (flags & RS485_MSG_RECEIVED)
   }
 }

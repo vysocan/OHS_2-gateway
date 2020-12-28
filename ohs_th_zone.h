@@ -227,8 +227,8 @@ static THD_FUNCTION(ZoneThread, arg) {
             }
             break;
         }
-        if (zone[i].lastState != zone[i].lastEvent) {
-          zone[i].lastState = zone[i].lastEvent;
+        if (zone[i].eventSent != zone[i].lastEvent) {
+          zone[i].eventSent = zone[i].lastEvent;
           // Triggers
           outMsgTrig = chPoolAlloc(&trigger_pool);
           if (outMsgTrig != NULL) {

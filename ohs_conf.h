@@ -729,7 +729,7 @@ typedef struct {
   time_t  lastOK;
   char    lastEvent;
   uint8_t setting;
-  char    lastState; // Cache lastEvent to release stress from triggers, MQTT, ...
+  char    eventSent; // Cache lastEvent to release stress from triggers, MQTT, ...
 } zone_t;
 zone_t zone[ALARM_ZONES] __attribute__((section(".ram4")));
 
@@ -806,7 +806,7 @@ void initRuntimeZones(void){
     zone[i].lastPIR   = startTime;
     zone[i].lastOK    = startTime;
     zone[i].lastEvent = 'N';
-    zone[i].lastState = 'N';
+    zone[i].eventSent = 'N';
     //                     |- Full FIFO queue flag
     //                     ||- Message queue
     //                     |||- Error flag, for remote zone
@@ -902,15 +902,15 @@ void setConfDefault(void){
     //                    ||||||- Logical type balanced 1/ unbalanced 0. Only Analog zones can be balanced.
     //                    |||||||- PIR as Tamper
     //                    ||||||||- Still open alarm
-    //                    ||||||||         |- Arm Home zone
-    //                    ||||||||         |||- Auth time
-    //                    ||||||||         |||- 0-3x the default time
-    //                    ||||||||         |||||||- Group number
-    //                    ||||||||         |||||||- 0 .. 15
-    //                    ||||||||         |||||||-
-    //                    ||||||||         |||||||-
-    //                    ||||||||         ||||||||-  Enabled
-    //                    54321098         76543210
+    //                    ||||||||          |- Arm Home zone
+    //                    ||||||||          |||- Auth time
+    //                    ||||||||          |||- 0-3x the default time
+    //                    ||||||||          |||||||- Group number
+    //                    ||||||||          |||||||- 0 .. 15
+    //                    ||||||||          |||||||-
+    //                    ||||||||          |||||||-
+    //                    ||||||||          ||||||||-  Enabled
+    //                    54321098          76543210
     switch(i){
       case  0 ...  9:
          conf.zone[i] = 0b11000100 << 8 | 0b00011110; // Analog sensor
@@ -929,23 +929,23 @@ void setConfDefault(void){
   strcpy(conf.zoneName[10], "Box tamper");
 
   for(uint8_t i = 0; i < ALARM_GROUPS; i++) {
-    //                  ||||- disarm chain
-    //                  ||||
-    //                  ||||
-    //                  ||||
-    //                  ||||||||- arm chain
-    //                  ||||||||
-    //                  ||||||||
-    //                  ||||||||
-    //                  ||||||||         |- MQTT publish
-    //                  ||||||||         ||- Free
-    //                  ||||||||         |||- Auto arm
-    //                  ||||||||         ||||- PIR signal output 1
-    //                  ||||||||         |||||- PIR signal output 2
-    //                  ||||||||         ||||||-  Tamper signal output 1
-    //                  ||||||||         |||||||-  Tamper signal output 2
-    //                  ||||||||         ||||||||-  Enabled
-    //                  54321098         76543210
+          //                  ||||- disarm chain
+          //                  ||||
+          //                  ||||
+          //                  ||||
+          //                  ||||||||- arm chain
+          //                  ||||||||
+          //                  ||||||||
+          //                  ||||||||
+          //                  ||||||||          |- MQTT publish
+          //                  ||||||||          ||- Free
+          //                  ||||||||          |||- Auto arm
+          //                  ||||||||          ||||- PIR signal output 1
+          //                  ||||||||          |||||- PIR signal output 2
+          //                  ||||||||          ||||||- Tamper signal output 1
+          //                  ||||||||          |||||||- Tamper signal output 2
+          //                  ||||||||          ||||||||- Enabled
+          //                  54321098          76543210
     conf.group[i].setting = 0b11111111 << 8 | 0b00000000;
     //strcpy(conf.groupName[i], NOT_SET);
     memset(&conf.group[i].name[0], 0x00, NAME_LENGTH);
