@@ -21,11 +21,10 @@
 /*
  * TCL command node
  */
-#define TCL_CMD_NODE_ADDRESS_SIZE 5
 static int tcl_cmd_node(struct tcl* tcl, tcl_value_t* args, void* arg) {
   (void)arg;
-  char *pch, *index[TCL_CMD_NODE_ADDRESS_SIZE];
-  uint8_t indexNum = 0;
+  char *pch, *addressIndex[NODE_ADDRESS_SIZE];
+  uint8_t nodeIndex = 0;
   uint8_t ret;
   char buf[10];
 
@@ -34,22 +33,22 @@ static int tcl_cmd_node(struct tcl* tcl, tcl_value_t* args, void* arg) {
 
   // Get index
   pch = strtok((char*)nodeAddress,":");
-  while ((pch != NULL) && (indexNum < TCL_CMD_NODE_ADDRESS_SIZE)){
-    index[indexNum] = pch;
+  while ((pch != NULL) && (nodeIndex < NODE_ADDRESS_SIZE)){
+    addressIndex[nodeIndex] = pch;
     pch = strtok(NULL, ":");
-    indexNum++;
+    nodeIndex++;
   }
-  if (indexNum == TCL_CMD_NODE_ADDRESS_SIZE) {
-    indexNum = getNodeIndex((*index[0] == 'R' ? RADIO_UNIT_OFFSET : 0) + strtoul(index[1], NULL, 0),
-                            *index[2], *index[3], strtoul(index[4], NULL, 0));
-    if (indexNum != DUMMY_NO_VALUE) {
+  if (nodeIndex == NODE_ADDRESS_SIZE) {
+    nodeIndex = getNodeIndex((*addressIndex[0] == 'R' ? RADIO_UNIT_OFFSET : 0) + strtoul(addressIndex[1], NULL, 0),
+                            *addressIndex[2], *addressIndex[3], strtoul(addressIndex[4], NULL, 0));
+    if (nodeIndex != DUMMY_NO_VALUE) {
       //DBG_TCL("*tcl_cmd_node*: %d.\r\n", indexNum);
-      chsnprintf(&buf[0], sizeof(buf), "%.2f", node[indexNum].value);
+      chsnprintf(&buf[0], sizeof(buf), "%.2f", node[nodeIndex].value);
       ret = tcl_result(tcl, FNORMAL, tcl_alloc(&buf[0], strlen(buf)));
     } //else { indexNum = DUMMY_NO_VALUE; }
   }
   // Else error
-  if (indexNum == DUMMY_NO_VALUE) {
+  if (nodeIndex == DUMMY_NO_VALUE) {
     TCL_ERROR("Node %s not found", nodeAddress);
     ret = tcl_result(tcl, FERROR, tcl_alloc("", 0));
   }

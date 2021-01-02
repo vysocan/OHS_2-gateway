@@ -53,6 +53,7 @@
 #define RADIO_UNIT_OFFSET 15    // Offset of radio nodes of wired nodes
 #define REGISTRATION_SIZE 22    // Registration packet size
 #define NODE_SIZE         50    // Number of nodes
+#define NODE_ADDRESS_SIZE 5
 
 #define DUMMY_NO_VALUE    255
 #define DUMMY_GROUP       15
@@ -65,7 +66,7 @@
 // MQTT
 #define MQTT_MAIN_TOPIC   "OHS/"
 #define MQTT_WILL_TOPIC   "state"
-#define MQTT_SET_TOPIC    "set/#"
+#define MQTT_SET_TOPIC    "set/"
 
 // Parameter checks
 #if NODE_SIZE >= DUMMY_NO_VALUE
@@ -136,7 +137,7 @@
 #define GET_CONF_GROUP_PIR2(x)         ((x >> 3U) & 0b1)
 #define GET_CONF_GROUP_PIR1(x)         ((x >> 4U) & 0b1)
 #define GET_CONF_GROUP_AUTO_ARM(x)     ((x >> 5U) & 0b1)
-#define GET_CONF_GROUP_MQTT_PUB(x)     ((x >> 7U) & 0b1)
+#define GET_CONF_GROUP_MQTT(x)         ((x >> 7U) & 0b1)
 #define GET_CONF_GROUP_ARM_CHAIN(x)    ((x >> 8U) & 0b1111)
 #define GET_CONF_GROUP_DISARM_CHAIN(x) ((x >> 12U) & 0b1111)
 #define SET_CONF_GROUP_ENABLED(x)        x |= 1
@@ -145,7 +146,7 @@
 #define SET_CONF_GROUP_PIR2(x)           x |= (1 << 3U)
 #define SET_CONF_GROUP_PIR1(x)           x |= (1 << 4U)
 #define SET_CONF_GROUP_AUTO_ARM(x)       x |= (1 << 5U)
-#define SET_CONF_GROUP_MQTT_PUB(x)       x |= (1 << 7U)
+#define SET_CONF_GROUP_MQTT(x)           x |= (1 << 7U)
 #define SET_CONF_GROUP_ARM_CHAIN(x,y)    x = (((x)&(0b1111000011111111))|(((y & 0b1111) << 8U)&(0b0000111100000000)))
 #define SET_CONF_GROUP_DISARM_CHAIN(x,y) x = (((x)&(0b0000111111111111))|(((y & 0b1111) << 12U)&(0b1111000000000000)))
 #define CLEAR_CONF_GROUP_ENABLED(x)      x &= ~1
@@ -154,7 +155,7 @@
 #define CLEAR_CONF_GROUP_PIR2(x)         x &= ~(1 << 3U)
 #define CLEAR_CONF_GROUP_PIR1(x)         x &= ~(1 << 4U)
 #define CLEAR_CONF_GROUP_AUTO_ARM(x)     x &= ~(1 << 5U)
-#define CLEAR_CONF_GROUP_MQTT_PUB(x)     x &= ~(1 << 7U)
+#define CLEAR_CONF_GROUP_MQTT(x)         x &= ~(1 << 7U)
 
 #define GET_CONF_CONTACT_ENABLED(x)     ((x) & 0b1)
 #define GET_CONF_CONTACT_GROUP(x)       ((x >> 1U) & 0b1111)
@@ -289,17 +290,17 @@
 #define CLEAR_GROUP_ARMED_HOME(x)    x &= ~(1 << 3U)
 #define CLEAR_GROUP_DISABLED_FLAG(x) x &= ~(1 << 7U)
 
-#define GET_NODE_ENABLED(x)  ((x) & 0b1)
-#define GET_NODE_GROUP(x)    ((x >> 1U) & 0b1111)
-#define GET_NODE_BATT_LOW(x) ((x >> 5U) & 0b1)
-#define GET_NODE_MQTT_PUB(x) ((x >> 7U) & 0b1)
-#define SET_NODE_ENABLED(x)  x |= 1
-#define SET_NODE_GROUP(x,y)  x = (((x)&(0b1111111111100001))|(((y & 0b1111) << 1U)&(0b0000000000011110)))
-#define SET_NODE_BATT_LOW(x) x |= (1 << 5U)
-#define SET_NODE_MQTT_PUB(x) x |= (1 << 7U)
+#define GET_NODE_ENABLED(x)    ((x) & 0b1)
+#define GET_NODE_GROUP(x)      ((x >> 1U) & 0b1111)
+#define GET_NODE_BATT_LOW(x)   ((x >> 5U) & 0b1)
+#define GET_NODE_MQTT(x)       ((x >> 7U) & 0b1)
+#define SET_NODE_ENABLED(x)    x |= 1
+#define SET_NODE_GROUP(x,y)    x = (((x)&(0b1111111111100001))|(((y & 0b1111) << 1U)&(0b0000000000011110)))
+#define SET_NODE_BATT_LOW(x)   x |= (1 << 5U)
+#define SET_NODE_MQTT(x)       x |= (1 << 7U)
 #define CLEAR_NODE_ENABLED(x)  x &= ~1
 #define CLEAR_NODE_BATT_LOW(x) x &= ~(1 << 5U)
-#define CLEAR_NODE_MQTT_PUB(x) x &= ~(1 << 7U)
+#define CLEAR_NODE_MQTT(x)     x &= ~(1 << 7U)
 
 // Helper macros. Do not use in functions parameter!
 #define ARRAY_SIZE(x) sizeof(x)/sizeof(x[0])

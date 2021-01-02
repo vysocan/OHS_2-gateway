@@ -210,7 +210,7 @@ static THD_FUNCTION(ServiceThread, arg) {
                 node[nodeIndex].lastOK = timeNow; // update receiving node current timestamp
                 node[nodeIndex].value   = conf.timer[i].constantOn; // update receiving node value
                 // MQTT
-                if (GET_NODE_MQTT_PUB(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionValue);
+                if (GET_NODE_MQTT(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionValue);
               }
             }
           }
@@ -232,7 +232,7 @@ static THD_FUNCTION(ServiceThread, arg) {
                   node[nodeIndex].lastOK = timeNow; // update receiving node current timestamp
                   node[nodeIndex].value   = conf.timer[i].constantOff; // update receiving node value
                   // MQTT
-                  if (GET_NODE_MQTT_PUB(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionValue);
+                  if (GET_NODE_MQTT(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionValue);
                 }
               }
             }
@@ -265,7 +265,7 @@ static THD_FUNCTION(ServiceThread, arg) {
                   node[nodeIndex].lastOK = timeNow; // update receiving node current timestamp
                   node[nodeIndex].value   = conf.trigger[i].constantOff; // update receiving node value
                   // MQTT
-                  if (GET_NODE_MQTT_PUB(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionValue);
+                  if (GET_NODE_MQTT(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionValue);
                 }
               }
             }

@@ -70,7 +70,7 @@ static THD_FUNCTION(AEThread, arg) {
         // TODO OHS create alarms with delays, some countries require not continuous sirens
         tmpLog[0] = 'S'; tmpLog[1] = 'X';  tmpLog[2] = groupNum;  pushToLog(tmpLog, 3); // ALARM no auth.
         // MQTT
-        if (GET_CONF_GROUP_MQTT_PUB(conf.group[groupNum].setting)) pushToMqtt(typeGroup, groupNum, functionState);
+        if (GET_CONF_GROUP_MQTT(conf.group[groupNum].setting)) pushToMqtt(typeGroup, groupNum, functionState);
       }
     } else {
       chprintf(console, "%s -> ERROR\r\n", arg);

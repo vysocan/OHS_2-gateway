@@ -61,7 +61,7 @@ static THD_FUNCTION(MqttThread, arg) {
           // Prepare message
           switch (inMsg->type) {
             case typeSystem:
-              qos = 1; retain = 0;
+              qos = 1; retain = 1;
               chsnprintf(topic, sizeof(topic), "%s", MQTT_MAIN_TOPIC);
               switch (inMsg->function) {
                 default: // State

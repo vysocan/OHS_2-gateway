@@ -114,7 +114,7 @@ static THD_FUNCTION(RS485Thread, arg) {
                   node[nodeIndex].value = (float)checkKey(GET_NODE_GROUP(node[nodeIndex].setting),
                            (rs485Msg.data[2] % 2), &rs485Msg.data[3], rs485Msg.length - 4);
                   // MQTT
-                  if (GET_NODE_MQTT_PUB(node[nodeIndex].setting)) {
+                  if (GET_NODE_MQTT(node[nodeIndex].setting)) {
                     pushToMqtt(typeSensor, nodeIndex, functionValue);
                   }
                 } else {

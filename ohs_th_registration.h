@@ -57,7 +57,7 @@ static THD_FUNCTION(RegistrationThread, arg) {
             }
           }
           // MQTT publish name
-          if (GET_NODE_MQTT_PUB(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionName);
+          if (GET_NODE_MQTT(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionName);
           break;
           case 'Z': // Zone
             tmpLog[0] = 'Z'; // Log data

@@ -39,7 +39,7 @@ static THD_FUNCTION(ZoneThread, arg) {
 
   // Manage group MQTT publish
   for (uint8_t i=0; i < ALARM_GROUPS ; i++) {
-    if (GET_CONF_GROUP_ENABLED(conf.group[i].setting) && GET_CONF_GROUP_MQTT_PUB(conf.group[i].setting)) {
+    if (GET_CONF_GROUP_ENABLED(conf.group[i].setting) && GET_CONF_GROUP_MQTT(conf.group[i].setting)) {
       pushToMqtt(typeGroup, i, functionName);
       pushToMqtt(typeGroup, i, functionState);
     }
@@ -66,7 +66,7 @@ static THD_FUNCTION(ZoneThread, arg) {
           tmpLog[0] = 'G'; tmpLog[1] = 'S'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
           // Save group state
           writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
-          if (GET_CONF_GROUP_MQTT_PUB(conf.group[i].setting)) pushToMqtt(typeGroup, i, functionState);
+          if (GET_CONF_GROUP_MQTT(conf.group[i].setting)) pushToMqtt(typeGroup, i, functionState);
         }
       }
     }

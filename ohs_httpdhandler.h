@@ -482,7 +482,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
               chprintf(chp, "%s", html_e_td_td);
               printOkNok(chp, GET_NODE_ENABLED(node[i].setting));
               chprintf(chp, "%s", html_e_td_td);
-              printOkNok(chp, GET_NODE_MQTT_PUB(node[i].setting));
+              printOkNok(chp, GET_NODE_MQTT(node[i].setting));
               chprintf(chp, "%s", html_e_td_td);
               printFrmTimestamp(chp, &node[i].lastOK);
               chprintf(chp, "%s", html_e_td_td);
@@ -522,7 +522,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Node, text_is, html_e_td_td);
           printOnOffButton(chp, "0", GET_NODE_ENABLED(node[webNode].setting));
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_MQTT, text_publish, html_e_td_td);
-          printOnOffButton(chp, "7", GET_NODE_MQTT_PUB(node[webNode].setting));
+          printOnOffButton(chp, "7", GET_NODE_MQTT(node[webNode].setting));
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Group, html_e_td_td);
           selectGroup(chp, GET_NODE_GROUP(node[webNode].setting), 'g');
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
@@ -887,7 +887,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
             }
             chprintf(chp, "%s", html_e_td_td);
             if (GET_CONF_GROUP_ENABLED(conf.group[i].setting))
-              printOkNok(chp, GET_CONF_GROUP_MQTT_PUB(conf.group[i].setting));
+              printOkNok(chp, GET_CONF_GROUP_MQTT(conf.group[i].setting));
             chprintf(chp, "%s", html_e_td_td);
             if (GET_CONF_GROUP_ENABLED(conf.group[i].setting)) {
               if (GET_GROUP_ARMED(group[i].setting)) {
@@ -932,7 +932,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s %ss %s 2%s", html_e_td_e_tr_tr_td,  text_Tamper, text_trigger, text_relay, html_e_td_td);
           printOnOffButton(chp, "1", GET_CONF_GROUP_TAMPER2(conf.group[webGroup].setting));
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td,  text_MQTT, text_publish, html_e_td_td);
-          printOnOffButton(chp, "7", GET_CONF_GROUP_MQTT_PUB(conf.group[webGroup].setting));
+          printOnOffButton(chp, "7", GET_CONF_GROUP_MQTT(conf.group[webGroup].setting));
           chprintf(chp, "%s%s %s %s%s", html_e_td_e_tr_tr_td, text_Arm, text_group, text_chain, html_e_td_td);
           selectGroup(chp, GET_CONF_GROUP_ARM_CHAIN(conf.group[webGroup].setting), 'a');
           chprintf(chp, "%s%s %s %s%s", html_e_td_e_tr_tr_td, text_Disarm, text_group, text_chain, html_e_td_td);
@@ -1820,7 +1820,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                 case 'n': // name
                   // Calculate resp for MQTT
                   if (GET_NODE_ENABLED(node[webNode].setting) &&
-                      GET_NODE_MQTT_PUB(node[webNode].setting)) {
+                      GET_NODE_MQTT(node[webNode].setting)) {
                     if (strlen(node[webNode].name) != valueLen) resp = 1;
                     else resp = strncmp(node[webNode].name, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
                   } else resp = 0;
@@ -1998,14 +1998,14 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                 case 'A': // Apply
                   // MQTT publish state
                   if (GET_CONF_GROUP_ENABLED(conf.group[webGroup].setting) &&
-                      GET_CONF_GROUP_MQTT_PUB(conf.group[webGroup].setting)) {
+                      GET_CONF_GROUP_MQTT(conf.group[webGroup].setting)) {
                     pushToMqtt(typeGroup, webGroup, functionState);
                   }
                 break;
                 case 'n': // name
                   // Calculate resp for MQTT
                   if (GET_CONF_GROUP_ENABLED(conf.group[webGroup].setting) &&
-                      GET_CONF_GROUP_MQTT_PUB(conf.group[webGroup].setting)) {
+                      GET_CONF_GROUP_MQTT(conf.group[webGroup].setting)) {
                     if (strlen(conf.group[webGroup].name) != valueLen) resp = 1;
                     else resp = strncmp(conf.group[webGroup].name, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
                   } else resp = 0;

@@ -162,7 +162,7 @@ static THD_FUNCTION(TriggerThread, arg) {
                         SET_CONF_TRIGGER_PASSED(conf.trigger[i].setting);
                       }
                       // MQTT
-                      if (GET_NODE_MQTT_PUB(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionValue);
+                      if (GET_NODE_MQTT(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionValue);
                     }
                   }
                 } // Node found
@@ -200,7 +200,7 @@ static THD_FUNCTION(TriggerThread, arg) {
                     CLEAR_CONF_TRIGGER_TRIGGERED(conf.trigger[i].setting);
                     CLEAR_CONF_TRIGGER_PASSED(conf.trigger[i].setting);
                     // MQTT
-                    if (GET_NODE_MQTT_PUB(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionValue);
+                    if (GET_NODE_MQTT(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionValue);
                   }
                 } //found
               } // if

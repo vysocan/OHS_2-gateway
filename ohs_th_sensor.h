@@ -46,7 +46,7 @@ static THD_FUNCTION(SensorThread, arg) {
           node[nodeIndex].value   = inMsg->value;
           node[nodeIndex].lastOK = timeNow;  // Get timestamp
           // MQTT
-          if (GET_NODE_MQTT_PUB(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionValue);
+          if (GET_NODE_MQTT(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionValue);
           // Global battery check
           if ((node[nodeIndex].function == 'B') && !(GET_NODE_BATT_LOW(node[nodeIndex].setting)) && (node[nodeIndex].value < 3.6)){
             SET_NODE_BATT_LOW(node[nodeIndex].setting); // switch ON  battery low flag
