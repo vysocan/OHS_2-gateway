@@ -2,7 +2,7 @@
  * ohs_th_service.h
  *
  *  Created on: 23. 2. 2020
- *      Author: adam
+ *      Author: vysocan
  */
 
 #ifndef OHS_TH_SERVICE_H_
@@ -281,15 +281,20 @@ static THD_FUNCTION(ServiceThread, arg) {
     }
 
     // MQTT connection
-    if ((netInfo.status & LWIP_NSC_IPV4_ADDR_VALID) && (!mqtt_client_is_connected(&mqtt_client))) {
-      // Force try connection every counterMQTT overflow
-      if (counterMQTT == 0) CLEAR_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting);
-      // Try to connect if that makes sense
-      if (!GET_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting) &&
-          !GET_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting)) {
-        mqttDoConnect(&mqtt_client);
+    if (netInfo.status & LWIP_NSC_IPV4_ADDR_VALID) {
+      LOCK_TCPIP_CORE();
+      nodeIndex = mqtt_client_is_connected(&mqtt_client); // nodeIndex here as tmp variable
+      UNLOCK_TCPIP_CORE();
+      if (!nodeIndex) {
+        // Force try connection every counterMQTT overflow
+        if (counterMQTT == 0) CLEAR_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting);
+        // Try to connect if that makes sense
+        if (!GET_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting) &&
+            !GET_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting)) {
+          mqttDoConnect(&mqtt_client);
+        }
+        counterMQTT++;
       }
-      counterMQTT++;
     }
   }
 }

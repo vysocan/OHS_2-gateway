@@ -2,13 +2,11 @@
  * ohs_th_alarm.h
  *
  *  Created on: 23. 2. 2020
- *      Author: adam
+ *      Author: vysocan
  */
 
 #ifndef OHS_TH_ALARM_H_
 #define OHS_TH_ALARM_H_
-
-
 
 /*
  * Alarm event threads
@@ -22,6 +20,7 @@ static THD_FUNCTION(AEThread, arg) {
   alarmEvent_t *inMsg;
   uint8_t groupNum, wait;
   uint16_t count;
+  uint8_t message[SIREN_MSG_LENGTH];
 
   while (true) {
     msg = chMBFetchTimeout(&alarmEvent_mb, (msg_t*)&inMsg, TIME_INFINITE);
@@ -68,6 +67,15 @@ static THD_FUNCTION(AEThread, arg) {
           if (GET_CONF_GROUP_TAMPER2(conf.group[groupNum].setting)) palSetPad(GPIOB, GPIOB_RELAY_2);
         }
         // TODO OHS create alarms with delays, some countries require not continuous sirens
+        // Remote Siren/Horn
+        for (uint8_t i=0; i < NODE_SIZE; i++) {
+          if ((node[i].type == 'H') && (GET_NODE_GROUP(node[i].setting) == groupNum)){
+            message[0] = 'H';
+            message[1] = node[i].number;
+            message[2] = 1;
+            sendData(node[i].address, message, SIREN_MSG_LENGTH);
+          }
+        }
         tmpLog[0] = 'S'; tmpLog[1] = 'X';  tmpLog[2] = groupNum;  pushToLog(tmpLog, 3); // ALARM no auth.
         // MQTT
         if (GET_CONF_GROUP_MQTT(conf.group[groupNum].setting)) pushToMqtt(typeGroup, groupNum, functionState);

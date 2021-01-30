@@ -667,7 +667,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
               chprintf(chp, "%s", html_e_td_td);
               if (GET_CONF_ZONE_ENABLED(conf.zone[i])) {
                 GET_CONF_ZONE_BALANCED(conf.zone[i]) ? chprintf(chp, "%s ", text_balanced) : chprintf(chp, "un%s ", text_balanced);
-                (i > HW_ZONES) ? chprintf(chp, "%s ", text_remote) : chprintf(chp, "%s ", text_local);
+                (i >= HW_ZONES) ? chprintf(chp, "%s ", text_remote) : chprintf(chp, "%s ", text_local);
                 GET_CONF_ZONE_TYPE(conf.zone[i]) ? chprintf(chp, "%s", text_analog) : chprintf(chp, "%s", text_digital);
               }
               chprintf(chp, "%s", html_e_td_td);
@@ -884,6 +884,13 @@ int fs_open_custom(struct fs_file *file, const char *name){
               chprintf(chp, "%s%s:", html_br, text_Tamper);
               if (GET_CONF_GROUP_TAMPER1(conf.group[i].setting)) chprintf(chp, " %s 1", text_relay);
               if (GET_CONF_GROUP_TAMPER2(conf.group[i].setting)) chprintf(chp, " %s 2", text_relay);
+              // Remote Siren/Horn
+              for (uint8_t j=0; j < NODE_SIZE; j++) {
+                if ((node[j].type == 'H') && (GET_NODE_GROUP(node[j].setting) == i)){
+                  chprintf(chp, "%s", html_br);
+                  printNodeAddress(chp, node[j].address, node[j].type, node[j].function, node[j].number, 1);
+                }
+              }
             }
             chprintf(chp, "%s", html_e_td_td);
             if (GET_CONF_GROUP_ENABLED(conf.group[i].setting))
@@ -1917,6 +1924,17 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   if (GET_CONF_ZONE_ENABLED(conf.zone[webZone]) &&
                       GET_CONF_ZONE_MQTT_PUB(conf.zone[webZone])) {
                     pushToMqtt(typeZone, webZone, functionState);
+                  }
+                  // Send remote zone changes
+                  if (webZone >= HW_ZONES) {
+                    message[0] = 'R';
+                    message[1] = 'Z';
+                    message[2] = (GET_CONF_ZONE_TYPE(conf.zone[webZone])) ? 'A' : 'D';
+                    message[3] = webZone + 1;
+                    message[4] = (uint8_t)((conf.zone[webZone] >> 8) & 0b11111111);;
+                    message[5] = (uint8_t)(conf.zone[webZone] & 0b11111111);
+                    memcpy(&message[6], conf.zoneName[webZone], NAME_LENGTH);
+                    resp = sendData(conf.zoneAddress[webZone-HW_ZONES], message, REGISTRATION_SIZE);
                   }
                 break;
                 case 'n': // name

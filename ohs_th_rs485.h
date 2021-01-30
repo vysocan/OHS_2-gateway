@@ -62,17 +62,27 @@ static THD_FUNCTION(RS485Thread, arg) {
           switch(rs485Msg.length) {
             case NODE_CMD_PING: // Nodes should do periodic ping to stay alive/registered
               index = 0; // Just any temp variable
+              // Search in nodes
               for (nodeIndex = 0; nodeIndex < NODE_SIZE; nodeIndex++) {
                 if (node[nodeIndex].address == rs485Msg.address) {
                   node[nodeIndex].lastOK = getTimeUnixSec();
                   index++;
                 }
               }
-              // If not found, call this node to register.
+              // Search in remote zones
+              for (nodeIndex = HW_ZONES; nodeIndex < ALARM_ZONES; nodeIndex++) {
+                if (conf.zoneAddress[nodeIndex - HW_ZONES] == rs485Msg.address) {
+                  index++;
+                }
+              }
+              // If not found, call this node/zone to register.
               if (index == 0) {
                 resp = sendCmd(rs485Msg.address, NODE_CMD_REGISTRATION); // call this address to register
                 DBG_RS485("Unregistered node ping, resp: %d\r\n", resp);
+              } else {
+                DBG_RS485("Node %d ping\r\n", rs485Msg.address);
               }
+
             break;
           }
         }
@@ -153,38 +163,42 @@ static THD_FUNCTION(RS485Thread, arg) {
               } while (index < rs485Msg.length);
               break;
             case 'Z': // Zone
-              index = 0;
+              index = 1; // Skip trailing 'Z'
+              DBG_RS485("Zone ");
               do {
-                index++; // Skip 'R'
+                nodeIndex = rs485Msg.data[index] - 1; // Used here as temporary zone number
+                DBG_RS485(": %d", nodeIndex);
                 // Zone allowed
-                if ((rs485Msg.data[index] > HW_ZONES) && (rs485Msg.data[index] <= ALARM_ZONES)) {
+                if ((nodeIndex >= HW_ZONES) && (nodeIndex < ALARM_ZONES)) {
                   // Zone enabled
-                  if (GET_CONF_ZONE_ENABLED(conf.zone[rs485Msg.data[index]])) {
+                  if (GET_CONF_ZONE_ENABLED(conf.zone[nodeIndex])) {
                     // Zone address and sender address match = zone is remote zone
-                    if (conf.zoneAddress[rs485Msg.data[index]-HW_ZONES] == (rs485Msg.address + RADIO_UNIT_OFFSET)){
-                      zone[rs485Msg.data[index]].lastEvent = rs485Msg.data[index+1];
+                    if (conf.zoneAddress[nodeIndex-HW_ZONES] == (rs485Msg.address)){
+                      DBG_RS485(" = %c", rs485Msg.data[index+1]);
+                      zone[nodeIndex].lastEvent = rs485Msg.data[index+1];
                       if (rs485Msg.data[index+1] == 'O') {
-                        zone[rs485Msg.data[index]].lastOK = getTimeUnixSec();  // update current timestamp
+                        zone[nodeIndex].lastOK = getTimeUnixSec();  // update current timestamp
                       } else {
-                        zone[rs485Msg.data[index]].lastPIR = getTimeUnixSec(); // update current timestamp
+                        zone[nodeIndex].lastPIR = getTimeUnixSec(); // update current timestamp
                       }
                     } else {
                       // Log error just once
-                      if (!GET_ZONE_ERROR(zone[rs485Msg.data[index]].setting)) {
-                        tmpLog[0] = 'Z'; tmpLog[1] = 'e'; tmpLog[2] = rs485Msg.data[index]; tmpLog[3] = 'M'; pushToLog(tmpLog, 4);
-                        SET_ZONE_ERROR(zone[rs485Msg.data[index]].setting); // Set error flag
+                      if (!GET_ZONE_ERROR(zone[nodeIndex].setting)) {
+                        tmpLog[0] = 'Z'; tmpLog[1] = 'e'; tmpLog[2] = nodeIndex; tmpLog[3] = 'M'; pushToLog(tmpLog, 4);
+                        SET_ZONE_ERROR(zone[nodeIndex].setting); // Set error flag
                       }
                     }
                   } else {
                     // Log error just once
-                    if (!GET_ZONE_ERROR(zone[rs485Msg.data[index]].setting)) {
-                      tmpLog[0] = 'Z'; tmpLog[1] = 'e'; tmpLog[2] = rs485Msg.data[index]; tmpLog[3] = 'N'; pushToLog(tmpLog, 4);
-                      SET_ZONE_ERROR(zone[rs485Msg.data[index]].setting); // Set error flag
+                    if (!GET_ZONE_ERROR(zone[nodeIndex].setting)) {
+                      tmpLog[0] = 'Z'; tmpLog[1] = 'e'; tmpLog[2] = nodeIndex; tmpLog[3] = 'N'; pushToLog(tmpLog, 4);
+                      SET_ZONE_ERROR(zone[nodeIndex].setting); // Set error flag
                     }
                   } // else / Zone enabled
                 } // Zone allowed
                 index += 2;
               } while (index < rs485Msg.length);
+              DBG_RS485("\r\n");
               break;
           } // switch case
         } // data

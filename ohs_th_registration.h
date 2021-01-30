@@ -26,6 +26,7 @@ static THD_FUNCTION(RegistrationThread, arg) {
         case 'K':
         case 'S':
         case 'I':
+        case 'H':
           nodeIndex = getNodeIndex(inMsg->address, inMsg->type, inMsg->function, inMsg->number);
           // Node exists
           if (nodeIndex != DUMMY_NO_VALUE ) {
@@ -61,8 +62,9 @@ static THD_FUNCTION(RegistrationThread, arg) {
           break;
           case 'Z': // Zone
             tmpLog[0] = 'Z'; // Log data
+            inMsg->number--; // Array starts form 0, we subtract one from zone for clarity
             // Check if zone number is allowed
-            if ((inMsg->number <= ALARM_ZONES) && (inMsg->number > HW_ZONES)) {
+            if ((inMsg->number < ALARM_ZONES) && (inMsg->number >= HW_ZONES)) {
               // Zone already connected
               if (GET_CONF_ZONE_IS_PRESENT(conf.zone[inMsg->number])) tmpLog[1] = 'r';
               else tmpLog[1] = 'R'; // Log data
@@ -75,11 +77,12 @@ static THD_FUNCTION(RegistrationThread, arg) {
               // Force and register
               conf.zone[inMsg->number] = inMsg->setting; // copy setting
               SET_CONF_ZONE_IS_PRESENT(conf.zone[inMsg->number]); // force "Present - connected"
-              if (inMsg->type == 'A') SET_CONF_ZONE_TYPE(conf.zone[inMsg->number]); // force "Analog"
+              if (inMsg->function == 'A') SET_CONF_ZONE_TYPE(conf.zone[inMsg->number]); // force "Analog"
               else                    CLEAR_CONF_ZONE_TYPE(conf.zone[inMsg->number]); // force "Digital"
               conf.zoneAddress[inMsg->number-HW_ZONES] = inMsg->address; // copy address
               memcpy(&conf.zoneName[inMsg->number], &inMsg->name, NAME_LENGTH);
-              chprintf(console, "Registered zone #%d - %s\r\n", inMsg->number, conf.zoneName[inMsg->number]);
+              chprintf(console, "Registered zone #%d - %s, address %d\r\n",
+                       inMsg->number, conf.zoneName[inMsg->number], conf.zoneAddress[inMsg->number-HW_ZONES]);
               // MQTT publish name
               if (GET_CONF_ZONE_MQTT_PUB(conf.zone[inMsg->number])) pushToMqtt(typeZone, inMsg->number, functionName);
             } else { tmpLog[1] = 'E'; } // Log data

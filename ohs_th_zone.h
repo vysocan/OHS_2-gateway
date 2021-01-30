@@ -2,7 +2,7 @@
  * ohs_th_zone.h
  *
  *  Created on: 23. 2. 2020
- *      Author: adam
+ *      Author: vysocan
  */
 
 #ifndef OHS_TH_ZONE_H_
@@ -35,7 +35,6 @@ static THD_FUNCTION(ZoneThread, arg) {
 
   // Monitoring started
   pushToLogText("SS");
-  pushToMqtt(typeSystem, 1, functionState);
 
   // Manage group MQTT publish
   for (uint8_t i=0; i < ALARM_GROUPS ; i++) {
@@ -104,10 +103,10 @@ static THD_FUNCTION(ZoneThread, arg) {
     for(uint8_t i = 0; i < ALARM_ZONES; i++) {
       if (GET_CONF_ZONE_ENABLED(conf.zone[i])){
         // Remote zone
-        if (i > HW_ZONES) {
-          // Switch remote balanced zone back to OK after 2 seconds, as don't send OK
-          if ((i > HW_ZONES) && (GET_CONF_ZONE_BALANCED(conf.zone[i])) &&
-              (zone[i].lastEvent != 'O') && (zone[i].lastPIR + 2 < getTimeUnixSec())) {
+        if (i >= HW_ZONES) {
+          // Switch remote balanced zone from PIR back to OK after 2 seconds, as they don't send OK
+          if ((GET_CONF_ZONE_BALANCED(conf.zone[i])) && (zone[i].lastEvent == 'P') &&
+              ((zone[i].lastPIR + 2) < getTimeUnixSec())) {
             zone[i].lastEvent = 'O';
             zone[i].lastOK = getTimeUnixSec();    // update current timestamp
           }
@@ -145,7 +144,7 @@ static THD_FUNCTION(ZoneThread, arg) {
         switch((uint16_t)(val)){
           case ALARM_OK_LOW ... ALARM_OK_HI:
             // All but remote balanced node, they will not send OK only PIR and Tamper
-            if (!((i > HW_ZONES) && (GET_CONF_ZONE_BALANCED(conf.zone[i])))) {
+            if (!((i >= HW_ZONES) && (GET_CONF_ZONE_BALANCED(conf.zone[i])))) {
               zone[i].lastEvent = 'O';
               zone[i].lastOK = getTimeUnixSec();    // update current timestamp
             }
@@ -186,7 +185,7 @@ static THD_FUNCTION(ZoneThread, arg) {
               }
             }
             // All but remote balanced node, they will not send OK only PIR and Tamper
-            if (!((i > HW_ZONES) && (GET_CONF_ZONE_BALANCED(conf.zone[i])))) {
+            if (!((i >= HW_ZONES) && (GET_CONF_ZONE_BALANCED(conf.zone[i])))) {
               zone[i].lastEvent = 'P';
               zone[i].lastPIR = getTimeUnixSec();    // update current timestamp
             }
@@ -221,7 +220,7 @@ static THD_FUNCTION(ZoneThread, arg) {
               }
             }
             // All but remote balanced node, they will not send OK only PIR and Tamper
-            if (!((i > HW_ZONES) && (GET_CONF_ZONE_BALANCED(conf.zone[i])))) {
+            if (!((i >= HW_ZONES) && (GET_CONF_ZONE_BALANCED(conf.zone[i])))) {
               zone[i].lastEvent = 'T';
               zone[i].lastPIR = getTimeUnixSec();    // update current timestamp
             }

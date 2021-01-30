@@ -51,7 +51,7 @@
 
 #define RADIO_KEY_SIZE    17    // 16 + 1 for null termination
 #define RADIO_UNIT_OFFSET 15    // Offset of radio nodes of wired nodes
-#define REGISTRATION_SIZE 22    // Registration packet size
+#define REGISTRATION_SIZE 22    // Registration packet size, 'R' + 21
 #define NODE_SIZE         50    // Number of nodes
 #define NODE_ADDRESS_SIZE 5
 
@@ -62,6 +62,8 @@
 
 #define LOGGER_MSG_LENGTH 11    // Maximum size of logger message
 #define LOGGER_OUTPUT_LEN 25    // How many entries to show at once
+
+#define SIREN_MSG_LENGTH  3
 
 // MQTT
 #define MQTT_MAIN_TOPIC   "OHS/"
@@ -819,8 +821,9 @@ void initRuntimeZones(void){
     //                     76543210
     zone[i].setting    = 0b00000000;
     // Force disconnected to all remote zones
-    if (i > HW_ZONES) {
+    if (i >= HW_ZONES) {
       CLEAR_CONF_ZONE_IS_PRESENT(conf.zone[i]);
+      conf.zoneAddress[i - HW_ZONES] = 0;
     }
   }
 }

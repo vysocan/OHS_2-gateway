@@ -2,7 +2,7 @@
  * ohs_functions.h
  *
  *  Created on: 16. 12. 2019
- *      Author: adam
+ *      Author: vysocan
  */
 
 #ifndef OHS_FUNCTIONS_H_
@@ -234,15 +234,24 @@ void armGroup(uint8_t groupNum, uint8_t master, armType_t armType, uint8_t hop) 
  */
 void disarmGroup(uint8_t groupNum, uint8_t master, uint8_t hop) {
   uint8_t resp = 0;
+  uint8_t message[SIREN_MSG_LENGTH];
 
   // we have alarm
   if (GET_GROUP_ALARM(group[groupNum].setting)) {
     CLEAR_GROUP_ALARM(group[groupNum].setting); // Set this group alarm off
-    /* *** TODO OHS: add bitwise reset of OUTs instead of full reset ? */
-    //+++OUTs = 0; // Reset outs
+    // TODO OHS: add bitwise reset of OUTs instead of full reset ?
     // Turn off relays
     palClearPad(GPIOB, GPIOB_RELAY_1);
     palClearPad(GPIOB, GPIOB_RELAY_2);
+    // Remote Siren/Horn
+    for (uint8_t i=0; i < NODE_SIZE; i++) {
+      if ((node[i].type == 'H') && (GET_NODE_GROUP(node[i].setting) == groupNum)){
+        message[0] = 'H';
+        message[1] = node[i].number;
+        message[2] = 0;
+        sendData(node[i].address, message, SIREN_MSG_LENGTH);
+      }
+    }
   }
   // Set each member zone of this group
   for (uint8_t j=0; j < ALARM_ZONES; j++){
@@ -466,6 +475,7 @@ void printNodeType(BaseSequentialStream *chp, const char type) {
     case 'K': chprintf(chp, "%s", text_Authentication); break;
     case 'S': chprintf(chp, "%s", text_Sensor); break;
     case 'I': chprintf(chp, "%s", text_Output); break;
+    case 'H': chprintf(chp, "%s", text_Siren); break;
     default: chprintf(chp, "%s", text_Undefined); break;
   }
 }

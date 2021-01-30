@@ -63,7 +63,7 @@ static THD_FUNCTION(ModemThread, arg) {
             tmp++;
           } while ((palReadPad(GPIOD, GPIOD_GSM_STATUS)) &&
                    (tmp < (uint8_t)(GPRS_PWR_ON_TIME/GPRS_PWR_DELAY)));
-          if (tmp != 0) {
+          if (!palReadPad(GPIOD, GPIOD_GSM_STATUS)) {
             gsmStatus = gprs_OK;
             DBG_MODEM(" started.\r\n");
             pushToLogText("MO");
