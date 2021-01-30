@@ -49,15 +49,18 @@ static THD_FUNCTION(MqttThread, arg) {
 
   while (true) {
     msg = chMBFetchTimeout(&mqtt_mb, (msg_t*)&inMsg, TIME_INFINITE);
+    DBG_MQTT("MQTT %d", inMsg);
     if (msg == MSG_OK) {
-      DBG_MQTT("MQTT %d", inMsg);
       DBG_MQTT(", Type: %d", (uint8_t)inMsg->type);
       DBG_MQTT(", # %d", inMsg->number);
       DBG_MQTT(", Function: %d\r\n", (uint8_t)inMsg->function);
 
-      // Wait for free MQTT semaphore
-      if (chBSemWaitTimeout(&mqttSem, TIME_MS2I(100)) == MSG_OK) {
-        if (mqtt_client_is_connected(&mqtt_client)) {
+      LOCK_TCPIP_CORE();
+      retain = mqtt_client_is_connected(&mqtt_client); // retain as temp value
+      UNLOCK_TCPIP_CORE();
+      if (retain) {
+        // Wait for free MQTT semaphore
+        if (chBSemWaitTimeout(&mqttSem, TIME_MS2I(100)) == MSG_OK) {
           // Prepare message
           switch (inMsg->type) {
             case typeSystem:
@@ -73,7 +76,7 @@ static THD_FUNCTION(MqttThread, arg) {
               }
               break;
             case typeGroup:
-              qos = 1; retain = 0;
+              qos = 1; retain = 1;
               chsnprintf(topic, sizeof(topic), "%s%s/%d/", MQTT_MAIN_TOPIC, text_group, inMsg->number + 1);
               switch (inMsg->function) {
                 case functionName:
@@ -158,18 +161,20 @@ static THD_FUNCTION(MqttThread, arg) {
               break;
           }
           // publish
+          LOCK_TCPIP_CORE();
           err = mqtt_publish(&mqtt_client, &topic[0], &payload[0], strlen(payload),
                              qos, retain, mqttPubRequestCB, NULL);
+          UNLOCK_TCPIP_CORE();
           if(err != ERR_OK) {
             DBG_MQTT("MQTT publish err: %d\n", err);
             pushToLogText("QEP"); // Publish error
           }
-        } // MQTT client connected
-      } else {
-        DBG_MQTT("MQTT publish semaphore timeout\r\n");
-        // Reset the semaphore to allow next publish
-        chBSemReset(&mqttSem, false);
-      }
+        } else {
+          DBG_MQTT("MQTT publish semaphore timeout!\r\n");
+          // Reset the semaphore to allow next publish
+          chBSemReset(&mqttSem, false);
+        }
+      } // MQTT client connected
     } else {
       DBG_MQTT("MQTT MB ERROR\r\n");
     }

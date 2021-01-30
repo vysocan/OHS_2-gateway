@@ -59,21 +59,23 @@
 #include "static_lwipopts.h"
 #include "date_time.h"
 
-#define LWIP_PRINT(...)  {chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__); chprintf((BaseSequentialStream*) &SD3, "\r\n");}
+#define LWIP_PRINT(...)  {chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__); chprintf((BaseSequentialStream*) &SD3, "\r");}
 
 // TODO OHS #define LWIP_RAM_HEAP_POINTER (void *) SOME_ADDRESS Move LWIP to CCM?
 
 /* OHS overrides */
-#define MEMP_NUM_SYS_TIMEOUT    (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 6) // +1 MDSN,
-#define MEMP_NUM_UDP_PCB        7 // , +1 MDSN
-#define MEMP_NUM_TCP_PCB        7
-#define MEMP_NUM_TCP_PCB_LISTEN 10
-#define MEMP_NUM_PBUF           20
-#define MEMP_NUM_RAW_PCB        6
-#define MEMP_NUM_TCP_SEG        15
+#define MEMP_NUM_SYS_TIMEOUT     (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 6) // +1 MDSN,
+#define MEMP_NUM_UDP_PCB         5 // , +1 MDSN
+#define MEMP_NUM_TCP_PCB         20
+#define MEMP_NUM_TCP_PCB_LISTEN  5
+#define MEMP_NUM_PBUF            20
+#define MEMP_NUM_RAW_PCB         6
+#define MEMP_NUM_TCP_SEG         15
+//#define MEMP_NUM_TCPIP_MSG_INPKT 20 // +2 MQTT
 //#define TCP_SND_QUEUELEN        ((6 * (TCP_SND_BUF) + (TCP_MSS - 1))/(TCP_MSS))
 //#define MEMP_NUM_TCP_SEG        TCP_SND_QUEUELEN
-#define PBUF_POOL_SIZE          16
+#define PBUF_POOL_SIZE           16
+
 
 /* Optional, application-specific settings.*/
 #if !defined(TCPIP_MBOX_SIZE)
@@ -95,13 +97,13 @@
 #define LWIP_STATS              0
 #if LWIP_STATS
 #define LWIP_STATS_DISPLAY      1
-#define LINK_STATS              1
-#define IP_STATS                1
-#define ICMP_STATS              1
-#define IGMP_STATS              1
-#define IPFRAG_STATS            1
-#define UDP_STATS               1
-#define TCP_STATS               1
+#define LINK_STATS              0
+#define IP_STATS                0
+#define ICMP_STATS              0
+#define IGMP_STATS              0
+#define IPFRAG_STATS            0
+#define UDP_STATS               0
+#define TCP_STATS               0
 #define MEM_STATS               1
 #define MEMP_STATS              1
 #define PBUF_STATS              1
@@ -172,8 +174,8 @@
 // SNTP
 #define SNTP_SERVER_DNS         1
 #define SNTP_STARTUP_DELAY      1       // enable
-#define SNTP_STARTUP_DELAY_FUNC (20000) // SNTP first query after 20 seconds
-#define SNTP_UPDATE_DELAY       3600000 // SNTP update every 30 minutes
+#define SNTP_STARTUP_DELAY_FUNC (20000) // SNTP first query after # seconds
+#define SNTP_UPDATE_DELAY       3600000 // SNTP update every # seconds
 
 // Maximum segment size
 #define TCP_MSS 1024
@@ -197,9 +199,17 @@
  */
 #define SNTP_SET_SYSTEM_TIME(sec) \
   do{time_t timestamp = (sec);\
-     RTCDateTime _ts;\
-     convertUnixSecondToRTCDateTime(&_ts, timestamp);\
-     rtcSetTime(&RTCD1, &_ts);\
-   }while(0)
+    RTCDateTime _ts;\
+    convertUnixSecondToRTCDateTime(&_ts, timestamp);\
+    rtcSetTime(&RTCD1, &_ts);\
+  }while(0)
+
+/*
+ * LWIP core locking
+ */
+#if LWIP_TCPIP_CORE_LOCKING
+void lwip_assert_core_locked(void);
+#define LWIP_ASSERT_CORE_LOCKED() lwip_assert_core_locked();
+#endif
 
 #endif /* LWIP_HDR_LWIPOPTS_H__ */

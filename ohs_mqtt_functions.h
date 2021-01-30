@@ -69,10 +69,10 @@ static void mqttIncomingPublishCB(void *arg, const char *topic, u32_t tot_len) {
  * Subscribe topics: MQTT_MAIN_TOPIC MQTT_SET_TOPIC #
  * /group
  *   /{#} - index of group {1 .. ALARM_GROUPS}
- *     /state {disarm, arm_home, arm_away}
- * /sensor
+ *     /state - allowed commands {disarm, arm_home, arm_away}
+ * /sensor - allowed only  for 'I'nput nodes
  *   /{address} - node address like W:2:K:i:0
- *     /state
+ *     /value - float value
  */
 static void mqttIncomingDataCB(void *arg, const u8_t *data, u16_t len, u8_t flags) {
   char *pch, *addressIndex[NODE_ADDRESS_SIZE];
@@ -146,9 +146,8 @@ static void mqttIncomingDataCB(void *arg, const u8_t *data, u16_t len, u8_t flag
             DBG_MQTT_FUNC(", node index: %d", index);
             if (pch != NULL) {
               DBG_MQTT_FUNC(", topic: %s", pch);
-              // Value
-              //if ((strcmp(pch, text_value) == 0) && (node[index].function == 'I')) {
-              if (strcmp(pch, text_value) == 0) {
+              // Value only for Input nodes
+              if ((strcmp(pch, text_value) == 0) && (node[index].function == 'I')) {
                 DBG_MQTT_FUNC(" = '%.*s'", len, (const char *)mqttInPayload);
                 floatConv.val = strtof((const char *)mqttInPayload, NULL);
                 message[0] = node[index].function;
@@ -207,10 +206,12 @@ static void mqttConnectionCB(mqtt_client_t *client, void *arg, mqtt_connection_s
 
     // Subscribe to set topic
     if (GET_CONF_MQTT_SUBSCRIBE(conf.mqtt.setting)) {
+      LOCK_TCPIP_CORE();
       // Setup callback for incoming publish requests
       mqtt_set_inpub_callback(client, mqttIncomingPublishCB, mqttIncomingDataCB, &mqttInTopic);
       // Subscribe to a topic
       err = mqtt_subscribe(client, MQTT_MAIN_TOPIC MQTT_SET_TOPIC "#", 1, mqttSubscribeCB, arg);
+      UNLOCK_TCPIP_CORE();
 
       if(err != ERR_OK) {
         DBG_MQTT_FUNC("MQTT connect CB: Subscribe error: %d\r\n", err);
@@ -218,6 +219,9 @@ static void mqttConnectionCB(mqtt_client_t *client, void *arg, mqtt_connection_s
         pushToLogText("QES"); // Subscribe error
       }
     } // Subscribe to set topic
+
+    // Publish state
+    pushToMqtt(typeSystem, 1, functionState);
   } else {
     DBG_MQTT_FUNC("MQTT CB: Disconnected, reason: %d\r\n", status);
     SET_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting);
@@ -237,6 +241,7 @@ static void mqttConnectionCB(mqtt_client_t *client, void *arg, mqtt_connection_s
 void mqttDoConnect(mqtt_client_t *client) {
   err_t err;
 
+  DBG_MQTT_FUNC("MQTT mqttDoConnect\r\n");
   // Resolve mqtt.address to IP address
   if (!(ipaddr_aton(conf.mqtt.address, &mqtt_ip))) {
     // Address is not in IP address format
@@ -262,8 +267,10 @@ void mqttDoConnect(mqtt_client_t *client) {
 
   // If we have presumably valid IP address, try to connect
   if (!GET_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting)) {
+    LOCK_TCPIP_CORE();
     err = mqtt_client_connect(client, &mqtt_ip, conf.mqtt.port, mqttConnectionCB,
                               LWIP_CONST_CAST(void*, &mqttCI), &mqttCI);
+    UNLOCK_TCPIP_CORE();
 
     // Check immediate return code
     if(err != ERR_OK) {

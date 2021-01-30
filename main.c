@@ -95,6 +95,7 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 #include "lwip/arch.h"//
 #include "lwip/api.h" //
 #include "lwip/stats.h"
+#include "lwip/tcpip.h"
 #include "lwip/apps/httpd.h"
 #include "lwip/apps/sntp.h"
 #include "lwip/apps/smtp.h"
@@ -290,8 +291,10 @@ int main(void) {
 
   stats_init();
   //ETH->MACFFR |= ETH_MACFFR_PAM;
+  LOCK_TCPIP_CORE();
   httpd_init();
   sntp_init();
+  UNLOCK_TCPIP_CORE();
   // TODO OHS implement IGMP and MDNS
 #if LWIP_MDNS_RESPONDER
   chThdSleepMilliseconds(100);
@@ -336,12 +339,16 @@ int main(void) {
   // TODO OHS Allow driver to set frequency
   // RFM69 key
   if (conf.radioKey[0] != 0) rfm69Encrypt(conf.radioKey);
+
+  // LWIP
+  LOCK_TCPIP_CORE();
   // SMTP
   smtp_set_server_addr(conf.SMTPAddress);
   smtp_set_server_port(conf.SMTPPort);
   smtp_set_auth(conf.SMTPUser, conf.SMTPPassword);
   // SNTP
   sntp_setservername(0, conf.SNTPAddress);
+  UNLOCK_TCPIP_CORE();
   // MQTT
   CLEAR_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting); // Force resolve address on start
 
