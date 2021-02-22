@@ -5,6 +5,7 @@
  *
  */
 //TODO OHS rename ch.bin to ohs.bin
+//TODO OHS add send mode for authentication nodes based on group state
 // Optimize stack and overflow
 #define PORT_INT_REQUIRED_STACK 128
 // Remove input queue for GPRS to save RAM
@@ -66,7 +67,7 @@ struct tcl tcl;
 char logText[LOG_TEXT_LENGTH] __attribute__((section(".ram4"))); // To decode log text
 
 // OHS includes
-#include "OHS_text_const.h"
+#include <ohs_text_const.h>
 #include "ohs_conf.h"
 #include "date_time.h"
 #include "ohs_peripheral.h"
@@ -351,6 +352,7 @@ int main(void) {
   UNLOCK_TCPIP_CORE();
   // MQTT
   CLEAR_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting); // Force resolve address on start
+  conf.mqtt.setting = 0b00000000;
 
   // Start
   startTime = getTimeUnixSec();

@@ -113,6 +113,10 @@ int tcl_next(const char* s, size_t n, const char** from, const char** to, int* q
     *from = *to = s + 1;
     DBG("TWORD>(%.*s)|%d\r\n", n, s, q);
     return TWORD;
+  } else if (*s == ']' || *s == '}') {
+    // Unbalanced bracket or brace
+    TCL_ERROR("Unbalanced '%s'.", s);
+    return TERROR;
   } else {
     while (i <= n && (*q || !tcl_is_space(s[i])) && !tcl_is_special(s[i], *q)) {
       i++;
