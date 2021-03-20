@@ -711,7 +711,7 @@ static uint8_t decodeLog(char *in, char *out, bool full){
         if (in[1] != 'U') {
           chprintf(chp, "#%u, %s ", (uint8_t)in[2] + 1, text_linked_to);
           if (conf.key[(uint8_t)in[2]].contact == DUMMY_NO_VALUE) chprintf(chp, "%s ", NOT_SET);
-          else chprintf(chp, "%s ", conf.contact[(conf.key[(uint8_t)in[2]].contact)]);
+          else chprintf(chp, "%s ", conf.contact[(conf.key[(uint8_t)in[2]].contact)].name);
           groupNum = GET_CONF_CONTACT_GROUP(conf.key[(uint8_t)in[2]].contact);
         }
       }
