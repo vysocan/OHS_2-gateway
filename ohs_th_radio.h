@@ -54,7 +54,7 @@ static THD_FUNCTION(RadioThread, arg) {
                 // This is needed for sleeping battery nodes, or they wont see reg. command.
                 chThdSleepMilliseconds(5);
                 resp = sendCmd(rfm69Data.senderId + RADIO_UNIT_OFFSET, NODE_CMD_REGISTRATION); // call this address to register
-                DBG_RS485("Unregistered node ping, resp: %d\r\n", resp);
+                DBG_RADIO("Unregistered node ping, resp: %d\r\n", resp);
               }
             break;
           }
@@ -132,38 +132,42 @@ static THD_FUNCTION(RadioThread, arg) {
           } while (index < rfm69Data.length);
           break;
         case 'Z': // Zone
-          index = 0;
+          index = 1; // Skip first 'Z'
+          DBG_RADIO("Zone");
           do {
-            index++; // Skip 'R'
+            nodeIndex = rfm69Data.data[index] - 1; // Used here as temporary zone number
+            DBG_RADIO(": %d", nodeIndex);
             // Zone allowed
-            if ((rfm69Data.data[index] > HW_ZONES) && (rfm69Data.data[index] <= ALARM_ZONES)) {
+            if ((nodeIndex >= HW_ZONES) && (nodeIndex < ALARM_ZONES)) {
               // Zone enabled
-              if (GET_CONF_ZONE_ENABLED(conf.zone[rfm69Data.data[index]])) {
+              if (GET_CONF_ZONE_ENABLED(conf.zone[nodeIndex])) {
                 // Zone address and sender address match = zone is remote zone
-                if (conf.zoneAddress[rfm69Data.data[index]-HW_ZONES] == (rfm69Data.senderId + RADIO_UNIT_OFFSET)){
-                  zone[rfm69Data.data[index]].lastEvent = rfm69Data.data[index+1];
+                if (conf.zoneAddress[nodeIndex-HW_ZONES] == (rfm69Data.senderId) + RADIO_UNIT_OFFSET){
+                  DBG_RADIO(" = %c", rfm69Data.data[index+1]);
+                  zone[nodeIndex].lastEvent = rfm69Data.data[index+1];
                   if (rfm69Data.data[index+1] == 'O') {
-                    zone[rfm69Data.data[index]].lastOK = getTimeUnixSec();  // update current timestamp
+                    zone[nodeIndex].lastOK = getTimeUnixSec();  // update current timestamp
                   } else {
-                    zone[rfm69Data.data[index]].lastPIR = getTimeUnixSec(); // update current timestamp
+                    zone[nodeIndex].lastPIR = getTimeUnixSec(); // update current timestamp
                   }
                 } else {
                   // Log error just once
-                  if (!GET_ZONE_ERROR(zone[rfm69Data.data[index]].setting)) {
-                    tmpLog[0] = 'Z'; tmpLog[1] = 'e'; tmpLog[2] = rfm69Data.data[index]; tmpLog[3] = 'M'; pushToLog(tmpLog, 4);
-                    SET_ZONE_ERROR(zone[rfm69Data.data[index]].setting); // Set error flag
+                  if (!GET_ZONE_ERROR(zone[nodeIndex].setting)) {
+                    tmpLog[0] = 'Z'; tmpLog[1] = 'e'; tmpLog[2] = nodeIndex; tmpLog[3] = 'M'; pushToLog(tmpLog, 4);
+                    SET_ZONE_ERROR(zone[nodeIndex].setting); // Set error flag
                   }
                 }
               } else {
                 // Log error just once
-                if (!GET_ZONE_ERROR(zone[rfm69Data.data[index]].setting)) {
-                  tmpLog[0] = 'Z'; tmpLog[1] = 'e'; tmpLog[2] = rfm69Data.data[index]; tmpLog[3] = 'N'; pushToLog(tmpLog, 4);
-                  SET_ZONE_ERROR(zone[rfm69Data.data[index]].setting); // Set error flag
+                if (!GET_ZONE_ERROR(zone[nodeIndex].setting)) {
+                  tmpLog[0] = 'Z'; tmpLog[1] = 'e'; tmpLog[2] = nodeIndex; tmpLog[3] = 'N'; pushToLog(tmpLog, 4);
+                  SET_ZONE_ERROR(zone[nodeIndex].setting); // Set error flag
                 }
               } // else / Zone enabled
             } // Zone allowed
             index += 2;
           } while (index < rfm69Data.length);
+          DBG_RADIO("\r\n");
           break;
       } // switch case
     } // received

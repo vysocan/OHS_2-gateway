@@ -820,10 +820,11 @@ void initRuntimeZones(void){
     //                     ||||||||- Free
     //                     76543210
     zone[i].setting    = 0b00000000;
-    // Force disconnected to all remote zones
+    // Force disconnected and OK to all remote zones
     if (i >= HW_ZONES) {
       CLEAR_CONF_ZONE_IS_PRESENT(conf.zone[i]);
       conf.zoneAddress[i - HW_ZONES] = 0;
+      zone[i].lastEvent = 'O';
     }
   }
 }

@@ -163,8 +163,8 @@ static THD_FUNCTION(RS485Thread, arg) {
               } while (index < rs485Msg.length);
               break;
             case 'Z': // Zone
-              index = 1; // Skip trailing 'Z'
-              DBG_RS485("Zone ");
+              index = 1; // Skip first 'Z'
+              DBG_RS485("Zone");
               do {
                 nodeIndex = rs485Msg.data[index] - 1; // Used here as temporary zone number
                 DBG_RS485(": %d", nodeIndex);
