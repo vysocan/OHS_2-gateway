@@ -43,30 +43,30 @@ char current_uri[LWIP_HTTPD_MAX_REQUEST_URI_LEN] __attribute__((section(".ram4")
 char postData[HTTP_POST_DATA_SIZE] __attribute__((section(".ram4")));
 char alertMsg[HTTP_ALERT_MSG_SIZE] __attribute__((section(".ram4")));
 
-const char text_i_home[]            = "<i class='icon'>&#xe800;</i>";
-const char text_i_contact[]         = "<i class='icon'>&#xe801;</i>";
-const char text_i_key[]             = "<i class='icon'>&#xe802;</i>";
-const char text_i_alert[]           = "<i class='icon'>&#xe803;</i>";
-const char text_i_time[]            = "<i class='icon'>&#xe804;</i>";
-const char text_i_OK[]              = "<i class='icon'>&#xe805;</i>";
-const char text_i_disabled[]        = "<i class='icon'>&#xe806;</i>";
-const char text_i_setting[]         = "<i class='icon'>&#xe807;</i>";
-const char text_i_calendar[]        = "<i class='icon'>&#xe808;</i>";
-const char text_i_globe[]           = "<i class='icon'>&#xe809;</i>";
-const char text_i_lock[]            = "<i class='icon'>&#xe80a;</i>";
-const char text_i_lock_closed[]     = "<i class='icon'>&#xe80b;</i>";
-const char text_i_zone[]            = "<i class='icon'>&#xf096;</i>";
-const char text_i_network[]         = "<i class='icon'>&#xf0e8;</i>";
-const char text_i_alarm[]           = "<i class='icon'>&#xf0f3;</i>";
-const char text_i_starting[]        = "<i class='icon'>&#xf110;</i>";
-const char text_i_code[]            = "<i class='icon'>&#xf121;</i>";
-const char text_i_question[]        = "<i class='icon'>&#xf191;</i>";
-const char text_i_trigger[]         = "<i class='icon'>&#xf192;</i>";
-const char text_i_script[]          = "<i class='icon'>&#xf1c9;</i>";
-const char text_i_option[]          = "<i class='icon'>&#xf1de;</i>";
-const char text_i_nodes[]           = "<i class='icon'>&#xf1e0;</i>";
-const char text_i_group[]           = "<i class='icon'>&#xf24d;</i>";
-const char text_i_hash[]            = "<i class='icon'>&#xf292;</i>";
+const char html_i_home[]            = "<i class='icon'>&#xe800;</i>";
+const char html_i_contact[]         = "<i class='icon'>&#xe801;</i>";
+const char html_i_key[]             = "<i class='icon'>&#xe802;</i>";
+const char html_i_alert[]           = "<i class='icon'>&#xe803;</i>";
+const char html_i_time[]            = "<i class='icon'>&#xe804;</i>";
+const char html_i_OK[]              = "<i class='icon'>&#xe805;</i>";
+const char html_i_disabled[]        = "<i class='icon'>&#xe806;</i>";
+const char html_i_setting[]         = "<i class='icon'>&#xe807;</i>";
+const char html_i_calendar[]        = "<i class='icon'>&#xe808;</i>";
+const char html_i_globe[]           = "<i class='icon'>&#xe809;</i>";
+const char html_i_lock[]            = "<i class='icon'>&#xe80a;</i>";
+const char html_i_lock_closed[]     = "<i class='icon'>&#xe80b;</i>";
+const char html_i_zone[]            = "<i class='icon'>&#xf096;</i>";
+const char html_i_network[]         = "<i class='icon'>&#xf0e8;</i>";
+const char html_i_alarm[]           = "<i class='icon'>&#xf0f3;</i>";
+const char html_i_starting[]        = "<i class='icon'>&#xf110;</i>";
+const char html_i_code[]            = "<i class='icon'>&#xf121;</i>";
+const char html_i_question[]        = "<i class='icon'>&#xf191;</i>";
+const char html_i_trigger[]         = "<i class='icon'>&#xf192;</i>";
+const char html_i_script[]          = "<i class='icon'>&#xf1c9;</i>";
+const char html_i_option[]          = "<i class='icon'>&#xf1de;</i>";
+const char html_i_nodes[]           = "<i class='icon'>&#xf1e0;</i>";
+const char html_i_group[]           = "<i class='icon'>&#xf24d;</i>";
+const char html_i_hash[]            = "<i class='icon'>&#xf292;</i>";
 const char html_tr_td[]             = "<tr><td>";
 const char html_e_td_td[]           = "</td><td>";
 const char html_e_td_e_tr[]         = "</td></tr>";
@@ -210,8 +210,8 @@ static const webPage_t webPage[] = {
 };
 
 void printOkNok(BaseSequentialStream *chp, const int8_t value) {
-  if (value == 1) chprintf(chp, "%s", text_i_OK);
-  else            chprintf(chp, "%s", text_i_disabled);
+  if (value == 1) chprintf(chp, "%s", html_i_OK);
+  else            chprintf(chp, "%s", html_i_disabled);
 }
 
 void printRadioButton(BaseSequentialStream *chp, const char *name, const uint8_t value,
@@ -687,12 +687,12 @@ int fs_open_custom(struct fs_file *file, const char *name){
               chprintf(chp, "%s", html_e_td_td);
               if (GET_CONF_ZONE_ENABLED(conf.zone[i])) {
                 switch(zone[i].lastEvent){
-                  case 'O': chprintf(chp, "%s", text_i_OK); break;
-                  case 'P': chprintf(chp, "%s", text_i_alarm); break;
-                  case 'N': chprintf(chp, "%s", text_i_starting); break;
+                  case 'O': chprintf(chp, "%s", html_i_OK); break;
+                  case 'P': chprintf(chp, "%s", html_i_alarm); break;
+                  case 'N': chprintf(chp, "%s", html_i_starting); break;
                   default: chprintf(chp, "%s", text_tamper); break;
                 }
-              } else { chprintf(chp, "%s", text_i_disabled); }
+              } else { chprintf(chp, "%s", html_i_disabled); }
               chprintf(chp, "%s", html_e_td_td);
               printGroup(chp, GET_CONF_ZONE_GROUP(conf.zone[i]));
               chprintf(chp, "%s", html_e_td_e_tr);
@@ -807,7 +807,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%ss", html_e_th_th, text_Authentication);
           chprintf(chp, "%s%ss", html_e_th_th, text_Sensor);
           chprintf(chp, "%s%ss", html_e_th_th, text_Contact);
-          chprintf(chp, "%s%s", html_e_th_th, text_Trigger);
+          chprintf(chp, "%s%s", html_e_th_th, text_Siren);
           chprintf(chp, "%s%s", html_e_th_th, text_MQTT);
           chprintf(chp, "%s%s", html_e_th_th, text_Armed);
           chprintf(chp, "%s%s%s\r\n", html_e_th_th, text_Status, html_e_th_e_tr);
@@ -898,19 +898,19 @@ int fs_open_custom(struct fs_file *file, const char *name){
             chprintf(chp, "%s", html_e_td_td);
             if (GET_CONF_GROUP_ENABLED(conf.group[i].setting)) {
               if (GET_GROUP_ARMED(group[i].setting)) {
-                if GET_GROUP_ARMED_HOME(group[i].setting) { chprintf(chp, "%s", text_i_home); }
-                else                                      { chprintf(chp, "%s", text_i_OK); }
+                if GET_GROUP_ARMED_HOME(group[i].setting) { chprintf(chp, "%s", html_i_home); }
+                else                                      { chprintf(chp, "%s", html_i_OK); }
               } else {
-                if (group[i].armDelay > 0) { chprintf(chp, "%s", text_i_starting); }
-                else                       { chprintf(chp, "%s", text_i_disabled); }
+                if (group[i].armDelay > 0) { chprintf(chp, "%s", html_i_starting); }
+                else                       { chprintf(chp, "%s", html_i_disabled); }
               }
             }
             chprintf(chp, "%s", html_e_td_td);
             if (GET_CONF_GROUP_ENABLED(conf.group[i].setting)) {
               if (GET_GROUP_ALARM(group[i].setting) == 0) {
-                if (GET_GROUP_WAIT_AUTH(group[i].setting)) { chprintf(chp, "%s", text_i_starting); }
-                else                                       { chprintf(chp, "%s", text_i_OK); }
-              } else { chprintf(chp, "%s", text_i_alarm); }
+                if (GET_GROUP_WAIT_AUTH(group[i].setting)) { chprintf(chp, "%s", html_i_starting); }
+                else                                       { chprintf(chp, "%s", html_i_OK); }
+              } else { chprintf(chp, "%s", html_i_alarm); }
             }
             chprintf(chp, "%s", html_e_td_e_tr);
           }
@@ -972,12 +972,12 @@ int fs_open_custom(struct fs_file *file, const char *name){
           printOkNok(chp, gprsIsAlive);
           chprintf(chp, "%s%sed%s", html_e_td_e_tr_tr_td, text_Register, html_e_td_td);
           switch(gprsReg){
-            case 0 : chprintf(chp, "%s", text_i_OK); break;
-            case 1 : chprintf(chp, "%s", text_i_home); break;
-            case 2 : chprintf(chp, "%s", text_i_starting); break;
-            case 3 : chprintf(chp, "%s", text_i_disabled); break;
-            case 5 : chprintf(chp, "%s", text_i_globe); break;
-            default : chprintf(chp, "%s", text_i_question);; break; // case 4
+            case 0 : chprintf(chp, "%s", html_i_OK); break;
+            case 1 : chprintf(chp, "%s", html_i_home); break;
+            case 2 : chprintf(chp, "%s", html_i_starting); break;
+            case 3 : chprintf(chp, "%s", html_i_disabled); break;
+            case 5 : chprintf(chp, "%s", html_i_globe); break;
+            default : chprintf(chp, "%s", html_i_question);; break; // case 4
           }
           chprintf(chp, "%s%s %s%s%u%%", html_e_td_e_tr_tr_td, text_Signal, text_strength, html_e_td_td, gprsStrength);
           // +CPSI: GSM,Online,230-02,0x0726,4285,69 // remove +CPSI: &[7]
