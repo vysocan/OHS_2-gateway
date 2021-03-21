@@ -60,7 +60,9 @@ static THD_FUNCTION(MqttThread, arg) {
       UNLOCK_TCPIP_CORE();
       if (retain) {
         // Wait for free MQTT semaphore
+        DBG_MQTT("mqttSem: ");
         if (chBSemWaitTimeout(&mqttSem, TIME_MS2I(100)) == MSG_OK) {
+          DBG_MQTT("OK\r\n");
           // Prepare message
           switch (inMsg->type) {
             case typeSystem:

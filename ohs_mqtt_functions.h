@@ -56,6 +56,7 @@ static void mqttPubRequestCB(void *arg, err_t result) {
  * MQTT subscribe topic callback
  */
 static void mqttIncomingPublishCB(void *arg, const char *topic, u32_t tot_len) {
+  LWIP_UNUSED_ARG(tot_len);
 
   DBG_MQTT_FUNC("Incoming publish at topic %s with total length %u\r\n", topic, (unsigned int)tot_len);
   // Clear mqttInTopic passed to arg
@@ -73,6 +74,11 @@ static void mqttIncomingPublishCB(void *arg, const char *topic, u32_t tot_len) {
  * /sensor - allowed only  for 'I'nput nodes
  *   /{address} - node address like W:2:K:i:0
  *     /value - float value
+ *
+ * ToDo:
+ * /SMS - send SMS to contact
+ *   /{#} - index of user {1 .. CONTACTS_SIZE}
+ *     /text - string to send
  */
 static void mqttIncomingDataCB(void *arg, const u8_t *data, u16_t len, u8_t flags) {
   char *pch, *addressIndex[NODE_ADDRESS_SIZE];
@@ -206,10 +212,8 @@ static void mqttConnectionCB(mqtt_client_t *client, void *arg, mqtt_connection_s
 
     // Subscribe to set topic
     if (GET_CONF_MQTT_SUBSCRIBE(conf.mqtt.setting)) {
-      LOCK_TCPIP_CORE();
-      // Setup callback for incoming publish requests
-      mqtt_set_inpub_callback(client, mqttIncomingPublishCB, mqttIncomingDataCB, &mqttInTopic);
       // Subscribe to a topic
+      LOCK_TCPIP_CORE();
       err = mqtt_subscribe(client, MQTT_MAIN_TOPIC MQTT_SET_TOPIC "#", 1, mqttSubscribeCB, arg);
       UNLOCK_TCPIP_CORE();
 
@@ -267,6 +271,12 @@ void mqttDoConnect(mqtt_client_t *client) {
 
   // If we have presumably valid IP address, try to connect
   if (!GET_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting)) {
+    // Setup callback for incoming publish requests
+    LOCK_TCPIP_CORE();
+    mqtt_set_inpub_callback(client, mqttIncomingPublishCB, mqttIncomingDataCB, &mqttInTopic);
+    UNLOCK_TCPIP_CORE();
+
+    // Try to connect
     LOCK_TCPIP_CORE();
     err = mqtt_client_connect(client, &mqtt_ip, conf.mqtt.port, mqttConnectionCB,
                               LWIP_CONST_CAST(void*, &mqttCI), &mqttCI);

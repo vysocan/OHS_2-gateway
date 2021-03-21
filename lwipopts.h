@@ -120,7 +120,7 @@
 #define LWIP_DNS 1
 #define DNS_TABLE_SIZE                  4   /** DNS maximum number of entries to maintain locally. */
 #define DNS_MAX_NAME_LENGTH             256 /** DNS maximum host name length supported in the name table. */
-#define DNS_SERVER_ADDRESS(ipaddr)      (((ipaddr)->addr) = 134744072)
+#define DNS_SERVER_ADDRESS(ipaddr)      (((ipaddr)->addr) = 134744072) // Google's 8.8.8.8
 #define DNS_MAX_SERVERS                 2   /** The maximum of DNS servers */
 #define DNS_DOES_NAME_CHECK             1   /** DNS do a name checking between the query and the response. */
 // DHCP
