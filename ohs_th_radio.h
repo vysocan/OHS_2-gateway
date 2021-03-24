@@ -55,6 +55,8 @@ static THD_FUNCTION(RadioThread, arg) {
                 chThdSleepMilliseconds(5);
                 resp = sendCmd(rfm69Data.senderId + RADIO_UNIT_OFFSET, NODE_CMD_REGISTRATION); // call this address to register
                 DBG_RADIO("Unregistered node ping, resp: %d\r\n", resp);
+              } else {
+                DBG_RADIO("Node %d ping\r\n", rfm69Data.senderId);
               }
             break;
           }
