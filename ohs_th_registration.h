@@ -32,7 +32,8 @@ static THD_FUNCTION(RegistrationThread, arg) {
           if (nodeIndex != DUMMY_NO_VALUE ) {
             node[nodeIndex].setting = inMsg->setting;
             node[nodeIndex].lastOK  = getTimeUnixSec();
-            // Reset value
+            memcpy(&node[nodeIndex].name, &inMsg->name, NAME_LENGTH);
+            // Reset value, 0 or dummy for authentication
             if (node[nodeIndex].function == 'i') node[nodeIndex].value = DUMMY_NO_VALUE;
             else                                 node[nodeIndex].value = 0;
             memcpy(&node[nodeIndex].name, &inMsg->name, NAME_LENGTH); // node[nodeIndex].name[NAME_LENGTH-1] = 0;
@@ -48,7 +49,7 @@ static THD_FUNCTION(RegistrationThread, arg) {
               node[nodeIndex].number   = inMsg->number;
               node[nodeIndex].setting  = inMsg->setting;
               node[nodeIndex].lastOK  = getTimeUnixSec();
-              // Reset value
+              // Reset value, 0 or dummy for authentication
               if (node[nodeIndex].function == 'i') node[nodeIndex].value = DUMMY_NO_VALUE;
               else                                 node[nodeIndex].value = 0;
               memcpy(&node[nodeIndex].name, &inMsg->name, NAME_LENGTH);
@@ -78,7 +79,7 @@ static THD_FUNCTION(RegistrationThread, arg) {
               conf.zone[inMsg->number] = inMsg->setting; // copy setting
               SET_CONF_ZONE_IS_PRESENT(conf.zone[inMsg->number]); // force "Present - connected"
               if (inMsg->function == 'A') SET_CONF_ZONE_TYPE(conf.zone[inMsg->number]); // force "Analog"
-              else                    CLEAR_CONF_ZONE_TYPE(conf.zone[inMsg->number]); // force "Digital"
+              else                        CLEAR_CONF_ZONE_TYPE(conf.zone[inMsg->number]); // force "Digital"
               conf.zoneAddress[inMsg->number-HW_ZONES] = inMsg->address; // copy address
               memcpy(&conf.zoneName[inMsg->number], &inMsg->name, NAME_LENGTH);
               chprintf(console, "Registered zone #%d - %s, address %d\r\n",

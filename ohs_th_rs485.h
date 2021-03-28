@@ -82,7 +82,6 @@ static THD_FUNCTION(RS485Thread, arg) {
               } else {
                 DBG_RS485("Node %d ping\r\n", rs485Msg.address);
               }
-
             break;
           }
         }
