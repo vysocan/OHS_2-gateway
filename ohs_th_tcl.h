@@ -341,7 +341,7 @@ static THD_FUNCTION(tclThread, arg) {
   tcl_register(&tcl, "trigger", tcl_cmd_trigger, 2, NULL,
                  "trigger status. (trigger $(number))");
   tcl_register(&tcl, "findex", tcl_cmd_findex, 3, NULL,
-                   "find index. (findex z_one|g_roup|ti_mer|tr_igger $(name)");
+                   "find index. (findex z_one|g_roup|ti_mer|tr_igger $(name))");
 
   // Process umm info
   umm_info(&ohsUmmHeap[0], true);
