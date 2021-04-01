@@ -166,7 +166,7 @@ static int tcl_cmd_clock(struct tcl* tcl, tcl_value_t* args, void* arg) {
         case 'h': tmpVal += tmpAdd * SECONDS_PER_HOUR; break;
         case 'd': tmpVal += tmpAdd * SECONDS_PER_DAY; break;
         case 'w': tmpVal += tmpAdd * SECONDS_PER_DAY * 7; break;
-        default: SUBCMDERROR("clock add $ $ s_econds|m_inutes|h_ours|d_ays|w_eeks"); break;
+        default: SUBCMDERROR("clock add $ (s_econds|m_inutes|h_ours|d_ays|w_eeks"); break;
       }
       // new value should be be same as new or new value should not be 0
       if ((tmpVal != tmpValOld) && (tmpVal != 0) && (tmpAdd != 0)) {
@@ -335,7 +335,7 @@ static THD_FUNCTION(tclThread, arg) {
   tcl_register(&tcl, "group", tcl_cmd_group, 3, NULL,
                "return value of given group. (group $(number) a_rmed|s_tatus)");
   tcl_register(&tcl, "clock", tcl_cmd_clock, 0, NULL,
-               "time and date manipulation. (clock seconds|format|add)");
+               "time and date manipulation. (clock s_econds|f_ormat $(time)|a_dd $ $)");
   tcl_register(&tcl, "timer", tcl_cmd_timer, 2, NULL,
                "timer status. (timer $(number))");
   tcl_register(&tcl, "trigger", tcl_cmd_trigger, 2, NULL,
