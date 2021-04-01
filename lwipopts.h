@@ -63,7 +63,18 @@
 
 // TODO OHS #define LWIP_RAM_HEAP_POINTER (void *) SOME_ADDRESS Move LWIP to CCM?
 
+// Use UMM as heap for lwip
+#define MEM_LIBC_MALLOC 0
+#if MEM_LIBC_MALLOC
+#include "umm_malloc.h"
+#include "umm_malloc_cfg.h"
+#define mem_clib_free(p)     umm_free(p)
+#define mem_clib_malloc(s)   umm_malloc(s)
+#define mem_clib_calloc(c,s) umm_calloc(c,s)
+#endif
+
 /* OHS overrides */
+#define MEM_SIZE                 20000
 #define MEMP_NUM_SYS_TIMEOUT     (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 6) // +1 MDSN,
 #define MEMP_NUM_UDP_PCB         5 // , +1 MDSN
 #define MEMP_NUM_TCP_PCB         20
@@ -112,9 +123,9 @@
 
 // HTTPD
 #define LWIP_HTTPD_CUSTOM_FILES         1
+#define LWIP_HTTPD_FILE_EXTENSION       1
 #define LWIP_HTTPD_DYNAMIC_HEADERS      1
 #define LWIP_HTTPD_SUPPORT_POST         1
-#define MEM_SIZE                        20000
 // DNS
 #define LWIP_RAND() ((uint32_t)rand())
 #define LWIP_DNS 1
