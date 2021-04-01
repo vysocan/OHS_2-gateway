@@ -66,7 +66,7 @@
 #define SIREN_MSG_LENGTH  3
 
 // MQTT
-#define MQTT_MAIN_TOPIC   "OHS/"
+#define MQTT_MAIN_TOPIC   OHS_NAME "/"
 #define MQTT_WILL_TOPIC   "state"
 #define MQTT_SET_TOPIC    "set/"
 
