@@ -47,14 +47,14 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
       if ((((uint8_t)rxBuffer[FRAM_MSG_SIZE-1] >> j) & 0b1) == 1)
         chprintf(chp, "%s ", alertType[j].name);
     }
-    chprintf(chp, "\r\n");
+    chprintf(chp, SHELL_NEWLINE_STR);
 
     FRAMReadPos += FRAM_MSG_SIZE;       // Advance for next read
   }
   spiReleaseBus(&SPID1);                // Ownership release.
   // Show usage if no aguments
   if (argc == 0) {
-    chprintf(chp, "\r\n");
+    chprintf(chp, SHELL_NEWLINE_STR);
     goto ERROR;
   }
   return;
@@ -83,13 +83,13 @@ FORMAT:
   spiReleaseBus(&SPID1);
 
   FRAMReadPos = FRAMWritePos = 0;
-  chprintf(chp, "Log formated.\r\n");
+  chprintf(chp, "Log formated." SHELL_NEWLINE_STR);
   return;
 
 ERROR:
-  chprintf(chp, "Usage: log - show this, current log entry.\r\n");
-  chprintf(chp, "       log N - where N is log last entry number(1 - 4096).\r\n");
-  chprintf(chp, "       log format - erase all log entries.\r\n");
+  chprintf(chp, "Usage: log - show this, current log entry." SHELL_NEWLINE_STR);
+  chprintf(chp, "       log N - where N is log last entry number(1 - 4096)." SHELL_NEWLINE_STR);
+  chprintf(chp, "       log format - erase all log entries." SHELL_NEWLINE_STR);
   return;
 }
 /*
@@ -105,14 +105,14 @@ static void cmd_date(BaseSequentialStream *chp, int argc, char *argv[]) {
     unix_time = getTimeUnixSec();
 
     if (unix_time == -1){
-      chprintf(chp, "Incorrect time in RTC cell.\r\n");
+      chprintf(chp, "Incorrect time in RTC cell." SHELL_NEWLINE_STR);
     }
     else{
       ptm = gmtime(&unix_time);
       strftime(dateTime, 30, conf.dateTimeFormat, ptm); // Format date time as needed
       chprintf(chp, "Current: %d ", unix_time);
       chprintf(chp, "%s, ", durationSelect[0]);
-      chprintf(chp, "%s\r\n", dateTime);
+      chprintf(chp, "%s" SHELL_NEWLINE_STR, dateTime);
     }
     return;
   }
@@ -123,14 +123,14 @@ static void cmd_date(BaseSequentialStream *chp, int argc, char *argv[]) {
     if (unix_time > 315532800){
       convertUnixSecondToRTCDateTime(&timespec, unix_time);
       rtcSetTime(&RTCD1, &timespec);
-      chprintf(chp, "Date set.\r\n");
+      chprintf(chp, "Date set." SHELL_NEWLINE_STR);
       return;
     }
   }
 
   // Rest is error
-  chprintf(chp, "Usage: date\r\n");
-  chprintf(chp, "       date set N - where N is time in seconds since Unix epoch, and greater then 1.1.1980(315532801).\r\n");
+  chprintf(chp, "Usage: date" SHELL_NEWLINE_STR);
+  chprintf(chp, "       date set N - where N is time in seconds since Unix epoch, and greater then 1.1.1980(315532801)." SHELL_NEWLINE_STR);
   return;
 }
 /*
@@ -143,12 +143,12 @@ static void cmd_debug(BaseSequentialStream *chp, int argc, char *argv[]) {
     if (strcmp(argv[0], "on") == 0) {
       // Reroute all console to USB
       console = (BaseSequentialStream*)&SDU1;
-      chprintf(chp, "\r\nDebug ON.\r\n");
+      chprintf(chp, SHELL_NEWLINE_STR "Debug ON." SHELL_NEWLINE_STR);
       return;
     } else if (strcmp(argv[0], "off") == 0) {
       // Reroute all console back to SD3
       console = (BaseSequentialStream*)&SD3;
-      chprintf(chp, "\r\nDebug OFF.\r\n");
+      chprintf(chp, SHELL_NEWLINE_STR "Debug OFF." SHELL_NEWLINE_STR);
       return;
     }
   }
@@ -163,17 +163,17 @@ static void cmd_ubs(BaseSequentialStream *chp, int argc, char *argv[]) {
   if (argc == 1) {
     switch (argv[0][0]) {
       case 's':
-        chprintf(chp, "uBS      total    free    used\r\n");
-        chprintf(chp, "------------------------------\r\n");
-        chprintf(chp, "blocks : %5u   %5u   %5u\r\n",
+        chprintf(chp, "uBS      total    free    used" SHELL_NEWLINE_STR);
+        chprintf(chp, "------------------------------" SHELL_NEWLINE_STR);
+        chprintf(chp, "blocks : %5u   %5u   %5u" SHELL_NEWLINE_STR,
                  UBS_BLOCK_COUNT, uBSFreeBlocks, UBS_BLOCK_COUNT - uBSFreeBlocks);
-        chprintf(chp, "bytes  : %5u   %5u   %5u\r\n",
+        chprintf(chp, "bytes  : %5u   %5u   %5u" SHELL_NEWLINE_STR,
                  UBS_SPACE_MAX, uBSFreeSpace, UBS_SPACE_MAX - uBSFreeSpace);
         break;
       case 'f':
         uBSFormat();
         uBSInit();
-        chprintf(chp, "uBS formated and re-initialized.\r\n");
+        chprintf(chp, "uBS formated and re-initialized." SHELL_NEWLINE_STR);
         break;
       default: goto ERROR;
         break;
@@ -192,18 +192,18 @@ static void cmd_net(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argc;
   (void)argv;
 
-  //chprintf(chp, "Network:\r\n-------------------------------\r\n");
-  chprintf(chp, "IP address : %u.%u.%u.%u\r\n",
+  chprintf(chp, "Hostname   : " OHS_NAME SHELL_NEWLINE_STR);
+  chprintf(chp, "IP address : %u.%u.%u.%u" SHELL_NEWLINE_STR,
            netInfo.ip & 0xff, (netInfo.ip >> 8) & 0xff,
            (netInfo.ip >> 16) & 0xff, (netInfo.ip >> 24) & 0xff);
-  chprintf(chp, "Netmask    : %u.%u.%u.%u\r\n",
+  chprintf(chp, "Netmask    : %u.%u.%u.%u" SHELL_NEWLINE_STR,
            netInfo.mask & 0xff, (netInfo.mask >> 8) & 0xff,
            (netInfo.mask >> 16) & 0xff, (netInfo.mask >> 24) & 0xff);
-  chprintf(chp, "Gateway    : %u.%u.%u.%u\r\n",
+  chprintf(chp, "Gateway    : %u.%u.%u.%u" SHELL_NEWLINE_STR,
            netInfo.gw & 0xff, (netInfo.gw >> 8) & 0xff,
            (netInfo.gw >> 16) & 0xff, (netInfo.gw >> 24) & 0xff);
-  chprintf(chp, "Flags      : %u\r\n", netInfo.status);
-  chprintf(chp, "MAC        : %02x:%02x:%02x:%02x:%02x:%02x\r\n",
+  chprintf(chp, "Flags      : %u" SHELL_NEWLINE_STR, netInfo.status);
+  chprintf(chp, "MAC        : %02x:%02x:%02x:%02x:%02x:%02x" SHELL_NEWLINE_STR,
            macAddr[0], macAddr[1], macAddr[2],
            macAddr[3], macAddr[4], macAddr[5]);
 }
@@ -214,7 +214,7 @@ static void cmd_boot(BaseSequentialStream *chp, int argc, char *argv[]) {
 
   if (argc == 1) {
     if (strcmp(argv[0], "dfu") == 0) {
-      chprintf(chp, "Reboot DfuSe.\r\n");
+      chprintf(chp, "Reboot DfuSe." SHELL_NEWLINE_STR);
       // Leave DFU breadcrumb which assmebly startup code would check
       *((unsigned long *)0x2002FFF0) = 0xDEADBEEF; // End of RAM F437
       //*((unsigned long *)0x2001FFF0) = 0xDEADBEEF; // End of RAM F407
@@ -233,7 +233,6 @@ static void cmd_boot(BaseSequentialStream *chp, int argc, char *argv[]) {
 /*
  * Applet to show threads with used information
  */
-/*
 static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
   if (argc > 0) {
@@ -243,17 +242,15 @@ static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
 
   static const char *states[] = {CH_STATE_NAMES};
   thread_t *tp;
-  size_t n = 0;
-  size_t sz;
-  uint32_t used_pct;
+  size_t counter = 0;
+  size_t size;
+  uint32_t used;
 
-  chprintf(chp, "\r\n");
-  chprintf(chp, "   begin      end   size   used    %% prio     state         name\r\n");
-  chprintf(chp, "--------------------------------------------------------------\r\n");
+  chprintf(chp, "stklimit    stack  address   size   used    %% prio     state         name" SHELL_NEWLINE_STR SHELL_NEWLINE_STR);
 
   tp = chRegFirstThread();
   do {
-     n = 0;
+     counter = 0;
 #if (CH_DBG_ENABLE_STACK_CHECK == TRUE) || (CH_CFG_USE_DYNAMIC == TRUE)
     uint32_t stklimit = (uint32_t)tp->wabase;
 #else
@@ -261,32 +258,33 @@ static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
 #endif
 
     uint8_t *begin = (uint8_t *)stklimit;
-    //uint8_t *begin = (uint32_t)tp->ctx.sp;
-    uint8_t *end = (uint8_t *)tp;
-    sz = end - begin;
+    uint8_t *end = (uint8_t *)tp->ctx.sp;
+
+    size = end - begin;
 
     while(begin < end) {
-      if(*begin++ == CH_DBG_STACK_FILL_VALUE) ++n;
+      if(*begin++ != CH_DBG_STACK_FILL_VALUE) ++counter;
     }
 
-    used_pct = (n * 100) / sz;
+    used = (counter * 100) / size;
 
-    chprintf(chp, "%08lx %08lx %6u %6u %3u%% %4lu %9s %12s\r\n",
-             stklimit, (uint32_t)tp, sz, n, used_pct, (uint32_t)tp->prio, states[tp->state], tp->name == NULL ? "" : tp->name);
+    chprintf(chp, "%08lx %08lx %08lx %6u %6u %3u%% %4lu %9s %12s" SHELL_NEWLINE_STR,
+             stklimit, (uint32_t)tp->ctx.sp, (uint32_t)tp,
+             size, counter, used, (uint32_t)tp->prio, states[tp->state],
+             tp->name == NULL ? "" : tp->name);
 
     tp = chRegNextThread(tp);
   } while (tp != NULL);
 
-  chprintf(chp, "\r\n");
+  chprintf(chp, SHELL_NEWLINE_STR);
 }
-*/
 /*
  * Shell commands
  */
 static const ShellCommand commands[] = {
   {"date",  cmd_date},
   {"log",  cmd_log},
-  //{"mythreads",  cmd_threads},
+  {"threads",  cmd_threads},
   {"debug",  cmd_debug},
   {"ubs",  cmd_ubs},
   {"network",  cmd_net},
