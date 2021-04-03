@@ -456,16 +456,15 @@ void setTimer(const uint8_t timerIndex, const bool restart) {
  * valid 0..9+ && len => 9
  */
 bool isPhoneNum(const char* num) {
-  bool ret = true;
   uint8_t len = 0;
 
   while (*num) {
-    if (((*num < '0') || (*num > '9')) && (*num != '+')) ret = false;
+    if (((*num < '0') || (*num > '9')) && (*num != '+')) return false;
     num++; len++;
   }
-  if (len < 9) ret = false;
+  if (len < 9) return false;
 
-  return ret;
+  return true;
 }
 /*
  * Print node type
