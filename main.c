@@ -1,11 +1,12 @@
 /*
  * OHS gateway code for HW v 2.0.x
- * Adam Baron 2020
+ * Adam Baron (c) 2020
  *
  *
  */
 //TODO OHS rename ch.bin to ohs.bin
-//TODO OHS add send mode for authentication nodes based on group state
+//TODO OHS add send mode for authentication nodes based on group state on start/registration.
+//TODO OHS move arm/disarm group to some kind of fifo, it take a lot of resources calling nodes, mqtt ...
 // Optimize stack and overflow
 #define PORT_INT_REQUIRED_STACK 128
 // Remove input queue for GPRS to save RAM
@@ -92,9 +93,9 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 
 // LWIP
 #include "lwipthread.h"
-#include "lwip/opt.h" //
-#include "lwip/arch.h"//
-#include "lwip/api.h" //
+#include "lwip/opt.h"
+#include "lwip/arch.h"
+#include "lwip/api.h"
 #include "lwip/stats.h"
 #include "lwip/tcpip.h"
 #include "lwip/apps/httpd.h"
@@ -261,7 +262,7 @@ int main(void) {
   spiStart(&SPID1, &spi1cfg);
   // RFM69
   rfm69Start(&rfm69cfg);
-  rfm69SetHighPower(true);     // long range version
+  rfm69SetHighPower(true); // long range version
 
   // ADC1 driver
   adcStart(&ADCD1, NULL);
@@ -352,7 +353,6 @@ int main(void) {
   UNLOCK_TCPIP_CORE();
   // MQTT
   CLEAR_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting); // Force resolve address on start
-  conf.mqtt.setting = 0b00000000;
 
   // Start
   startTime = getTimeUnixSec();

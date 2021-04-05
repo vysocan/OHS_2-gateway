@@ -37,9 +37,10 @@
  *     /function
  *     /value
  */
-static THD_WORKING_AREA(waMqttThread, 384);
+static THD_WORKING_AREA(waMqttThread, 832);
 static THD_FUNCTION(MqttThread, arg) {
   chRegSetThreadName(arg);
+  uint8_t counterMQTT = 225; // Force connect on start 255-30 seconds
   err_t err; // lwip error type
   msg_t msg;
   mqttEvent_t *inMsg;
@@ -48,10 +49,11 @@ static THD_FUNCTION(MqttThread, arg) {
   char topic[40], payload[20];
 
   while (true) {
-    msg = chMBFetchTimeout(&mqtt_mb, (msg_t*)&inMsg, TIME_INFINITE);
-    DBG_MQTT("MQTT %d", inMsg);
+    msg = chMBFetchTimeout(&mqtt_mb, (msg_t*)&inMsg, TIME_S2I(1));
+
+    // We have message
     if (msg == MSG_OK) {
-      DBG_MQTT(", Type: %d", (uint8_t)inMsg->type);
+      DBG_MQTT("MQTT Type: %d", (uint8_t)inMsg->type);
       DBG_MQTT(", # %d", inMsg->number);
       DBG_MQTT(", Function: %d\r\n", (uint8_t)inMsg->function);
 
@@ -60,9 +62,9 @@ static THD_FUNCTION(MqttThread, arg) {
       UNLOCK_TCPIP_CORE();
       if (retain) {
         // Wait for free MQTT semaphore
-        DBG_MQTT("mqttSem: ");
+        DBG_MQTT("MQTT ");
         if (chBSemWaitTimeout(&mqttSem, TIME_MS2I(100)) == MSG_OK) {
-          DBG_MQTT("OK\r\n");
+          DBG_MQTT(" publish\r\n");
           // Prepare message
           switch (inMsg->type) {
             case typeSystem:
@@ -113,14 +115,16 @@ static THD_FUNCTION(MqttThread, arg) {
               }
               break;
             case typeZone:
-              qos = 1; retain = 0;
+              qos = 1;
               chsnprintf(topic, sizeof(topic), "%s%s/%d/", MQTT_MAIN_TOPIC, text_zone, inMsg->number + 1);
               switch (inMsg->function) {
                 case functionName:
+                  retain = 1;
                   strncat(topic, &text_name[0], LWIP_MIN(strlen(text_name), (sizeof(topic)-strlen(topic))));
                   chsnprintf(payload, sizeof(payload), "%s", conf.zoneName[inMsg->number]);
                   break;
                 default: // State
+                  retain = 0;
                   strncat(topic, &text_state[0], LWIP_MIN(strlen(text_state), (sizeof(topic)-strlen(topic))));
                   // Payload based on lastEvent
                   switch (zone[inMsg->number].lastEvent) {
@@ -135,7 +139,7 @@ static THD_FUNCTION(MqttThread, arg) {
               }
               break;
             case typeSensor:
-              qos = 0; retain = 0;
+              qos = 0;
               chsnprintf(topic, sizeof(topic), "%s%s/%c:%u:%c:%c:%u/", MQTT_MAIN_TOPIC, text_sensor,
                 (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? 'W' : 'R',
                 (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? node[inMsg->number].address : (node[inMsg->number].address - RADIO_UNIT_OFFSET),
@@ -144,10 +148,12 @@ static THD_FUNCTION(MqttThread, arg) {
 
               switch (inMsg->function) {
                 case functionName:
+                  retain = 1;
                   strncat(topic, &text_name[0], LWIP_MIN(strlen(text_name), (sizeof(topic)-strlen(topic))));
                   chsnprintf(payload, sizeof(payload), "%s", node[inMsg->number].name);
                   break;
                 default: // Value
+                  retain = 0;
                   strncat(topic, &text_value[0], LWIP_MIN(strlen(text_value), (sizeof(topic)-strlen(topic))));
                   // Keys are string rest is float
                   if (node[inMsg->number].type == 'K') {
@@ -177,10 +183,30 @@ static THD_FUNCTION(MqttThread, arg) {
           chBSemReset(&mqttSem, false);
         }
       } // MQTT client connected
+      chPoolFree(&mqtt_pool, inMsg);
+
+    } else if (msg == MSG_TIMEOUT) {
+      // Handle MQTT connection
+
+      if (netInfo.status & LWIP_NSC_IPV4_ADDR_VALID) {
+        LOCK_TCPIP_CORE();
+        retain = mqtt_client_is_connected(&mqtt_client); // retain here as tmp variable
+        UNLOCK_TCPIP_CORE();
+        if (!retain) {
+          // Force try connection every counterMQTT overflow
+          if (counterMQTT == 0) CLEAR_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting);
+          // Try to connect if that makes sense
+          if (!GET_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting) &&
+              !GET_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting)) {
+            mqttDoConnect(&mqtt_client);
+          }
+          counterMQTT++;
+        }
+      }
     } else {
       DBG_MQTT("MQTT MB ERROR\r\n");
     }
-    chPoolFree(&mqtt_pool, inMsg);
+
   }
 }
 

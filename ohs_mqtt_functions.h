@@ -8,7 +8,7 @@
 #define OHS_MQTT_FUNCTIONS_H_
 
 #ifndef MQTT_FUNC_DEBUG
-#define MQTT_FUNC_DEBUG 1
+#define MQTT_FUNC_DEBUG 0
 #endif
 
 #if MQTT_FUNC_DEBUG
@@ -58,7 +58,7 @@ static void mqttPubRequestCB(void *arg, err_t result) {
 static void mqttIncomingPublishCB(void *arg, const char *topic, u32_t tot_len) {
   LWIP_UNUSED_ARG(tot_len);
 
-  DBG_MQTT_FUNC("Incoming publish at topic %s with total length %u\r\n", topic, (unsigned int)tot_len);
+  DBG_MQTT_FUNC("MQTT IncomingPublishCB: %s, payload length: %u\r\n", topic, (unsigned int)tot_len);
   // Clear mqttInTopic passed to arg
   memset(arg, 0, MQTT_TOPIC_LENGTH);
   // Copy last part of topic after OHS/set/ to *arg
@@ -85,7 +85,7 @@ static void mqttIncomingDataCB(void *arg, const u8_t *data, u16_t len, u8_t flag
   uint8_t index = 0;
   uint8_t message[6];
 
-  DBG_MQTT_FUNC("Incoming publish payload with length %d, flags %u. Arg: %s\r\n", len, (unsigned int)flags, arg);
+  DBG_MQTT_FUNC("MQTT IncomingDataCB length: %d, flags: %u. Arg: %s\r\n", len, (u8_t)flags, arg);
 
   // Clear mqttInPayload
   memset(mqttInPayload, 0, MQTT_PAYLOAD_LENGTH);
@@ -108,9 +108,9 @@ static void mqttIncomingDataCB(void *arg, const u8_t *data, u16_t len, u8_t flag
           if ((index < ALARM_GROUPS) &&
               (GET_CONF_GROUP_ENABLED(conf.group[index].setting)) &&
               (GET_CONF_GROUP_MQTT(conf.group[index].setting))) {
-            DBG_MQTT_FUNC(", group # %d", index + 1);
+            DBG_MQTT_FUNC(", # %d", index + 1);
             pch = strtok(NULL, "/");
-            DBG_MQTT_FUNC(", topic: %s", pch);
+            DBG_MQTT_FUNC(", func: %s", pch);
             if (pch != NULL) {
               // State
               if (strcmp(pch, text_state) == 0) {
@@ -189,9 +189,11 @@ static void mqttSubscribeCB(void *arg, err_t result) {
      notifying user, retry subscribe or disconnect from server */
   // TODO OHS Add subscribe error handling mechanism if subscribe fails.
   if(result != ERR_OK) {
-    DBG_MQTT_FUNC("MQTT CB Subscibe error: %d\r\n", result);
+    DBG_MQTT_FUNC("MQTT SubscribeCB error: %d\r\n", result);
     SET_CONF_MQTT_SUBSCRIBE_ERROR(conf.mqtt.setting);
     pushToLogText("QES"); // Subscribe error
+  } else {
+    DBG_MQTT_FUNC("MQTT SubscribeCB OK\r\n");
   }
 }
 /*
@@ -203,7 +205,7 @@ static void mqttConnectionCB(mqtt_client_t *client, void *arg, mqtt_connection_s
 
   err_t err;
   if(status == MQTT_CONNECT_ACCEPTED) {
-    DBG_MQTT_FUNC("MQTT connect CB: Connected\r\n");
+    DBG_MQTT_FUNC("MQTT ConnectionCB: Connected\r\n");
     CLEAR_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting);
     CLEAR_CONF_MQTT_CONNECT_ERROR_LOG(conf.mqtt.setting);
     pushToLogText("QC"); // MQTT connected
@@ -212,22 +214,26 @@ static void mqttConnectionCB(mqtt_client_t *client, void *arg, mqtt_connection_s
 
     // Subscribe to set topic
     if (GET_CONF_MQTT_SUBSCRIBE(conf.mqtt.setting)) {
+      // Setup callback for incoming publish requests
+      mqtt_set_inpub_callback(client, mqttIncomingPublishCB, mqttIncomingDataCB, &mqttInTopic);
+
       // Subscribe to a topic
-      LOCK_TCPIP_CORE();
       err = mqtt_subscribe(client, MQTT_MAIN_TOPIC MQTT_SET_TOPIC "#", 1, mqttSubscribeCB, arg);
-      UNLOCK_TCPIP_CORE();
 
       if(err != ERR_OK) {
-        DBG_MQTT_FUNC("MQTT connect CB: Subscribe error: %d\r\n", err);
+        DBG_MQTT_FUNC("MQTT ConnectionCB: Subscribe error: %d\r\n", err);
         SET_CONF_MQTT_SUBSCRIBE_ERROR(conf.mqtt.setting);
         pushToLogText("QES"); // Subscribe error
+      } else {
+        DBG_MQTT_FUNC("MQTT ConnectionCB: Subscribe OK\r\n");
       }
+
     } // Subscribe to set topic
 
     // Publish state
     pushToMqtt(typeSystem, 1, functionState);
   } else {
-    DBG_MQTT_FUNC("MQTT CB: Disconnected, reason: %d\r\n", status);
+    DBG_MQTT_FUNC("MQTT ConnectionCB: Disconnected, reason: %d\r\n", status);
     SET_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting);
     if (!GET_CONF_MQTT_CONNECT_ERROR_LOG(conf.mqtt.setting)) {
       tmpLog[0] = 'Q'; tmpLog[1] = 'E';
@@ -271,11 +277,6 @@ void mqttDoConnect(mqtt_client_t *client) {
 
   // If we have presumably valid IP address, try to connect
   if (!GET_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting)) {
-    // Setup callback for incoming publish requests
-    LOCK_TCPIP_CORE();
-    mqtt_set_inpub_callback(client, mqttIncomingPublishCB, mqttIncomingDataCB, &mqttInTopic);
-    UNLOCK_TCPIP_CORE();
-
     // Try to connect
     LOCK_TCPIP_CORE();
     err = mqtt_client_connect(client, &mqtt_ip, conf.mqtt.port, mqttConnectionCB,

@@ -6,7 +6,7 @@
 # Compiler options here.
 # -specs=nano.specs to opt for newlib-nano 
 ifeq ($(USE_OPT),)
-  USE_OPT = -O2 -ggdb -fomit-frame-pointer -falign-functions=16 
+  USE_OPT = -O0 -ggdb -fomit-frame-pointer -falign-functions=16 
 endif
 
 # C specific options here (added to USE_OPT).
@@ -120,6 +120,7 @@ include $(CHIBIOS)/os/various/lwip_bindings/lwip.mk
 #include $(CHIBIOS)/ext/STM32F4xx_StdPeriph_Driver/stcrypt.mk
 #include $(CHIBIOS)/ext/STM32_Cryptographic_Library/stcryptolib.mk
 #include $(CHIBIOS)/os/various/wolfssl_bindings/wolfssl.mk
+#include $(CHIBIOS)/ext/mbedtls/mbedtls.mk
 
 # Define linker script file here
 LDSCRIPT= $(CONFDIR)/STM32F437xG.ld

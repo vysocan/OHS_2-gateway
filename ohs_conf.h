@@ -393,7 +393,7 @@ typedef struct {
 
 // Sensor events
 #define SENSOR_FIFO_SIZE 10
-#define SENSOR_PACKET_SIZE 7
+#define SENSOR_PACKET_SIZE 6
 typedef struct {
   char    type;     // = 'S';
   uint8_t address;  // = 0;

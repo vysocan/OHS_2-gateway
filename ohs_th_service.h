@@ -31,12 +31,11 @@ void cbTimer (char *result) {
  * Service thread
  * Perform various housekeeping services
  */
-static THD_WORKING_AREA(waServiceThread, 384);
+static THD_WORKING_AREA(waServiceThread, 256);
 static THD_FUNCTION(ServiceThread, arg) {
   chRegSetThreadName(arg);
   time_t  tempTime, timeNow;
   uint8_t counterAC = 1;
-  uint8_t counterMQTT = 225; // Force connect on start 255-30 seconds
   bool    flagAC = false; // Assume power is Off on start
   uint8_t nodeIndex;
   msg_t   resp;
@@ -280,24 +279,7 @@ static THD_FUNCTION(ServiceThread, arg) {
       }
     }
 
-    // MQTT connection
-    if (netInfo.status & LWIP_NSC_IPV4_ADDR_VALID) {
-      LOCK_TCPIP_CORE();
-      nodeIndex = mqtt_client_is_connected(&mqtt_client); // nodeIndex here as tmp variable
-      UNLOCK_TCPIP_CORE();
-      if (!nodeIndex) {
-        // Force try connection every counterMQTT overflow
-        if (counterMQTT == 0) CLEAR_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting);
-        // Try to connect if that makes sense
-        if (!GET_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting) &&
-            !GET_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting)) {
-          mqttDoConnect(&mqtt_client);
-        }
-        counterMQTT++;
-      }
-    }
-  }
+  } // while(true)
 }
-
 
 #endif /* OHS_TH_SERVICE_H_ */
