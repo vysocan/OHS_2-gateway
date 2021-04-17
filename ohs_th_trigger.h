@@ -54,7 +54,7 @@ static THD_FUNCTION(TriggerThread, arg) {
               conf.trigger[i].address  == inMsg->address &&
               conf.trigger[i].function == inMsg->function &&
               conf.trigger[i].number   == inMsg->number) {
-            DBG_TRIG("Trigger: %u", i);
+            DBG_TRIG("Trigger: %u", i+1);
             // check value
             found = 0;
             switch(conf.trigger[i].condition){
@@ -79,7 +79,7 @@ static THD_FUNCTION(TriggerThread, arg) {
                 break;
               default: found = 1; break; // Always
             }
-            DBG_TRIG(", cond: %s, y/n: %u", triggerCondition[conf.trigger[i].condition], found);
+            DBG_TRIG(", cond %s, %s", triggerCondition[conf.trigger[i].condition], (found ? "true" : "false"));
             if (found) {
               // Logging enabled & not triggered
               if ((GET_CONF_TRIGGER_ALERT(conf.trigger[i].setting)) &&
