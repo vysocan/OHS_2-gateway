@@ -13,7 +13,7 @@
 #endif
 
 #if SENSOR_DEBUG
-#define DBG_SENSOR(...) {chprintf((console, __VA_ARGS__);}
+#define DBG_SENSOR(...) {chprintf(console, __VA_ARGS__);}
 #else
 #define DBG_SENSOR(...)
 #endif
@@ -38,9 +38,10 @@ static THD_FUNCTION(SensorThread, arg) {
       // Get current time
       timeNow = getTimeUnixSec();
 
-      nodeIndex = getNodeIndex(inMsg->address, inMsg->type, inMsg->function, inMsg->number);
+      // Lookup sensor
+      nodeIndex = getNodeIndex(inMsg->address, 'S', inMsg->function, inMsg->number);
       if (nodeIndex != DUMMY_NO_VALUE) {
-        DBG_SENSOR("Sensor data for node %c-%c\r\n", inMsg->type, inMsg->function);
+        DBG_SENSOR("Sensor data for node: %u:%c:%u\r\n", inMsg->address, inMsg->function, inMsg->number);
         //  node enabled
         if (GET_NODE_ENABLED(node[nodeIndex].setting)) {
           node[nodeIndex].value   = inMsg->value;
@@ -63,7 +64,7 @@ static THD_FUNCTION(SensorThread, arg) {
             outMsgTrig->address = inMsg->address;
             outMsgTrig->function = inMsg->function;
             outMsgTrig->number = inMsg->number;
-            outMsgTrig->type = inMsg->type;
+            outMsgTrig->type = 'S';
             outMsgTrig->value = inMsg->value;
             msg = chMBPostTimeout(&trigger_mb, (msg_t)outMsgTrig, TIME_IMMEDIATE);
             if (msg != MSG_OK) {
@@ -77,7 +78,7 @@ static THD_FUNCTION(SensorThread, arg) {
         // Let's call same unknown node for re-registration only once a while,
         // or we send many packets if multiple sensor data come in
         if ((lastNode != inMsg->address) || (timeNow > lastNodeTime)) {
-          DBG_SENSOR("Unregistered sensor\r\n");
+          DBG_SENSOR("Unregistered sensor: %u:%c:%u\r\n", inMsg->address, inMsg->function, inMsg->number);
           chThdSleepMilliseconds(5);  // This is needed for sleeping battery nodes, or they wont see reg. command.
           nodeIndex = sendCmd(inMsg->address, NODE_CMD_REGISTRATION); // call this address to register
           lastNode = inMsg->address;

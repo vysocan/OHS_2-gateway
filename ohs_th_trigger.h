@@ -32,7 +32,7 @@ void cbTrigger (char *result) {
 static THD_WORKING_AREA(waTriggerThread, 320);
 static THD_FUNCTION(TriggerThread, arg) {
   chRegSetThreadName(arg);
-  sensorEvent_t *inMsg;
+  triggerEvent_t *inMsg;
   msg_t    msg;
   float    tmpFloat;
   uint8_t  nodeIndex, found, message[6];
@@ -58,7 +58,6 @@ static THD_FUNCTION(TriggerThread, arg) {
             // check value
             found = 0;
             switch(conf.trigger[i].condition){
-              //case 0: found = 1; break; // Always
               case 1: if (inMsg->value == conf.trigger[i].value) found = 1; break;
               case 2: if (inMsg->value != conf.trigger[i].value) found = 1; break;
               case 3:
@@ -80,7 +79,7 @@ static THD_FUNCTION(TriggerThread, arg) {
                 break;
               default: found = 1; break; // Always
             }
-            DBG_TRIG(" , cond: %s, y/n: %u", triggerCondition[conf.trigger[i].condition], found);
+            DBG_TRIG(", cond: %s, y/n: %u", triggerCondition[conf.trigger[i].condition], found);
             if (found) {
               // Logging enabled & not triggered
               if ((GET_CONF_TRIGGER_ALERT(conf.trigger[i].setting)) &&

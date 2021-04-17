@@ -138,17 +138,16 @@ static THD_FUNCTION(RS485Thread, arg) {
               }
               break;
             case 'S': // Sensor data
-              index = 0;
+              index = 1; // skip 'S'
               do {
                 sensorEvent_t *outMsg = chPoolAlloc(&sensor_pool);
                 if (outMsg != NULL) {
                   // node setting
                   outMsg->address  = rs485Msg.address;
-                  outMsg->type     = (char)rs485Msg.data[index];
-                  outMsg->function = (char)rs485Msg.data[index+1];
-                  outMsg->number   = rs485Msg.data[index+2];
-                  floatConv.byte[0] = rs485Msg.data[index+3]; floatConv.byte[1] = rs485Msg.data[index+4];
-                  floatConv.byte[2] = rs485Msg.data[index+5]; floatConv.byte[3] = rs485Msg.data[index+6];
+                  outMsg->function = (char)rs485Msg.data[index];
+                  outMsg->number   = rs485Msg.data[index+1];
+                  floatConv.byte[0] = rs485Msg.data[index+2]; floatConv.byte[1] = rs485Msg.data[index+3];
+                  floatConv.byte[2] = rs485Msg.data[index+4]; floatConv.byte[3] = rs485Msg.data[index+5];
                   outMsg->value = floatConv.val;
 
                   msg_t msg = chMBPostTimeout(&sensor_mb, (msg_t)outMsg, TIME_IMMEDIATE);

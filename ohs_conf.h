@@ -395,7 +395,6 @@ typedef struct {
 #define SENSOR_FIFO_SIZE 10
 #define SENSOR_PACKET_SIZE 6
 typedef struct {
-  char    type;     // = 'S';
   uint8_t address;  // = 0;
   char    function; // = ' ';
   uint8_t number;   // = 0;
@@ -412,7 +411,7 @@ typedef struct {
   float   value;    // = 0.0;
 } triggerEvent_t;
 
-// Sensor events
+// MQTT events
 #define MQTT_FIFO_SIZE 20 // To accommodate various sources like zones, groups, sensors
 typedef struct {
   mqttPubType_t type;         // Group, Sensor, Zone, System
@@ -663,7 +662,7 @@ typedef struct {
   uint8_t  versionMinor;
 
   uint16_t logOffset; // FRAM position
-  uint8_t  armDelay;
+  uint8_t  armDelay;  // 0.25 seconds
   uint8_t  autoArm;   // minutes
   uint8_t  openAlarm; // minutes
   char     dateTimeFormat[NAME_LENGTH];

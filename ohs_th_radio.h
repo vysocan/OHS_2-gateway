@@ -110,17 +110,16 @@ static THD_FUNCTION(RadioThread, arg) {
           }
           break;
         case 'S': // Sensor data
-          index = 0;
+          index = 1; // skip 'S'
           do {
             sensorEvent_t *outMsg = chPoolAlloc(&sensor_pool);
             if (outMsg != NULL) {
               // node setting
               outMsg->address  = rfm69Data.senderId + RADIO_UNIT_OFFSET;
-              outMsg->type     = (char)rfm69Data.data[index];
-              outMsg->function = (char)rfm69Data.data[index+1];
-              outMsg->number   = rfm69Data.data[index+2];
-              floatConv.byte[0] = rfm69Data.data[index+3]; floatConv.byte[1] = rfm69Data.data[index+4];
-              floatConv.byte[2] = rfm69Data.data[index+5]; floatConv.byte[3] = rfm69Data.data[index+6];
+              outMsg->function = (char)rfm69Data.data[index];
+              outMsg->number   = rfm69Data.data[index+1];
+              floatConv.byte[0] = rfm69Data.data[index+2]; floatConv.byte[1] = rfm69Data.data[index+3];
+              floatConv.byte[2] = rfm69Data.data[index+4]; floatConv.byte[3] = rfm69Data.data[index+5];
               outMsg->value = floatConv.val;
 
               msg_t msg = chMBPostTimeout(&sensor_mb, (msg_t)outMsg, TIME_IMMEDIATE);
