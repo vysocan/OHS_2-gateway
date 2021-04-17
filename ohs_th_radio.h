@@ -175,6 +175,4 @@ static THD_FUNCTION(RadioThread, arg) {
   }
 }
 
-
-
 #endif /* OHS_TH_RADIO_H_ */

@@ -93,5 +93,4 @@ static THD_FUNCTION(SensorThread, arg) {
   }
 }
 
-
 #endif /* OHS_TH_SENSOR_H_ */
