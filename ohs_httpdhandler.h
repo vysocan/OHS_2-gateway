@@ -15,6 +15,8 @@
 #include <stdio.h>
 #include <string.h>
 #include "memstreams.h"
+#include "ohs_http_const.h"
+#include "ohs_http_print.h"
 
 #if !LWIP_HTTPD_CUSTOM_FILES
 #error This needs LWIP_HTTPD_CUSTOM_FILES
@@ -46,137 +48,12 @@ char current_uri[LWIP_HTTPD_MAX_REQUEST_URI_LEN] __attribute__((section(".ram4")
 char postData[HTTP_POST_DATA_SIZE] __attribute__((section(".ram4")));
 char alertMsg[HTTP_ALERT_MSG_SIZE] __attribute__((section(".ram4")));
 
-const char html_i_home[]            = "<i class='icon'>&#xe800;</i>";
-const char html_i_contact[]         = "<i class='icon'>&#xe801;</i>";
-const char html_i_key[]             = "<i class='icon'>&#xe802;</i>";
-const char html_i_alert[]           = "<i class='icon'>&#xe803;</i>";
-const char html_i_time[]            = "<i class='icon'>&#xe804;</i>";
-const char html_i_OK[]              = "<i class='icon'>&#xe805;</i>";
-const char html_i_disabled[]        = "<i class='icon'>&#xe806;</i>";
-const char html_i_setting[]         = "<i class='icon'>&#xe807;</i>";
-const char html_i_calendar[]        = "<i class='icon'>&#xe808;</i>";
-const char html_i_globe[]           = "<i class='icon'>&#xe809;</i>";
-const char html_i_lock[]            = "<i class='icon'>&#xe80a;</i>";
-const char html_i_lock_closed[]     = "<i class='icon'>&#xe80b;</i>";
-const char html_i_zone[]            = "<i class='icon'>&#xf096;</i>";
-const char html_i_network[]         = "<i class='icon'>&#xf0e8;</i>";
-const char html_i_alarm[]           = "<i class='icon'>&#xf0f3;</i>";
-const char html_i_starting[]        = "<i class='icon'>&#xf110;</i>";
-const char html_i_code[]            = "<i class='icon'>&#xf121;</i>";
-const char html_i_question[]        = "<i class='icon'>&#xf191;</i>";
-const char html_i_trigger[]         = "<i class='icon'>&#xf192;</i>";
-const char html_i_script[]          = "<i class='icon'>&#xf1c9;</i>";
-const char html_i_option[]          = "<i class='icon'>&#xf1de;</i>";
-const char html_i_nodes[]           = "<i class='icon'>&#xf1e0;</i>";
-const char html_i_group[]           = "<i class='icon'>&#xf24d;</i>";
-const char html_i_hash[]            = "<i class='icon'>&#xf292;</i>";
-const char html_tr_td[]             = "<tr><td>";
-const char html_e_td_td[]           = "</td><td>";
-const char html_e_td_e_tr[]         = "</td></tr>";
-const char html_e_td_e_tr_tr_td[]   = "</td></tr><tr><td>";
-const char html_tr_th[]             = "<tr><th>";
-const char html_e_th_th[]           = "</th><th>";
-const char html_e_th_e_tr[]         = "</th></tr>";
-const char html_select_submit[]     = "<select onchange='this.form.submit()' name='";
-const char html_e_tag[]             = "'>";
-const char html_e_select[]          = "</select>";
-const char html_option[]            = "<option value='";
-const char html_e_option[]          = "</option>";
-const char html_selected[]          = "' selected>";
-const char html_m_tag[]             = "' value='";
-const char html_id_tag[]            = "' id='";
-const char html_t_tag_1[]           = "<input type='text' maxlength='";
-const char html_i_tag_1[]           = "<input type='time";
-const char html_i_tag_2[]           = "' min='00:00' max='23:59' required>";
-const char html_n_tag_1[]           = "<input type='number' style='width:";
-const char html_n_tag_2[]           = "em' min='";
-const char html_n_tag_3[]           = "' max='";
-const char html_p_tag_1[]           = "<input type='password' maxlength='";
-const char html_s_tag_2[]           = "' size='";
-const char html_s_tag_3[]           = "' name='";
-const char html_s_tag_4[]           = "' minlength='";
-const char html_radio_s[]           = "<div class='rm'>";
-const char html_radio_sl[]          = "<div class='rml'>";
-const char html_radio_sb[]          = "<div class='rmb'>";
-const char html_div_e[]             = "</div>";
-const char html_div_id_1[]          = "<div id='hd_";
-const char html_div_id_2[]          = "' style='display:block;'>";
-const char html_select[]            = "<select name='";
-const char html_Apply[]             = "<input type='submit' name='A' value='Apply'/>";
-const char html_ApplyValPass[]      = "<input type='submit' name='A' value='Apply' onclick='return pv()'/>";
-const char html_Save[]              = "<input type='submit' name='e' value='Save'/>";
-const char html_LoadDefault[]       = "<input type='submit' name='D' value='Load defaults'/>";
-const char html_Reregister[]        = "<input type='submit' name='R' value='Call registration'/>";
-const char html_Now[]               = "<input type='submit' name='N' value='Now'/>";
-const char html_FR[]                = "<input type='submit' name='R' value='<<'/>";
-const char html_R[]                 = "<input type='submit' name='r' value='<'/>";
-const char html_FF[]                = "<input type='submit' name='F' value='>>'/>";
-const char html_F[]                 = "<input type='submit' name='f' value='>'/>";
-const char html_Run[]               = "<input type='submit' name='R' value='Run'/>";
-const char html_Refresh[]           = "<input type='submit' name='F' value='Refresh'/>";
-const char html_Restart[]           = "<input type='submit' name='S' value='Restart'/>";
-const char html_textarea_1[]        = "<textarea name='";
-const char html_textarea_2[]        = "' id='";
-const char html_textarea_3[]        = "' rows='";
-const char html_textarea_4[]        = "' cols='";
-const char html_textarea_5[]        = "' maxlength='";
-const char html_textarea_e[]        = "</textarea>";
-const char html_e_table[]           = "</table>";
-const char html_table[]             = "<table>";
-const char html_form_1[]            = "<form action='";
-const char html_form_2[]            = "' method='post'>";
-const char html_br[]                = "<br>";
-// Radio buttons
-const char html_cbPart1a[]          = "<div class='rc'><input type='radio' name='";
-const char html_cbPart1b[]          = "' id='";
-const char html_cbPart2[]           = "' value='";
-const char html_cbPart3[]           = "'";
-const char html_cbChecked[]         = "' checked";
-const char html_cbPart4a[]          = "><label for='";
-const char html_cbPart4b[]          = "'>";
-const char html_cbPart5[]           = "</label></div>";
-const char html_cbJSen[]            = " onclick=\"en";
-const char html_cbJSdis[]           = " onclick=\"dis";
-const char html_cbJSend[]           = "()\"";
-// JavaScript related
-const char html_script[]            = "<script>";
-const char html_e_script[]          = "</script>";
-const char html_script_src[]        = "<script type='text/javascript' src='/js/";
-const char JSen1[]                  = "en1();";
-const char JSen2[]                  = "en2();";
-const char JSdis1[]                 = "dis1();";
-const char JSdis2[]                 = "dis2();";
-const char JSContact[]              = "var e1=document.querySelectorAll(\"#g\");"
-                                      "var d1=document.querySelectorAll(\"#xx\");";
-const char JSCredential[]           = "var tc=document.querySelectorAll(\"#p\");";
-const char JSZone[]                 = "var e1=document.querySelectorAll(\"#xx\");"
-                                      "var d1=document.querySelectorAll(\"#a1,#a0\");";
-const char JSTimer[]                = "var e1=document.querySelectorAll(\"#s,#S\");"
-                                      "var d1=document.querySelectorAll(\"#D0,#D1,#E0,#E1,#F0,#F1,#G0,#G1,#H0,#H1,#I0,#I1,#J0,#J1\");";
-const char JSTrigger[]              = "var e1=document.querySelectorAll(\"#xx\");"
-                                      "var e2=document.querySelectorAll(\"#xx\");"
-                                      "var d1=document.querySelectorAll(\"#t,#T,#S0,#S1,#S2,#a,#o,#f\");"
-                                      "var d2=document.querySelectorAll(\"#t,#T\");";
-const char JSTriggerSel_1[]         = "function sd(select){if(select.value<";
-const char JSTriggerSel_2[]         = "){"
-                                      "document.getElementById('hd_1').style.display='block';"
-                                      "document.getElementById('hd_2').style.display='none';"
-                                      "document.getElementById('hd_3').style.display='none';"
-                                      "document.getElementById('h').disabled=true;"
-                                      "}else if((select.value>=";
-const char JSTriggerSel_3[]         = ")&&(select.value<";
-const char JSTriggerSel_4[]         = ")){"
-                                      "document.getElementById('hd_1').style.display='none';"
-                                      "document.getElementById('hd_2').style.display='block';"
-                                      "document.getElementById('hd_3').style.display='none';"
-                                      "document.getElementById('h').disabled=true;}else{"
-                                      "document.getElementById('hd_1').style.display='none';"
-                                      "document.getElementById('hd_2').style.display='none';"
-                                      "document.getElementById('hd_3').style.display='block';"
-                                      "document.getElementById('h').disabled=false;"
-                                      "}}";
+// Size of dynamic HTML page
+#define HTML_PAGE_SIZE 1024 * 16
+#if HTML_PAGE_SIZE > (MEM_SIZE - 1600)
+#error HTML_PAGE_SIZE needs to be smaller then lwip MEM_SIZE!
+#endif
 
-#define HTML_PAGE_SIZE  (MEM_SIZE - 1600) // Change in lwip opt.h MEM_SIZE
 
 #define PAGE_HOME       0
 #define PAGE_SETTING    1
@@ -212,178 +89,6 @@ static const webPage_t webPage[] = {
   {"/tcl.html",     "Scripts"}
 };
 
-void printOkNok(BaseSequentialStream *chp, const int8_t value) {
-  if (value == 1) chprintf(chp, "%s", html_i_OK);
-  else            chprintf(chp, "%s", html_i_disabled);
-}
-
-void printRadioButton(BaseSequentialStream *chp, const char *name, const uint8_t value,
-                 const char *label, bool selected,
-                 const uint8_t JSNumber, const uint8_t JSMask) {
-  chprintf(chp, "%s%s%s", html_cbPart1a, name, html_cbPart1b);
-  chprintf(chp, "%s%u%s%u", name, value, html_cbPart2, value);
-  selected ? chprintf(chp, "%s", html_cbChecked) : chprintf(chp, "%s", html_cbPart3);
-  if (JSNumber) {
-    if ((JSMask >> value) & 0b1) {
-      chprintf(chp, "%s%u%s", html_cbJSen, JSNumber, html_cbJSend);
-    } else {
-      chprintf(chp, "%s%u%s", html_cbJSdis, JSNumber, html_cbJSend);
-    }
-  }
-  chprintf(chp, "%s%s%u", html_cbPart4a, name, value);
-  chprintf(chp, "%s%s%s", html_cbPart4b, label, html_cbPart5);
-}
-
-#define GET_BUTTON_STATE(x,y) (x==y)
-void printTwoButton(BaseSequentialStream *chp, const char *name, const uint8_t state,
-                    const uint8_t JSNumber, const uint8_t JSMask,
-                     const char *text1, const char *text2) {
-  chprintf(chp, "%s", html_radio_sl);
-  printRadioButton(chp, name, 0, text1, GET_BUTTON_STATE(state, 0), JSNumber, JSMask);
-  printRadioButton(chp, name, 1, text2, GET_BUTTON_STATE(state, 1), JSNumber, JSMask);
-  chprintf(chp, "%s", html_div_e);
-}
-
-// ((JSon >> 1) & 0b1) : enableJS
-void printThreeButton(BaseSequentialStream *chp, const char *name, const uint8_t state,
-                      const uint8_t JSNumber, const uint8_t JSMask,
-                      const char *text1, const char *text2, const char *text3,
-                      const uint8_t size) {
-  if (size) chprintf(chp, "%s", html_radio_sb);
-  else      chprintf(chp, "%s", html_radio_sl);
-  printRadioButton(chp, name, 0, text1, GET_BUTTON_STATE(state, 0), JSNumber, JSMask);
-  printRadioButton(chp, name, 1, text2, GET_BUTTON_STATE(state, 1), JSNumber, JSMask);
-  printRadioButton(chp, name, 2, text3, GET_BUTTON_STATE(state, 2), JSNumber, JSMask);
-  chprintf(chp, "%s", html_div_e);
-}
-
-void printFourButton(BaseSequentialStream *chp, const char *name, const uint8_t state,
-                     const uint8_t JSNumber, const uint8_t JSMask,
-                     const char *text1, const char *text2, const char *text3,
-                     const char *text4, const uint8_t size) {
-  if (size) chprintf(chp, "%s", html_radio_sb);
-  else      chprintf(chp, "%s", html_radio_sl);
-  printRadioButton(chp, name, 0, text1, GET_BUTTON_STATE(state, 0), JSNumber, JSMask);
-  printRadioButton(chp, name, 1, text2, GET_BUTTON_STATE(state, 1), JSNumber, JSMask);
-  printRadioButton(chp, name, 2, text3, GET_BUTTON_STATE(state, 2), JSNumber, JSMask);
-  printRadioButton(chp, name, 3, text4, GET_BUTTON_STATE(state, 3), JSNumber, JSMask);
-  chprintf(chp, "%s", html_div_e);
-}
-
-void printOnOffButton(BaseSequentialStream *chp, const char *name, const uint8_t state) {
-  chprintf(chp, "%s", html_radio_s);
-  printRadioButton(chp, name, 1, text_On, state, 0, 0);
-  printRadioButton(chp, name, 0, text_Off, !state, 0, 0);
-  chprintf(chp, "%s", html_div_e);
-}
-
-void printOnOffButtonWJS(BaseSequentialStream *chp, const char *name, const uint8_t state,
-                         const uint8_t JSNumber, const uint8_t JSMask) {
-  chprintf(chp, "%s", html_radio_s);
-  printRadioButton(chp, name, 1, text_On, state, JSNumber, JSMask);
-  printRadioButton(chp, name, 0, text_Off, !state, JSNumber, JSMask);
-  chprintf(chp, "%s", html_div_e);
-}
-
-void selectGroup(BaseSequentialStream *chp, uint8_t selected, char name) {
-  chprintf(chp, "%s%c%s%c%s", html_select, name, html_id_tag, name, html_e_tag);
-  for (uint8_t i = 0; i < ALARM_GROUPS; i++) {
-    chprintf(chp, "%s%u", html_option, i);
-    if (selected == i) { chprintf(chp, "%s", html_selected); }
-    else               { chprintf(chp, "%s", html_e_tag); }
-    chprintf(chp, "%u. %s - ", i + 1, conf.group[i].name);
-    GET_CONF_GROUP_ENABLED(conf.group[i].setting) ? chprintf(chp, "%s", text_On) : chprintf(chp, "%s", text_Off);
-    chprintf(chp, "%s", html_e_option);
-  }
-  chprintf(chp, "%s%u", html_option, DUMMY_GROUP);
-  if (selected == DUMMY_GROUP) { chprintf(chp, "%s", html_selected); }
-  else                         { chprintf(chp, "%s", html_e_tag); }
-  chprintf(chp, "%s%s", NOT_SET, html_e_option);
-  chprintf(chp, "%s", html_e_select);
-}
-/*
- * Print node value to stream
- */
-void printNodeValue(BaseSequentialStream *chp, const uint8_t index) {
-  switch(node[index].function){
-    case 'T': chprintf(chp, "%.2f °C", node[index].value); break;
-    case 'H':
-    case 'X': chprintf(chp, "%.2f %%", node[index].value); break;
-    case 'P': chprintf(chp, "%.2f mBar", node[index].value); break;
-    case 'V':
-    case 'B': chprintf(chp, "%.2f V", node[index].value); break;
-    case 'G': chprintf(chp, "%.2f ppm", node[index].value); break;
-    case 'i':
-      if ((uint8_t)node[index].value != DUMMY_NO_VALUE) {
-        chprintf(chp, "%s", conf.contact[conf.key[(uint8_t)node[index].value].contact].name);
-      }
-      break;
-    default: chprintf(chp, "%.2f", node[index].value); break;
-  }
-}
-
-void printTextInput(BaseSequentialStream *chp, const char name, const char *value, const uint8_t size){
-  chprintf(chp, "%s%u%s%u%s", html_t_tag_1, size - 1, html_s_tag_2, size - 1, html_s_tag_3);
-  chprintf(chp, "%c%s%s", name, html_m_tag, value);
-  chprintf(chp, "%s%c%s", html_id_tag, name, html_e_tag);
-}
-
-void printTextInputWMin(BaseSequentialStream *chp, const char name, const char *value,
-                        const uint8_t size, const uint8_t minSize){
-  chprintf(chp, "%s%u%s%u", html_t_tag_1, size - 1, html_s_tag_2, size - 1);
-  chprintf(chp, "%s%u%s", html_s_tag_4, minSize - 1, html_s_tag_3);
-  chprintf(chp, "%c%s%s", name, html_m_tag, value);
-  chprintf(chp, "%s%c%s", html_id_tag, name, html_e_tag);
-}
-
-void printPassInput(BaseSequentialStream *chp, const char name, const char *value,
-                    const uint8_t size, const uint8_t minSize){
-  chprintf(chp, "%s%u%s%u", html_p_tag_1, size - 1, html_s_tag_2, size - 1);
-  chprintf(chp, "%s%u%s", html_s_tag_4, minSize - 1, html_s_tag_3);
-  chprintf(chp, "%c%s%s", name, html_m_tag, value);
-  chprintf(chp, "%s%c%s", html_id_tag, name, html_e_tag);
-}
-
-void printIntInput(BaseSequentialStream *chp, const char name, const int16_t value,
-                   const uint8_t size, const int32_t min, const int32_t max){
-  chprintf(chp, "%s%u", html_n_tag_1, size + 2);
-  chprintf(chp, "%s%d%s%d%s", html_n_tag_2, min, html_n_tag_3, max, html_s_tag_3);
-  chprintf(chp, "%c%s%d", name, html_m_tag, value);
-  chprintf(chp, "%s%c%s", html_id_tag, name, html_e_tag);
-}
-
-void printFloatInput(BaseSequentialStream *chp, const char name, const float value){
-  chprintf(chp, "%s6em%s", html_n_tag_1, html_s_tag_3);
-  chprintf(chp, "%c%s%.02f", name, html_m_tag, value);
-  chprintf(chp, "%s%c' step='0.01'>", html_id_tag, name);
-}
-
-void printTimeInput(BaseSequentialStream *chp, const char name, const uint8_t hour,
-                    const uint8_t minute){
-  chprintf(chp, "%s%s%c", html_i_tag_1, html_s_tag_3, name);
-  chprintf(chp, "%s%c%s", html_id_tag, name, html_m_tag);
-  chprintf(chp, "%02u:%02u%s", hour, minute, html_i_tag_2);
-}
-
-// IPv4: <input type="text" minlength="7" maxlength="15" size="15" pattern="^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\.(?!$)|$)){4}$">
-
-void printTextArea(BaseSequentialStream *chp, const char name, const char *value,
-                   const uint16_t maxSize, const uint8_t cols, const uint8_t rows){
-  chprintf(chp, "%s%c%s%c%s%u", html_textarea_1, name, html_textarea_2, name, html_textarea_3, rows);
-  chprintf(chp, "%s%u%s%u' class='input' spellcheck='false'>", html_textarea_4, cols, html_textarea_5, maxSize - 1);
-  chprintf(chp, "%s%s", value, html_textarea_e);
-}
-
-void printDurationSelect(BaseSequentialStream *chp, const char name, const uint8_t value){
-  chprintf(chp, "%s%c%s%c%s", html_select, name, html_id_tag, name, html_e_tag);
-   for (uint8_t i = 0; i < ARRAY_SIZE(durationSelect); i++) {
-     chprintf(chp, "%s%u", html_option, i);
-     if (value == i) { chprintf(chp, "%s", html_selected); }
-     else            { chprintf(chp, "%s", html_e_tag); }
-     chprintf(chp, "%s%s", durationSelect[i], html_e_option);
-   }
-   chprintf(chp, "%s", html_e_select);
-}
 /*
  * LWIP custom file init.
  */
@@ -443,7 +148,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           break;
       }
       chprintf(chp, "\"><div class='wrp'><div class='sb'>\r\n");
-      chprintf(chp, "<div class='tt'>OHS 2.0 - %u.%u</div>\r\n", OHS_MAJOR, OHS_MINOR);
+      chprintf(chp, "<div class='tt'>OHS %u.%u.%u</div>\r\n", OHS_MAJOR, OHS_MINOR, OHS_MOD);
       // Navigation
       chprintf(chp, "<ul class='nav'>\r\n");
       for (uint8_t i = 0; i < ARRAY_SIZE(webPage); ++i) {
