@@ -22,6 +22,7 @@
 #define OHS_NAME         "OHS"
 #define OHS_MAJOR        1
 #define OHS_MINOR        3
+#define OHS_MOD          7
 
 #define BACKUP_SRAM_SIZE 0x1000 // 4kB SRAM size
 #define BACKUP_RTC_SIZE  80     // 80 bytes
@@ -831,7 +832,7 @@ void initRuntimeZones(void){
  * Write to backup SRAM
  */
 int16_t writeToBkpSRAM(uint8_t *data, uint16_t size, uint16_t offset){
-  if (size + offset >= BACKUP_SRAM_SIZE) osalSysHalt("SRAM out of region"); // Data out of BACKUP_SRAM_SIZE region
+  osalDbgAssert(((size + offset) < BACKUP_SRAM_SIZE), "BkpSRAM out of region");
   uint16_t i = 0;
   uint8_t *baseAddress = (uint8_t *) BKPSRAM_BASE;
   for(i = 0; i < size; i++) {
@@ -843,7 +844,7 @@ int16_t writeToBkpSRAM(uint8_t *data, uint16_t size, uint16_t offset){
  * Read from backup SRAM
  */
 int16_t readFromBkpSRAM(uint8_t *data, uint16_t size, uint16_t offset){
-  if (size + offset >= BACKUP_SRAM_SIZE) osalSysHalt("SRAM out of region");; // Data out of BACKUP_SRAM_SIZE region
+  osalDbgAssert(((size + offset) < BACKUP_SRAM_SIZE), "BkpSRAM out of region");
   uint16_t i = 0;
   uint8_t *baseAddress = (uint8_t *) BKPSRAM_BASE;
   for(i = 0; i < size; i++) {
@@ -855,8 +856,8 @@ int16_t readFromBkpSRAM(uint8_t *data, uint16_t size, uint16_t offset){
  * Write to backup RTC
  */
 int16_t writeToBkpRTC(uint8_t *data, uint8_t size, uint8_t offset){
-  if (size + offset >= BACKUP_RTC_SIZE) osalSysHalt("RTC out of region"); // Data out of BACKUP_RTC_SIZE region
-  if (offset % 4) osalSysHalt("RCT misaligned");                          // Offset is not aligned to to unint32_t registers
+  osalDbgAssert(((size + offset) < BACKUP_RTC_SIZE), "BkpRTC out of region");
+  osalDbgAssert(!(offset % 4), "BkpRTC misaligned"); // Offset is not aligned to to unint32_t registers
   uint8_t i = 0;
   volatile uint32_t *RTCBaseAddress = &(RTC->BKP0R);
   uint32_t tmp = 0;
@@ -873,8 +874,8 @@ int16_t writeToBkpRTC(uint8_t *data, uint8_t size, uint8_t offset){
  * Read from backup RTC
  */
 int16_t readFromBkpRTC(uint8_t *data, uint8_t size, uint8_t offset){
-  if (size + offset >= BACKUP_RTC_SIZE) osalSysHalt("RTC out of region"); // Data out of BACKUP_RTC_SIZE region
-  if (offset % 4) osalSysHalt("RCT misaligned");                          // Offset is not aligned to to unint32_t registers
+  osalDbgAssert(((size + offset) < BACKUP_RTC_SIZE), "BkpRTC out of region");
+  osalDbgAssert(!(offset % 4), "BkpRTC misaligned"); // Offset is not aligned to to unint32_t registers
   uint8_t i = 0;
   volatile uint32_t *RTCBaseAddress = &(RTC->BKP0R);
   uint32_t tmp = 0;

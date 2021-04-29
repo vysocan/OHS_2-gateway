@@ -188,7 +188,7 @@ int main(void) {
   chBSemObjectInit(&mqttSem, false);
   // Debug port
   sdStart(&SD3,  &serialCfg);
-  chprintf(console, "\r\nOHS v.%u.%u start\r\n", OHS_MAJOR, OHS_MINOR);
+  chprintf(console, "\r\nOHS v.%u.%u.%u start\r\n", OHS_MAJOR, OHS_MINOR, OHS_MOD);
   // GPRS modem
   gprsInit(&SD6);
   // Init nodes
@@ -279,7 +279,7 @@ int main(void) {
   chThdCreateStatic(waAEThread3, sizeof(waAEThread3), NORMALPRIO + 1, AEThread, (void*)"alarm 3");
   chThdCreateStatic(waLoggerThread, sizeof(waLoggerThread), NORMALPRIO, LoggerThread, (void*)"logger");
   chThdCreateStatic(waRS485Thread, sizeof(waRS485Thread), NORMALPRIO, RS485Thread, (void*)"rs485");
-  chThdCreateStatic(waRegistrationThread, sizeof(waRegistrationThread), NORMALPRIO - 1, RegistrationThread, (void*)"registration");
+  chThdCreateStatic(waRegistrationThread, sizeof(waRegistrationThread), NORMALPRIO - 1, RegistrationThread, (void*)"reg");
   chThdCreateStatic(waSensorThread, sizeof(waSensorThread), NORMALPRIO - 1, SensorThread, (void*)"sensor");
   chThdCreateStatic(waModemThread, sizeof(waModemThread), NORMALPRIO, ModemThread, (void*)"modem");
   chThdCreateStatic(waAlertThread, sizeof(waAlertThread), NORMALPRIO, AlertThread, (void*)"alert");
@@ -289,7 +289,7 @@ int main(void) {
   chThdCreateStatic(waTclThread, sizeof(waTclThread), LOWPRIO + 1, tclThread, (void*)"tcl");
   chThdCreateStatic(waMqttThread, sizeof(waMqttThread), NORMALPRIO - 2, MqttThread, (void*)"mqtt");
   //chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg);
-  chThdCreateStatic(waHeartBeatThread, sizeof(waHeartBeatThread), LOWPRIO, HeartBeatThread, (void*)"heartbeat");
+  chThdCreateStatic(waHeartBeatThread, sizeof(waHeartBeatThread), LOWPRIO, HeartBeatThread, (void*)"h-beat");
 
   stats_init();
   //ETH->MACFFR |= ETH_MACFFR_PAM;
