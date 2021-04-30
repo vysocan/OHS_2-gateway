@@ -29,7 +29,7 @@
  * Author: Simon Goldschmidt
  *
  * err_enum_t:
- * ERR_OK           No error, everything OK.
+ * ERR_OK            No error, everything OK.
  * ERR_MEM           Out of memory error.
  * ERR_BUF           Buffer error.
  * ERR_TIMEOUT       Timeout.
@@ -74,18 +74,18 @@
 #endif
 
 /* OHS overrides */
-#define MEM_SIZE                 20000
+#define MEM_SIZE                 1024 * 20
 #define MEMP_NUM_SYS_TIMEOUT     (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 6) // +1 MDSN,
 #define MEMP_NUM_UDP_PCB         5 // , +1 MDSN
-#define MEMP_NUM_TCP_PCB         20
+#define MEMP_NUM_TCP_PCB         30
 #define MEMP_NUM_TCP_PCB_LISTEN  5
-#define MEMP_NUM_PBUF            20
+#define MEMP_NUM_PBUF            10
 #define MEMP_NUM_RAW_PCB         6
 #define MEMP_NUM_TCP_SEG         15
 //#define MEMP_NUM_TCPIP_MSG_INPKT 20 // +2 MQTT
 //#define TCP_SND_QUEUELEN        ((6 * (TCP_SND_BUF) + (TCP_MSS - 1))/(TCP_MSS))
 //#define MEMP_NUM_TCP_SEG        TCP_SND_QUEUELEN
-#define PBUF_POOL_SIZE           16
+#define PBUF_POOL_SIZE           10
 
 
 /* Optional, application-specific settings.*/

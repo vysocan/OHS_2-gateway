@@ -64,7 +64,7 @@ static THD_FUNCTION(MqttThread, arg) {
         // Wait for free MQTT semaphore
         DBG_MQTT("MQTT ");
         if (chBSemWaitTimeout(&mqttSem, TIME_MS2I(100)) == MSG_OK) {
-          DBG_MQTT(" publish\r\n");
+          DBG_MQTT("publish\r\n");
           // Prepare message
           switch (inMsg->type) {
             case typeSystem:
@@ -175,19 +175,20 @@ static THD_FUNCTION(MqttThread, arg) {
           UNLOCK_TCPIP_CORE();
           if(err != ERR_OK) {
             DBG_MQTT("MQTT publish err: %d\n", err);
-            pushToLogText("QEP"); // Publish error
+            // Publish error
+            tmpLog[0] = 'Q'; tmpLog[1] = 'E'; tmpLog[2] = 'P'; tmpLog[3] = abs(err); pushToLog(tmpLog, 4);
           }
         } else {
           DBG_MQTT("MQTT publish semaphore timeout!\r\n");
+          pushToLogText("QET");
           // Reset the semaphore to allow next publish
-          chBSemReset(&mqttSem, false);
+          //chBSemReset(&mqttSem, false);
         }
       } // MQTT client connected
       chPoolFree(&mqtt_pool, inMsg);
 
     } else if (msg == MSG_TIMEOUT) {
       // Handle MQTT connection
-
       if (netInfo.status & LWIP_NSC_IPV4_ADDR_VALID) {
         LOCK_TCPIP_CORE();
         retain = mqtt_client_is_connected(&mqtt_client); // retain here as tmp variable

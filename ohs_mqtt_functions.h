@@ -46,9 +46,10 @@ static void mqttPubRequestCB(void *arg, err_t result) {
   LWIP_UNUSED_ARG(result);
 
   chBSemSignal(&mqttSem);
+  DBG_MQTT_FUNC("mqttPubRequestCB\r\n");
 
   if(result != ERR_OK) {
-    DBG_MQTT_FUNC("MQTT Publish error: %d\n", result);
+    DBG_MQTT_FUNC("mqttPubRequestCB error: %d\r\n", result);
     pushToLogText("QEP"); // Publish error
   }
 }
