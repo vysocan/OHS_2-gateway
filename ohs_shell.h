@@ -288,13 +288,13 @@ void cmd_showpin (BaseSequentialStream *chp, int argc, char **argv) // Debug: pi
   char *p;
   stm32_gpio_t *gpp;
   int bn, pn;
-  static char *modes[] = {"In", "Out", "AF", "Ana"};
+  static char *modes[] = {"In", "Out", "AF", "AIn"};
   static char *otypes[] = {"PP", "OD"};
-  static char *ospeeds[] = {"LOW", "MED", "LOW", "HI"};
-  static char *pupd[] = {"none", "p-up", "p-dn", "res"};
+  static char *ospeeds[] = {"Low", "Med", "Low", "Hi"};
+  static char *pupd[] = {"float", "p-up", "p-dn", "res"};
 
   if (argc < 1) {
-    shellUsage(chp, "showpin (A0 a1 ...) - enter pin(s).");
+    shellUsage(chp, "showpin (A0 b1 ...) - enter pin(s).");
     return;
   }
 
@@ -308,16 +308,18 @@ void cmd_showpin (BaseSequentialStream *chp, int argc, char **argv) // Debug: pi
     gpp = gpio_ports[pn];
 
     chprintf (chp, "P%c%d: ", 'A'+pn, bn);
-    chprintf (chp, "Mode: %s, ", modes[(gpp->MODER >> (2*bn))&3]);
-    chprintf (chp, "Out. type: %s, ", otypes[(gpp->OTYPER >> bn)&1]);
-
+    chprintf (chp, "Mode: %s", modes[(gpp->MODER >> (2*bn))&3]);
+    if (((gpp->MODER >> (2*bn))&3) == 2) {
+      if (bn<8) chprintf (chp, "%d, ", (gpp->AFRL >> (4* bn   ) ) &0xf);
+      if (bn>7) chprintf (chp, "%d, ", (gpp->AFRH >> (4*(bn-8)) ) &0xf);
+    } else {
+      chprintf (chp, ", ", modes[(gpp->MODER >> (2*bn))&3]);
+    }
+    chprintf (chp, "Type: %s, ", otypes[(gpp->OTYPER >> bn)&1]);
     chprintf (chp, "Speed: %s, ", ospeeds[(gpp->OSPEEDR >> (2*bn))&3]);
     chprintf (chp, "Resistor: %s, ", pupd[(gpp->PUPDR >> (2*bn))&3]);
     chprintf (chp, "IDR: %d, ", (gpp->IDR >> (1*bn))&1);
-    chprintf (chp, "ODR: %d, ", (gpp->ODR >> (1*bn))&1);
-
-    if (bn<8) chprintf (chp, "AFR: %d, ", (gpp->AFRL >> (4* bn   ) ) &0xf);
-    if (bn>7) chprintf (chp, "AFR: %d, ", (gpp->AFRH >> (4*(bn-8)) ) &0xf);
+    chprintf (chp, "ODR: %d.", (gpp->ODR >> (1*bn))&1);
     chprintf (chp, SHELL_NEWLINE_STR);
   }
 }
