@@ -126,6 +126,7 @@ const char text_Type[]              = "Type";
 const char text_type[]              = "type";
 const char text_publish[]           = "publish";
 const char text_subscribe[]         = "subscribe";
+const char text_semaphore[]         = "semaphore";
 const char text_Subscribe[]         = "Subscribe";
 const char text_Last[]              = "Last";
 const char text_devation[]          = "deviation";
@@ -262,5 +263,31 @@ const char text_Registration[]      = "Registration";
 const char text_not_found[]         = "not found";
 const char text_activated[]         = "activated";
 const char text_error_free[]        = "Not enough free space in ";
+
+/*
+typedef enum {
+  langEN = 0,
+  langCZ,
+  langTOTAL // keep as last entry
+} language_t;
+
+const char *lang_empty = "";
+
+const char *lang(const char *text) {
+  return text ? text : lang_empty;
+  if (text) return text;
+  else return lang_empty;
+}
+
+const char *lang_languages[langTOTAL] = {
+  "English",
+  "Cesky"
+};
+
+const char *lang_Modem[langTOTAL] = {
+  "Modem",
+  "Modem"
+};
+*/
 
 #endif /* OHS_TEXT_CONST_H_ */
