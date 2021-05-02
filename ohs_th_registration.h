@@ -16,7 +16,7 @@ static THD_FUNCTION(RegistrationThread, arg) {
   chRegSetThreadName(arg);
   msg_t msg;
   registrationEvent_t *inMsg;
-  uint8_t nodeIndex;
+  uint8_t nodeIndex, groupNum;
 
   while (true) {
     msg = chMBFetchTimeout(&registration_mb, (msg_t*)&inMsg, TIME_INFINITE);
@@ -49,9 +49,33 @@ static THD_FUNCTION(RegistrationThread, arg) {
               node[nodeIndex].number   = inMsg->number;
               node[nodeIndex].setting  = inMsg->setting;
               node[nodeIndex].lastOK  = getTimeUnixSec();
-              // Reset value, 0 or dummy for authentication
-              if (node[nodeIndex].function == 'i') node[nodeIndex].value = DUMMY_NO_VALUE;
-              else                                 node[nodeIndex].value = 0;
+              // Set value, state upon registration.
+              if (node[nodeIndex].type == 'K') {
+                // Reset node value to dummy for authentication nodes
+                node[nodeIndex].value = DUMMY_NO_VALUE;
+                // Send initial state to Key node.
+                groupNum = GET_NODE_GROUP(node[nodeIndex].setting);
+                if (GET_GROUP_ALARM(group[groupNum].setting) == 0) {
+                  if (GET_GROUP_WAIT_AUTH(group[groupNum].setting)) {
+                    sendCmd(inMsg->address, NODE_CMD_AUTH_1);
+                  } else {
+                    if (GET_GROUP_ARMED(group[groupNum].setting)) {
+                      sendCmd(inMsg->address, NODE_CMD_ARMED);
+                    } else {
+                      if (group[groupNum].armDelay > 0) {
+                        sendCmd(inMsg->address, NODE_CMD_ARMING);
+                      } else {
+                        sendCmd(inMsg->address, NODE_CMD_DISARM);
+                      }
+                    }
+                  }
+                } else {
+                  sendCmd(inMsg->address, NODE_CMD_ALARM);
+                }
+              } else {
+                // Reset node value to 0
+                node[nodeIndex].value = 0;
+              }
               memcpy(&node[nodeIndex].name, &inMsg->name, NAME_LENGTH);
               tmpLog[0] = 'N'; tmpLog[1] = 'R'; tmpLog[2] = inMsg->address; tmpLog[3] = inMsg->type;
                 tmpLog[4] = inMsg->function; tmpLog[5] = inMsg->number;  pushToLog(tmpLog, 6);

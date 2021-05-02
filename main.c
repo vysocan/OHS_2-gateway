@@ -5,7 +5,6 @@
  *
  */
 //TODO OHS rename ch.bin to ohs.bin
-//TODO OHS add send mode for authentication nodes based on group state on start/registration.
 //TODO OHS move arm/disarm group to some kind of fifo, it take a lot of resources calling nodes, mqtt ...
 // Optimize stack and overflow
 #define PORT_INT_REQUIRED_STACK 128
