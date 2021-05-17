@@ -538,6 +538,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
               logAddress = 0; // Just temp. var.
               for (uint8_t j = 0; j < ALARM_ZONES; j++) {
                 if ((GET_CONF_ZONE_ENABLED(conf.zone[j])) &&
+                    (GET_CONF_ZONE_IS_PRESENT(conf.zone[j])) &&
                     (GET_CONF_ZONE_GROUP(conf.zone[j]) == i)) {
                   if (logAddress > 0) chprintf(chp, "%s", html_br);
                   chprintf(chp, "%u. %s", j+1, conf.zoneName[j]);
@@ -654,7 +655,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           selectGroup(chp, GET_CONF_GROUP_DISARM_CHAIN(conf.group[webGroup].setting), 'd');
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           // Buttons
-          chprintf(chp, "%s%s", html_Apply, html_Save);
+          chprintf(chp, "%s%s%s", html_Apply, html_Save, html_Disarm);
           break;
         case PAGE_HOME:
           // Information table
@@ -1078,7 +1079,9 @@ int fs_open_custom(struct fs_file *file, const char *name){
               }
             }
             chprintf(chp, "%s", html_e_td_td);
-            chprintf(chp, "%s%s", triggerCondition[conf.trigger[i].condition],html_e_td_td);
+            if (GET_CONF_TRIGGER_ENABLED(conf.trigger[i].setting))
+              chprintf(chp, "%s", triggerCondition[conf.trigger[i].condition]);
+            chprintf(chp, "%s", html_e_td_td);
             if (GET_CONF_TRIGGER_ENABLED(conf.trigger[i].setting)) {
               switch (conf.trigger[i].type) {
                 case 'G': chprintf(chp, "%s", groupState[(uint8_t)conf.trigger[i].value]);
@@ -1090,12 +1093,17 @@ int fs_open_custom(struct fs_file *file, const char *name){
               }
             }
             chprintf(chp, "%s", html_e_td_td);
-            if (conf.trigger[i].type == 'S') chprintf(chp, "%.2f", conf.trigger[i].hysteresis);
+            if (GET_CONF_TRIGGER_ENABLED(conf.trigger[i].setting)) {
+              if (conf.trigger[i].type == 'S') chprintf(chp, "%.2f", conf.trigger[i].hysteresis);
+            }
             chprintf(chp, "%s", html_e_td_td);
-            if (conf.trigger[i].evalScript[0]) chprintf(chp, "%s", conf.trigger[i].evalScript);
-            else chprintf(chp, "%s", NOT_SET);
+            if (GET_CONF_TRIGGER_ENABLED(conf.trigger[i].setting)) {
+              if (conf.trigger[i].evalScript[0]) chprintf(chp, "%s", conf.trigger[i].evalScript);
+              else chprintf(chp, "%s", NOT_SET);
+            }
             chprintf(chp, "%s", html_e_td_td);
-            printOkNok(chp, GET_CONF_TRIGGER_ALERT(conf.trigger[i].setting));
+            if (GET_CONF_TRIGGER_ENABLED(conf.trigger[i].setting))
+              printOkNok(chp, GET_CONF_TRIGGER_ALERT(conf.trigger[i].setting));
             chprintf(chp, "%s", html_e_td_td);
 
             if (GET_CONF_TRIGGER_ENABLED(conf.trigger[i].setting)) {
@@ -1110,12 +1118,14 @@ int fs_open_custom(struct fs_file *file, const char *name){
             }
             chprintf(chp, "%s", html_e_td_td);
             // Pass off
-            if (GET_CONF_TRIGGER_PASS(conf.trigger[i].setting)) {
-              if (GET_CONF_TRIGGER_PASS_OFF(conf.trigger[i].setting) < 2) {
-                chprintf(chp, "%s", triggerPassOffType[GET_CONF_TRIGGER_PASS_OFF(conf.trigger[i].setting)]);
-              } else {
-                chprintf(chp, "%s %u %s", text_after, conf.trigger[i].offTime,
-                durationSelect[GET_CONF_TRIGGER_OFF_PERIOD(conf.trigger[i].setting)]);
+            if (GET_CONF_TRIGGER_ENABLED(conf.trigger[i].setting)) {
+              if (GET_CONF_TRIGGER_PASS(conf.trigger[i].setting)) {
+                if (GET_CONF_TRIGGER_PASS_OFF(conf.trigger[i].setting) < 2) {
+                  chprintf(chp, "%s", triggerPassOffType[GET_CONF_TRIGGER_PASS_OFF(conf.trigger[i].setting)]);
+                } else {
+                  chprintf(chp, "%s %u %s", text_after, conf.trigger[i].offTime,
+                  durationSelect[GET_CONF_TRIGGER_OFF_PERIOD(conf.trigger[i].setting)]);
+                }
               }
             }
             chprintf(chp, "%s", html_e_td_td);
@@ -1755,6 +1765,9 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                 break;
                 case 'e': // save
                   writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+                break;
+                case 'D': // Disarm
+                  disarmGroup(webGroup, DUMMY_NO_VALUE, 0); // Disarm just this group
                 break;
               }
             } while (repeat);

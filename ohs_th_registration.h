@@ -54,7 +54,7 @@ static THD_FUNCTION(RegistrationThread, arg) {
                 // Reset node value to dummy for authentication nodes
                 node[nodeIndex].value = DUMMY_NO_VALUE;
                 // Send initial state to Key node.
-                groupNum = GET_NODE_GROUP(node[nodeIndex].setting);
+                groupNum = GET_NODE_GROUP(inMsg->setting);
                 if (GET_GROUP_ALARM(group[groupNum].setting) == 0) {
                   if (GET_GROUP_WAIT_AUTH(group[groupNum].setting)) {
                     sendCmd(inMsg->address, NODE_CMD_AUTH_1);

@@ -231,6 +231,9 @@ void armGroup(uint8_t groupNum, uint8_t master, armType_t armType, uint8_t hop) 
 }
 /*
  * Disarm a group
+ *
+ * groupNum, groupNum, 0 - to disarm whole chain
+ * groupNum, DUMMY_NO_VALUE, 0 - to disarm just one group
  */
 void disarmGroup(uint8_t groupNum, uint8_t master, uint8_t hop) {
   uint8_t resp = 0;

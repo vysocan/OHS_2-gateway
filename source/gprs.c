@@ -145,7 +145,6 @@ static uint8_t gprsWaitAndReadMsg(uint8_t *where, uint8_t responseLength, uint16
 
   return count;
 }
-
 /*
  * Send command
  */
