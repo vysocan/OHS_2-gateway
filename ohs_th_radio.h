@@ -26,6 +26,7 @@ static THD_FUNCTION(RadioThread, arg) {
   chRegSetThreadName(arg);
   msg_t resp;
   uint8_t nodeIndex, index;
+  time_t timeNow;
 
   while (true) {
     // Wait for packet
@@ -42,11 +43,13 @@ static THD_FUNCTION(RadioThread, arg) {
         case 'C': // Commands
           switch((uint8_t)rfm69Data.data[1]) {
             case NODE_CMD_PING: // Nodes should do periodic ping to stay alive/registered
+              timeNow = getTimeUnixSec();
               index = 0; // Just any temp variable
               for (nodeIndex = 0; nodeIndex < NODE_SIZE; nodeIndex++) {
                 if (node[nodeIndex].address == rfm69Data.senderId + RADIO_UNIT_OFFSET) {
-                  node[nodeIndex].lastOK = getTimeUnixSec();
+                  node[nodeIndex].lastOK = timeNow;
                   index++;
+                  DBG_RADIO("Node TS # %u updated\r\n", nodeIndex);
                 }
               }
               // If not found, call this node to register.

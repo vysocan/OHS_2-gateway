@@ -29,6 +29,7 @@ static THD_FUNCTION(RS485Thread, arg) {
   msg_t resp;
   RS485Msg_t rs485Msg;
   uint8_t nodeIndex, index;
+  time_t timeNow;
 
   // Register
   chEvtRegister((event_source_t *)&RS485D2.event, &serialListener, EVENT_MASK(0));
@@ -61,11 +62,12 @@ static THD_FUNCTION(RS485Thread, arg) {
         if (rs485Msg.ctrl == RS485_FLAG_CMD) {
           switch(rs485Msg.length) {
             case NODE_CMD_PING: // Nodes should do periodic ping to stay alive/registered
+              timeNow = getTimeUnixSec();
               index = 0; // Just any temp variable
               // Search in nodes
               for (nodeIndex = 0; nodeIndex < NODE_SIZE; nodeIndex++) {
                 if (node[nodeIndex].address == rs485Msg.address) {
-                  node[nodeIndex].lastOK = getTimeUnixSec();
+                  node[nodeIndex].lastOK = timeNow;
                   index++;
                 }
               }
