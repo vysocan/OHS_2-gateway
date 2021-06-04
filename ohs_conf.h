@@ -12,8 +12,8 @@
 #if STM32_BKPRAM_ENABLE == STM32_NO_INIT
 #error "In mcuconf.h STM32_BKPRAM_ENABLE must be TRUE!"
 #endif
-#if STM32_LSI_ENABLED || !STM32_LSE_ENABLED
-#error "We have external oscillator!"
+#if !STM32_LSE_ENABLED
+#error "We have RTC external oscillator!"
 #endif
 
 // STM32 UID as Ethernet MAC
@@ -25,7 +25,6 @@
 #define OHS_MOD          7
 
 #define BACKUP_SRAM_SIZE 0x1000 // 4kB SRAM size
-#define BACKUP_RTC_SIZE  80     // 80 bytes
 
 #define ALARM_GROUPS     10     // # of groups
 #define ALARM_ZONES      30     // # of zones
@@ -724,7 +723,7 @@ typedef struct {
 } group_t;
 group_t group[ALARM_GROUPS] __attribute__((section(".ram4")));
 // Check conf size fits to backup SRAM
-typedef char check_group[sizeof(group) <= BACKUP_RTC_SIZE ? 1 : -1];
+typedef char check_group[sizeof(group) <= STM32_RTC_STORAGE_SIZE ? 1 : -1];
 
 // Zone runtime variables
 typedef struct {
@@ -856,7 +855,7 @@ int16_t readFromBkpSRAM(uint8_t *data, uint16_t size, uint16_t offset){
  * Write to backup RTC
  */
 int16_t writeToBkpRTC(uint8_t *data, uint8_t size, uint8_t offset){
-  osalDbgAssert(((size + offset) < BACKUP_RTC_SIZE), "BkpRTC out of region");
+  osalDbgAssert(((size + offset) < STM32_RTC_STORAGE_SIZE), "BkpRTC out of region");
   osalDbgAssert(!(offset % 4), "BkpRTC misaligned"); // Offset is not aligned to to unint32_t registers
   uint8_t i = 0;
   volatile uint32_t *RTCBaseAddress = &(RTC->BKP0R);
@@ -874,7 +873,7 @@ int16_t writeToBkpRTC(uint8_t *data, uint8_t size, uint8_t offset){
  * Read from backup RTC
  */
 int16_t readFromBkpRTC(uint8_t *data, uint8_t size, uint8_t offset){
-  osalDbgAssert(((size + offset) < BACKUP_RTC_SIZE), "BkpRTC out of region");
+  osalDbgAssert(((size + offset) < STM32_RTC_STORAGE_SIZE), "BkpRTC out of region");
   osalDbgAssert(!(offset % 4), "BkpRTC misaligned"); // Offset is not aligned to to unint32_t registers
   uint8_t i = 0;
   volatile uint32_t *RTCBaseAddress = &(RTC->BKP0R);
