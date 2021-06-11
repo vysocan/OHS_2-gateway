@@ -8,11 +8,11 @@
 #ifndef OHS_TH_MQTT_H_
 #define OHS_TH_MQTT_H_
 
-#ifndef MQTT_DEBUG
-#define MQTT_DEBUG 0
+#ifndef OHS_MQTT_DEBUG
+#define OHS_MQTT_DEBUG 0
 #endif
 
-#if MQTT_DEBUG
+#if OHS_MQTT_DEBUG
 #define DBG_MQTT(...) {chprintf(console, __VA_ARGS__);}
 #else
 #define DBG_MQTT(...)
@@ -68,7 +68,7 @@ static THD_FUNCTION(MqttThread, arg) {
           // Prepare message
           switch (inMsg->type) {
             case typeSystem:
-              qos = 1; retain = 1;
+              qos = 0; retain = 1;
               chsnprintf(topic, sizeof(topic), "%s", MQTT_MAIN_TOPIC);
               switch (inMsg->function) {
                 default: // State
@@ -80,7 +80,7 @@ static THD_FUNCTION(MqttThread, arg) {
               }
               break;
             case typeGroup:
-              qos = 1; retain = 1;
+              qos = 0; retain = 1;
               chsnprintf(topic, sizeof(topic), "%s%s/%d/", MQTT_MAIN_TOPIC, text_group, inMsg->number + 1);
               switch (inMsg->function) {
                 case functionName:
@@ -115,7 +115,7 @@ static THD_FUNCTION(MqttThread, arg) {
               }
               break;
             case typeZone:
-              qos = 1;
+              qos = 0;
               chsnprintf(topic, sizeof(topic), "%s%s/%d/", MQTT_MAIN_TOPIC, text_zone, inMsg->number + 1);
               switch (inMsg->function) {
                 case functionName:
