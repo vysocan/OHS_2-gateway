@@ -59,7 +59,7 @@
 #include "static_lwipopts.h"
 #include "date_time.h"
 
-#define LWIP_PRINT(...)  {chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__); chprintf((BaseSequentialStream*) &SD3, "\r");}
+#define LWIP_PRINT(...)  {chprintf((BaseSequentialStream*) &SD3, __VA_ARGS__);}// chprintf((BaseSequentialStream*) &SD3, "\r");}
 
 // TODO OHS #define LWIP_RAM_HEAP_POINTER (void *) SOME_ADDRESS Move LWIP to CCM?
 
@@ -164,14 +164,19 @@
 #endif
 
 // LWIP DEBUG
-//#define LWIP_DEBUG   LWIP_DBG_ON
-//#define HTTPD_DEBUG  LWIP_DBG_ON
+//#define LWIP_DEBUG LWIP_DBG_ON
+//#define MEMP_DEBUG LWIP_DBG_ON
+//#define TIMERS_DEBUG LWIP_DBG_ON
+//#define MEM_DEBUG LWIP_DBG_ON
+//#define SYS_DEBUG LWIP_DBG_ON
 //#define ETHARP_DEBUG LWIP_DBG_ON
 //#define NETIF_DEBUG  LWIP_DBG_ON
 //#define ICMP_DEBUG LWIP_DBG_ON
 //#define IP_DEBUG LWIP_DBG_ON
 //#define DNS_DEBUG LWIP_DBG_ON
 //#define SOCKETS_DEBUG LWIP_DBG_ON
+// HTTPD
+//#define HTTPD_DEBUG  LWIP_DBG_ON
 // SNTP
 //#define SNTP_DEBUG LWIP_DBG_ON
 // SMTP
@@ -185,8 +190,8 @@
 // SNTP
 #define SNTP_SERVER_DNS         1
 #define SNTP_STARTUP_DELAY      1       // enable
-#define SNTP_STARTUP_DELAY_FUNC (20000) // SNTP first query after # seconds
-#define SNTP_UPDATE_DELAY       3600000 // SNTP update every # seconds
+#define SNTP_STARTUP_DELAY_FUNC (20000) // SNTP first query after # milliseconds
+#define SNTP_UPDATE_DELAY       3600000 // SNTP update every # milliseconds
 
 // Maximum segment size
 #define TCP_MSS 1024
