@@ -1469,10 +1469,10 @@ err_t httpd_post_receive_data(void *connection, struct pbuf *p) {
     //--u8_t ptr = (u8_t)pbuf_get_contiguous(p, buf, sizeof(buf), LWIP_MIN(option_len, sizeof(buf)), offset);
 
     //DBG_HTTP("strlen(postData): %u\r\n", strlen(postData));
-    pbuf_free(p);
+    if (p != NULL) pbuf_free(p);
     return ERR_OK;
   }
-  pbuf_free(p);
+  if (p != NULL) pbuf_free(p);
   return ERR_VAL;
 }
 /*
