@@ -117,6 +117,7 @@ include $(CHIBIOS)/test/oslib/oslib_test.mk
 include $(CHIBIOS)/os/hal/lib/streams/streams.mk
 include $(CHIBIOS)/os/various/shell/shell.mk
 include $(CHIBIOS)/os/various/lwip_bindings/lwip.mk
+#include $(CHIBIOS)/ext/znp/znp.mk
 #include $(CHIBIOS)/ext/STM32F4xx_StdPeriph_Driver/stcrypt.mk
 #include $(CHIBIOS)/ext/STM32_Cryptographic_Library/stcryptolib.mk
 #include $(CHIBIOS)/os/various/wolfssl_bindings/wolfssl.mk
