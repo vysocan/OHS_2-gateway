@@ -144,5 +144,12 @@ static const ADCConversionGroup adcgrpcfg1 = {
   ADC_SQR3_SQ2_N(ADC_CHANNEL_IN5) |
   ADC_SQR3_SQ1_N(ADC_CHANNEL_IN6) /* SQR3 Conversion sequence 1-6 */
 };
+/*
+ * Watchdog
+ */
+static const WDGConfig wdgcfg = {
+  STM32_IWDG_PR_64,
+  STM32_IWDG_RL(1000)
+};
 
 #endif /* OHS_PERIPHERAL_H_ */

@@ -189,7 +189,7 @@
 #define GET_CONF_TIMER_TU(x)          ((x >> 7U) & 0b1)
 #define GET_CONF_TIMER_MO(x)          ((x >> 8U) & 0b1)
 #define GET_CONF_TIMER_RESULT(x)      ((x >> 9U) & 0b1)
-#define GET_CONF_TIMER_EVALUATED(x)   ((x >> 10U) & 0b1)
+#define GET_CONF_TIMER_EVALUATED(x)   ((x >> 10U) & 0b1) // not used
 #define GET_CONF_TIMER_TRIGGERED(x)   ((x >> 11U) & 0b1)
 #define GET_CONF_TIMER_PERIOD_TYPE(x) ((x >> 12U) & 0b11)
 #define GET_CONF_TIMER_RUN_TYPE(x)    ((x >> 14U) & 0b11)
