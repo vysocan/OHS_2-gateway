@@ -13,7 +13,7 @@ script:
 deploy:
   provider: releases
   api_key: '$GITHUB_API_KEY'
-  file: 'build/ch.bin'
+  file: 'build/OHS_F437.bin'
   skip_cleanup: true
   on:
     tags: flase
