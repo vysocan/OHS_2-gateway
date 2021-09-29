@@ -357,7 +357,7 @@ union uint32_tag {
 } uint32Conv;
 
 // Zones alarm events
-#define ALARMEVENT_FIFO_SIZE 10
+#define ALARM_EVENT_FIFO_SIZE 10
 typedef struct {
   uint16_t zone;
   char     type;
@@ -471,8 +471,8 @@ typedef char check_alertDef[ARRAY_SIZE(alertDef) <= 32 ? 1 : -1];
 /*
  * Mailboxes
  */
-static msg_t        alarmEvent_mb_buffer[ALARMEVENT_FIFO_SIZE];
-static MAILBOX_DECL(alarmEvent_mb, alarmEvent_mb_buffer, ALARMEVENT_FIFO_SIZE);
+static msg_t        alarmEvent_mb_buffer[ALARM_EVENT_FIFO_SIZE];
+static MAILBOX_DECL(alarmEvent_mb, alarmEvent_mb_buffer, ALARM_EVENT_FIFO_SIZE);
 
 static msg_t        logger_mb_buffer[LOGGER_FIFO_SIZE];
 static MAILBOX_DECL(logger_mb, logger_mb_buffer, LOGGER_FIFO_SIZE);
@@ -497,7 +497,7 @@ static MAILBOX_DECL(mqtt_mb, mqtt_mb_buffer, MQTT_FIFO_SIZE);
 /*
  * Pools
  */
-static alarmEvent_t alarmEvent_pool_queue[ALARMEVENT_FIFO_SIZE];
+static alarmEvent_t alarmEvent_pool_queue[ALARM_EVENT_FIFO_SIZE];
 static MEMORYPOOL_DECL(alarmEvent_pool, sizeof(alarmEvent_t), PORT_NATURAL_ALIGN, NULL);
 
 static loggerEvent_t logger_pool_queue[LOGGER_FIFO_SIZE];
@@ -722,7 +722,7 @@ typedef struct {
   uint8_t armDelay;
 } group_t;
 group_t group[ALARM_GROUPS] __attribute__((section(".ram4")));
-// Check conf size fits to backup SRAM
+// Check group size fits to backup SRAM
 typedef char check_group[sizeof(group) <= STM32_RTC_STORAGE_SIZE ? 1 : -1];
 
 // Zone runtime variables

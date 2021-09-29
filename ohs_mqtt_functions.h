@@ -73,7 +73,7 @@ static void mqttIncomingPublishCB(void *arg, const char *topic, u32_t tot_len) {
  *   /{#} - index of group {1 .. ALARM_GROUPS}
  *     /state - allowed commands {disarm, arm_home, arm_away}
  * /sensor - allowed only  for 'I'nput nodes
- *   /{address} - node address like W:2:K:i:0
+ *   /{address} - node address like W:2:I:D:0
  *     /value - float value
  *
  * ToDo:

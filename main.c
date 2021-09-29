@@ -4,7 +4,6 @@
  *
  *
  */
-//TODO OHS rename ch.bin to ohs.bin
 //TODO OHS move arm/disarm group to some kind of fifo, it take a lot of resources calling nodes, mqtt ...
 // Optimize stack and overflow
 #define PORT_INT_REQUIRED_STACK 128
@@ -248,7 +247,7 @@ int main(void) {
   chPoolObjectInit(&trigger_pool, sizeof(triggerEvent_t), NULL);
   chPoolObjectInit(&mqtt_pool, sizeof(mqttEvent_t), NULL);
   //chPoolLoadArray(&alarmEvent_pool, alarmEvent_pool_queue, ALARMEVENT_FIFO_SIZE);
-  for(uint8_t i = 0; i < ALARMEVENT_FIFO_SIZE; i++) { chPoolFree(&alarmEvent_pool, &alarmEvent_pool_queue[i]); }
+  for(uint8_t i = 0; i < ALARM_EVENT_FIFO_SIZE; i++) { chPoolFree(&alarmEvent_pool, &alarmEvent_pool_queue[i]); }
   for(uint8_t i = 0; i < LOGGER_FIFO_SIZE; i++) { chPoolFree(&logger_pool, &logger_pool_queue[i]); }
   for(uint8_t i = 0; i < REG_FIFO_SIZE; i++) { chPoolFree(&registration_pool, &registration_pool_queue[i]); }
   for(uint8_t i = 0; i < SENSOR_FIFO_SIZE; i++) { chPoolFree(&sensor_pool, &sensor_pool_queue[i]); }
