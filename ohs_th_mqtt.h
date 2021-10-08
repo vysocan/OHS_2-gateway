@@ -44,8 +44,8 @@ static THD_FUNCTION(MqttThread, arg) {
   err_t err; // lwip error type
   msg_t msg;
   mqttEvent_t *inMsg;
-  uint8_t qos;    // At most once (0); At least once (1); Exactly once (2)
-  uint8_t retain; // Retain (1) or not (0)
+  uint8_t qos;    // MQTT QoS: at most once(0); At least once (1); Exactly once (2)
+  uint8_t retain; // MQTT retain messages: yes(1); no(0)
   char topic[40], payload[20];
 
   while (true) {
