@@ -838,12 +838,12 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%u%s", ummHeapInfo.usedEntries, html_e_td_td);
           chprintf(chp, "%u%s", ummHeapInfo.freeEntries, html_e_td_td);
           chprintf(chp, "%u%s", ummHeapInfo.totalEntries, html_e_td_td);
-          chprintf(chp, "%s %u%%%s", text_Used, umm_usage_metric(), html_e_td_e_tr_tr_td);
+          chprintf(chp, "%s %u%%%s", text_Fragmentation, umm_fragmentation_metric(), html_e_td_e_tr_tr_td);
           chprintf(chp, "%s%s", text_Blocks, html_e_td_td);
           chprintf(chp, "%u%s", ummHeapInfo.usedBlocks, html_e_td_td);
           chprintf(chp, "%u%s", ummHeapInfo.freeBlocks, html_e_td_td);
           chprintf(chp, "%u%s", ummHeapInfo.totalBlocks, html_e_td_td);
-          chprintf(chp, "%s %u%%", text_Fragmentation, umm_fragmentation_metric());
+          chprintf(chp, "%s %u%%", text_Used, umm_usage_metric());
           chprintf(chp, "%s%s %u %s", html_tr_th, text_Storage, (UBS_BLOCK_SIZE * UBS_BLOCK_COUNT)/1024, text_kB);
           chprintf(chp, "%s%s", html_e_th_th, text_Used);
           chprintf(chp, "%s%s", html_e_th_th, text_Free);
