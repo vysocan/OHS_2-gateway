@@ -193,15 +193,9 @@ static void cmd_net(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
 
   chprintf(chp, "Hostname   : " OHS_NAME SHELL_NEWLINE_STR);
-  chprintf(chp, "IP address : %u.%u.%u.%u" SHELL_NEWLINE_STR,
-           netInfo.ip & 0xff, (netInfo.ip >> 8) & 0xff,
-           (netInfo.ip >> 16) & 0xff, (netInfo.ip >> 24) & 0xff);
-  chprintf(chp, "Netmask    : %u.%u.%u.%u" SHELL_NEWLINE_STR,
-           netInfo.mask & 0xff, (netInfo.mask >> 8) & 0xff,
-           (netInfo.mask >> 16) & 0xff, (netInfo.mask >> 24) & 0xff);
-  chprintf(chp, "Gateway    : %u.%u.%u.%u" SHELL_NEWLINE_STR,
-           netInfo.gw & 0xff, (netInfo.gw >> 8) & 0xff,
-           (netInfo.gw >> 16) & 0xff, (netInfo.gw >> 24) & 0xff);
+  chprintf(chp, "IP address : %s" SHELL_NEWLINE_STR, ip4addr_ntoa((ip4_addr_t *)&netInfo.ip));
+  chprintf(chp, "Netmask    : %s" SHELL_NEWLINE_STR, ip4addr_ntoa((ip4_addr_t *)&netInfo.mask));
+  chprintf(chp, "Gateway    : %s" SHELL_NEWLINE_STR, ip4addr_ntoa((ip4_addr_t *)&netInfo.gw));
   chprintf(chp, "Flags      : %u" SHELL_NEWLINE_STR, netInfo.status);
   chprintf(chp, "MAC        : %02x:%02x:%02x:%02x:%02x:%02x" SHELL_NEWLINE_STR,
            macAddr[0], macAddr[1], macAddr[2],
