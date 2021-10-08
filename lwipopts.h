@@ -126,6 +126,7 @@
 #define LWIP_HTTPD_FILE_EXTENSION       1
 #define LWIP_HTTPD_DYNAMIC_HEADERS      1
 #define LWIP_HTTPD_SUPPORT_POST         1
+#define HTTPD_ADDITIONAL_CONTENT_TYPES  {"wolf2", HTTP_CONTENT_TYPE("font/woff2")} // Adding our icon-font type to HTTPD
 // DNS
 #define LWIP_RAND() ((uint32_t)rand())
 #define LWIP_DNS 1
