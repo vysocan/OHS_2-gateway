@@ -25,10 +25,16 @@
 #error This needs LWIP_HTTPD_FILE_EXTENSION
 #endif
 #if !LWIP_HTTPD_DYNAMIC_HEADERS
-#error This needs LWIP_HTTPD_DYNAMIC_HEADERS
+//#error This needs LWIP_HTTPD_DYNAMIC_HEADERS
 #endif
 #if !LWIP_HTTPD_SUPPORT_POST
 #error This needs LWIP_HTTPD_SUPPORT_POST
+#endif
+#if !LWIP_HTTPD_SUPPORT_COOKIES
+#error This needs LWIP_HTTPD_SUPPORT_COOKIES
+#endif
+#if !LWIP_HTTPD_SUPPORT_FS_OPEN_AUTH
+#error This needs LWIP_HTTPD_SUPPORT_FS_OPEN_AUTH
 #endif
 
 #ifndef HTTP_DEBUG
@@ -43,10 +49,18 @@
 
 #define HTTP_POST_DATA_SIZE 1024
 #define HTTP_ALERT_MSG_SIZE 80
-static void *current_connection;
+#define HTTP_SET_COOKIE_SIZE 48
+static void *currentConn;
 char current_uri[LWIP_HTTPD_MAX_REQUEST_URI_LEN] __attribute__((section(".ram4")));
 char postData[HTTP_POST_DATA_SIZE] __attribute__((section(".ram4")));
 char alertMsg[HTTP_ALERT_MSG_SIZE] __attribute__((section(".ram4")));
+char setCookie[HTTP_SET_COOKIE_SIZE] __attribute__((section(".ram4")));
+void *verifiedConn = NULL;
+typedef struct {
+  uint32_t id;
+  void     *conn;
+} authorizedConn_t;
+static authorizedConn_t authorizedConn = {0, 0};
 
 // Size of dynamic HTML page
 #define HTML_PAGE_SIZE 1024 * 16
@@ -67,6 +81,7 @@ char alertMsg[HTTP_ALERT_MSG_SIZE] __attribute__((section(".ram4")));
 #define PAGE_TIMER      9
 #define PAGE_TRIGGER    10
 #define PAGE_TCL        11
+#define PAGE_LOGIN      12
 
 typedef struct {
   char    link[14];
@@ -86,20 +101,20 @@ static const webPage_t webPage[] = {
   {"/log.html",     "Log"},
   {"/timer.html",   "Timers"},
   {"/trigger.html", "Triggers"},
-  {"/tcl.html",     "Scripts"}
+  {"/tcl.html",     "Scripts"},
+  {"/login.html",   "Login"}
 };
-
+// HTML pages global variables to remember elements user works with last
+static uint8_t webNode = 0, webContact = 0, webKey = 0, webZone = 0,
+    webGroup = 0, webTimer = 0, webScript = DUMMY_NO_VALUE, webTrigger = 0;
+static char scriptName[NAME_LENGTH];
+static uint16_t webLog = 0;
 /*
  * LWIP custom file init.
  */
 void genfiles_ex_init(void) {
   /* nothing to do here yet */
 }
-// HTML pages global variables
-uint8_t webNode = 0, webContact = 0, webKey = 0, webZone = 0, webGroup = 0,
-    webTimer = 0, webScript = DUMMY_NO_VALUE, webTrigger = 0;
-char scriptName[NAME_LENGTH];
-static uint16_t webLog = 0;
 /*
  * LWIP open custom file
  */
@@ -144,6 +159,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "sd(document.getElementById('y'));"); // Type select
           break;
         case PAGE_TCL:
+        case PAGE_LOGIN:
           chprintf(chp, "ca();"); // Close alerts
           break;
       }
@@ -151,7 +167,8 @@ int fs_open_custom(struct fs_file *file, const char *name){
       chprintf(chp, "<div class='tt'>OHS %u.%u.%u</div>\r\n", OHS_MAJOR, OHS_MINOR, OHS_MOD);
       // Navigation
       chprintf(chp, "<ul class='nav'>\r\n");
-      for (uint8_t i = 0; i < ARRAY_SIZE(webPage); ++i) {
+      // Loop through pages in given order, except last one (login.html).
+      for (uint8_t i = 0; i < (ARRAY_SIZE(webPage) - 1); ++i) {
         if (htmlPage == i) chprintf(chp, "<li><a class='active' href='%s'>%s</a></li>\r\n", webPage[i].link, webPage[i].name);
         else chprintf(chp, "<li><a href='%s'>%s</a></li>\r\n", webPage[i].link, webPage[i].name);
       }
@@ -708,16 +725,16 @@ int fs_open_custom(struct fs_file *file, const char *name){
           printIntInput(chp, 'F', conf.openAlarm, 3, 1, 240);
           chprintf(chp, " %s%s%s %s%s", durationSelect[1], html_e_td_e_tr_tr_td, text_Admin,
                    text_user, html_e_td_td);
-          printTextInput(chp, 'u', conf.user, NAME_LENGTH);
+          printTextInputWMin(chp, 'u', conf.user, NAME_LENGTH, MIN_PASS_LNEGTH);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Admin, text_password,
                    html_e_td_td);
-          printPassInput(chp, 'p', conf.password, NAME_LENGTH, 8); chprintf(chp, "%s", html_br);
-          printPassInput(chp, 'P', conf.password, NAME_LENGTH, 8);
+          printPassInput(chp, 'p', conf.password, NAME_LENGTH, MIN_PASS_LNEGTH); chprintf(chp, "%s", html_br);
+          printPassInput(chp, 'P', conf.password, NAME_LENGTH, MIN_PASS_LNEGTH);
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
 
           chprintf(chp, "<h1>%s</h1>\r\n%s", text_Radio, html_table);
           chprintf(chp, "%s%s%s", html_tr_td, text_Key, html_e_td_td);
-          printTextInputWMin(chp, 'K', conf.radioKey, RADIO_KEY_SIZE, RADIO_KEY_SIZE);
+          printTextInputWMin(chp, 'K', conf.radioKey, RADIO_KEY_SIZE - 1, RADIO_KEY_SIZE - 1);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Frequency, html_e_td_td);
           printTwoButton(chp, "1", GET_CONF_SYSTEM_FLAG_RADIO_FREQ(conf.systemFlags), 0, 0b00,
                                    "868 Mhz", "915 Mhz");
@@ -731,8 +748,8 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_User, text_name, html_e_td_td);
           printTextInput(chp, 'c', conf.SMTPUser, EMAIL_LENGTH);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_User, text_password, html_e_td_td);
-          printPassInput(chp, 'd', conf.SMTPPassword, NAME_LENGTH, 1);
-          // chprintf(chp, "%s", html_br); printPassInput(chp, 'D', conf.SMTPPassword, NAME_LENGTH, 1);
+          printPassInput(chp, 'd', conf.SMTPPassword, NAME_LENGTH, MIN_PASS_LNEGTH);
+          // chprintf(chp, "%s", html_br); printPassInput(chp, 'D', conf.SMTPPassword, NAME_LENGTH, MIN_PASS_LNEGTH);
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
 
           chprintf(chp, "<h1>%s</h1>\r\n%s", text_MQTT, html_table);
@@ -743,8 +760,8 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_User, text_name, html_e_td_td);
           printTextInput(chp, 't', conf.mqtt.user, NAME_LENGTH);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_User, text_password, html_e_td_td);
-          printPassInput(chp, 'r', conf.mqtt.password, NAME_LENGTH, 1);
-          // chprintf(chp, "%s", html_br); printPassInput(chp, 'R', conf.mqtt.password, NAME_LENGTH, 1);
+          printPassInput(chp, 'r', conf.mqtt.password, NAME_LENGTH, MIN_PASS_LNEGTH);
+          // chprintf(chp, "%s", html_br); printPassInput(chp, 'R', conf.mqtt.password, NAME_LENGTH, MIN_PASS_LNEGTH);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Connected, html_e_td_td);
           printOkNok(chp, !(GET_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting) | GET_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting)));
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Subscribe, html_e_td_td);
@@ -1310,6 +1327,16 @@ int fs_open_custom(struct fs_file *file, const char *name){
           // Buttons
           chprintf(chp, "%s%s", html_Apply, html_Save);
           break;
+        case PAGE_LOGIN:
+          // Information table
+          chprintf(chp, "%s%s%s", html_tr_td, text_User, html_e_td_td);
+          printPassInput(chp, 'u', "", NAME_LENGTH, MIN_PASS_LNEGTH);
+          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Password, html_e_td_td);
+          printPassInput(chp, 'p', "", NAME_LENGTH, MIN_PASS_LNEGTH);
+          chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
+          // Buttons
+          chprintf(chp, "%s", html_Submit);
+          break;
         default:
           break;
       }
@@ -1360,9 +1387,9 @@ err_t httpd_post_begin(void *connection, const char *uri, const char *http_reque
   //DBG_HTTP("-PB-response_uri_len: %u\r\n", response_uri_len);
   //DBG_HTTP("-PB-post_auto_wnd: %u\r\n", *post_auto_wnd);
 
-  if (current_connection != connection) {
+  if (currentConn != connection) {
     memset(current_uri, 0 , LWIP_HTTPD_MAX_REQUEST_URI_LEN);
-    current_connection = connection;
+    currentConn = connection;
     chsnprintf(response_uri, response_uri_len, uri);
     chsnprintf(current_uri, response_uri_len, uri);
     memset(postData, 0, HTTP_POST_DATA_SIZE); // Empty POST data buffer
@@ -1450,7 +1477,7 @@ bool getPostData(char **pPostData, char *pName, uint8_t nameLen, char **pValue, 
 err_t httpd_post_receive_data(void *connection, struct pbuf *p) {
 
   DBG_HTTP("-PD-connection: %u\r\n", (uint32_t *)connection);
-  if (current_connection == connection) {
+  if (currentConn == connection) {
     DBG_HTTP("p->payload: '%.*s'\r\n", p->len, p->payload);
     //DBG_HTTP("p->ref: %u\r\n", p->ref);
     //DBG_HTTP("p->next: %u\r\n", p->next);
@@ -1491,7 +1518,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
 
   DBG_HTTP("-PE-connection: %u\r\n", (uint32_t *)connection);
 
-  if (current_connection == connection) {
+  if (currentConn == connection) {
     for (uint8_t htmlPage = 0; htmlPage < ARRAY_SIZE(webPage); ++htmlPage) {
       if (!strcmp(current_uri, webPage[htmlPage].link)) {
         switch (htmlPage) {
@@ -2201,17 +2228,84 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
               }
             } while (repeat);
             break;
+          case PAGE_LOGIN:
+            number = 1; // temp. variable to hold state of authentication
+            do{
+              repeat = getPostData(&postDataP, &name[0], sizeof(name), &valueP, &valueLen);
+              DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
+              switch(name[0]){
+                case 'u': // user
+                  number = strcmp(valueP, conf.user);
+                break;
+                case 'p': // password
+                  if (!number &&(!strcmp(valueP, conf.password))) {
+                    verifiedConn = connection;
+                    authorizedConn.id = STM32_UUID[0] + rand();
+                    authorizedConn.conn = (void *)connection;
+                  } else {
+                    chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "User or password not valid!");
+                  }
+                break;
+              }
+            } while (repeat);
+            break;
           default:
             break;
         }
-        break; // If found, no need to do check another page.
+        break; // If found, no need to look for another page.
       }
     }
 
-    chsnprintf(response_uri, response_uri_len, current_uri);
+    // Change final uri if authenticated via /login.html
+    if (verifiedConn == connection) {
+      chsnprintf(response_uri, response_uri_len, webPage[0].link);
+    } else {
+      chsnprintf(response_uri, response_uri_len, current_uri);
+    }
     DBG_HTTP("-PE-response_uri: %s\r\n", response_uri);
-    current_connection = NULL;
+    currentConn = NULL;
   }
+}
+/*
+ * HTTPD callback
+ */
+char *httpd_set_cookies(const void *connection, const char *uri) {
+  LWIP_UNUSED_ARG(uri);
+
+  DBG_HTTP("-SC: %u, %s\r\n", (uint32_t *)connection, uri);
+  if (connection == verifiedConn) {
+    verifiedConn = NULL; // Clear verified connection
+    chsnprintf(setCookie, HTTP_SET_COOKIE_SIZE,
+               HDR_HTTP_RES_SET_COOKIE "id=%08X\r\n", authorizedConn.id);
+    DBG_HTTP("--SC: %s", setCookie);
+    return setCookie;
+  }
+  return NULL;
+}
+/*
+ * HTTPD callback
+ */
+void httpd_received_cookies(const void *connection, const char *cookies) {
+  DBG_HTTP("-RC: %u, cookies: %s\r\n", (uint32_t *)connection, cookies);
+  const char *sessionId = strstr(cookies, "id=");
+  if (sessionId != NULL) {
+     uint32_t value = strtol(sessionId+3, NULL, 16);
+     if (value == authorizedConn.id) {
+       authorizedConn.conn = (uint32_t *)connection;
+       DBG_HTTP("--RC: %u\r\n", (uint32_t *)connection);
+     }
+  }
+}
+/*
+ * HTTPD callback
+ */
+void httpd_authorize_fs_open(void *connection, const char **name){
+  DBG_HTTP("-AFSO: %u, %s\r\n", (uint32_t *)connection, *name);
+  if (strstr(*name, ".html")) {
+    if (authorizedConn.conn != connection) *name = webPage[PAGE_LOGIN].link;
+    DBG_HTTP("--AFSO: %u, %s\r\n", (uint32_t *)connection, *name);
+  }
+  authorizedConn.conn = NULL;
 }
 
 #endif /* OHS_HTTPDHANDLER_H_ */

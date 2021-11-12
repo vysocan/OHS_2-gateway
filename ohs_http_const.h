@@ -81,6 +81,7 @@ const char html_F[]                 = "<input type='submit' name='f' value='>'/>
 const char html_Run[]               = "<input type='submit' name='R' value='Run'/>";
 const char html_Refresh[]           = "<input type='submit' name='F' value='Refresh'/>";
 const char html_Restart[]           = "<input type='submit' name='S' value='Restart'/>";
+const char html_Submit[]            = "<input type='submit' name='S' value='Submit'/>";
 const char html_textarea_1[]        = "<textarea name='";
 const char html_textarea_2[]        = "' id='";
 const char html_textarea_3[]        = "' rows='";

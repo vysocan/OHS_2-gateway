@@ -22,7 +22,7 @@
 #define OHS_NAME         "OHS"
 #define OHS_MAJOR        1
 #define OHS_MINOR        3
-#define OHS_MOD          8
+#define OHS_MOD          9
 
 #define BACKUP_SRAM_SIZE 0x1000 // 4kB SRAM size
 
@@ -35,6 +35,7 @@
 #define TRIGGER_SIZE     10     // # of timers
 #define KEY_LENGTH       4      // sizeof(uint32_t) = size of hash
 #define NAME_LENGTH      16     //
+#define MIN_PASS_LNEGTH  4      // minimum password length
 #define PHONE_LENGTH     14     //
 #define EMAIL_LENGTH     32     //
 #define URL_LENGTH       32     // URL address

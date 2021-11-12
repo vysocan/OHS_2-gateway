@@ -7,12 +7,18 @@
 
 #ifndef OHS_HTTP_PRINT_H_
 #define OHS_HTTP_PRINT_H_
-
+// Helper macro
+#define GET_BUTTON_STATE(x,y) (x==y)
+/*
+ *
+ */
 void printOkNok(BaseSequentialStream *chp, const int8_t value) {
   if (value == 1) chprintf(chp, "%s", html_i_OK);
   else            chprintf(chp, "%s", html_i_disabled);
 }
-
+/*
+ *
+ */
 void printRadioButton(BaseSequentialStream *chp, const char *name, const uint8_t value,
                  const char *label, bool selected,
                  const uint8_t JSNumber, const uint8_t JSMask) {
@@ -29,8 +35,9 @@ void printRadioButton(BaseSequentialStream *chp, const char *name, const uint8_t
   chprintf(chp, "%s%s%u", html_cbPart4a, name, value);
   chprintf(chp, "%s%s%s", html_cbPart4b, label, html_cbPart5);
 }
-
-#define GET_BUTTON_STATE(x,y) (x==y)
+/*
+ *
+ */
 void printTwoButton(BaseSequentialStream *chp, const char *name, const uint8_t state,
                     const uint8_t JSNumber, const uint8_t JSMask,
                      const char *text1, const char *text2) {
@@ -39,7 +46,9 @@ void printTwoButton(BaseSequentialStream *chp, const char *name, const uint8_t s
   printRadioButton(chp, name, 1, text2, GET_BUTTON_STATE(state, 1), JSNumber, JSMask);
   chprintf(chp, "%s", html_div_e);
 }
-
+/*
+ *
+ */
 // ((JSon >> 1) & 0b1) : enableJS
 void printThreeButton(BaseSequentialStream *chp, const char *name, const uint8_t state,
                       const uint8_t JSNumber, const uint8_t JSMask,
@@ -52,7 +61,9 @@ void printThreeButton(BaseSequentialStream *chp, const char *name, const uint8_t
   printRadioButton(chp, name, 2, text3, GET_BUTTON_STATE(state, 2), JSNumber, JSMask);
   chprintf(chp, "%s", html_div_e);
 }
-
+/*
+ *
+ */
 void printFourButton(BaseSequentialStream *chp, const char *name, const uint8_t state,
                      const uint8_t JSNumber, const uint8_t JSMask,
                      const char *text1, const char *text2, const char *text3,
@@ -65,14 +76,18 @@ void printFourButton(BaseSequentialStream *chp, const char *name, const uint8_t 
   printRadioButton(chp, name, 3, text4, GET_BUTTON_STATE(state, 3), JSNumber, JSMask);
   chprintf(chp, "%s", html_div_e);
 }
-
+/*
+ *
+ */
 void printOnOffButton(BaseSequentialStream *chp, const char *name, const uint8_t state) {
   chprintf(chp, "%s", html_radio_s);
   printRadioButton(chp, name, 1, text_On, state, 0, 0);
   printRadioButton(chp, name, 0, text_Off, !state, 0, 0);
   chprintf(chp, "%s", html_div_e);
 }
-
+/*
+ *
+ */
 void printOnOffButtonWJS(BaseSequentialStream *chp, const char *name, const uint8_t state,
                          const uint8_t JSNumber, const uint8_t JSMask) {
   chprintf(chp, "%s", html_radio_s);
@@ -80,7 +95,9 @@ void printOnOffButtonWJS(BaseSequentialStream *chp, const char *name, const uint
   printRadioButton(chp, name, 0, text_Off, !state, JSNumber, JSMask);
   chprintf(chp, "%s", html_div_e);
 }
-
+/*
+ *
+ */
 void selectGroup(BaseSequentialStream *chp, uint8_t selected, char name) {
   chprintf(chp, "%s%c%s%c%s", html_select, name, html_id_tag, name, html_e_tag);
   for (uint8_t i = 0; i < ALARM_GROUPS; i++) {
@@ -117,29 +134,38 @@ void printNodeValue(BaseSequentialStream *chp, const uint8_t index) {
     default: chprintf(chp, "%.2f", node[index].value); break;
   }
 }
-
-void printTextInput(BaseSequentialStream *chp, const char name, const char *value, const uint8_t size){
+/*
+ *
+ */
+void printTextInput(BaseSequentialStream *chp, const char name, const char *value,
+                    const uint8_t size){
   chprintf(chp, "%s%u%s%u%s", html_t_tag_1, size - 1, html_s_tag_2, size - 1, html_s_tag_3);
   chprintf(chp, "%c%s%s", name, html_m_tag, value);
   chprintf(chp, "%s%c%s", html_id_tag, name, html_e_tag);
 }
-
+/*
+ *
+ */
 void printTextInputWMin(BaseSequentialStream *chp, const char name, const char *value,
                         const uint8_t size, const uint8_t minSize){
-  chprintf(chp, "%s%u%s%u", html_t_tag_1, size - 1, html_s_tag_2, size - 1);
-  chprintf(chp, "%s%u%s", html_s_tag_4, minSize - 1, html_s_tag_3);
+  chprintf(chp, "%s%u%s%u", html_t_tag_1, size, html_s_tag_2, size);
+  chprintf(chp, "%s%u%s", html_s_tag_4, minSize, html_s_tag_3);
   chprintf(chp, "%c%s%s", name, html_m_tag, value);
   chprintf(chp, "%s%c%s", html_id_tag, name, html_e_tag);
 }
-
+/*
+ *
+ */
 void printPassInput(BaseSequentialStream *chp, const char name, const char *value,
                     const uint8_t size, const uint8_t minSize){
   chprintf(chp, "%s%u%s%u", html_p_tag_1, size - 1, html_s_tag_2, size - 1);
-  chprintf(chp, "%s%u%s", html_s_tag_4, minSize - 1, html_s_tag_3);
+  chprintf(chp, "%s%u%s", html_s_tag_4, minSize, html_s_tag_3);
   chprintf(chp, "%c%s%s", name, html_m_tag, value);
   chprintf(chp, "%s%c%s", html_id_tag, name, html_e_tag);
 }
-
+/*
+ *
+ */
 void printIntInput(BaseSequentialStream *chp, const char name, const int16_t value,
                    const uint8_t size, const int32_t min, const int32_t max){
   chprintf(chp, "%s%u", html_n_tag_1, size + 2);
@@ -147,29 +173,36 @@ void printIntInput(BaseSequentialStream *chp, const char name, const int16_t val
   chprintf(chp, "%c%s%d", name, html_m_tag, value);
   chprintf(chp, "%s%c%s", html_id_tag, name, html_e_tag);
 }
-
+/*
+ *
+ */
 void printFloatInput(BaseSequentialStream *chp, const char name, const float value){
   chprintf(chp, "%s6em%s", html_n_tag_1, html_s_tag_3);
   chprintf(chp, "%c%s%.02f", name, html_m_tag, value);
   chprintf(chp, "%s%c' step='0.01'>", html_id_tag, name);
 }
-
+/*
+ *
+ */
 void printTimeInput(BaseSequentialStream *chp, const char name, const uint8_t hour,
                     const uint8_t minute){
   chprintf(chp, "%s%s%c", html_i_tag_1, html_s_tag_3, name);
   chprintf(chp, "%s%c%s", html_id_tag, name, html_m_tag);
   chprintf(chp, "%02u:%02u%s", hour, minute, html_i_tag_2);
 }
-
 // IPv4: <input type="text" minlength="7" maxlength="15" size="15" pattern="^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])(\.(?!$)|$)){4}$">
-
+/*
+ *
+ */
 void printTextArea(BaseSequentialStream *chp, const char name, const char *value,
                    const uint16_t maxSize, const uint8_t cols, const uint8_t rows){
   chprintf(chp, "%s%c%s%c%s%u", html_textarea_1, name, html_textarea_2, name, html_textarea_3, rows);
   chprintf(chp, "%s%u%s%u' class='input' spellcheck='false'>", html_textarea_4, cols, html_textarea_5, maxSize - 1);
   chprintf(chp, "%s%s", value, html_textarea_e);
 }
-
+/*
+ *
+ */
 void printDurationSelect(BaseSequentialStream *chp, const char name, const uint8_t value){
   chprintf(chp, "%s%c%s%c%s", html_select, name, html_id_tag, name, html_e_tag);
    for (uint8_t i = 0; i < ARRAY_SIZE(durationSelect); i++) {
