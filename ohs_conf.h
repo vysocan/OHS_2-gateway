@@ -52,9 +52,13 @@
 
 #define RADIO_KEY_SIZE    17    // 16 + 1 for null termination
 #define RADIO_UNIT_OFFSET 15    // Offset of radio nodes of wired nodes
-#define REGISTRATION_SIZE 22    // Registration packet size, 'R' + 21
 #define NODE_SIZE         50    // Number of nodes
 #define NODE_ADDRESS_SIZE 5
+
+// Standard packet sizes without the packet header indication 'R' or 'S' or 'Z'
+#define REG_PACKET_SIZE    21
+#define SENSOR_PACKET_SIZE 6
+#define ZONE_PACKET_SIZE   2
 
 #define DUMMY_NO_VALUE    255
 #define DUMMY_GROUP       15
@@ -380,8 +384,6 @@ typedef struct {
 
 // Registration events
 #define REG_FIFO_SIZE 6
-#define REG_PACKET_HEADER_SIZE 5
-#define REG_PACKET_SIZE 21
 typedef struct {
   char     type;
   uint8_t  address;
@@ -394,7 +396,6 @@ typedef struct {
 
 // Sensor events
 #define SENSOR_FIFO_SIZE 10
-#define SENSOR_PACKET_SIZE 6
 typedef struct {
   uint8_t address;  // = 0;
   char    function; // = ' ';
@@ -999,7 +1000,7 @@ void setConfDefault(void){
   //                  ||||||-
   //                  |||||||- Show warnings
   //                  ||||||||- Restart environment each time.
-  conf.tclSetting = 0b00000001;
+  conf.tclSetting = 0b00000000;
   conf.tclIteration = 5000;
 
   //                   |||||-

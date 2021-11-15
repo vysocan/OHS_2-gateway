@@ -90,9 +90,8 @@ static THD_FUNCTION(RS485Thread, arg) {
         if (rs485Msg.ctrl == RS485_FLAG_DTA) {
           switch(rs485Msg.data[0]) {
             case 'R': // Registration
-              index = 0;
+              index = 1; // Skip 'R'
               do {
-                index++; // Skip 'R'
                 registrationEvent_t *outMsg = chPoolAlloc(&registration_pool);
                 if (outMsg != NULL) {
                   // node setting
@@ -163,7 +162,7 @@ static THD_FUNCTION(RS485Thread, arg) {
               } while (index < rs485Msg.length);
               break;
             case 'Z': // Zone
-              index = 1; // Skip first 'Z'
+              index = 1; // Skip 'Z'
               DBG_RS485("Zone");
               do {
                 nodeIndex = rs485Msg.data[index] - 1; // Used here as temporary zone number
@@ -175,11 +174,15 @@ static THD_FUNCTION(RS485Thread, arg) {
                     // Zone address and sender address match = zone is remote zone
                     if (conf.zoneAddress[nodeIndex-HW_ZONES] == (rs485Msg.address)){
                       DBG_RS485(" = %c", rs485Msg.data[index+1]);
-                      zone[nodeIndex].lastEvent = rs485Msg.data[index+1];
-                      if (rs485Msg.data[index+1] == 'O') {
-                        zone[nodeIndex].lastOK = getTimeUnixSec();  // update current timestamp
-                      } else {
-                        zone[nodeIndex].lastPIR = getTimeUnixSec(); // update current timestamp
+                      // Check for valid lastEvent
+                      if ((rs485Msg.data[index+1] == 'O') || (rs485Msg.data[index+1] == 'P') ||
+                          (rs485Msg.data[index+1] == 'T')) {
+                        zone[nodeIndex].lastEvent = rs485Msg.data[index+1];
+                        if (rs485Msg.data[index+1] == 'O') {
+                          zone[nodeIndex].lastOK = getTimeUnixSec();  // update current timestamp
+                        } else {
+                          zone[nodeIndex].lastPIR = getTimeUnixSec(); // update current timestamp
+                        }
                       }
                     } else {
                       // Log error just once
@@ -196,7 +199,7 @@ static THD_FUNCTION(RS485Thread, arg) {
                     }
                   } // else / Zone enabled
                 } // Zone allowed
-                index += 2;
+                index += ZONE_PACKET_SIZE;
               } while (index < rs485Msg.length);
               DBG_RS485("\r\n");
               break;

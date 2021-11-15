@@ -1512,7 +1512,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
   uint16_t number, valueLen = 0, triggerNum;
   int8_t resp;
   char name[3];
-  uint8_t message[REGISTRATION_SIZE];
+  uint8_t message[REG_PACKET_SIZE + 1];
   bool repeat;
   char *postDataP = &postData[0], *endP, *valueP;
 
@@ -1542,9 +1542,9 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   message[4] = (uint8_t)((node[webNode].setting >> 8) & 0b11111111);;
                   message[5] = (uint8_t)(node[webNode].setting & 0b11111111);
                   memcpy(&message[6], node[webNode].name, NAME_LENGTH);
-                  resp = sendData(node[webNode].address, message, REGISTRATION_SIZE);
+                  resp = sendData(node[webNode].address, message, REG_PACKET_SIZE + 1);
                   /*
-                  if (sendData(node[webNode].address, message, REGISTRATION_SIZE) != 1) {
+                  if (sendData(node[webNode].address, message, REG_PACKET_SIZE + 1) != 1) {
                     // look queue slot
                     _found = DUMMY_NO_VALUE;
                     if (node[webNode].queue != DUMMY_NO_VALUE) {
@@ -1679,7 +1679,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                     message[4] = (uint8_t)((conf.zone[webZone] >> 8) & 0b11111111);;
                     message[5] = (uint8_t)(conf.zone[webZone] & 0b11111111);
                     memcpy(&message[6], conf.zoneName[webZone], NAME_LENGTH);
-                    resp = sendData(conf.zoneAddress[webZone-HW_ZONES], message, REGISTRATION_SIZE);
+                    resp = sendData(conf.zoneAddress[webZone-HW_ZONES], message, REG_PACKET_SIZE + 1);
                   }
                 break;
                 case 'n': // name

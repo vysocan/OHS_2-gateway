@@ -65,9 +65,8 @@ static THD_FUNCTION(RadioThread, arg) {
           }
           break;
         case 'R': // Registration
-          index = 0;
+          index = 1; // Skip 'R'
           do {
-            index++; // Skip 'R'
             registrationEvent_t *outMsg = chPoolAlloc(&registration_pool);
             if (outMsg != NULL) {
               // node setting
@@ -136,7 +135,7 @@ static THD_FUNCTION(RadioThread, arg) {
           } while (index < rfm69Data.length);
           break;
         case 'Z': // Zone
-          index = 1; // Skip first 'Z'
+          index = 1; // Skip 'Z'
           DBG_RADIO("Zone");
           do {
             nodeIndex = rfm69Data.data[index] - 1; // Used here as temporary zone number
@@ -148,11 +147,15 @@ static THD_FUNCTION(RadioThread, arg) {
                 // Zone address and sender address match = zone is remote zone
                 if (conf.zoneAddress[nodeIndex-HW_ZONES] == (rfm69Data.senderId) + RADIO_UNIT_OFFSET){
                   DBG_RADIO(" = %c", rfm69Data.data[index+1]);
-                  zone[nodeIndex].lastEvent = rfm69Data.data[index+1];
-                  if (rfm69Data.data[index+1] == 'O') {
-                    zone[nodeIndex].lastOK = getTimeUnixSec();  // update current timestamp
-                  } else {
-                    zone[nodeIndex].lastPIR = getTimeUnixSec(); // update current timestamp
+                  // Check for valid lastEvent
+                  if ((rfm69Data.data[index+1] == 'O') || (rfm69Data.data[index+1] == 'P') ||
+                      (rfm69Data.data[index+1] == 'T')) {
+                    zone[nodeIndex].lastEvent = rfm69Data.data[index+1];
+                    if (rfm69Data.data[index+1] == 'O') {
+                      zone[nodeIndex].lastOK = getTimeUnixSec();  // update current timestamp
+                    } else {
+                      zone[nodeIndex].lastPIR = getTimeUnixSec(); // update current timestamp
+                    }
                   }
                 } else {
                   // Log error just once
@@ -169,7 +172,7 @@ static THD_FUNCTION(RadioThread, arg) {
                 }
               } // else / Zone enabled
             } // Zone allowed
-            index += 2;
+            index += ZONE_PACKET_SIZE;
           } while (index < rfm69Data.length);
           DBG_RADIO("\r\n");
           break;
