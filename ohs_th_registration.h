@@ -106,8 +106,8 @@ static THD_FUNCTION(RegistrationThread, arg) {
               else                        CLEAR_CONF_ZONE_TYPE(conf.zone[inMsg->number]); // force "Digital"
               conf.zoneAddress[inMsg->number-HW_ZONES] = inMsg->address; // copy address
               memcpy(&conf.zoneName[inMsg->number], &inMsg->name, NAME_LENGTH);
-              chprintf(console, "Registered zone #%d - %s, address %d\r\n",
-                       inMsg->number, conf.zoneName[inMsg->number], conf.zoneAddress[inMsg->number-HW_ZONES]);
+              chprintf(console, "Registered zone: %d. %s, address index %d\r\n",
+                       (inMsg->number)+1, conf.zoneName[inMsg->number], conf.zoneAddress[inMsg->number-HW_ZONES]);
               // MQTT publish name
               if (GET_CONF_ZONE_MQTT_PUB(conf.zone[inMsg->number])) pushToMqtt(typeZone, inMsg->number, functionName);
             } else { tmpLog[1] = 'E'; } // Log data

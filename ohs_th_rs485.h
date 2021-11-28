@@ -9,7 +9,7 @@
 #define OHS_TH_RS485_H_
 
 #ifndef RS485_DEBUG
-#define RS485_DEBUG 1
+#define RS485_DEBUG 0
 #endif
 
 #if RS485_DEBUG

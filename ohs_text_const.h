@@ -145,6 +145,7 @@ const char text_alarm[]             = "alarm";
 const char text_Alarm[]             = "Alarm";
 const char text_as[]                = "as";
 const char text_tamper[]            = "tamper";
+const char text_tampered[]          = "tampered";
 const char text_Delay[]             = "Delay";
 const char text_OK[]                = "OK";
 const char text_Status[]            = "Status";

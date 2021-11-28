@@ -685,14 +685,14 @@ static uint8_t decodeLog(char *in, char *out, bool full){
       chprintf(chp, "%s ", text_Zone);
       if (full) {
         if ((uint8_t)in[2] < ALARM_ZONES) {
-          chprintf(chp, "%u %s ", (uint8_t)in[2] + 1, conf.zoneName[(uint8_t)in[2]]);
+          chprintf(chp, "%u. %s ", (uint8_t)in[2] + 1, conf.zoneName[(uint8_t)in[2]]);
         } else {
           chprintf(chp, "%s ", text_unknown);
         }
       }
       switch(in[1]){
         case 'P': chprintf(chp, "%s", text_alarm); break;
-        case 'T': chprintf(chp, "%s", text_tamper); break;
+        case 'T': chprintf(chp, "is %s", text_tampered); break;
         case 'O': chprintf(chp, "%s", text_open); break;
         case 'R': chprintf(chp, "%s", text_registered); break;
         case 'r': chprintf(chp, "%s%s", text_re, text_registered); break;

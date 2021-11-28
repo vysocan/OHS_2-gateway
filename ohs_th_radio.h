@@ -9,7 +9,7 @@
 #define OHS_TH_RADIO_H_
 
 #ifndef RADIO_DEBUG
-#define RADIO_DEBUG 1
+#define RADIO_DEBUG 0
 #endif
 
 #if RADIO_DEBUG
