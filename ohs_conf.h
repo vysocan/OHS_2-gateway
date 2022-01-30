@@ -547,7 +547,7 @@ typedef struct {
   char     type;          //
   char     function;      //
   uint8_t  number;        //
-  uint8_t  condition;     //
+  uint8_t  condition;     // triggerCondition
   float    value;         //
   float    constantOn;    //
   float    constantOff;   //

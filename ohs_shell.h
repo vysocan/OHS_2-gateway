@@ -8,6 +8,11 @@
 #ifndef OHS_SHELL_H_
 #define OHS_SHELL_H_
 
+// Show showpin command in shell interface
+#ifndef SHELL_SHOW_PIN
+#define SHELL_SHOW_PIN 0
+#endif
+
 /*
  * Console applet to show log entries
  */
@@ -196,7 +201,7 @@ static void cmd_net(BaseSequentialStream *chp, int argc, char *argv[]) {
   chprintf(chp, "IP address : %s" SHELL_NEWLINE_STR, ip4addr_ntoa((ip4_addr_t *)&netInfo.ip));
   chprintf(chp, "Netmask    : %s" SHELL_NEWLINE_STR, ip4addr_ntoa((ip4_addr_t *)&netInfo.mask));
   chprintf(chp, "Gateway    : %s" SHELL_NEWLINE_STR, ip4addr_ntoa((ip4_addr_t *)&netInfo.gw));
-  chprintf(chp, "Flags      : %u" SHELL_NEWLINE_STR, netInfo.status);
+  chprintf(chp, "Flags      : 0x%04x" SHELL_NEWLINE_STR, netInfo.status); // As defined in lwip's netif.h
   chprintf(chp, "MAC        : %02x:%02x:%02x:%02x:%02x:%02x" SHELL_NEWLINE_STR,
            macAddr[0], macAddr[1], macAddr[2],
            macAddr[3], macAddr[4], macAddr[5]);
@@ -275,6 +280,7 @@ static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
 /*
  * Show MCU pin configuration and state
  */
+#if SHELL_SHOW_PIN
 void * gpio_ports[] = {GPIOA, GPIOB, GPIOC, GPIOD, GPIOE, GPIOF, GPIOG, GPIOH, GPIOI, GPIOJ};
 
 void cmd_showpin (BaseSequentialStream *chp, int argc, char **argv) // Debug: pint hw pin mode.
@@ -317,6 +323,7 @@ void cmd_showpin (BaseSequentialStream *chp, int argc, char **argv) // Debug: pi
     chprintf (chp, SHELL_NEWLINE_STR);
   }
 }
+#endif
 /*
  * Shell commands
  */
@@ -328,7 +335,9 @@ static const ShellCommand commands[] = {
   {"ubs",  cmd_ubs},
   {"network",  cmd_net},
   {"boot",  cmd_boot},
+#if SHELL_SHOW_PIN
   {"showpin", cmd_showpin},
+#endif
   {NULL, NULL}
 };
 /*
