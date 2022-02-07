@@ -93,16 +93,20 @@ rfm69Config_t rfm69cfg = {
  */
 #define ADC_GRP1_NUM_CHANNELS 11
 #define ADC_GRP1_BUF_DEPTH    1
+// RTC voltage definitions
+#define ADC_VBAT_LOW_VOLTAGE  (2.8f) // Battery is low
+#define ADC_VBAT_HIGH_VOLTAGE (2.9f) // Battery is OK
 // Scaling factor for VBAT, 3.3V/4095 * (2 for F407) or * (4 for F437)
 #ifdef STM32F437_MCUCONF
 #define ADC_SCALING_VBAT      (0.0032f)
-#define ADC_VBAT_LOW_VOLTAGE  (2.8f)
-#define ADC_VBAT_HIGH_VOLTAGE (2.9f)
-#define ADC_VBAT_LOW          ((uint16_t)(ADC_VBAT_LOW_VOLTAGE / ADC_SCALING_VBAT))
-#define ADC_VBAT_HIGH         ((uint16_t)(ADC_VBAT_HIGH_VOLTAGE / ADC_SCALING_VBAT))
 #else
 #define ADC_SCALING_VBAT      (0.0016f)
 #endif
+// Macro calculations
+#define ADC_VBAT_LOW          ((uint16_t)(ADC_VBAT_LOW_VOLTAGE / ADC_SCALING_VBAT))
+#define ADC_VBAT_HIGH         ((uint16_t)(ADC_VBAT_HIGH_VOLTAGE / ADC_SCALING_VBAT))
+
+// ADC sample buffer
 static adcsample_t adcSamples[ADC_GRP1_NUM_CHANNELS * ADC_GRP1_BUF_DEPTH];
 /*
  * ADC callback
