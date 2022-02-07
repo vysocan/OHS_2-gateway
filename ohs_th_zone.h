@@ -84,13 +84,15 @@ static THD_FUNCTION(ZoneThread, arg) {
       // VBAT does not measure under 1V, (1V / ADC_SCALING_VBAT = 310)
       if (adcSamples[10] < 310) rtcVbat = 0;
       else rtcVbat = (float)adcSamples[10] * ADC_SCALING_VBAT;
-      // Lower or higher then ~ 2.5V, (2.5V / ADC_SCALING_VBAT = 775)
-      if ((adcSamples[10] < 775) && !GET_CONF_SYSTEM_FLAG_RTC_LOW(conf.systemFlags)) {
+      // Lower or higher then ~ 2.8V, (2.8V / ADC_SCALING_VBAT = 875)
+      if ((adcSamples[10] < ADC_SCALING_VBAT_LOW) &&
+          !GET_CONF_SYSTEM_FLAG_RTC_LOW(conf.systemFlags)) {
         pushToLogText("SRL");
         SET_CONF_SYSTEM_FLAG_RTC_LOW(conf.systemFlags);
       }
-      // Lower or higher then ~ 2.8V, (2.8V / ADC_SCALING_VBAT = 870)
-      if ((adcSamples[10] > 870) && GET_CONF_SYSTEM_FLAG_RTC_LOW(conf.systemFlags)) {
+      // Lower or higher then ~ 2.9V, (2.8V / ADC_SCALING_VBAT = 906)
+      if ((adcSamples[10] > ADC_SCALING_VBAT_HIGH) &&
+          GET_CONF_SYSTEM_FLAG_RTC_LOW(conf.systemFlags)) {
         pushToLogText("SRH");
         CLEAR_CONF_SYSTEM_FLAG_RTC_LOW(conf.systemFlags);
       }

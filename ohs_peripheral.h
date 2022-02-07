@@ -70,6 +70,7 @@ static SerialConfig serialCfg = {
 /*
  * RS485 default setting
  */
+// OHS TODO modigy port pad to line
 static RS485Config rs485cfg = {
   19200,          // speed
   0,              // address
@@ -95,6 +96,10 @@ rfm69Config_t rfm69cfg = {
 // Scaling factor for VBAT, 3.3V/4095 * (2 for F407) or * (4 for F437)
 #ifdef STM32F437_MCUCONF
 #define ADC_SCALING_VBAT      (0.0032f)
+#define ADC_VBAT_LOW_VOLTAGE  (2.8f)
+#define ADC_VBAT_HIGH_VOLTAGE (2.9f)
+#define ADC_VBAT_LOW          ((uint16_t)(ADC_VBAT_LOW_VOLTAGE / ADC_SCALING_VBAT))
+#define ADC_VBAT_HIGH         ((uint16_t)(ADC_VBAT_HIGH_VOLTAGE / ADC_SCALING_VBAT))
 #else
 #define ADC_SCALING_VBAT      (0.0016f)
 #endif

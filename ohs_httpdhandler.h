@@ -211,7 +211,9 @@ int fs_open_custom(struct fs_file *file, const char *name){
               chprintf(chp, "%s", html_e_td_td);
               printFrmTimestamp(chp, &node[i].lastOK);
               chprintf(chp, "%s", html_e_td_td);
-              // queued
+              if (node[i].queue) number = 1;
+              else number = 0;
+              printOkNok(chp, number); // queued
               chprintf(chp, "%s", html_e_td_td);
               printNodeType(chp, node[i].type);
               chprintf(chp, "%s", html_e_td_td);
@@ -686,8 +688,9 @@ int fs_open_custom(struct fs_file *file, const char *name){
           printOkNok(chp, !(palReadPad(GPIOD, GPIOD_AC_OFF)));
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Battery, html_e_td_td);
           printOkNok(chp, palReadPad(GPIOD, GPIOD_BAT_OK));
-          chprintf(chp, "%s%s %s%", html_e_td_e_tr_tr_td, text_RTC, text_battery);
-          chprintf(chp, "%s%.2f V", html_e_td_td, rtcVbat);
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_RTC, text_battery, html_e_td_td);
+          printOkNok(chp, ((rtcVbat > ADC_VBAT_HIGH_VOLTAGE)?1:0));
+          chprintf(chp, " (%.2f V)", rtcVbat);
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           chprintf(chp, "<h1>%s</h1>\r\n", text_Modem);
           chprintf(chp, "%s%s", html_table, html_tr_td);
@@ -1543,31 +1546,17 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   message[5] = (uint8_t)(node[webNode].setting & 0b11111111);
                   memcpy(&message[6], node[webNode].name, NAME_LENGTH);
                   resp = sendData(node[webNode].address, message, REG_PACKET_SIZE + 1);
-                  /*
-                  if (sendData(node[webNode].address, message, REG_PACKET_SIZE + 1) != 1) {
-                    // look queue slot
-                    _found = DUMMY_NO_VALUE;
-                    if (node[webNode].queue != DUMMY_NO_VALUE) {
-                      _found = node[webNode].queue; // Replace last message in queue
-                    } else {
-                      // Look for empty queue slot
-                      for (uint8_t i = 0; i < NODE_QUEUE; i++) {
-                        if(node_queue[i].expire == 0) { _found = i; break; }
-                      }
+                  // Queue data if no response
+                  if (resp != 1) {
+                    // Not queued, allocate new
+                    if (node[webNode].queue == NULL) {
+                      node[webNode].queue = umm_malloc(REG_PACKET_SIZE + 1);
                     }
-                    if (_found != DUMMY_NO_VALUE) {
-                      // Put message into queue
-                      node_queue[_found].address  = node[webNode].address;
-                      node_queue[_found].index    = webNode;
-                      node_queue[_found].expire   = timestamp.get() + SECS_PER_HOUR; // Message expires in 1 hour
-                      node_queue[_found].length   = REG_LEN;
-                      memcpy(node_queue[_found].msg, message, REG_LEN);
-                      node[webNode].queue         = _found; // Pointer to message queue
-                    } else {
-                      pushToLog("FM"); // Message queue is full
+                    // Copy new message to queue pointer
+                    if (node[webNode].queue != NULL) {
+                      memcpy(node[webNode].queue, &message[0], REG_PACKET_SIZE + 1);
                     }
                   }
-                  */
                 break;
                 case 'n': // name
                   // Calculate resp for MQTT
