@@ -64,7 +64,7 @@ typedef enum {
 } rfm69Transceiver_t;
 
 typedef struct {
-  uint8_t data[RF69_MAX_DATA_LEN+1];
+  uint8_t data[RF69_MAX_DATA_LEN];
   uint8_t length;
   uint16_t senderId;
   uint16_t targetId;
@@ -89,8 +89,8 @@ void rfm69SetPowerLevel(uint8_t powerLevel);
 void rfm69AutoPower(int8_t targetRssi);
 void rfm69SetSensBoost(bool onOff);
 int8_t rfm69GetData(void);
-int8_t rfm69Send(uint16_t toAddress, const void* buffer, uint8_t bufferSize, bool requestAck);
-int8_t rfm69SendWithRetry(uint16_t toAddress, const void* buffer, uint8_t bufferSize, uint8_t retries);
+int8_t rfm69Send(uint16_t toAddress, const void* data, uint8_t dataSize, bool requestAck);
+int8_t rfm69SendWithRetry(uint16_t toAddress, const void* data, uint8_t dataSize, uint8_t retries);
 void rfm69Sleep(void);
 int8_t rfm69ReadTemperature(uint8_t calFactor);
 void rfm69SetHighPower(bool onOff);

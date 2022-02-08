@@ -177,6 +177,22 @@ static THD_FUNCTION(RadioThread, arg) {
           DBG_RADIO("\r\n");
           break;
       } // switch case
+
+      // Data queue for sleeping nodes
+      for (nodeIndex = 0; nodeIndex < NODE_SIZE; nodeIndex++) {
+        if ((node[nodeIndex].address == (rfm69Data.senderId + RADIO_UNIT_OFFSET)) &&
+            (node[nodeIndex].queue != NULL)) {
+          // Do copy of node[].queue to rfm69Data.data, UMM in CCM not accessible by DMA
+          memcpy(&rfm69Data.data[0], node[nodeIndex].queue, REG_PACKET_SIZE + 1);
+          resp = sendData(node[nodeIndex].address, &rfm69Data.data[0], REG_PACKET_SIZE + 1);
+          DBG_RADIO("Send Q 0x%x, resp %d\r\n", (const uint8_t *)node[nodeIndex].queue, resp);
+          // Sent ?
+          if (resp == 1) {
+            umm_free(node[nodeIndex].queue);
+            node[nodeIndex].queue = NULL;
+          }
+        }
+      }
     } // received
   }
 }

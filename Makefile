@@ -26,7 +26,7 @@ endif
 
 # Linker extra options here.
 ifeq ($(USE_LDOPT),)
-  USE_LDOPT = 
+  USE_LDOPT = --print-memory-usage
 endif
 
 # Enable this if you want link time optimizations (LTO).
@@ -121,7 +121,7 @@ include $(CHIBIOS)/os/various/lwip_bindings/lwip.mk
 #include $(CHIBIOS)/ext/STM32F4xx_StdPeriph_Driver/stcrypt.mk
 #include $(CHIBIOS)/ext/STM32_Cryptographic_Library/stcryptolib.mk
 #include $(CHIBIOS)/os/various/wolfssl_bindings/wolfssl.mk
-#include $(CHIBIOS)/ext/mbedtls/mbedtls.mk
+include $(CHIBIOS)/ext/mbedtls/mbedtls.mk
 
 # Define linker script file here
 LDSCRIPT= $(CONFDIR)/STM32F437xG.ld

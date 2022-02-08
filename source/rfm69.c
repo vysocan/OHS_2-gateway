@@ -35,6 +35,7 @@
  * OF SUCH DAMAGE.
  */
 
+#include <stdlib.h>
 #include <rfm69.h>
 #include <rfm69Registers.h>
 #include <string.h>
@@ -200,7 +201,7 @@ static int8_t rfm69ReadRSSI(void) {
  *          RF69_RSLT_OK - Sent.
  */
 #define RFM69_SEND_HEADER_SIZE 5
-static int8_t rfm69SendFrame(uint16_t toAddress, const void* buffer, uint8_t bufferSize,
+static int8_t rfm69SendFrame(uint16_t toAddress, const void* data, uint8_t dataSize,
                       bool requestACK, bool sendACK, bool sendRssi) {
   uint8_t CTLbyte;
   uint16_t temp;
@@ -238,7 +239,7 @@ static int8_t rfm69SendFrame(uint16_t toAddress, const void* buffer, uint8_t buf
   //writeReg(REG_DIOMAPPING1, RF_DIOMAPPING1_DIO0_00); // DIO0 is "Packet Sent"
 
   // Force maximum size
-  if (bufferSize > RF69_MAX_DATA_LEN) bufferSize = RF69_MAX_DATA_LEN;
+  if (dataSize > RF69_MAX_DATA_LEN) dataSize = RF69_MAX_DATA_LEN;
   // Force flags
   if (toAddress == RF69_BROADCAST_ADDR) {
     requestACK = false;
@@ -257,21 +258,23 @@ static int8_t rfm69SendFrame(uint16_t toAddress, const void* buffer, uint8_t buf
   if (rfm69Config.nodeID > 0xFF)  CTLbyte |= (rfm69Config.nodeID & 0x300) >> 8; //assign last 2 bits of address if > 255
 
   txBuffer[0] = REG_FIFO | 0x80;
-  txBuffer[1] = bufferSize + 3;
+  txBuffer[1] = dataSize + 3 + ((sendACK && sendRssi)?1:0); // If sending ACK with RSSI add one to size
   txBuffer[2] = (uint8_t)toAddress;
   txBuffer[3] = (uint8_t)rfm69Config.nodeID;
   txBuffer[4] = CTLbyte;
   if ((sendACK) && (sendRssi)) {
-    txBuffer[txBufferSize++] = ~rfm69Data.rssi;
-    DBG("RFM SendFrame ATC RSSI: %d\r\n", txBuffer[txBufferSize - 1]);
+    txBufferSize++;
+    txBuffer[5] = abs(rfm69Data.rssi);
+    DBG("RFM SendFrame ATC RSSI: %d\r\n", txBuffer[5]);
   }
 
+  // Transfer header
   spiAcquireBus(rfm69Config.spidp);
   spiSelect(rfm69Config.spidp);
   spiSend(rfm69Config.spidp, txBufferSize, txBuffer);
 
   // Transfer data
-  if (bufferSize > 0) spiSend(rfm69Config.spidp, bufferSize, buffer);
+  if (dataSize > 0) spiSend(rfm69Config.spidp, dataSize, data);
   spiUnselect(rfm69Config.spidp);
   spiReleaseBus(rfm69Config.spidp);
 
@@ -376,8 +379,9 @@ int8_t rfm69GetData(void) {
 
     DBG("RFM GD: F:%u, T:%u, PL:%u\r\n", rfm69Data.senderId, rfm69Data.targetId, rfm69Data.packetLength);
 
-    // Match this node's address, or broadcast address
-    if (!(rfm69Data.targetId == rfm69Config.nodeID || rfm69Data.targetId == RF69_BROADCAST_ADDR) ||
+    // Not our address, or broadcast address, or length < 3
+    if (!(rfm69Data.targetId == rfm69Config.nodeID ||
+          rfm69Data.targetId == RF69_BROADCAST_ADDR) ||
         (rfm69Data.packetLength < 3)) {
       spiUnselect(rfm69Config.spidp);
       spiReleaseBus(rfm69Config.spidp);
@@ -399,13 +403,12 @@ int8_t rfm69GetData(void) {
     rfm69Data.ackReceived = rxBuffer[3] & RF69_CTL_SENDACK; // extract ACK-received flag
     rfm69Data.ackRequested = rxBuffer[3] & RF69_CTL_REQACK; // extract ACK-requested flag
     rfm69Data.ackRssiRequested = rxBuffer[3] & RF69_CTL_RESERVE1; // extract the ACK RSSI request flag
-    DBG("RFM GD: dl:%u, are:%u, arq:%u, AckRssi: %u\r\n",
+    DBG("RFM GD: dl:%u, aRe:%u, aRq:%u, aRssi: %u\r\n",
              rfm69Data.length, rfm69Data.ackReceived, rfm69Data.ackRequested, rfm69Data.ackRssiRequested);
 
     // Get data, if they are present
     if (rfm69Data.length > 0) {
       spiReceive(rfm69Config.spidp, rfm69Data.length, rfm69Data.data);
-      rfm69Data.data[rfm69Data.length] = 0; // Add null at end of string
     }
 
     spiUnselect(rfm69Config.spidp);
@@ -430,7 +433,7 @@ int8_t rfm69GetData(void) {
       DBG("RFM GD sending ACK\r\n");
       // Send the frame and return
       chBSemSignal(&rfm69Lock);
-      return rfm69SendFrame(rfm69Data.senderId, "", 0, false, true, rfm69Data.ackRssiRequested);
+      return rfm69SendFrame(rfm69Data.senderId, NULL, 0, false, true, rfm69Data.ackRssiRequested);
     }
 
     // ATC
@@ -467,12 +470,12 @@ int8_t rfm69GetData(void) {
  *         RF69_RSLT_OK - OK
  *         RF69_RSLT_NOK - Data not acked.
  */
-int8_t rfm69Send(uint16_t toAddress, const void* buffer, uint8_t bufferSize, bool requestAck) {
+int8_t rfm69Send(uint16_t toAddress, const void* data, uint8_t dataSize, bool requestAck) {
   msg_t resp;
 
   DBG("RFM Send start\r\n");
   // Send the frame
-  resp = rfm69SendFrame(toAddress, buffer, bufferSize, requestAck, false, rfm69TargetRssi);
+  resp = rfm69SendFrame(toAddress, data, dataSize, requestAck, false, rfm69TargetRssi);
   // If BUSY or NOK then return
   if (resp != RF69_RSLT_OK) return resp;
 
@@ -508,10 +511,10 @@ int8_t rfm69Send(uint16_t toAddress, const void* buffer, uint8_t bufferSize, boo
  * Send packet with retry
  * Replies usually take only 5..8ms at 50kbps@915MHz
  */
-int8_t rfm69SendWithRetry(uint16_t toAddress, const void* buffer, uint8_t bufferSize, uint8_t retries) {
+int8_t rfm69SendWithRetry(uint16_t toAddress, const void* data, uint8_t dataSize, uint8_t retries) {
 
   for (uint8_t i = 0; i < retries; i++) {
-    if (rfm69Send( toAddress, buffer, bufferSize, true) == RF69_RSLT_OK) return RF69_RSLT_OK;
+    if (rfm69Send( toAddress, data, dataSize, true) == RF69_RSLT_OK) return RF69_RSLT_OK;
   }
   return RF69_RSLT_NOK;
 }

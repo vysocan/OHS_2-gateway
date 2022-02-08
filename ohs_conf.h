@@ -21,8 +21,8 @@
 
 #define OHS_NAME         "OHS"
 #define OHS_MAJOR        1
-#define OHS_MINOR        3
-#define OHS_MOD          10
+#define OHS_MINOR        4
+#define OHS_MOD          0
 
 #define BACKUP_SRAM_SIZE 0x1000 // 4kB SRAM size
 
@@ -751,20 +751,20 @@ typedef struct {
   char    type;    //= 'K/S/I';
   char    function;//= ' ';
   uint8_t number;  //= 0;
-   //                    |- MQTT publish
-   //                    ||- Free
-   //                    |||- Battery low flag, for battery type node
-   //                    |||||||- Group number
-   //                    |||||||- 0 .. 15
-   //                    |||||||-
-   //                    |||||||-
-   //                    ||||||||-  Enabled
-   //                    76543210
-  uint16_t setting;// = B00011110;  // 2 bytes to store also zone setting
-  float    value;  // = 0;
-  time_t lastOK;   // = 0;
-  uint8_t  queue;  //   = DUMMY_NO_VALUE 255; // No queue
-  char name[NAME_LENGTH]; // = "";
+  float   value;  // = 0;
+  time_t  lastOK; // = 0;
+  void    *queue; //
+  //                    |- MQTT publish
+  //                    ||- Free
+  //                    |||- Battery low flag, for battery type node
+  //                    |||||||- Group number
+  //                    |||||||- 0 .. 15
+  //                    |||||||-
+  //                    |||||||-
+  //                    ||||||||-  Enabled
+  //                    76543210
+ uint16_t setting;// = B00011110;  // 2 bytes to store also zone setting
+ char name[NAME_LENGTH]; // = "";
 } node_t;
 node_t node[NODE_SIZE] __attribute__((section(".ram4")));
 
@@ -778,7 +778,7 @@ void initRuntimeNodes(void){
     node[i].lastOK   = 0;
     node[i].name[0]  = '\0';
     node[i].number   = 0;
-    node[i].queue    = DUMMY_NO_VALUE;
+    node[i].queue    = NULL;
     node[i].setting  = 0b00011110;
     node[i].type     = '\0';
     node[i].value    = 0;
@@ -832,7 +832,7 @@ void initRuntimeZones(void){
 /*
  * Write to backup SRAM
  */
-int16_t writeToBkpSRAM(uint8_t *data, uint16_t size, uint16_t offset){
+uint16_t writeToBkpSRAM(uint8_t *data, uint16_t size, uint16_t offset){
   osalDbgAssert(((size + offset) < BACKUP_SRAM_SIZE), "BkpSRAM out of region");
   uint16_t i = 0;
   uint8_t *baseAddress = (uint8_t *) BKPSRAM_BASE;
@@ -844,7 +844,7 @@ int16_t writeToBkpSRAM(uint8_t *data, uint16_t size, uint16_t offset){
 /*
  * Read from backup SRAM
  */
-int16_t readFromBkpSRAM(uint8_t *data, uint16_t size, uint16_t offset){
+uint16_t readFromBkpSRAM(uint8_t *data, uint16_t size, uint16_t offset){
   osalDbgAssert(((size + offset) < BACKUP_SRAM_SIZE), "BkpSRAM out of region");
   uint16_t i = 0;
   uint8_t *baseAddress = (uint8_t *) BKPSRAM_BASE;
@@ -856,7 +856,7 @@ int16_t readFromBkpSRAM(uint8_t *data, uint16_t size, uint16_t offset){
 /*
  * Write to backup RTC
  */
-int16_t writeToBkpRTC(uint8_t *data, uint8_t size, uint8_t offset){
+uint8_t writeToBkpRTC(uint8_t *data, uint8_t size, uint8_t offset){
   osalDbgAssert(((size + offset) < STM32_RTC_STORAGE_SIZE), "BkpRTC out of region");
   osalDbgAssert(!(offset % 4), "BkpRTC misaligned"); // Offset is not aligned to to unint32_t registers
   uint8_t i = 0;
@@ -874,7 +874,7 @@ int16_t writeToBkpRTC(uint8_t *data, uint8_t size, uint8_t offset){
 /*
  * Read from backup RTC
  */
-int16_t readFromBkpRTC(uint8_t *data, uint8_t size, uint8_t offset){
+uint8_t readFromBkpRTC(uint8_t *data, uint8_t size, uint8_t offset){
   osalDbgAssert(((size + offset) < STM32_RTC_STORAGE_SIZE), "BkpRTC out of region");
   osalDbgAssert(!(offset % 4), "BkpRTC misaligned"); // Offset is not aligned to to unint32_t registers
   uint8_t i = 0;

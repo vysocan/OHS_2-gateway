@@ -190,6 +190,8 @@
 //#define MDNS_DEBUG LWIP_DBG_ON
 // MQTT
 //#define MQTT_DEBUG LWIP_DBG_ON
+// HTTP Client
+//#define HTTPC_DEBUG LWIP_DBG_ON
 
 // SNTP
 #define SNTP_SERVER_DNS         1
@@ -211,6 +213,16 @@
 #endif
 
 #define LWIP_NETIF_HOSTNAME 1
+
+// MBED TLS
+/*
+#define LWIP_ALTCP              1
+#define LWIP_ALTCP_TLS          1
+#define LWIP_ALTCP_TLS_MBEDTLS  1
+#define MBEDTLS_PLATFORM_MEMORY 1
+#define ALTCP_MBEDTLS_RNG_FN    mbedtls_entropy_func
+//#define MEMP_MEM_MALLOC         1
+*/
 
 /*
  * new SNTP_SET_SYSTEM_TIME function

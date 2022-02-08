@@ -94,19 +94,21 @@ int8_t sendData(uint8_t address, const uint8_t *data, uint8_t length){
   if (address <= RADIO_UNIT_OFFSET) {
     RS485Msg_t rs485Data;
 
-    chprintf(console, "RS485 Send data to address: %d\r\n", address);
+    chprintf(console, "RS485 data to: %d\r\n", address);
     rs485Data.address = address;
     rs485Data.length = length;
     memcpy(&rs485Data.data[0], data, length);
+    /*
     for(uint8_t ii = 0; ii < length; ii++) {
       chprintf(console, "%d-%x, ", ii, rs485Data.data[ii]);
     } chprintf(console, "\r\n");
+    */
     if (rs485SendMsgWithACK(&RS485D2, &rs485Data, 5) == MSG_OK) resp = 1;
     else resp = -1;
   }
   // Radio
   if (address >= RADIO_UNIT_OFFSET) {
-    chprintf(console, "Radio Send data to address: %d\r\n", address - RADIO_UNIT_OFFSET);
+    chprintf(console, "Radio data to: %d\r\n", address - RADIO_UNIT_OFFSET);
     resp = rfm69SendWithRetry(address - RADIO_UNIT_OFFSET, data, length, 5);
   }
   return resp;
@@ -121,7 +123,7 @@ int8_t sendCmd(uint8_t address, uint8_t command) {
   if (address <= RADIO_UNIT_OFFSET) {
     RS485Cmd_t rs485Cmd;
 
-    chprintf(console, "RS485 send cmd: %d to address: %d\r\n", command, address);
+    chprintf(console, "RS485 cmd: %d to: %d\r\n", command, address);
     rs485Cmd.address = address;
     rs485Cmd.length = command;
     if (rs485SendCmdWithACK(&RS485D2, &rs485Cmd, 3) == MSG_OK) resp = 1;
@@ -132,10 +134,10 @@ int8_t sendCmd(uint8_t address, uint8_t command) {
     char radioCmd[] = {'C', command};
 
     if (address == RADIO_UNIT_OFFSET) {
-      chprintf(console, "Radio send cmd: %d to broadcast.\r\n", command);
+      chprintf(console, "Radio cmd: %d to broadcast.\r\n", command);
       resp = rfm69Send(255, radioCmd, sizeof(radioCmd), false);
     } else {
-      chprintf(console, "Radio send cmd: %d to address: %d\r\n", command, address - RADIO_UNIT_OFFSET);
+      chprintf(console, "Radio cmd: %d to: %d\r\n", command, address - RADIO_UNIT_OFFSET);
       resp = rfm69Send(address - RADIO_UNIT_OFFSET, radioCmd, sizeof(radioCmd), true);
     }
   }

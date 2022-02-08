@@ -49,15 +49,21 @@ static THD_FUNCTION(ServiceThread, arg) {
     // Get current time to prevent multiple queries
     timeNow = getTimeUnixSec();
 
-    // Remove zombie nodes
+    // Node housekeeping
     for (uint8_t nodeIndex=0; nodeIndex < NODE_SIZE; nodeIndex++) {
+      // Remove zombie nodes
       if ((node[nodeIndex].address != 0) &&
           (node[nodeIndex].lastOK + SECONDS_PER_HOUR < timeNow)) {
         DBG_SERVICE("Zombie node: %u,A %u,T %u,F %u,N %u\r\n", nodeIndex, node[nodeIndex].address,
                  node[nodeIndex].type, node[nodeIndex].function, node[nodeIndex].number);
+        // Log this event
         tmpLog[0] = 'N'; tmpLog[1] = 'Z'; tmpLog[2] = node[nodeIndex].address;
         tmpLog[3] = node[nodeIndex].type; tmpLog[4] = node[nodeIndex].function;
         tmpLog[5] = node[nodeIndex].number; pushToLog(tmpLog, 6);
+        // Free queue if any
+        if (node[nodeIndex].queue != NULL) {
+          umm_free(node[webNode].queue);
+        }
         // Set whole struct to 0
         memset(&node[nodeIndex].address, 0, sizeof(node[0]));
         //0, '\0', '\0', 0, 0b00011110, 0, 0, DUMMY_NO_VALUE, ""
@@ -68,7 +74,7 @@ static THD_FUNCTION(ServiceThread, arg) {
         //node[nodeIndex].setting  = 0;
         //node[nodeIndex].value    = 0;
         //node[nodeIndex].last_OK  = 0;
-        node[nodeIndex].queue    = DUMMY_NO_VALUE;
+        //node[nodeIndex].queue    = NULL;
         //memset(&node[nodeIndex].name, 0, NAME_LENGTH);
       }
     }

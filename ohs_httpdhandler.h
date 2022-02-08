@@ -53,7 +53,7 @@
 static void *currentConn;
 char current_uri[LWIP_HTTPD_MAX_REQUEST_URI_LEN] __attribute__((section(".ram4")));
 char postData[HTTP_POST_DATA_SIZE] __attribute__((section(".ram4")));
-char alertMsg[HTTP_ALERT_MSG_SIZE] __attribute__((section(".ram4")));
+char httpAlertMsg[HTTP_ALERT_MSG_SIZE] __attribute__((section(".ram4")));
 char setCookie[HTTP_SET_COOKIE_SIZE] __attribute__((section(".ram4")));
 void *verifiedConn = NULL;
 typedef struct {
@@ -175,11 +175,11 @@ int fs_open_custom(struct fs_file *file, const char *name){
       // Main Body
       chprintf(chp, "</ul></div><div class='mb'>\r\n");
       // Alert div
-      if (strlen(alertMsg)) {
+      if (strlen(httpAlertMsg)) {
         chprintf(chp, "<div class='alrt' id='at'><span class='cbtn' onclick=\"this.parentElement.style.display='none';\">&times;</span>");
         chprintf(chp, "<b>Error!</b><br><br>");
-        chprintf(chp, "%s.%s", alertMsg, html_div_e);
-        memset(alertMsg, 0 , HTTP_ALERT_MSG_SIZE); // Empty alert message
+        chprintf(chp, "%s.%s", httpAlertMsg, html_div_e);
+        memset(httpAlertMsg, 0 , HTTP_ALERT_MSG_SIZE); // Empty alert message
       }
       // Header
       chprintf(chp, "<h1>%s</h1>\r\n", webPage[htmlPage].name);
@@ -714,6 +714,8 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           // Buttons
           chprintf(chp, "%s%s", html_LoadDefault, html_Save);
+          // TODO OHS add configuration download/upload
+          //chprintf(chp, "<a href='config.bin' download>");
           break;
         case PAGE_SETTING:
           // Information table
@@ -1988,19 +1990,19 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                 case 'e': // save
                   if (webScript == DUMMY_NO_VALUE) {
                     if (!strlen(scriptName)) {
-                      chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "Not allowed to save empty name");
+                      chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "Not allowed to save empty name");
                       break;
                     }
                     // For new script append linked list
                     scriptp = umm_malloc(sizeof(struct scriptLL_t));
                     if (scriptp == NULL) {
-                      chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+                      chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
                     } else {
                       //if (checkPointer(scriptp, html_noSpace)) {}
                       scriptp->name = umm_malloc(NAME_LENGTH);
                       if (scriptp->name == NULL) {
                         umm_free(scriptp);
-                        chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+                        chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
                       } else {
                         strncpy(scriptp->name, &scriptName[0], NAME_LENGTH);
                         number = strlen(tclCmd);
@@ -2008,7 +2010,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                         if (scriptp->cmd == NULL) {
                           umm_free(scriptp->name);
                           umm_free(scriptp);
-                          chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+                          chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
                         } else {
                           strncpy(scriptp->cmd, &tclCmd[0], number);
                           memset(scriptp->cmd + number, 0, 1);
@@ -2016,7 +2018,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                           scriptLL = scriptp;
                           // uBS
                           if (uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd)) != UBS_RSLT_OK) {
-                            chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_storage);
+                            chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_storage);
                           }
                           // new script is added to top of linked list, no need to do pointer check
                           webScript = 1;
@@ -2037,14 +2039,14 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                       umm_free(scriptp->cmd);
                       scriptp->cmd = umm_malloc(number + 1);
                       if (scriptp->cmd == NULL) {
-                        chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+                        chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
                       } else {
                         strncpy(scriptp->cmd, &tclCmd[0], number);
                         memset(scriptp->cmd + number, 0, 1);
                         for (int i = 0; i < UBS_NAME_SIZE; i++) { DBG_HTTP("%x;", scriptName[i]); }
                         DBG_HTTP("\r\n");
                         if (uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd)) != UBS_RSLT_OK) {
-                          chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_storage);
+                          chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_storage);
                         }
                       }
                     }
@@ -2232,7 +2234,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                     authorizedConn.id = STM32_UUID[0] + rand();
                     authorizedConn.conn = (void *)connection;
                   } else {
-                    chsnprintf(alertMsg, HTTP_ALERT_MSG_SIZE, "User or password not valid!");
+                    chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "User or password not valid!");
                   }
                 break;
               }
