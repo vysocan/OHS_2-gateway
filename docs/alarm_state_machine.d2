@@ -1,0 +1,30 @@
+# direction: right
+Disarmed: {shape: circle}
+Arm\nAuthentication: {shape: circle}
+Arming: {shape: circle}
+Armed Away: {shape: circle}
+Armed Home: {shape: circle}
+Pending: {shape: circle}
+Disarm\nAuthentication: {shape: circle}
+Authentication\nDelay: {shape: circle}
+Alarm: {shape: circle}
+Zone\nTamper: {
+  shape: circle
+  # near: center-right
+}
+
+Disarmed -> Arm\nAuthentication
+Arm\nAuthentication -> Arming: away
+Arm\nAuthentication -> Armed Home: home
+Arming -> Armed Away: leave
+Armed Away -> Pending: allowed\nzone\ntriggered
+Armed Home -> Pending: zone\ntriggered
+Armed Home -> Disarm\nAuthentication: direct\ndisarm
+Pending -> Disarm\nAuthentication: wait\nfor key
+Disarm\nAuthentication -> Authentication\nDelay: delay\nallowed
+Authentication\nDelay -> Pending: decrease\ndelay
+Armed Away -> Alarm: diasalowed\nzone\ntriggered
+Disarm\nAuthentication -> Alarm: timeout
+Alarm -> Disarm\nAuthentication: autorized\nkey
+Disarm\nAuthentication -> Disarmed: known key
+Zone\nTamper -> Alarm: direct\nalarm

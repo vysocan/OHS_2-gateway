@@ -1,0 +1,18 @@
+Garage: {
+  Workshop
+  Door\nAuthentication: {shape: circle}
+  Parking
+  Garage\nAuthentication: {shape: circle}
+  Parking -- Garage\nAuthentication
+  Workshop -- Door\nAuthentication
+}
+
+House: {
+  Living Room
+  Kitchen
+  Entrance
+  Study
+  French Window\nglass sensor
+  Door\nAuthentication: {shape: circle}
+  Entrance -- Door\nAuthentication
+}
