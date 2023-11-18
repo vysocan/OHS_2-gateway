@@ -204,7 +204,7 @@ static int8_t rfm69ReadRSSI(void) {
 static int8_t rfm69SendFrame(uint16_t toAddress, const void* data, uint8_t dataSize,
                       bool requestACK, bool sendACK, bool sendRssi) {
   uint8_t CTLbyte;
-  uint16_t temp;
+  uint16_t temp = 0;
   uint8_t txBuffer[RFM69_SEND_HEADER_SIZE + 1]; // +1 for ATC, to send RSSI
   uint8_t txBufferSize = RFM69_SEND_HEADER_SIZE;
 
@@ -217,18 +217,17 @@ static int8_t rfm69SendFrame(uint16_t toAddress, const void* data, uint8_t dataS
 
   rfm69SetMode(RF69_MODE_RX);
   // Wait for clear line
-  while ((rfm69ReadRSSI() > CSMA_LIMIT) && ((temp * 1) < RF69_CSMA_LIMIT_MS)) {
-    chThdSleepMilliseconds(1);
+  while ((rfm69ReadRSSI() > CSMA_LIMIT) && ((temp) < RF69_CSMA_LIMIT_MS)) {
+    chThdSleepMilliseconds(1); // 1 ms, otherwise temp variable needs modification
     temp++;
-    DBG("RFM SendWA RSSI: %d\r\n", rfm69ReadRSSI());
+    DBG("RFM SendFrame CSMA RSSI: %d\r\n", rfm69ReadRSSI());
   }
   // Line is busy
-  if (temp == RF69_CSMA_LIMIT_MS) {
+  if (temp >= RF69_CSMA_LIMIT_MS) {
     chBSemSignal(&rfm69Lock);
+    DBG("RFM SendFrame CSMA Busy\r\n");
     return RF69_RSLT_BUSY;
   }
-
-  DBG("RFM SendFrame CSMA: %u\r\n", temp);
 
   // turn off receiver to prevent reception while filling fifo
   rfm69SetMode(RF69_MODE_STANDBY);
@@ -268,11 +267,16 @@ static int8_t rfm69SendFrame(uint16_t toAddress, const void* data, uint8_t dataS
     DBG("RFM SendFrame ATC RSSI: %d\r\n", txBuffer[5]);
   }
 
+#if RFM69_DEBUG
+    DBG("RFM SendFrame Header: ");
+    for (int q = 0; q < txBufferSize; ++q) { DBG("%02x ", txBuffer[q]); }
+    DBG("\r\n");
+#endif
+
   // Transfer header
   spiAcquireBus(rfm69Config.spidp);
   spiSelect(rfm69Config.spidp);
   spiSend(rfm69Config.spidp, txBufferSize, txBuffer);
-
   // Transfer data
   if (dataSize > 0) spiSend(rfm69Config.spidp, dataSize, data);
   spiUnselect(rfm69Config.spidp);
@@ -282,19 +286,20 @@ static int8_t rfm69SendFrame(uint16_t toAddress, const void* data, uint8_t dataS
   if (sendACK)         rfm69SetMode(RF69_MODE_TX_ACK);
   else if (requestACK) rfm69SetMode(RF69_MODE_TX_WAIT_ACK);
   else                 rfm69SetMode(RF69_MODE_TX);
+
   // wait for PacketSent
-  CTLbyte = 0; // Used here as counter
+  temp = 0; // Used here as counter
   while ((rfm69ReadRegister(REG_IRQFLAGS2) & RF_IRQFLAGS2_PACKETSENT) == 0x00) {
-    CTLbyte++;
+    temp++;
     chThdSleepMilliseconds(1);
   }
+  // Change state
+  if (transceiverMode == RF69_MODE_TX_WAIT_ACK) rfm69SetMode(RF69_MODE_RX_WAIT_ACK);
+  else rfm69SetMode(RF69_MODE_RX);
+
 #if RFM69_STATISTICS
   rfm69PacketSent++;
 #endif
-  DBG("RFM SendFrame PS: wait %u, flag %x\r\n", CTLbyte, rfm69ReadRegister(REG_IRQFLAGS2));
-
-  if (transceiverMode == RF69_MODE_TX_WAIT_ACK) rfm69SetMode(RF69_MODE_RX_WAIT_ACK);
-  else rfm69SetMode(RF69_MODE_RX);
 
   //*** ---
   // Enable receiving
@@ -305,6 +310,8 @@ static int8_t rfm69SendFrame(uint16_t toAddress, const void* data, uint8_t dataS
   //*** ---
   // set DIO0 to "PAYLOADREADY" in receive mode
   rfm69WriteRegister(REG_DIOMAPPING1, RF_DIOMAPPING1_DIO0_01);
+
+  DBG("RFM SendFrame PS: wait ms %u, flag %x\r\n", temp, rfm69ReadRegister(REG_IRQFLAGS2));
 
   DBG("RFM SendFrame end\r\n");
   chBSemSignal(&rfm69Lock);
@@ -370,8 +377,11 @@ int8_t rfm69GetData(void) {
     spiSend(rfm69Config.spidp, 1, (void *)&txBuffer[0]);
     spiReceive(rfm69Config.spidp, RFM69_INTERRUPT_DATA_SIZE, rxBuffer);
 
-    //for(uint8_t q = 0; q < RFM69_INTERRUPT_DATA_SIZE; q++) { DBG("%u,", rxBuffer[q]); }
-    //DBG("\r\n");
+#if RFM69_DEBUG
+      DBG("RFM GD Header: ");
+      for(uint8_t q = 0; q < RFM69_INTERRUPT_DATA_SIZE; q++) { DBG("%02x ", rxBuffer[q]); }
+      DBG("\r\n");
+#endif
 
     rfm69Data.packetLength = rxBuffer[0] > 66 ? 66 : rxBuffer[0]; // precaution
     rfm69Data.targetId = rxBuffer[1] | (((uint16_t)rxBuffer[3] & 0x0C) << 6); //10 bit address (most significant 2 bits stored in bits(2,3) of CTL byte
@@ -403,7 +413,7 @@ int8_t rfm69GetData(void) {
     rfm69Data.ackReceived = rxBuffer[3] & RF69_CTL_SENDACK; // extract ACK-received flag
     rfm69Data.ackRequested = rxBuffer[3] & RF69_CTL_REQACK; // extract ACK-requested flag
     rfm69Data.ackRssiRequested = rxBuffer[3] & RF69_CTL_RESERVE1; // extract the ACK RSSI request flag
-    DBG("RFM GD: dl:%u, aRe:%u, aRq:%u, aRssi: %u\r\n",
+    DBG("RFM GD: dl:%u, aRec:%u, aReq:%u, aRssiReq: %u\r\n",
              rfm69Data.length, rfm69Data.ackReceived, rfm69Data.ackRequested, rfm69Data.ackRssiRequested);
 
     // Get data, if they are present
@@ -428,9 +438,9 @@ int8_t rfm69GetData(void) {
         rfm69SetSensBoost(false);
       }
       */
-
-      //chThdSleepMilliseconds(5);
       DBG("RFM GD sending ACK\r\n");
+      // Sleep
+      chThdSleepMilliseconds(5);
       // Send the frame and return
       chBSemSignal(&rfm69Lock);
       return rfm69SendFrame(rfm69Data.senderId, NULL, 0, false, true, rfm69Data.ackRssiRequested);
@@ -451,7 +461,7 @@ int8_t rfm69GetData(void) {
           }
         }
       }
-      DBG("RFM ATC start, rfm69AckedRssi %d, rfm69PowerLevel %d \r\n",
+      DBG("RFM ATC start, AckedRssi %d, PowerLevel %d \r\n",
                    rfm69AckRssi, rfm69PowerLevel);
     }
 
@@ -478,26 +488,28 @@ int8_t rfm69Send(uint16_t toAddress, const void* data, uint8_t dataSize, bool re
   resp = rfm69SendFrame(toAddress, data, dataSize, requestAck, false, rfm69TargetRssi);
   // If BUSY or NOK then return
   if (resp != RF69_RSLT_OK) return resp;
-
   // If ACK not requested we are done.
   if (!requestAck) return RF69_RSLT_OK;
+  // else reset ACK semaphore
+  chBSemReset(&rfm69AckReceived, true);
 
-  DBG("RFM SendWA wait ACK, time %u\r\n", chVTGetSystemTimeX());
+  DBG("RFM Send ACK wait, waitTicks:%u, Stime %u\r\n", (uint32_t)TIME_MS2I(RFM69_ACK_TIMEOUT_MS), chVTGetSystemTimeX());
 
   // Wait ACK
-  chBSemReset(&rfm69AckReceived, true);
   resp = chBSemWaitTimeout(&rfm69AckReceived, TIME_MS2I(RFM69_ACK_TIMEOUT_MS));
-  DBG("RFM time %u\r\n", chVTGetSystemTimeX());
   if (resp != MSG_OK) {
-    DBG("RFM SendWA ACK timeout\r\n");
+    DBG("RFM Send ACK timeout, Stime %u\r\n", chVTGetSystemTimeX());
     rfm69SetMode(RF69_MODE_RX);
+    #if RFM69_STATISTICS
+      rfm69PacketAckFailed++;
+    #endif
     return RF69_RSLT_NOK;
   }
   // Read ACK data
   rfm69GetData();
 
   if ((rfm69Data.senderId == toAddress || toAddress == RF69_BROADCAST_ADDR) && rfm69Data.ackReceived) {
-    DBG("RFM SendWA received ACK\r\n");
+    DBG("RFM SendWA received ACK, Stime %u\r\n", chVTGetSystemTimeX());
     return RF69_RSLT_OK;
   }
 
