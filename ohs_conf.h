@@ -22,7 +22,7 @@
 #define OHS_NAME         "OHS"
 #define OHS_MAJOR        1
 #define OHS_MINOR        4
-#define OHS_MOD          0
+#define OHS_MOD          1
 
 #define BACKUP_SRAM_SIZE 0x1000 // 4kB SRAM size
 
