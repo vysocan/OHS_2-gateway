@@ -200,7 +200,7 @@
 #define SNTP_UPDATE_DELAY       3600000 // SNTP update every # milliseconds
 
 // Maximum segment size
-#define TCP_MSS 1024
+#define TCP_MSS 1024 // TODO OHS change to Ethernet size 1460 and test memory constraints
 
 // Number of rx pbufs to enqueue to parse an incoming request (up to the first newline)
 #define LWIP_HTTPD_REQ_QUEUELEN 7
