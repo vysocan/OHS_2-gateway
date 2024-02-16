@@ -70,7 +70,7 @@ static SerialConfig serialCfg = {
 /*
  * RS485 default setting
  */
-// OHS TODO modigy port pad to line
+// OHS TODO modify port pad to line
 static RS485Config rs485cfg = {
   19200,          // speed
   0,              // address
