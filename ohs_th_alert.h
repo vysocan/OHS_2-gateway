@@ -101,8 +101,11 @@ static THD_FUNCTION(AlertThread, arg) {
                     emailReqest.subject = &gprsSmsText[0];
                     emailReqest.body = &gprsSmsText[0];
                     emailReqest.callback_fn = my_smtp_result_fn;
+                    emailReqest.callback_arg = NULL;
                     emailReqest.static_data = 1;
+                    LOCK_TCPIP_CORE();
                     smtp_send_mail_int(&emailReqest);
+                    UNLOCK_TCPIP_CORE();
                     // Release semaphore semaphore is done in callback
                   } else {
                     chprintf(console, "Email error, pending.\r\n");
