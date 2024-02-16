@@ -1558,6 +1558,18 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                     if (node[webNode].queue != NULL) {
                       memcpy(node[webNode].queue, &message[0], REG_PACKET_SIZE + 1);
                     }
+                    /* Store message length
+                    // Not queued, allocate new
+                    if (node[webNode].queue == NULL) {
+                      node[webNode].queue = umm_malloc(REG_PACKET_SIZE + 2);
+                    }
+                    // Copy new message to queue pointer
+                    if (node[webNode].queue != NULL) {
+                      ((uint8_t *)node[webNode].queue)[0] = REG_PACKET_SIZE + 1;
+                      node[webNode].queue++;
+                      memcpy(node[webNode].queue, &message[0], REG_PACKET_SIZE + 1);
+                    }
+                     */
                   }
                 break;
                 case 'n': // name
