@@ -154,10 +154,10 @@ static void mqttIncomingDataCB(void *arg, const u8_t *data, u16_t len, u8_t flag
             if (pch != NULL) {
               DBG_MQTT_FUNC(", topic: %s", pch);
               // Value only for Input nodes
-              if ((strcmp(pch, text_value) == 0) && (node[index].function == 'I')) {
+              if ((strcmp(pch, text_value) == 0) && (node[index].type == 'I')) {
                 DBG_MQTT_FUNC(" = '%.*s'", len, (const char *)mqttInPayload);
                 floatConv.val = strtof((const char *)mqttInPayload, NULL);
-                message[0] = node[index].function;
+                message[0] = node[index].type;
                 message[1] = node[index].number;
                 message[2] = floatConv.byte[0]; message[3] = floatConv.byte[1];
                 message[4] = floatConv.byte[2]; message[5] = floatConv.byte[3];
@@ -165,6 +165,8 @@ static void mqttIncomingDataCB(void *arg, const u8_t *data, u16_t len, u8_t flag
                 if (sendData(node[index].address, message, 6) == 1) {
                   node[index].lastOK = getTimeUnixSec();
                   node[index].value = floatConv.val;
+                  // MQTT pub
+                  if (GET_NODE_MQTT(node[index].setting)) pushToMqtt(typeSensor, index, functionValue);
                 }
               }
             }
