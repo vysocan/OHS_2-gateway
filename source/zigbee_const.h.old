@@ -1,0 +1,69 @@
+/*
+ * zigbee_const.h
+ *
+ *  Created on: May 16, 2021
+ *      Author: vysocan
+ */
+
+#ifndef SOURCE_ZIGBEE_CONST_H_OLD_
+#define SOURCE_ZIGBEE_CONST_H_OLD_
+
+/*
+        Cmd0           Cmd1
+Bit:    7-5    4-0     7-0
+Type    Subsystem      Id
+
+Cmd0 Value
+POLL    0x00
+SREQ    0x20
+AREQ    0x40
+SRSP    0x60
+
+Subsystems
+0x00    RPC Error interface
+0x01    SYS interface
+0x02    MAC interface
+0x03    NWK interface
+0x04    AF interface
+0x05    ZDO interface
+0x06    Simple API interface
+0x07    UTIL interface
+0x08    DEBUG interface
+0x09    APP Interface
+0x0F    APP config
+0x15    GreenPower
+*/
+
+// Types
+typedef uint64_t IeeeAdr_t;
+// Command0
+#define ZB_POLL         0x00
+#define ZB_SREQ         0x20
+#define ZB_AREQ         0x40
+#define ZB_SRSP         0x60
+// Subsystems
+#define ZB_SS_RPC_ERROR 0x00
+#define ZB_SS_SYS       0x01
+#define ZB_SS_MAC       0x02
+#define ZB_SS_NWK       0x03
+#define ZB_SS_AF        0x04
+#define ZB_SS_ZDO       0x05
+#define ZB_SS_S_API     0x06
+#define ZB_SS_UTIL      0x07
+#define ZB_SS_DEBUG     0x08
+#define ZB_SS_APP       0x09
+#define ZB_SS_APP_CONF  0x0F
+#define ZB_SS_GREEN_PWR 0x15
+// Capabilities
+#define ZB_MT_CAP_SYS   0x0001
+#define ZB_MT_CAP_MAC   0x0001
+#define ZB_MT_CAP_NWK   0x0004
+#define ZB_MT_CAP_AF    0x0008
+#define ZB_MT_CAP_ZDO   0x0010
+#define ZB_MT_CAP_SAPI  0x0020
+#define ZB_MT_CAP_UTIL  0x0040
+#define ZB_MT_CAP_DEBUG 0x0080
+#define ZB_MT_CAP_APP   0x0100
+#define ZB_MT_CAP_ZOAD  0x1000
+
+#endif /* SOURCE_ZIGBEE_CONST_H_OLD_ */

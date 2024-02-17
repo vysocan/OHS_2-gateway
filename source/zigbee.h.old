@@ -1,0 +1,147 @@
+/*
+ * zigbee.h
+ *
+ *  Created on: May 10, 2021
+ *      Author: vysocan
+ */
+
+#ifndef SOURCE_ZIGBEE_H_OLD_
+#define SOURCE_ZIGBEE_H_OLD_
+
+#include "hal.h"
+#include "chprintf.h"
+#include <string.h>
+#include "zigbee_const.h"
+
+// Internal defines
+#define ZB_RING_BUFFER_SIZE 256
+#define ZB_CMD_LENGTH       2
+#define ZB_RESP_LENGTH      3
+#define ZB_FRAME_LENGTH     5
+#define ZB_DELAY            10
+#define ZB_DEFAULT_WAIT     20
+#define ZB_FRAME_START      0xFE
+/*
+ * Enum flag
+ */
+typedef enum {
+  zbFlagFrameNone = 0,
+  zbFlagFrameStart,
+  zbFlagFrameReceiving,
+  zbFlagFrameCRC,
+  zbFlagFrameDone,
+  zbFlagFrameErrorCRC,
+  zbFlagFrameErrorLen
+} zbFlagType_t;
+/*
+ * ZB data ring buffer
+ */
+typedef struct {
+  uint8_t data[ZB_RING_BUFFER_SIZE];
+  uint8_t head;
+  uint8_t tail;
+  uint8_t frame;
+  zbFlagType_t flag;
+  uint8_t frameLen;
+} zbRingBuffer_t;
+/*
+ *
+ */
+typedef struct {
+  uint8_t cmd0;
+  uint8_t cmd1;
+  uint8_t cmdLen;
+  uint8_t respLen;
+} zbCmd_t;
+// https://stackoverflow.com/questions/7674255/get-list-of-c-structure-members
+/*
+ * Requests definitions
+ */
+struct __attribute__((__packed__)) zbReqSysResetReq {
+  uint8_t  type;
+};
+struct __attribute__((__packed__)) zbReqSysOsalNvLength {
+  uint16_t id;
+};
+// ZDO
+struct __attribute__((__packed__)) zbReqZdoActiveEp {
+  uint16_t destAddr;
+  uint16_t addrIntrest;
+};
+/*
+ * Response definitions
+ */
+// SYS
+struct __attribute__((__packed__)) zbSRespSysPing {
+  uint16_t capability;
+};
+struct __attribute__((__packed__)) zbSRespSysVersion {
+  uint8_t transportRev;
+  uint8_t product;
+  uint8_t majorRel;
+  uint8_t minorRel;
+  uint8_t MaintRel;
+};
+struct __attribute__((__packed__)) zbSRespSysOsalNvLength {
+  uint16_t length;
+};
+// ZDO
+struct __attribute__((__packed__)) zbSRespZdoActiveEp {
+  uint8_t status;
+};
+struct __attribute__((__packed__)) zbARespZdoSimpleDesc {
+  uint16_t srcAddr;
+  uint8_t  status;
+  uint16_t nwkAddr;
+  uint8_t  length;
+  uint8_t  endpoint;
+  uint16_t profileID;
+  uint16_t deviceID;
+  uint8_t  deviceVer;
+  uint8_t  numInCluster;
+  uint8_t  *inClustersList; // 0 - 32 bytes
+  uint8_t  numOutCluster;
+  uint8_t  *outClustersList; // 0 - 32 bytes
+};
+struct __attribute__((__packed__)) zbARespZdoActiveEpResp {
+  uint16_t srcAddr;
+  uint8_t  status;
+  uint16_t nwkAddr;
+  uint8_t  activeEpCount;
+  uint8_t  *activeEpList; // 0 - 77 bytes
+};
+// UTIL
+struct __attribute__((__packed__)) zbSRespUtilDeviceInfo {
+  uint8_t   status;
+  IeeeAdr_t ieeeAddr;
+  uint16_t  shortAddr;
+  uint8_t   deviceType;
+  uint8_t   deviceState;
+  uint8_t   numAssocDevices;
+  uint8_t   *devicesList; // 0 - 128 bytes
+};
+/*
+ * Command definitions
+ */
+// SYS
+extern const zbCmd_t zbCmdSysResetReq;
+extern const zbCmd_t zbCmdSysPing;
+extern const zbCmd_t zbCmdSysVersion;
+extern const zbCmd_t zbCmdSysOsalNvLength;
+// ZDO
+extern const zbCmd_t zbCmdZdoActiveEp;
+
+// UTIL
+extern const zbCmd_t zbCmdUtilDeviceInfo;
+/*
+ * A REQ definitions
+ */
+//extern const zbCmd_t zbAReqZdoActiveEp;
+extern const zbCmd_t zbAReqZdoSimpleDesc;
+/*
+ *
+ */
+void zbInit(SerialDriver *sdp);
+uint8_t zbSendCmd(const zbCmd_t Cmd, void *what, void *resp);
+
+#endif /* SOURCE_ZIGBEE_H_OLD_ */

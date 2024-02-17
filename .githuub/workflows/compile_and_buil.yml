@@ -1,0 +1,28 @@
+name: compile_and_build
+
+on:
+  push:
+    branches: [ main, '**' ]
+
+  pull_request:
+    branches: [ main ]
+
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: before_install_add_x
+      run: chmod +x tools/travis/before_install.sh
+    - name: before_install
+      run: ./tools/travis/before_install.sh
+    - name: run_script_add_x
+      run: ./tools/travis/script.sh

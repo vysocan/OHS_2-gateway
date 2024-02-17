@@ -1,0 +1,217 @@
+/*
+ * zigbee.c
+ *
+ *  Created on: May 10, 2021
+ *      Author: vysocan
+ */
+
+#include <zigbee.h.old>
+
+#ifndef ZB_DEBUG
+#define ZB_DEBUG 0
+#endif
+
+#if ZB_DEBUG
+#define DBG(...) {chprintf((BaseSequentialStream*)&SD3, __VA_ARGS__);}
+#else
+#define DBG(...)
+#endif
+
+static zbRingBuffer_t zbRingBuffer;
+static uint8_t zbOutBuffer[80];
+static BaseSequentialStream* zbStream;
+/*
+ * Command definitions
+ */
+// SYS
+const zbCmd_t zbCmdSysResetReq         = {ZB_AREQ | ZB_SS_SYS, 0x00, sizeof(struct zbReqSysResetReq), 0};
+const zbCmd_t zbCmdSysPing             = {ZB_SREQ | ZB_SS_SYS, 0x01, 0, sizeof(struct zbSRespSysPing)};
+const zbCmd_t zbCmdSysVersion          = {ZB_SREQ | ZB_SS_SYS, 0x02, 0, sizeof(struct zbSRespSysVersion)};
+const zbCmd_t zbCmdSysOsalNvLength     = {ZB_SREQ | ZB_SS_SYS, 0x13, sizeof(struct zbReqSysOsalNvLength), sizeof(struct zbSRespSysOsalNvLength)};
+// ZDO
+const zbCmd_t zbCmdZdoActiveEp         = {ZB_SREQ | ZB_SS_ZDO, 0x00, sizeof(struct zbReqZdoActiveEp), sizeof(struct zbSRespZdoActiveEp)};
+// UTIL
+const zbCmd_t zbCmdUtilDeviceInfo      = {ZB_SREQ | ZB_SS_UTIL, 0x00, 0, sizeof(struct zbSRespUtilDeviceInfo)};
+/*
+ * AREQ definitions
+ */
+const zbCmd_t zbAReqZdoSimpleDesc      = {ZB_AREQ | ZB_SS_ZDO, 0x84, 0, sizeof(struct zbARespZdoSimpleDesc)};
+/*
+ * Callbacks
+ */
+void zb_txend1_cb(SerialDriver *sdp) {
+  (void)sdp;
+}
+void zb_txend2_cb(SerialDriver *sdp) {
+  (void)sdp;
+}
+void zb_rxchar_cb(SerialDriver *sdp, uint8_t c) {
+  (void)sdp;
+
+  // Frame CRC
+  if (zbRingBuffer.flag == zbFlagFrameCRC) {
+    zbRingBuffer.frame++;
+    zbRingBuffer.flag = zbFlagFrameDone;
+  }
+  // Frame data
+  if (zbRingBuffer.flag == zbFlagFrameReceiving) {
+    zbRingBuffer.frameLen--;
+    // End of data
+    if (zbRingBuffer.frameLen == 0) {
+      zbRingBuffer.flag = zbFlagFrameCRC;
+    }
+  }
+  // Frame length received
+  if (zbRingBuffer.flag == zbFlagFrameStart) {
+    zbRingBuffer.flag = zbFlagFrameReceiving;
+    zbRingBuffer.frameLen = ZB_RESP_LENGTH + c;
+  }
+  // Frame start indicator
+  if (((zbRingBuffer.flag == zbFlagFrameNone) || (zbRingBuffer.flag == zbFlagFrameDone)) &&
+      (c == ZB_FRAME_START)) {
+    zbRingBuffer.flag = zbFlagFrameStart;
+    //zbRingBuffer.frameStart = zbRingBuffer.head;
+  }
+
+  zbRingBuffer.data[zbRingBuffer.head++] = c;
+}
+void zb_rxerr_cb(SerialDriver *sdp, eventflags_t e) {
+  (void)sdp;
+  (void)e;
+}
+/*
+ * ZB default configuration
+ */
+static SerialConfig zb_cfg = {
+  115200,
+  0, 0, 0
+  ,zb_txend1_cb, zb_txend2_cb, zb_rxchar_cb, zb_rxerr_cb
+};
+/*
+ * Initialize ring buffer
+ */
+static void zbInitRingBuffer(zbRingBuffer_t *what){
+  what->head = 0;
+  what->tail = 0;
+  what->frame = 0;
+  what->flag = zbFlagFrameNone;
+  what->frameLen = 0;
+  memset(&what->data[0], 0, ZB_RING_BUFFER_SIZE);
+}
+/*
+ * Init
+ */
+void zbInit(SerialDriver *sdp) {
+  sdStart(sdp,  &zb_cfg);
+  zbInitRingBuffer(&zbRingBuffer);
+  zbStream = (BaseSequentialStream*)sdp;
+}
+/*
+ * zbRead Read one byte
+ */
+static uint8_t zbRead(void) {
+  // In case not aligned to 256: rx_buffer.tail = (rx_buffer.tail + 1) % GSM_USART_RX_BUFFER_SIZE;
+  return zbRingBuffer.data[zbRingBuffer.tail++];
+}
+/*
+ * Get response
+ */
+static zbFlagType_t zbGetResponse(uint8_t *resp, uint8_t responseLength,
+                                  const uint16_t wait) {
+  uint16_t waitCount = 0;
+  uint8_t  count, rb, frameLength, frameXOR;
+  zbFlagType_t flag = zbFlagFrameNone;
+
+  responseLength += ZB_CMD_LENGTH;
+
+  DBG("zbWaitAndReadResponse: %d\r\n", zbRingBuffer.frame);// chThdSleepMilliseconds(50);
+  //do {
+    // Wait for frame
+    while ((zbRingBuffer.frame == 0) && (waitCount < wait)) {
+      chThdSleepMilliseconds(ZB_DELAY);
+      waitCount++;
+      DBG("+");
+    }
+
+    // no frame
+    if (waitCount == wait) return zbFlagFrameNone;
+
+    // Get message
+    count = 0;
+    do {
+      rb = zbRead();
+      DBG("%x|%d, ", rb, count);
+      // Frame CRC
+      if (flag == zbFlagFrameCRC) {
+        if (frameXOR == rb) flag = zbFlagFrameDone;
+        else flag = zbFlagFrameErrorCRC;
+      }
+      // Frame data
+      if (zbRingBuffer.flag == zbFlagFrameReceiving) {
+        resp[count++] = rb;
+        frameXOR ^= rb;
+        // End of data
+        if (count == frameLength) {
+          if (count == responseLength) flag = zbFlagFrameCRC;
+          else flag = zbFlagFrameErrorLen;
+        }
+        // End of data
+      }
+       // Frame length received
+       if (flag == zbFlagFrameStart) {
+         flag = zbFlagFrameReceiving;
+         frameLength = ZB_CMD_LENGTH + rb;
+         frameXOR = rb;
+       }
+       // Frame start indicator
+       if ((zbRingBuffer.flag == zbFlagFrameNone) && (rb == ZB_FRAME_START)) {
+         flag = zbFlagFrameStart;
+       }
+    } while ((flag != zbFlagFrameDone) &&
+             (flag != zbFlagFrameErrorCRC) &&
+             (flag != zbFlagFrameErrorLen) &&
+             (zbRingBuffer.tail != zbRingBuffer.head));
+    DBG("\r\n");
+  //} while (count == 0);
+
+  return flag;
+}
+/*
+ *
+ */
+static uint8_t zbSendFrame(const zbCmd_t Cmd, const uint8_t *what) {
+  uint8_t frameXOR, c;
+
+  zbOutBuffer[0] = ZB_FRAME_START;
+  zbOutBuffer[1] = Cmd.cmdLen;
+  frameXOR = Cmd.cmdLen;
+  zbOutBuffer[2] = Cmd.cmd0;
+  frameXOR ^= Cmd.cmd0;
+  zbOutBuffer[3] = Cmd.cmd1;
+  frameXOR ^= Cmd.cmd1;
+  // data
+  for (uint8_t i = 0; i < Cmd.cmdLen; i++) {
+    c = *what++;
+    zbOutBuffer[4+i] = c;
+    frameXOR ^= c;
+  }
+  zbOutBuffer[4+Cmd.cmdLen] = frameXOR;
+
+  return streamWrite(zbStream, &zbOutBuffer[0], ZB_FRAME_LENGTH + Cmd.cmdLen);
+}
+/*
+ *
+ */
+uint8_t zbSendCmd(const zbCmd_t Cmd, void *what, void *resp) {
+  uint8_t size;
+  zbFlagType_t flag;
+
+  size = zbSendFrame(Cmd, what);
+  if ((Cmd.cmd0 & ZB_SREQ) == ZB_SREQ) {
+    flag = zbGetResponse(resp, Cmd.respLen, ZB_DEFAULT_WAIT);
+    return flag;
+  } else {
+    return size;
+  }
+
+}
