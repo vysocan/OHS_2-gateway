@@ -25,4 +25,6 @@ jobs:
     - name: before_install
       run: ./tools/travis/before_install.sh
     - name: run_script_add_x
+      run: chmod +x tools/travis/script.sh
+    - name: run_script
       run: ./tools/travis/script.sh
