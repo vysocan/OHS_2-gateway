@@ -20,11 +20,18 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: before_install_add_x
-      run: chmod +x tools/travis/before_install.sh
-    - name: before_install
-      run: ./tools/travis/before_install.sh
-    - name: run_script_add_x
-      run: chmod +x tools/travis/script.sh
-    - name: run_script
-      run: ./tools/travis/script.sh
+    - name: add x to before install script
+      run: chmod +x tools/before_install.sh
+    - name: run before install
+      run: ./tools/before_install.sh
+    - name: add x to build script
+      run: chmod +x tools/build.sh
+    - name: run build
+      run: ./tools/build.sh
+    - name: upload binaries to release
+      uses: svenstaro/upload-release-action@v2
+      with:
+        file: build/OHS_F437.bin
+        asset_name: OHS_F437.bin
+        tag: ${{ github.ref }}
+        overwrite: true
