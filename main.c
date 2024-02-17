@@ -1,6 +1,6 @@
 /*
  * OHS gateway code for HW v 2.0.x
- * Adam Baron (c) 2020
+ * Adam Baron (c)
  *
  *
  */
@@ -66,7 +66,7 @@ struct tcl tcl;
 char logText[LOG_TEXT_LENGTH] __attribute__((section(".ram4"))); // To decode log text
 
 // OHS includes
-#include <ohs_text_const.h>
+#include "ohs_text_const.h"
 #include "ohs_conf.h"
 #include "date_time.h"
 #include "ohs_peripheral.h"
@@ -347,6 +347,7 @@ int main(void) {
   chThdCreateStatic(waTclThread, sizeof(waTclThread), LOWPRIO + 1, tclThread, (void*)"tcl");
   chThdCreateStatic(waMqttThread, sizeof(waMqttThread), NORMALPRIO - 2, MqttThread, (void*)"mqtt");
   //chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg);
+  chThdCreateFromHeap(NULL, SHELL_WA_SIZE,"shell", NORMALPRIO + 1, shellThread, (void *)&shell_cfg);
   chThdCreateStatic(waHeartBeatThread, sizeof(waHeartBeatThread), LOWPRIO, HeartBeatThread, (void*)"h-beat");
 
   stats_init();
@@ -521,3 +522,4 @@ int main(void) {
     */
   }
 }
+
