@@ -660,9 +660,9 @@ int fs_open_custom(struct fs_file *file, const char *name){
           printOnOffButton(chp, "5", GET_CONF_GROUP_AUTO_ARM(conf.group[webGroup].setting));
           chprintf(chp, "%s%s %ss %s 1%s", html_e_td_e_tr_tr_td,  text_Alarm, text_trigger, text_relay, html_e_td_td);
           printOnOffButton(chp, "4", GET_CONF_GROUP_PIR1(conf.group[webGroup].setting));
-          chprintf(chp, "%s%s %ss %s 1%s", html_e_td_e_tr_tr_td,  text_Alarm, text_trigger, text_relay, html_e_td_td);
+          chprintf(chp, "%s%s %ss %s 2%s", html_e_td_e_tr_tr_td,  text_Alarm, text_trigger, text_relay, html_e_td_td);
           printOnOffButton(chp, "3", GET_CONF_GROUP_PIR2(conf.group[webGroup].setting));
-          chprintf(chp, "%s%s %ss %s 2%s", html_e_td_e_tr_tr_td,  text_Tamper, text_trigger, text_relay, html_e_td_td);
+          chprintf(chp, "%s%s %ss %s 1%s", html_e_td_e_tr_tr_td,  text_Tamper, text_trigger, text_relay, html_e_td_td);
           printOnOffButton(chp, "2", GET_CONF_GROUP_TAMPER1(conf.group[webGroup].setting));
           chprintf(chp, "%s%s %ss %s 2%s", html_e_td_e_tr_tr_td,  text_Tamper, text_trigger, text_relay, html_e_td_td);
           printOnOffButton(chp, "1", GET_CONF_GROUP_TAMPER2(conf.group[webGroup].setting));
