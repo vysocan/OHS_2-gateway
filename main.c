@@ -239,7 +239,7 @@ int main(void) {
   shellInit();
 
   // Creating the mailboxes.
-  //chMBObjectInit(&alarmEvent_mb, alarmEvent_mb_buffer, ALARMEVENT_FIFO_SIZE);
+  //chMBObjectInit(&alarmEvent_mb, alarmEvent_mb_buffer, ALARM_EVENT_FIFO_SIZE);
 
   // Pools
   chPoolObjectInit(&alarmEvent_pool, sizeof(alarmEvent_t), NULL);
@@ -250,15 +250,15 @@ int main(void) {
   chPoolObjectInit(&script_pool, sizeof(scriptEvent_t), NULL);
   chPoolObjectInit(&trigger_pool, sizeof(triggerEvent_t), NULL);
   chPoolObjectInit(&mqtt_pool, sizeof(mqttEvent_t), NULL);
-  //chPoolLoadArray(&alarmEvent_pool, alarmEvent_pool_queue, ALARMEVENT_FIFO_SIZE);
-  for(uint8_t i = 0; i < ALARM_EVENT_FIFO_SIZE; i++) { chPoolFree(&alarmEvent_pool, &alarmEvent_pool_queue[i]); }
-  for(uint8_t i = 0; i < LOGGER_FIFO_SIZE; i++) { chPoolFree(&logger_pool, &logger_pool_queue[i]); }
-  for(uint8_t i = 0; i < REG_FIFO_SIZE; i++) { chPoolFree(&registration_pool, &registration_pool_queue[i]); }
-  for(uint8_t i = 0; i < SENSOR_FIFO_SIZE; i++) { chPoolFree(&sensor_pool, &sensor_pool_queue[i]); }
-  for(uint8_t i = 0; i < ALERT_FIFO_SIZE; i++) { chPoolFree(&alert_pool, &alert_pool_queue[i]); }
-  for(uint8_t i = 0; i < SCRIPT_FIFO_SIZE; i++) { chPoolFree(&script_pool, &script_pool_queue[i]); }
-  for(uint8_t i = 0; i < TRIGGER_FIFO_SIZE; i++) { chPoolFree(&trigger_pool, &trigger_pool_queue[i]); }
-  for(uint8_t i = 0; i < MQTT_FIFO_SIZE; i++) { chPoolFree(&mqtt_pool, &mqtt_pool_queue[i]); }
+  // Prepare pools
+  chPoolLoadArray(&alarmEvent_pool, (void *)alarmEvent_pool_queue, ALARM_EVENT_FIFO_SIZE);
+  chPoolLoadArray(&logger_pool, (void *)logger_pool_queue, LOGGER_FIFO_SIZE);
+  chPoolLoadArray(&registration_pool, (void *)registration_pool_queue, REG_FIFO_SIZE);
+  chPoolLoadArray(&sensor_pool, (void *)sensor_pool_queue, SENSOR_FIFO_SIZE);
+  chPoolLoadArray(&alert_pool, (void *)alert_pool_queue, ALERT_FIFO_SIZE);
+  chPoolLoadArray(&script_pool, (void *)script_pool_queue, SCRIPT_FIFO_SIZE);
+  chPoolLoadArray(&trigger_pool, (void *)trigger_pool_queue, TRIGGER_FIFO_SIZE);
+  chPoolLoadArray(&mqtt_pool, (void *)mqtt_pool_queue, MQTT_FIFO_SIZE);
 
   // SPI
   spiStart(&SPID1, &spi1cfg);
