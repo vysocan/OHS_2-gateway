@@ -22,7 +22,7 @@
 #define RTC_OFFSET_YEAR     1970
 
 //extern volatile uint32_t RTCTimestamp;
-extern volatile int32_t  RTCDeviation;
+//extern volatile int32_t  RTCDeviation;
 
 uint32_t calculateDST(uint16_t year, uint8_t month, uint8_t week, uint8_t dow, uint8_t hour);
 uint32_t convertRTCDateTimeToUnixSecond(RTCDateTime *dateTime);

@@ -2,7 +2,7 @@
  * date_time.c
  *
  *  Created on: 13. 10. 2020
- *      Author: adam
+ *      Author: Adam Baron
  */
 #include "date_time.h"
 #include "chprintf.h"
@@ -28,7 +28,7 @@ uint32_t convertRTCDateTimeToUnixSecond(RTCDateTime *dateTime) {
 
   // Year is below offset year
   if (year < RTC_OFFSET_YEAR) return 0;
-  // Days in previus years
+  // Days in previous years
   for (i = RTC_OFFSET_YEAR; i < year; i++) {
     days += RTC_DAYS_IN_YEAR(i);
   }
