@@ -1,6 +1,6 @@
 /*
  * OHS gateway code for HW v 2.0.x
- * Adam Baron (c)
+ * Adam Baron (c) 2020
  *
  *
  */
@@ -113,18 +113,6 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 // Shell functions
 #include "ohs_shell.h"
 
-// MBEDTLS
-/*
-#include "config.h"
-#include "mbedtls/platform.h"
-#include "mbedtls/net_sockets.h"
-#include "mbedtls/ssl.h"
-#include "mbedtls/entropy.h"
-#include "mbedtls/ctr_drbg.h"
-#include "mbedtls/error.h"
-#include "mbedtls/certs.h"
-*/
-
 //
 #ifdef OHS_WOLFSSL
 #include "crypto.h"
@@ -179,50 +167,6 @@ static void mdns_example_report(struct netif* netif, u8_t result, s8_t service){
   chprintf(console,"mdns status[netif %d][service %d]: %d\r\n", netif->num, service, result);
 }
 #endif
-
-/*
-uint8_t httpcGo = 1;
-err_t httpcHeaderDone (httpc_state_t *connection, void *arg, struct pbuf *hdr, u16_t hdr_len, u32_t content_len){
-  LWIP_UNUSED_ARG(connection);
-  LWIP_UNUSED_ARG(arg);
-
-  chprintf(console, ">httpcHeaderDone: %d;%d;%s\r\n", hdr_len, content_len, hdr->payload);
-  return ERR_OK;
-}
-
-void httpcFinished (void *arg, httpc_result_t httpc_result, u32_t rx_content_len, u32_t srv_res, err_t err){
-  LWIP_UNUSED_ARG(arg);
-
-  chprintf(console, ">httpcFinished err: %d; httpc_result: %d, rx_content_len: %d, srv_res: %d\r\n", err, httpc_result,rx_content_len,srv_res);
-  httpcGo = 1;
-}
-
-err_t httpcGetResult (void *arg, struct altcp_pcb *conn, struct pbuf *p, err_t err){
-  LWIP_UNUSED_ARG(arg);
-  LWIP_UNUSED_ARG(conn);
-
-  chprintf(console, ">httpcGetResult: %d;%s\r\n", err, p->payload);
-
-  // Free pbuf
-  if (p != NULL) pbuf_free(p);
-  return ERR_OK;
-}
-
-static void mydebug(void *ctx, int level, const char *file, int line,
-                     const char *str) {
-    const char *p, *basename;
-    (void) ctx;
-
-    // Extract basename from file
-    for(p = basename = file; *p != '\0'; p++) {
-        if(*p == '/' || *p == '\\') {
-            basename = p + 1;
-        }
-    }
-
-    chprintf(console, "%s:%04d: |%d| %s", basename, line, level, str);
-}
-*/
 
 /*
  * Application entry point.
@@ -431,58 +375,6 @@ int main(void) {
   wolfSSL_Init();
 #endif
 
-  /*
-  mbedtls_entropy_context entropy;
-  mbedtls_ctr_drbg_context ctr_drbg;
-  mbedtls_ssl_context ssl;
-  mbedtls_x509_crt cacert;
-  mbedtls_ssl_config conf;
-  mbedtls_net_context server_fd;
-
-  char buf[512];
-  int ret, flags, len;
-  mbedtls_ssl_init(&ssl);
-  mbedtls_x509_crt_init(&cacert);
-  mbedtls_ctr_drbg_init(&ctr_drbg);
-
-  mbedtls_ssl_config_init(&conf);
-
-  mbedtls_entropy_init(&entropy);
-  if((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
-                                  NULL, 0)) != 0) {
-    chprintf(console, "mbedtls_ctr_drbg_seed returned %d", ret);
-  }
-  */
-
-  // MBEDTLS client
-  /*
-  mbedtls_entropy_context entropy;
-  mbedtls_ctr_drbg_context ctr_drbg;
-  mbedtls_ssl_context ssl;
-  mbedtls_x509_crt cacert;
-  mbedtls_ssl_config conf;
-  int ret;
-
-  mbedtls_ssl_init(&ssl);
-  mbedtls_ssl_config_init(&conf);
-  mbedtls_x509_crt_init(&cacert);
-  mbedtls_ctr_drbg_init(&ctr_drbg);
-  mbedtls_entropy_init(&entropy);
-  if((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
-                                  NULL, 0)) != 0) {
-      chprintf(console, ">mbedtls_ctr_drbg_seed: %d", ret);
-  }
-
-  httpc_connection_t httpClientConn;
-  httpClientConn.result_fn = httpcFinished;
-  httpClientConn.headers_done_fn = httpcHeaderDone;
-  httpClientConn.use_proxy = 0;
-  ip_addr_t httpcAddr;// = IPADDR4_INIT_BYTES(10,10,10,127);
-  httpc_state_t* http_state;
-  err_t err;
-  */
-
-  //size_t n, total, largest;
   // Idle runner
   while (true) {
     chThdSleepMilliseconds(100);
@@ -494,32 +386,6 @@ int main(void) {
       chThdWait(shelltp); // Waiting termination.
     }
 
-
-    /*
-    n = chHeapStatus(NULL, &total, &largest);
-    chprintf(console, "core free memory : %u bytes" SHELL_NEWLINE_STR, chCoreGetStatusX());
-    chprintf(console, "heap fragments   : %u" SHELL_NEWLINE_STR, n);
-    chprintf(console, "heap free total  : %u bytes" SHELL_NEWLINE_STR, total);
-    chprintf(console, "heap free largest: %u bytes" SHELL_NEWLINE_STR, largest);
-    umm_info(&ohsUmmHeap[0], true);
-    */
-    //chThdSleepMilliseconds(10000);
-    //int ret = wolfSSL_get_ciphers(&tclOutput[0], (int)sizeof(tclOutput));
-    //https_client();
-
-    /*
-    chThdSleepMilliseconds(20000);
-    err = inet_aton("10.10.10.127", &httpcAddr);
-    chprintf(console, ">inet_aton: %d\r\n", err);
-
-    if (httpcGo) {
-      LOCK_TCPIP_CORE();
-      err = httpc_get_file_dns("www.seznam.cz", 80, "/#/login", &httpClientConn, httpcGetResult, NULL, &http_state);
-      if (!err) httpcGo = 0;
-      chprintf(console, ">httpc_get_file: %d\r\n", err);
-      UNLOCK_TCPIP_CORE();
-    }
-    */
   }
 }
 
