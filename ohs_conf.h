@@ -129,7 +129,7 @@
 #define SET_CONF_ZONE_TYPE(x)        x |= (1 << 15U)
 #define CLEAR_CONF_ZONE_ENABLED(x)     x &= ~1
 #define CLEAR_CONF_ZONE_ARM_HOME(x)    x &= ~(1 << 7U)
-#define CLEAR_CONF_ZONE_STILL_OPEN(x)  x &= ~(1 << 8U)
+#define CLEAR_CONF_ZONE_OPEN_ALARM(x)  x &= ~(1 << 8U)
 #define CLEAR_CONF_ZONE_PIR_AS_TMP(x)  x &= ~(1 << 9U)
 #define CLEAR_CONF_ZONE_BALANCED(x)    x &= ~(1 << 10U)
 #define CLEAR_CONF_ZONE_(x)            x &= ~(1 << 11U)
@@ -333,14 +333,17 @@ typedef enum {
   typeGroup = 0,
   typeZone,
   typeSensor,
-  typeSystem
+  typeSystem,
+  typeConfZone
 } mqttPubType_t;
 
 // MQTT function enum
 typedef enum {
   functionState = 0,
   functionValue,
-  functionName
+  functionName,
+  functionSetting,
+  functionAll
 } mqttPubFunction_t;
 
 // time_t conversion
@@ -422,6 +425,16 @@ typedef struct {
   uint8_t dummy;              // align to 4
 } mqttEvent_t;
 
+// PubSub events
+#define PUBSUB_FIFO_SIZE 40 // To accommodate various sources like zones, groups, sensors
+typedef struct {
+  mqttPubType_t type;         // Group, Sensor, Zone, System
+  uint8_t number;             // index
+  mqttPubFunction_t function; // Name, Value, State, Arm state
+  uint8_t dummy;              // align to 4
+} pubsubEvent_t;
+
+
 // TCL callback
 typedef void (*script_cb_t) (char *result);
 void script_cb(script_cb_t ptrFunc(char *result), char *result) {
@@ -496,6 +509,9 @@ static MAILBOX_DECL(trigger_mb, trigger_mb_buffer, TRIGGER_FIFO_SIZE);
 
 static msg_t        mqtt_mb_buffer[MQTT_FIFO_SIZE];
 static MAILBOX_DECL(mqtt_mb, mqtt_mb_buffer, MQTT_FIFO_SIZE);
+
+static msg_t        pubsub_mb_buffer[PUBSUB_FIFO_SIZE];
+static MAILBOX_DECL(pubsub_mb, pubsub_mb_buffer, PUBSUB_FIFO_SIZE);
 /*
  * Pools
  */
@@ -522,6 +538,9 @@ static MEMORYPOOL_DECL(trigger_pool, sizeof(triggerEvent_t), PORT_NATURAL_ALIGN,
 
 static mqttEvent_t mqtt_pool_queue[MQTT_FIFO_SIZE];
 static MEMORYPOOL_DECL(mqtt_pool, sizeof(mqttEvent_t), PORT_NATURAL_ALIGN, NULL);
+
+static pubsubEvent_t pubsub_pool_queue[PUBSUB_FIFO_SIZE];
+static MEMORYPOOL_DECL(pubsub_pool, sizeof(pubsubEvent_t), PORT_NATURAL_ALIGN, NULL);
 
 // Triggers
 typedef struct {
@@ -821,7 +840,7 @@ void initRuntimeZones(void){
     //                     ||||||||- Free
     //                     76543210
     zone[i].setting    = 0b00000000;
-    // Force disconnected and OK to all remote zones
+    // Force disconnected add OK to all remote zones
     if (i >= HW_ZONES) {
       CLEAR_CONF_ZONE_IS_PRESENT(conf.zone[i]);
       conf.zoneAddress[i - HW_ZONES] = 0;
@@ -833,7 +852,7 @@ void initRuntimeZones(void){
  * Write to backup SRAM
  */
 uint16_t writeToBkpSRAM(uint8_t *data, uint16_t size, uint16_t offset){
-  osalDbgAssert(((size + offset) < BACKUP_SRAM_SIZE), "BkpSRAM out of region");
+  chDbgAssert(((size + offset) < BACKUP_SRAM_SIZE), "BkpSRAM out of region");
   uint16_t i = 0;
   uint8_t *baseAddress = (uint8_t *) BKPSRAM_BASE;
   for(i = 0; i < size; i++) {
@@ -845,7 +864,7 @@ uint16_t writeToBkpSRAM(uint8_t *data, uint16_t size, uint16_t offset){
  * Read from backup SRAM
  */
 uint16_t readFromBkpSRAM(uint8_t *data, uint16_t size, uint16_t offset){
-  osalDbgAssert(((size + offset) < BACKUP_SRAM_SIZE), "BkpSRAM out of region");
+  chDbgAssert(((size + offset) < BACKUP_SRAM_SIZE), "BkpSRAM out of region");
   uint16_t i = 0;
   uint8_t *baseAddress = (uint8_t *) BKPSRAM_BASE;
   for(i = 0; i < size; i++) {
@@ -857,8 +876,8 @@ uint16_t readFromBkpSRAM(uint8_t *data, uint16_t size, uint16_t offset){
  * Write to backup RTC
  */
 uint8_t writeToBkpRTC(uint8_t *data, uint8_t size, uint8_t offset){
-  osalDbgAssert(((size + offset) < STM32_RTC_STORAGE_SIZE), "BkpRTC out of region");
-  osalDbgAssert(!(offset % 4), "BkpRTC misaligned"); // Offset is not aligned to to unint32_t registers
+  chDbgAssert(((size + offset) < STM32_RTC_STORAGE_SIZE), "BkpRTC out of region");
+  chDbgAssert(!(offset % 4), "BkpRTC misaligned"); // Offset is not aligned to to unint32_t registers
   uint8_t i = 0;
   volatile uint32_t *RTCBaseAddress = &(RTC->BKP0R);
   uint32_t tmp = 0;
@@ -875,8 +894,8 @@ uint8_t writeToBkpRTC(uint8_t *data, uint8_t size, uint8_t offset){
  * Read from backup RTC
  */
 uint8_t readFromBkpRTC(uint8_t *data, uint8_t size, uint8_t offset){
-  osalDbgAssert(((size + offset) < STM32_RTC_STORAGE_SIZE), "BkpRTC out of region");
-  osalDbgAssert(!(offset % 4), "BkpRTC misaligned"); // Offset is not aligned to to unint32_t registers
+  chDbgAssert(((size + offset) < STM32_RTC_STORAGE_SIZE), "BkpRTC out of region");
+  chDbgAssert(!(offset % 4), "BkpRTC misaligned"); // Offset is not aligned to to unint32_t registers
   uint8_t i = 0;
   volatile uint32_t *RTCBaseAddress = &(RTC->BKP0R);
   uint32_t tmp = 0;

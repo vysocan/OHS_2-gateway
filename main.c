@@ -44,6 +44,9 @@ binary_semaphore_t cbTimerSem;
 binary_semaphore_t cbTriggerSem;
 // MQTT semaphore
 binary_semaphore_t mqttSem;
+// PubSub semaphore
+binary_semaphore_t pubsubSemTx;
+binary_semaphore_t pubsubSemRx;
 
 // RFM69
 #include "rfm69.h"
@@ -61,6 +64,15 @@ char tclCmd[TCL_SCRIPT_LENGTH] __attribute__((section(".ram4")));
 struct tcl tcl;
 // uBS
 #include "uBS.h"
+// MessagePack
+#include "cmp.h"
+#include "cmp_mem_access.h"
+cmp_mem_access_t cmp_mem;
+cmp_ctx_t cmp = {0};
+char cmp_buffer[128];
+//#define PUBSUB_TX_LENGTH 128
+//uint8_t pubsubTxPayload[PUBSUB_TX_LENGTH], pubsubTxPayloadTail;
+
 
 #define LOG_TEXT_LENGTH 80
 char logText[LOG_TEXT_LENGTH] __attribute__((section(".ram4"))); // To decode log text
@@ -88,6 +100,9 @@ volatile int8_t gprsStrength = 0;
 char gprsModemInfo[20] __attribute__((section(".ram4"))); // SIMCOM_SIM7600x-x
 char gprsSystemInfo[80] __attribute__((section(".ram4")));
 char gprsSmsText[128] __attribute__((section(".ram4")));
+
+// PubSub
+#include "pubsubSerial.h"
 
 // LWIP
 #include "lwipthread.h"
@@ -142,6 +157,7 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 #include "ohs_th_trigger.h"
 #include "ohs_th_tcl.h"
 #include "ohs_th_mqtt.h"
+#include "ohs_th_pubsub.h"
 //static THD_WORKING_AREA(waShell, 3*1024);
 #include "ohs_th_heartbeat.h"
 
@@ -169,6 +185,18 @@ static void mdns_example_report(struct netif* netif, u8_t result, s8_t service){
 #endif
 
 /*
+ *
+ */
+//static size_t cmp_serial_writer(cmp_ctx_t *ctx, const void *data, size_t count) {
+//  (void)ctx;
+//  chDbgAssert(pubsubTxPayloadTail+count < sizeof(pubsubTxPayload), "Payload size too small");
+//
+//  memcpy(&pubsubTxPayload[pubsubTxPayloadTail], data, count);
+//  pubsubTxPayloadTail += count;
+//  return count;
+//}
+
+/*
  * Application entry point.
  */
 int main(void) {
@@ -188,6 +216,9 @@ int main(void) {
   chBSemObjectInit(&cbTimerSem, false);
   chBSemObjectInit(&cbTriggerSem, false);
   chBSemObjectInit(&mqttSem, false);
+  chBSemObjectInit(&pubsubSemTx, false);
+  chBSemObjectInit(&pubsubSemRx, true);
+
   // Debug port
   sdStart(&SD3,  &serialCfg);
   chprintf(console, "\r\nOHS v.%u.%u.%u start\r\n", OHS_MAJOR, OHS_MINOR, OHS_MOD);
@@ -198,6 +229,12 @@ int main(void) {
   // RS485
   rs485Start(&RS485D2, &rs485cfg);
   chprintf(console, "RS485 timeout: %d(uS)/%d(tick)\r\n", RS485D2.oneByteTimeUS, RS485D2.oneByteTimeI);
+  // Serial PubSub
+  pubsubInit(&UARTD1, &pubsubSemRx, &pubsubSemTx);
+
+  //cmp_init(&cmp, NULL, NULL, NULL, cmp_serial_writer);
+  // initialize memory access
+  cmp_mem_access_init(&cmp, &cmp_mem, cmp_buffer, sizeof(cmp_buffer));
 
   // Ethernet
   macAddr[0] = LWIP_ETHADDR_0; macAddr[1] = LWIP_ETHADDR_1; macAddr[2] = LWIP_ETHADDR_2;
@@ -250,6 +287,7 @@ int main(void) {
   chPoolObjectInit(&script_pool, sizeof(scriptEvent_t), NULL);
   chPoolObjectInit(&trigger_pool, sizeof(triggerEvent_t), NULL);
   chPoolObjectInit(&mqtt_pool, sizeof(mqttEvent_t), NULL);
+  chPoolObjectInit(&pubsub_pool, sizeof(pubsubEvent_t), NULL);
   // Prepare pools
   chPoolLoadArray(&alarmEvent_pool, (void *)alarmEvent_pool_queue, ALARM_EVENT_FIFO_SIZE);
   chPoolLoadArray(&logger_pool, (void *)logger_pool_queue, LOGGER_FIFO_SIZE);
@@ -259,6 +297,7 @@ int main(void) {
   chPoolLoadArray(&script_pool, (void *)script_pool_queue, SCRIPT_FIFO_SIZE);
   chPoolLoadArray(&trigger_pool, (void *)trigger_pool_queue, TRIGGER_FIFO_SIZE);
   chPoolLoadArray(&mqtt_pool, (void *)mqtt_pool_queue, MQTT_FIFO_SIZE);
+  chPoolLoadArray(&pubsub_pool, (void *)pubsub_pool_queue, PUBSUB_FIFO_SIZE);
 
   // SPI
   spiStart(&SPID1, &spi1cfg);
@@ -290,6 +329,8 @@ int main(void) {
   chThdCreateStatic(waTriggerThread, sizeof(waTriggerThread), NORMALPRIO - 1, TriggerThread, (void*)"trigger");
   chThdCreateStatic(waTclThread, sizeof(waTclThread), LOWPRIO + 1, tclThread, (void*)"tcl");
   chThdCreateStatic(waMqttThread, sizeof(waMqttThread), NORMALPRIO - 2, MqttThread, (void*)"mqtt");
+  chThdCreateStatic(waPubSubTxThread, sizeof(waPubSubTxThread), NORMALPRIO - 2, PubSubTxThread, (void*)"PubSubTx");
+  chThdCreateStatic(waPubSubRxThread, sizeof(waPubSubRxThread), NORMALPRIO - 2, PubSubRxThread, (void*)"PubSubRx");
   //chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg);
   chThdCreateFromHeap(NULL, SHELL_WA_SIZE,"shell", NORMALPRIO + 1, shellThread, (void *)&shell_cfg);
   chThdCreateStatic(waHeartBeatThread, sizeof(waHeartBeatThread), LOWPRIO, HeartBeatThread, (void*)"h-beat");
@@ -378,7 +419,6 @@ int main(void) {
   // Idle runner
   while (true) {
     chThdSleepMilliseconds(100);
-
     // USB shell
     if (SDU1.config->usbp->state == USB_ACTIVE) {
       thread_t *shelltp = chThdCreateFromHeap(NULL, SHELL_WA_SIZE,

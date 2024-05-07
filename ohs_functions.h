@@ -85,6 +85,26 @@ void pushToMqtt(mqttPubType_t type, uint8_t number, mqttPubFunction_t function) 
   }
 }
 /*
+ * PubSub publish
+ */
+void pushToPubSub(mqttPubType_t type, uint8_t number, mqttPubFunction_t function) {
+  pubsubEvent_t *outMsg = chPoolAlloc(&pubsub_pool);
+
+  if (outMsg != NULL) {
+    outMsg->type = type;
+    outMsg->number = number;
+    outMsg->function = function;
+
+    msg_t msg = chMBPostTimeout(&pubsub_mb, (msg_t)outMsg, TIME_IMMEDIATE);
+    if (msg != MSG_OK) {
+//      chprintf(console, "MB pushToPubSub full \r\n");
+    }
+  } else {
+    chprintf(console, "PubSub pool full!\r\n");
+    //*** pushToLogText("FM"); // MQTT queue is full
+  }
+}
+/*
  * Send data to node
  */
 int8_t sendData(uint8_t address, const uint8_t *data, uint8_t length){

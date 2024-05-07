@@ -54,6 +54,11 @@ static THD_FUNCTION(ZoneThread, arg) {
     }
   }
 
+  // Manage PubSuBSerial publish
+  for (uint8_t i=0; i < ALARM_ZONES ; i++) {
+    pushToPubSub(typeConfZone, i, functionAll);
+  }
+
   while (true) {
     chThdSleepMilliseconds(250); // time is used also for arm delay and others ...
 
@@ -255,6 +260,8 @@ static THD_FUNCTION(ZoneThread, arg) {
           }
           // MQTT
           if (GET_CONF_ZONE_MQTT_PUB(conf.zone[zoneNum])) pushToMqtt(typeZone, zoneNum, functionState);
+          // PubSub
+          pushToPubSub(typeZone, zoneNum, functionState);
         }
       } // zone enabled
     } // for each alarm zone
