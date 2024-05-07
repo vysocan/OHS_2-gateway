@@ -9,13 +9,6 @@
 #define PORT_INT_REQUIRED_STACK 128
 // Remove input queue for GPRS to save RAM
 #define STM32_SERIAL_USART6_IN_BUF_SIZE 0
-/*
- * OHS features
- */
-//#define OHS_WOLFSSL
-//#define OHS_HTTPS
-//#define OHS_HTTPS_CLIENT
-//#define OHS_ALERT_TELEGRAM
 
 // Standard libs
 #include <string.h>
@@ -70,10 +63,7 @@ struct tcl tcl;
 cmp_mem_access_t cmp_mem;
 cmp_ctx_t cmp = {0};
 char cmp_buffer[128];
-//#define PUBSUB_TX_LENGTH 128
-//uint8_t pubsubTxPayload[PUBSUB_TX_LENGTH], pubsubTxPayloadTail;
-
-
+// Log decompose
 #define LOG_TEXT_LENGTH 80
 char logText[LOG_TEXT_LENGTH] __attribute__((section(".ram4"))); // To decode log text
 
@@ -128,21 +118,6 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 // Shell functions
 #include "ohs_shell.h"
 
-//
-#ifdef OHS_WOLFSSL
-#include "crypto.h"
-#include "wolfssl_chibios.h"
-#endif
-//
-#ifdef OHS_HTTPS_CLIENT
-#include <httpc.h>
-#endif
-//
-#ifdef OHS_ALERT_TELEGRAM
-#include "lwip/netdb.h"
-#include "lwip/sockets.h"
-#endif
-
 // Thread handling
 #include "ohs_th_zone.h"
 #include "ohs_th_alarm.h"
@@ -158,15 +133,9 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 #include "ohs_th_tcl.h"
 #include "ohs_th_mqtt.h"
 #include "ohs_th_pubsub.h"
-//static THD_WORKING_AREA(waShell, 3*1024);
 #include "ohs_th_heartbeat.h"
 
 #define SHELL_WA_SIZE THD_WORKING_AREA_SIZE(2*1024)
-
-#if defined(OHS_CRYPTO) && defined(OHS_HTTPS)
-// TODO OHS In wolfdssl_chibios.h: make all chHeap* as umm_*
-#include "ohs_th_https.h"
-#endif
 
 #if LWIP_MDNS_RESPONDER
 static void srv_txt(struct mdns_service *service, void *txt_userdata){
@@ -185,30 +154,11 @@ static void mdns_example_report(struct netif* netif, u8_t result, s8_t service){
 #endif
 
 /*
- *
- */
-//static size_t cmp_serial_writer(cmp_ctx_t *ctx, const void *data, size_t count) {
-//  (void)ctx;
-//  chDbgAssert(pubsubTxPayloadTail+count < sizeof(pubsubTxPayload), "Payload size too small");
-//
-//  memcpy(&pubsubTxPayload[pubsubTxPayloadTail], data, count);
-//  pubsubTxPayloadTail += count;
-//  return count;
-//}
-
-/*
  * Application entry point.
  */
 int main(void) {
   halInit();
   chSysInit();
-
-  // Initialize RNG
-  #ifdef OHS_WOLFSSL
-    rccEnableAHB2(RCC_AHB2ENR_RNGEN, 0);
-    RNG->CR |= RNG_CR_IE;
-    RNG->CR |= RNG_CR_RNGEN;
-  #endif
 
   // Semaphores
   chBSemObjectInit(&gprsSem, false);
@@ -232,8 +182,7 @@ int main(void) {
   // Serial PubSub
   pubsubInit(&UARTD1, &pubsubSemRx, &pubsubSemTx);
 
-  //cmp_init(&cmp, NULL, NULL, NULL, cmp_serial_writer);
-  // initialize memory access
+  // cmp initialize memory access
   cmp_mem_access_init(&cmp, &cmp_mem, cmp_buffer, sizeof(cmp_buffer));
 
   // Ethernet
@@ -353,11 +302,6 @@ int main(void) {
   chThdSleepMilliseconds(100);
 #endif
 
-#ifdef OHS_HTTPS
-  chThdCreateStatic(wa_https_server, sizeof(wa_https_server), NORMALPRIO + 1, https_server, NULL);
-#endif
-
-
   // Read last groups state
   readFromBkpRTC((uint8_t*)&group, sizeof(group), 0);
   // Read conf struct
@@ -411,10 +355,6 @@ int main(void) {
   for (uint8_t i = 0; i < TIMER_SIZE; i++) {
     if (GET_CONF_TIMER_ENABLED(conf.timer[i].setting)) setTimer(i, true);
   }
-
-#ifdef OHS_WOLFSSL
-  wolfSSL_Init();
-#endif
 
   // Idle runner
   while (true) {
