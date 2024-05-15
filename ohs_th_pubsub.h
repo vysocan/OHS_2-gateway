@@ -23,22 +23,30 @@
 
 // FIXME Make this meaningful!
 void cmpErr(void){
-  cmpErr();
+  DBG_PUBSUB("CMP: %s.", cmp_strerror(&cmp))
 }
 
 /*
- * PubSub thread
+ * PubSub TX thread
  *
  * Publish topics:
+ * /run
+ *   /zone
+ *     /{#} - index of zone
+ *       state {OK, alarm, tamper}
+ *
+ * /conf
+ *   /zone
+ *     /{#} - index of zone
+ *       conf.zoneName
+ *       conf.zone - internal settings
+ *
+ * ***
  * /state {On, Off} - Indicates if system is on
  * /group
  *   /{#} - index of group
  *     /name
  *     /state {disarmed, arming, armed_home, armed_away, triggered, disarming}
- * /zone
- *   /{#} - index of zone
- *     /name
- *     /state {OK, alarm, tamper}
  * /sensor
  *   /{address} - node address like W:2:K:i:0
  *     /name
@@ -60,22 +68,20 @@ static THD_FUNCTION(PubSubTxThread, arg) {
 
     // We have message
     if (msg == MSG_OK) {
-      DBG_PUBSUB("PubSub TX Type: %d", (uint8_t)inMsg->type);
+      DBG_PUBSUB("PubSub TX type: %d", (uint8_t)inMsg->type);
       DBG_PUBSUB(", # %d", inMsg->number);
-      DBG_PUBSUB(", Function: %d\r\n", (uint8_t)inMsg->function);
+      DBG_PUBSUB(", func: %d\r\n", (uint8_t)inMsg->function);
 
       // Wait for free PubSub semaphore
       DBG_PUBSUB("PubSub TX ");
       if (chBSemWaitTimeout(&pubsubSemTx, TIME_MS2I(100)) == MSG_OK) {
         DBG_PUBSUB("go ");
-        // Payload based on lastEvent
-        //memset(&pubsubTxPayload, 0, PUBSUB_TX_LENGTH);
-        //pubsubTxPayloadTail = 0;
         // Prepare message
+        cmp_mem_access_set_pos(&cmp_mem, 0);
         resp = 1;
         switch (inMsg->type) {
           case typeZone:
-            chsnprintf(topic, sizeof(topic), "/run/%s/%d", text_zone, inMsg->number + 1);
+            chsnprintf(topic, sizeof(topic), "/run/%s/%d", text_zone, inMsg->number);
             switch (inMsg->function) {
               case functionState:
                 if (!cmp_write_map(&cmp, 1)) { cmpErr(); }
@@ -100,7 +106,7 @@ static THD_FUNCTION(PubSubTxThread, arg) {
           case typeConfZone:
             switch (inMsg->function) {
               case functionAll:
-                chsnprintf(topic, sizeof(topic), "/conf/%s/%d", text_zone, inMsg->number + 1);
+                chsnprintf(topic, sizeof(topic), "/conf/%s/%d", text_zone, inMsg->number);
                 // Payload
                 if (!cmp_write_map(&cmp, 11)) {cmpErr();}
                 if (!cmp_write_str(&cmp, text_name, strlen(text_name))) { cmpErr(); }
@@ -140,8 +146,7 @@ static THD_FUNCTION(PubSubTxThread, arg) {
         if (resp == 1) {
           //chprintf((BaseSequentialStream*)&SD1, "%s=%s", topic, payload);
           resp = pubsubSend((uint8_t *)topic, strlen(topic), (uint8_t *)cmp_buffer, cmp_mem_access_get_pos(&cmp_mem));
-          DBG_PUBSUB("resp: %d\r\n", resp);
-          cmp_mem_access_set_pos(&cmp_mem, 0);
+          DBG_PUBSUB("resp: %d, topic: %s, payload: %.*s\r\n", resp, topic, cmp_mem.index, cmp_buffer);
         } else {
           // release semaphore
           chBSemSignal(&pubsubSemTx);
@@ -156,14 +161,161 @@ static THD_FUNCTION(PubSubTxThread, arg) {
 
   }
 }
+/*
+ *
+ */
 
+void receiveZone(uint8_t index) {
+  char tmpStr[NAME_LENGTH];
+  uint32_t size;
+  uint8_t tmpU8;
+  bool tmpBool;
+
+  DBG_PUBSUB(": %d", index);
+  if (!cmp_read_map(&cmp, &size)) { cmpErr(); return; }
+  if (size != 11) { DBG_PUBSUB("CMP: map size not match."); return;}
+
+  size = NAME_LENGTH;
+  if (!cmp_read_str(&cmp, tmpStr, &size)) { cmpErr(); return; }
+  if (strncmp(tmpStr, text_name, strlen(text_name)) != 0) {
+    DBG_PUBSUB("CMP: %s not received.", text_name);
+    return;
+  }
+  size = NAME_LENGTH;
+  if (!cmp_read_str(&cmp, tmpStr, &size)) { cmpErr(); return; }
+  if (size > NAME_LENGTH) { DBG_PUBSUB("CMP: %s too big", text_name); return;}
+  else { strncpy(conf.zoneName[index], tmpStr, size); }
+
+  size = NAME_LENGTH;
+  if (!cmp_read_str(&cmp, tmpStr, &size)) { cmpErr(); return; }
+  if (strncmp(tmpStr, text_type, strlen(text_type)) != 0) {
+    DBG_PUBSUB("CMP: %s not received.", text_type);
+    return;
+  }
+  if (!cmp_read_bool(&cmp, &tmpBool)) { cmpErr(); return; }
+  else {
+    if (tmpBool) { SET_CONF_ZONE_TYPE(conf.zone[index]); }
+    else         { CLEAR_CONF_ZONE_TYPE(conf.zone[index]); }
+  }
+
+  size = NAME_LENGTH;
+  if (!cmp_read_str(&cmp, tmpStr, &size)) { cmpErr(); return; }
+  if (strncmp(tmpStr, text_present, strlen(text_present)) != 0) {
+    DBG_PUBSUB("CMP: %s not received.", text_present);
+    return;
+  }
+  if (!cmp_read_bool(&cmp, &tmpBool)) { cmpErr(); return; }
+  else {
+    if (tmpBool) { SET_CONF_ZONE_IS_PRESENT(conf.zone[index]); }
+    else         { CLEAR_CONF_ZONE_IS_PRESENT(conf.zone[index]); }
+  }
+
+  size = NAME_LENGTH;
+  if (!cmp_read_str(&cmp, tmpStr, &size)) { cmpErr(); return; }
+  if (strncmp(tmpStr, text_mqtt, strlen(text_mqtt)) != 0) {
+    DBG_PUBSUB("CMP: %s not received.", text_mqtt);
+    return;
+  }
+  if (!cmp_read_bool(&cmp, &tmpBool)) { cmpErr(); return; }
+  else {
+    if (tmpBool) { SET_CONF_ZONE_MQTT_PUB(conf.zone[index]); }
+    else         { CLEAR_CONF_ZONE_MQTT_PUB(conf.zone[index]); }
+  }
+
+  size = NAME_LENGTH;
+  if (!cmp_read_str(&cmp, tmpStr, &size)) { cmpErr(); return; }
+  if (strncmp(tmpStr, text_balanced, strlen(text_balanced)) != 0) {
+    DBG_PUBSUB("CMP: %s not received.", text_balanced);
+    return;
+  }
+  if (!cmp_read_bool(&cmp, &tmpBool)) { cmpErr(); return; }
+  else {
+    if (tmpBool) { SET_CONF_ZONE_BALANCED(conf.zone[index]); }
+    else         { CLEAR_CONF_ZONE_BALANCED(conf.zone[index]); }
+  }
+
+  size = NAME_LENGTH;
+  if (!cmp_read_str(&cmp, tmpStr, &size)) { cmpErr(); return; }
+  if (strncmp(tmpStr, text_pir, strlen(text_pir)) != 0) {
+    DBG_PUBSUB("CMP: %s not received.", text_pir);
+    return;
+  }
+  if (!cmp_read_bool(&cmp, &tmpBool)) { cmpErr(); return; }
+  else {
+    if (tmpBool) { SET_CONF_ZONE_PIR_AS_TMP(conf.zone[index]); }
+    else         { CLEAR_CONF_ZONE_PIR_AS_TMP(conf.zone[index]); }
+  }
+
+  size = NAME_LENGTH;
+  if (!cmp_read_str(&cmp, tmpStr, &size)) { cmpErr(); return; }
+  if (strncmp(tmpStr, text_open, strlen(text_open)) != 0) {
+    DBG_PUBSUB("CMP: %s not received.", text_open);
+    return;
+  }
+  if (!cmp_read_bool(&cmp, &tmpBool)) { cmpErr(); return; }
+  else {
+    if (tmpBool) { SET_CONF_ZONE_OPEN_ALARM(conf.zone[index]); }
+    else         { CLEAR_CONF_ZONE_OPEN_ALARM(conf.zone[index]); }
+  }
+
+  size = NAME_LENGTH;
+  if (!cmp_read_str(&cmp, tmpStr, &size)) { cmpErr(); return; }
+  if (strncmp(tmpStr, text_home, strlen(text_home)) != 0) {
+    DBG_PUBSUB("CMP: %s not received.", text_home);
+    return;
+  }
+  if (!cmp_read_bool(&cmp, &tmpBool)) { cmpErr(); return; }
+  else {
+    if (tmpBool) { SET_CONF_ZONE_ARM_HOME(conf.zone[index]); }
+    else         { CLEAR_CONF_ZONE_ARM_HOME(conf.zone[index]); }
+  }
+
+  size = NAME_LENGTH;
+  if (!cmp_read_str(&cmp, tmpStr, &size)) { cmpErr(); return; }
+  if (strncmp(tmpStr, text_auth, strlen(text_auth)) != 0) {
+    DBG_PUBSUB("CMP: %s not received.", text_auth);
+    return;
+  }
+  if (!cmp_read_u8(&cmp, &tmpU8)) { cmpErr(); return; }
+  else {
+    if (tmpU8 < 4) {
+      SET_CONF_ZONE_AUTH_TIME(conf.zone[index], tmpU8);
+    }
+  }
+
+  size = NAME_LENGTH;
+  if (!cmp_read_str(&cmp, tmpStr, &size)) { cmpErr(); return; }
+  if (strncmp(tmpStr, text_group, strlen(text_group)) != 0) {
+    DBG_PUBSUB("CMP: %s not received.", text_group);
+    return;
+  }
+  if (!cmp_read_u8(&cmp, &tmpU8)) { cmpErr(); return; }
+  else {
+    if (tmpU8 < ALARM_GROUPS) {
+      SET_CONF_ZONE_GROUP(conf.zone[index], tmpU8);
+    }
+  }
+
+  size = NAME_LENGTH;
+  if (!cmp_read_str(&cmp, tmpStr, &size)) { cmpErr(); return; }
+  if (strncmp(tmpStr, text_on, strlen(text_on)) != 0) {
+    DBG_PUBSUB("CMP: %s not received.", text_on);
+    return;
+  }
+  if (!cmp_read_bool(&cmp, &tmpBool)) { cmpErr(); return; }
+  else {
+    if (tmpBool) { SET_CONF_ZONE_ENABLED(conf.zone[index]); }
+    else         { CLEAR_CONF_ZONE_ENABLED(conf.zone[index]); }
+  }
+}
+/*
+ *
+ */
 static THD_WORKING_AREA(waPubSubRxThread, 512);
 static THD_FUNCTION(PubSubRxThread, arg) {
   chRegSetThreadName(arg);
   uint8_t thisTopic[30];
   uint8_t resp, index;
-  uint32_t size;
-  bool tmpBool;
   char *pch;
   time_t now;
   RTCDateTime ts;
@@ -173,7 +325,7 @@ static THD_FUNCTION(PubSubRxThread, arg) {
       DBG_PUBSUB("PubSub RX: ");
       cmp_mem_access_set_pos(&cmp_mem, 0);
       resp = pubsubReceive(&thisTopic[0], sizeof(thisTopic), (uint8_t *)&cmp_buffer[0], sizeof(cmp_buffer));
-      DBG_PUBSUB("%d, topic: %s, payload: %s\r\n", resp, thisTopic, cmp_buffer);
+      DBG_PUBSUB("%d, topic: %s, payload: %.*s\r\n", resp, thisTopic, cmp_mem.index, cmp_buffer);
       // Valid data
       if (resp) {
         // Decode topic string
@@ -198,131 +350,8 @@ static THD_FUNCTION(PubSubRxThread, arg) {
                 if (pch != NULL) {
                   index = strtoul(pch, NULL, 0);
                   if (index < ALARM_ZONES) {
-                    DBG_PUBSUB(": %d", index);
-                    if (!cmp_read_map(&cmp, &size)) { cmpErr(); }
-                    if (size != 11) { DBG_PUBSUB(" map size not match"); }
-
-                    size = sizeof(thisTopic);
-                    if (!cmp_read_str(&cmp, (char *)thisTopic, &size)) { cmpErr(); }
-                    if (strncmp((const char *)thisTopic, text_name, strlen(text_name)) != 0) {
-                      DBG_PUBSUB(text_name, " not received");
-                    }
-                    size = sizeof(thisTopic);
-                    if (!cmp_read_str(&cmp, (char *)thisTopic, &size)) { cmpErr(); }
-                    if (size > NAME_LENGTH) { DBG_PUBSUB(text_name, " too big"); }
-                    else { strncpy(conf.zoneName[index], (const char *)thisTopic, size); }
-
-                    size = sizeof(thisTopic);
-                    if (!cmp_read_str(&cmp, (char *)thisTopic, &size)) { cmpErr(); }
-                    if (strncmp((const char *)thisTopic, text_type, strlen(text_type)) != 0) {
-                      DBG_PUBSUB(text_type, " not received");
-                    }
-                    if (!cmp_read_bool(&cmp, &tmpBool)) { cmpErr(); }
-                    else {
-                      if (tmpBool) { SET_CONF_ZONE_TYPE(conf.zone[index]); }
-                      else         { CLEAR_CONF_ZONE_TYPE(conf.zone[index]); }
-                    }
-
-                    size = sizeof(thisTopic);
-                    if (!cmp_read_str(&cmp, (char *)thisTopic, &size)) { cmpErr(); }
-                    if (strncmp((const char *)thisTopic, text_present, strlen(text_present)) != 0) {
-                      DBG_PUBSUB(text_present, " not received");
-                    }
-                    if (!cmp_read_bool(&cmp, &tmpBool)) { cmpErr(); }
-                    else {
-                      if (tmpBool) { SET_CONF_ZONE_IS_PRESENT(conf.zone[index]); }
-                      else         { CLEAR_CONF_ZONE_IS_PRESENT(conf.zone[index]); }
-                    }
-
-                    size = sizeof(thisTopic);
-                    if (!cmp_read_str(&cmp, (char *)thisTopic, &size)) { cmpErr(); }
-                    if (strncmp((const char *)thisTopic, text_mqtt, strlen(text_mqtt)) != 0) {
-                      DBG_PUBSUB(text_mqtt, " not received");
-                    }
-                    if (!cmp_read_bool(&cmp, &tmpBool)) { cmpErr(); }
-                    else {
-                      if (tmpBool) { SET_CONF_ZONE_MQTT_PUB(conf.zone[index]); }
-                      else         { CLEAR_CONF_ZONE_MQTT_PUB(conf.zone[index]); }
-                    }
-
-                    size = sizeof(thisTopic);
-                    if (!cmp_read_str(&cmp, (char *)thisTopic, &size)) { cmpErr(); }
-                    if (strncmp((const char *)thisTopic, text_balanced, strlen(text_balanced)) != 0) {
-                      DBG_PUBSUB(text_balanced, " not received");
-                    }
-                    if (!cmp_read_bool(&cmp, &tmpBool)) { cmpErr(); }
-                    else {
-                      if (tmpBool) { SET_CONF_ZONE_BALANCED(conf.zone[index]); }
-                      else         { CLEAR_CONF_ZONE_BALANCED(conf.zone[index]); }
-                    }
-
-                    size = sizeof(thisTopic);
-                    if (!cmp_read_str(&cmp, (char *)thisTopic, &size)) { cmpErr(); }
-                    if (strncmp((const char *)thisTopic, text_pir, strlen(text_pir)) != 0) {
-                      DBG_PUBSUB(text_pir, " not received");
-                    }
-                    if (!cmp_read_bool(&cmp, &tmpBool)) { cmpErr(); }
-                    else {
-                      if (tmpBool) { SET_CONF_ZONE_PIR_AS_TMP(conf.zone[index]); }
-                      else         { CLEAR_CONF_ZONE_PIR_AS_TMP(conf.zone[index]); }
-                    }
-
-                    size = sizeof(thisTopic);
-                    if (!cmp_read_str(&cmp, (char *)thisTopic, &size)) { cmpErr(); }
-                    if (strncmp((const char *)thisTopic, text_open, strlen(text_open)) != 0) {
-                      DBG_PUBSUB(text_open, " not received");
-                    }
-                    if (!cmp_read_bool(&cmp, &tmpBool)) { cmpErr(); }
-                    else {
-                      if (tmpBool) { SET_CONF_ZONE_OPEN_ALARM(conf.zone[index]); }
-                      else         { CLEAR_CONF_ZONE_OPEN_ALARM(conf.zone[index]); }
-                    }
-
-                    size = sizeof(thisTopic);
-                    if (!cmp_read_str(&cmp, (char *)thisTopic, &size)) { cmpErr(); }
-                    if (strncmp((const char *)thisTopic, text_home, strlen(text_home)) != 0) {
-                      DBG_PUBSUB(text_home, " not received");
-                    }
-                    if (!cmp_read_bool(&cmp, &tmpBool)) { cmpErr(); }
-                    else {
-                      if (tmpBool) { SET_CONF_ZONE_ARM_HOME(conf.zone[index]); }
-                      else         { CLEAR_CONF_ZONE_ARM_HOME(conf.zone[index]); }
-                    }
-
-                    size = sizeof(thisTopic);
-                    if (!cmp_read_str(&cmp, (char *)thisTopic, &size)) { cmpErr(); }
-                    if (strncmp((const char *)thisTopic, text_auth, strlen(text_auth)) != 0) {
-                      DBG_PUBSUB(text_auth, " not received");
-                    }
-                    if (!cmp_read_u8(&cmp, &resp)) { cmpErr(); }
-                    else {
-                      if (resp < 4) {
-                        SET_CONF_ZONE_AUTH_TIME(conf.zone[index], resp);
-                      }
-                    }
-
-                    size = sizeof(thisTopic);
-                    if (!cmp_read_str(&cmp, (char *)thisTopic, &size)) { cmpErr(); }
-                    if (strncmp((const char *)thisTopic, text_group, strlen(text_group)) != 0) {
-                      DBG_PUBSUB(text_group, " not received");
-                    }
-                    if (!cmp_read_u8(&cmp, &resp)) { cmpErr(); }
-                    else {
-                      if (resp < ALARM_GROUPS) {
-                        SET_CONF_ZONE_GROUP(conf.zone[index], resp);
-                      }
-                    }
-
-                    size = sizeof(thisTopic);
-                    if (!cmp_read_str(&cmp, (char *)thisTopic, &size)) { cmpErr(); }
-                    if (strncmp((const char *)thisTopic, text_on, strlen(text_on)) != 0) {
-                      DBG_PUBSUB(text_on, " not received");
-                    }
-                    if (!cmp_read_bool(&cmp, &tmpBool)) { cmpErr(); }
-                    else {
-                      if (tmpBool) { SET_CONF_ZONE_ENABLED(conf.zone[index]); }
-                      else         { CLEAR_CONF_ZONE_ENABLED(conf.zone[index]); }
-                    }
+                    // call CMP parser
+                    receiveZone(index);
                   } // < ALARM_ZONES
                 }
               } else {
@@ -344,6 +373,7 @@ static THD_FUNCTION(PubSubRxThread, arg) {
                   if (resp < ALARM_ZONES) {
                     DBG_PUBSUB(", # %d", resp + 1);
                     pushToPubSub(typeConfZone, resp, functionAll);
+                    pushToPubSub(typeZone, resp, functionState);
                   }
                 }
               } else if (strcmp(pch, text_zones) == 0) {
@@ -352,6 +382,7 @@ static THD_FUNCTION(PubSubRxThread, arg) {
                   // Send all present zones
                   if (GET_CONF_ZONE_IS_PRESENT(conf.zone[i])) {
                     pushToPubSub(typeConfZone, i, functionAll);
+                    pushToPubSub(typeZone, i, functionState);
                   }
                 }
               } else {

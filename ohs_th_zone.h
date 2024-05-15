@@ -173,7 +173,7 @@ static THD_FUNCTION(ZoneThread, arg) {
               } else {
                 // group armed
                 if (GET_GROUP_ARMED(group[groupNum].setting) && (zone[zoneNum].lastEvent == 'P')) {
-                  // Group is not armed home or is armed gome and also is flaged as home zone
+                  // Group is not armed home or is armed home and also is flagged as home zone
                   if ((!GET_GROUP_ARMED_HOME(group[groupNum].setting)) ||
                       ((GET_GROUP_ARMED_HOME(group[groupNum].setting)) &&
                        (GET_CONF_ZONE_ARM_HOME(conf.zone[zoneNum])))) {
