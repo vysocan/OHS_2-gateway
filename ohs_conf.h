@@ -334,7 +334,8 @@ typedef enum {
   typeZone,
   typeSensor,
   typeSystem,
-  typeConfZone
+  typeConfZone,
+  typeConfUser
 } mqttPubType_t;
 
 // MQTT function enum

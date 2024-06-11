@@ -104,39 +104,49 @@ static THD_FUNCTION(PubSubTxThread, arg) {
             }
             break; // typeZone
           case typeConfZone:
-            switch (inMsg->function) {
-              case functionAll:
-                chsnprintf(topic, sizeof(topic), "/conf/%s/%d", text_zone, inMsg->number);
-                // Payload
-                if (!cmp_write_map(&cmp, 11)) {cmpErr();}
-                if (!cmp_write_str(&cmp, text_name, strlen(text_name))) { cmpErr(); }
-                if (!cmp_write_str(&cmp, conf.zoneName[inMsg->number], strlen(conf.zoneName[inMsg->number]))) { cmpErr(); }
-                if (!cmp_write_str(&cmp, text_type, strlen(text_type))) { cmpErr(); }
-                if (!cmp_write_bool(&cmp, GET_CONF_ZONE_TYPE(conf.zone[inMsg->number]))) { cmpErr(); }
-                if (!cmp_write_str(&cmp, text_present, strlen(text_present))) { cmpErr(); }
-                if (!cmp_write_bool(&cmp, GET_CONF_ZONE_IS_PRESENT(conf.zone[inMsg->number]))) { cmpErr(); }
-                if (!cmp_write_str(&cmp, text_mqtt, strlen(text_mqtt))) { cmpErr(); }
-                if (!cmp_write_bool(&cmp, GET_CONF_ZONE_MQTT_PUB(conf.zone[inMsg->number]))) { cmpErr(); }
-                if (!cmp_write_str(&cmp, text_balanced, strlen(text_balanced))) { cmpErr(); }
-                if (!cmp_write_bool(&cmp, GET_CONF_ZONE_BALANCED(conf.zone[inMsg->number]))) { cmpErr(); }
-                if (!cmp_write_str(&cmp, text_pir, strlen(text_pir))) { cmpErr(); }
-                if (!cmp_write_bool(&cmp, GET_CONF_ZONE_PIR_AS_TMP(conf.zone[inMsg->number]))) { cmpErr(); }
-                if (!cmp_write_str(&cmp, text_open, strlen(text_open))) { cmpErr(); }
-                if (!cmp_write_bool(&cmp, GET_CONF_ZONE_OPEN_ALARM(conf.zone[inMsg->number]))) { cmpErr(); }
-                if (!cmp_write_str(&cmp, text_home, strlen(text_home))) { cmpErr(); }
-                if (!cmp_write_bool(&cmp, GET_CONF_ZONE_ARM_HOME(conf.zone[inMsg->number]))) { cmpErr(); }
-                if (!cmp_write_str(&cmp, text_auth, strlen(text_auth))) { cmpErr(); }
-                if (!cmp_write_uinteger(&cmp, GET_CONF_ZONE_AUTH_TIME(conf.zone[inMsg->number]))) { cmpErr(); }
-                if (!cmp_write_str(&cmp, text_group, strlen(text_group))) { cmpErr(); }
-                if (!cmp_write_uinteger(&cmp, GET_CONF_ZONE_GROUP(conf.zone[inMsg->number]))) { cmpErr(); }
-                if (!cmp_write_str(&cmp, text_on, strlen(text_on))) { cmpErr(); }
-                if (!cmp_write_bool(&cmp, GET_CONF_ZONE_ENABLED(conf.zone[inMsg->number]))) { cmpErr(); }
-                break;
-              default:
-                DBG_PUBSUB(" typeConfZone undefined! ");
-                break;
-            }
+            chsnprintf(topic, sizeof(topic), "/conf/%s/%d", text_zone, inMsg->number);
+            // Payload
+            if (!cmp_write_map(&cmp, 11)) {cmpErr();}
+            if (!cmp_write_str(&cmp, text_name, strlen(text_name))) { cmpErr(); }
+            if (!cmp_write_str(&cmp, conf.zoneName[inMsg->number], strlen(conf.zoneName[inMsg->number]))) { cmpErr(); }
+            if (!cmp_write_str(&cmp, text_type, strlen(text_type))) { cmpErr(); }
+            if (!cmp_write_bool(&cmp, GET_CONF_ZONE_TYPE(conf.zone[inMsg->number]))) { cmpErr(); }
+            if (!cmp_write_str(&cmp, text_present, strlen(text_present))) { cmpErr(); }
+            if (!cmp_write_bool(&cmp, GET_CONF_ZONE_IS_PRESENT(conf.zone[inMsg->number]))) { cmpErr(); }
+            if (!cmp_write_str(&cmp, text_mqtt, strlen(text_mqtt))) { cmpErr(); }
+            if (!cmp_write_bool(&cmp, GET_CONF_ZONE_MQTT_PUB(conf.zone[inMsg->number]))) { cmpErr(); }
+            if (!cmp_write_str(&cmp, text_balanced, strlen(text_balanced))) { cmpErr(); }
+            if (!cmp_write_bool(&cmp, GET_CONF_ZONE_BALANCED(conf.zone[inMsg->number]))) { cmpErr(); }
+            if (!cmp_write_str(&cmp, text_pir, strlen(text_pir))) { cmpErr(); }
+            if (!cmp_write_bool(&cmp, GET_CONF_ZONE_PIR_AS_TMP(conf.zone[inMsg->number]))) { cmpErr(); }
+            if (!cmp_write_str(&cmp, text_open, strlen(text_open))) { cmpErr(); }
+            if (!cmp_write_bool(&cmp, GET_CONF_ZONE_OPEN_ALARM(conf.zone[inMsg->number]))) { cmpErr(); }
+            if (!cmp_write_str(&cmp, text_home, strlen(text_home))) { cmpErr(); }
+            if (!cmp_write_bool(&cmp, GET_CONF_ZONE_ARM_HOME(conf.zone[inMsg->number]))) { cmpErr(); }
+            if (!cmp_write_str(&cmp, text_auth, strlen(text_auth))) { cmpErr(); }
+            if (!cmp_write_uinteger(&cmp, GET_CONF_ZONE_AUTH_TIME(conf.zone[inMsg->number]))) { cmpErr(); }
+            if (!cmp_write_str(&cmp, text_group, strlen(text_group))) { cmpErr(); }
+            if (!cmp_write_uinteger(&cmp, GET_CONF_ZONE_GROUP(conf.zone[inMsg->number]))) { cmpErr(); }
+            if (!cmp_write_str(&cmp, text_on, strlen(text_on))) { cmpErr(); }
+            if (!cmp_write_bool(&cmp, GET_CONF_ZONE_ENABLED(conf.zone[inMsg->number]))) { cmpErr(); }
             break; // typeConfZone
+          case typeConfUser:
+            chsnprintf(topic, sizeof(topic), "/conf/%s/%d", text_user, inMsg->number);
+            // Payload
+            if (!cmp_write_map(&cmp, 6)) {cmpErr();}
+            if (!cmp_write_str(&cmp, text_name, strlen(text_name))) { cmpErr(); }
+            if (!cmp_write_str(&cmp, conf.contact[inMsg->number].name, strlen(conf.contact[inMsg->number].name))) { cmpErr(); }
+            if (!cmp_write_str(&cmp, text_phone, strlen(text_phone))) { cmpErr(); }
+            if (!cmp_write_str(&cmp, conf.contact[inMsg->number].phone, strlen(conf.contact[inMsg->number].phone))) { cmpErr(); }
+            if (!cmp_write_str(&cmp, text_email, strlen(text_email))) { cmpErr(); }
+            if (!cmp_write_str(&cmp, conf.contact[inMsg->number].email, strlen(conf.contact[inMsg->number].email))) { cmpErr(); }
+            if (!cmp_write_str(&cmp, text_group, strlen(text_group))) { cmpErr(); }
+            if (!cmp_write_uinteger(&cmp, GET_CONF_CONTACT_GROUP(conf.contact[inMsg->number].setting))) { cmpErr(); }
+            if (!cmp_write_str(&cmp, text_on, strlen(text_all))) { cmpErr(); }
+            if (!cmp_write_bool(&cmp, GET_CONF_CONTACT_IS_GLOBAL(conf.contact[inMsg->number].setting))) { cmpErr(); }
+            if (!cmp_write_str(&cmp, text_on, strlen(text_on))) { cmpErr(); }
+            if (!cmp_write_bool(&cmp, GET_CONF_CONTACT_ENABLED(conf.contact[inMsg->number].setting))) { cmpErr(); }
+            break; // typeConfUser
           default:
             resp = 0;
             DBG_PUBSUB("PubSub publish undefined!\r\n");
@@ -164,7 +174,7 @@ static THD_FUNCTION(PubSubTxThread, arg) {
 /*
  *
  */
-
+// receiveZone
 void receiveZone(uint8_t index) {
   char tmpStr[NAME_LENGTH];
   uint32_t size;
@@ -308,6 +318,87 @@ void receiveZone(uint8_t index) {
     else         { CLEAR_CONF_ZONE_ENABLED(conf.zone[index]); }
   }
 }
+// receiveUser
+void receiveUser(uint8_t index) {
+  char tmpStr[EMAIL_LENGTH];
+  uint32_t size;
+  uint8_t tmpU8;
+  bool tmpBool;
+
+  DBG_PUBSUB(": %d", index);
+  if (!cmp_read_map(&cmp, &size)) { cmpErr(); return; }
+  if (size != 6) { DBG_PUBSUB("CMP: map size not match."); return;}
+
+  size = EMAIL_LENGTH;
+  if (!cmp_read_str(&cmp, tmpStr, &size)) { cmpErr(); return; }
+  if (strncmp(tmpStr, text_name, strlen(text_name)) != 0) {
+    DBG_PUBSUB("CMP: %s not received.", text_name);
+    return;
+  }
+  size = EMAIL_LENGTH;
+  if (!cmp_read_str(&cmp, tmpStr, &size)) { cmpErr(); return; }
+  if (size > NAME_LENGTH) { DBG_PUBSUB("CMP: %s too big", text_name); return;}
+  else { strncpy(conf.contact[index].name, tmpStr, size); }
+
+  size = EMAIL_LENGTH;
+  if (!cmp_read_str(&cmp, tmpStr, &size)) { cmpErr(); return; }
+  if (strncmp(tmpStr, text_phone, strlen(text_phone)) != 0) {
+    DBG_PUBSUB("CMP: %s not received.", text_phone);
+    return;
+  }
+  size = EMAIL_LENGTH;
+  if (!cmp_read_str(&cmp, tmpStr, &size)) { cmpErr(); return; }
+  if (size > PHONE_LENGTH) { DBG_PUBSUB("CMP: %s too big", text_phone); return;}
+  else { strncpy(conf.contact[index].phone, tmpStr, size); }
+
+  size = EMAIL_LENGTH;
+  if (!cmp_read_str(&cmp, tmpStr, &size)) { cmpErr(); return; }
+  if (strncmp(tmpStr, text_email, strlen(text_email)) != 0) {
+    DBG_PUBSUB("CMP: %s not received.", text_email);
+    return;
+  }
+  size = EMAIL_LENGTH;
+  if (!cmp_read_str(&cmp, tmpStr, &size)) { cmpErr(); return; }
+  if (size > EMAIL_LENGTH) { DBG_PUBSUB("CMP: %s too big", text_email); return;}
+  else { strncpy(conf.contact[index].email, tmpStr, size); }
+
+  size = EMAIL_LENGTH;
+  if (!cmp_read_str(&cmp, tmpStr, &size)) { cmpErr(); return; }
+  if (strncmp(tmpStr, text_group, strlen(text_group)) != 0) {
+    DBG_PUBSUB("CMP: %s not received.", text_group);
+    return;
+  }
+  if (!cmp_read_u8(&cmp, &tmpU8)) { cmpErr(); return; }
+  else {
+    if (tmpU8 < ALARM_GROUPS) {
+      SET_CONF_CONTACT_GROUP(conf.contact[index].setting, tmpU8);
+    }
+  }
+
+  size = EMAIL_LENGTH;
+  if (!cmp_read_str(&cmp, tmpStr, &size)) { cmpErr(); return; }
+  if (strncmp(tmpStr, text_all, strlen(text_all)) != 0) {
+    DBG_PUBSUB("CMP: %s not received.", text_all);
+    return;
+  }
+  if (!cmp_read_bool(&cmp, &tmpBool)) { cmpErr(); return; }
+  else {
+    if (tmpBool) { SET_CONF_CONTACT_IS_GLOBAL(conf.contact[index].setting); }
+    else         { CLEAR_CONF_CONTACT_IS_GLOBAL(conf.contact[index].setting); }
+  }
+
+  size = EMAIL_LENGTH;
+  if (!cmp_read_str(&cmp, tmpStr, &size)) { cmpErr(); return; }
+  if (strncmp(tmpStr, text_on, strlen(text_on)) != 0) {
+    DBG_PUBSUB("CMP: %s not received.", text_on);
+    return;
+  }
+  if (!cmp_read_bool(&cmp, &tmpBool)) { cmpErr(); return; }
+  else {
+    if (tmpBool) { SET_CONF_CONTACT_ENABLED(conf.contact[index].setting); }
+    else         { CLEAR_CONF_CONTACT_ENABLED(conf.contact[index].setting); }
+  }
+}
 /*
  *
  */
@@ -352,7 +443,17 @@ static THD_FUNCTION(PubSubRxThread, arg) {
                   if (index < ALARM_ZONES) {
                     // call CMP parser
                     receiveZone(index);
-                  } // < ALARM_ZONES
+                  }
+                }
+              } else if (strcmp(pch, text_user) == 0) {
+                // Set conf user
+                pch = strtok(NULL, "/");
+                if (pch != NULL) {
+                  index = strtoul(pch, NULL, 0);
+                  if (index < CONTACTS_SIZE) {
+                    // call CMP parser
+                    receiveUser(index);
+                  }
                 }
               } else {
                 DBG_PUBSUB(" %s", text_unknown);
@@ -384,6 +485,12 @@ static THD_FUNCTION(PubSubRxThread, arg) {
                     pushToPubSub(typeConfZone, i, functionAll);
                     pushToPubSub(typeZone, i, functionState);
                   }
+                }
+              } else if (strcmp(pch, text_users) == 0) {
+                // Zones
+                for (uint8_t i=0; i < CONTACTS_SIZE; i++) {
+                  // Send all contacts
+                  pushToPubSub(typeConfUser, i, functionAll);
                 }
               } else {
                 DBG_PUBSUB(" %s", text_unknown);
