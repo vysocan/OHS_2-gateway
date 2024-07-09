@@ -63,7 +63,7 @@ typedef struct {
 static authorizedConn_t authorizedConn = {0, 0};
 
 // Size of dynamic HTML page
-#define HTML_PAGE_SIZE 1024 * 16
+#define HTML_PAGE_SIZE 1024 * 28
 #if HTML_PAGE_SIZE > (MEM_SIZE - 1600)
 #error HTML_PAGE_SIZE needs to be smaller then lwip MEM_SIZE!
 #endif

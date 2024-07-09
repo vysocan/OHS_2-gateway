@@ -74,7 +74,7 @@
 #endif
 
 /* OHS overrides */
-#define MEM_SIZE                 1024 * 20
+#define MEM_SIZE                 1024 * 32
 #define MEMP_NUM_SYS_TIMEOUT     (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 6) // +1 MDSN,
 #define MEMP_NUM_UDP_PCB         5 // , +1 MDSN
 #define MEMP_NUM_TCP_PCB         30

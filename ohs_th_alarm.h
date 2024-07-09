@@ -9,7 +9,7 @@
 #define OHS_TH_ALARM_H_
 
 #ifndef ALARM_DEBUG
-#define ALARM_DEBUG 1
+#define ALARM_DEBUG 0
 #endif
 
 #if ALARM_DEBUG
