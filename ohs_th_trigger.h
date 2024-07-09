@@ -9,7 +9,7 @@
 #define OHS_THi_H_
 
 #ifndef TRIGGER_DEBUG
-#define TRIGGER_DEBUG 1
+#define TRIGGER_DEBUG 0
 #endif
 
 #if TRIGGER_DEBUG

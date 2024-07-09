@@ -9,7 +9,7 @@
 #define OHS_TH_MODEM_H_
 
 #ifndef MODEM_DEBUG
-#define MODEM_DEBUG 1
+#define MODEM_DEBUG 0
 #endif
 
 #if MODEM_DEBUG
