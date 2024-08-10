@@ -383,6 +383,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s %s", html_e_th_th, text_Last, text_alarm);
           chprintf(chp, "%s%s %s", html_e_th_th, text_Last, text_OK);
           chprintf(chp, "%s%s", html_e_th_th, text_MQTT);
+          chprintf(chp, "%s%s", html_e_th_th, text_HAD);
           chprintf(chp, "%s%s", html_e_th_th, text_Status);
           chprintf(chp, "%s%s%s\r\n", html_e_th_th, text_Group, html_e_th_e_tr);
           // Information table
@@ -411,6 +412,8 @@ int fs_open_custom(struct fs_file *file, const char *name){
               if (GET_CONF_ZONE_ENABLED(conf.zone[i])) printFrmTimestamp(chp, &zone[i].lastOK);
               chprintf(chp, "%s", html_e_td_td);
               if (GET_CONF_ZONE_ENABLED(conf.zone[i])) printOkNok(chp, GET_CONF_ZONE_MQTT_PUB(conf.zone[i]));
+              chprintf(chp, "%s", html_e_td_td);
+              if (GET_CONF_ZONE_ENABLED(conf.zone[i])) printOkNok(chp, GET_CONF_ZONE_MQTT_HAD(conf.zone[i]));
               chprintf(chp, "%s", html_e_td_td);
               if (GET_CONF_ZONE_ENABLED(conf.zone[i])) {
                 switch(zone[i].lastEvent){
@@ -455,6 +458,8 @@ int fs_open_custom(struct fs_file *file, const char *name){
                           text_0x, text_1x, text_2x, text_3x, 0);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_MQTT, text_publish, html_e_td_td);
                     printOnOffButton(chp, "d", GET_CONF_ZONE_MQTT_PUB(conf.zone[webZone]));
+          chprintf(chp, "%s%s %s %s%s", html_e_td_e_tr_tr_td, text_MQTT, text_HAD, text_Discovery, html_e_td_td);
+                              printOnOffButton(chp, "c", GET_CONF_ZONE_MQTT_HAD(conf.zone[webZone]));
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Group, html_e_td_td);
           selectGroup(chp, GET_CONF_ZONE_GROUP(conf.zone[webZone]), 'g');
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
@@ -536,6 +541,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%ss", html_e_th_th, text_Contact);
           chprintf(chp, "%s%s", html_e_th_th, text_Siren);
           chprintf(chp, "%s%s", html_e_th_th, text_MQTT);
+          chprintf(chp, "%s%s", html_e_th_th, text_HAD);
           chprintf(chp, "%s%s", html_e_th_th, text_Armed);
           chprintf(chp, "%s%s%s\r\n", html_e_th_th, text_Status, html_e_th_e_tr);
           // Information table
@@ -624,6 +630,9 @@ int fs_open_custom(struct fs_file *file, const char *name){
             if (GET_CONF_GROUP_ENABLED(conf.group[i].setting))
               printOkNok(chp, GET_CONF_GROUP_MQTT(conf.group[i].setting));
             chprintf(chp, "%s", html_e_td_td);
+            if (GET_CONF_GROUP_ENABLED(conf.group[i].setting))
+              printOkNok(chp, GET_CONF_GROUP_MQTT_HAD(conf.group[i].setting));
+            chprintf(chp, "%s", html_e_td_td);
             if (GET_CONF_GROUP_ENABLED(conf.group[i].setting)) {
               if (GET_GROUP_ARMED(group[i].setting)) {
                 if GET_GROUP_ARMED_HOME(group[i].setting) { chprintf(chp, "%s", html_i_home); }
@@ -641,7 +650,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
               } else { chprintf(chp, "%s", html_i_alarm); }
             }
             chprintf(chp, "%s", html_e_td_e_tr);
-          }
+          } // end for ...
           chprintf(chp, "%s%s", html_e_table, html_table);
           chprintf(chp, "%s%s%s", html_tr_td, text_Group, html_e_td_td);
           chprintf(chp, "%sP%s", html_select_submit, html_e_tag);
@@ -668,6 +677,8 @@ int fs_open_custom(struct fs_file *file, const char *name){
           printOnOffButton(chp, "1", GET_CONF_GROUP_TAMPER2(conf.group[webGroup].setting));
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td,  text_MQTT, text_publish, html_e_td_td);
           printOnOffButton(chp, "7", GET_CONF_GROUP_MQTT(conf.group[webGroup].setting));
+          chprintf(chp, "%s%s %s %s%s", html_e_td_e_tr_tr_td,  text_MQTT, text_HA, text_Discovery, html_e_td_td);
+          printOnOffButton(chp, "6", GET_CONF_GROUP_MQTT_HAD(conf.group[webGroup].setting));
           chprintf(chp, "%s%s %s %s%s", html_e_td_e_tr_tr_td, text_Arm, text_group, text_chain, html_e_td_td);
           selectGroup(chp, GET_CONF_GROUP_ARM_CHAIN(conf.group[webGroup].setting), 'a');
           chprintf(chp, "%s%s %s %s%s", html_e_td_e_tr_tr_td, text_Disarm, text_group, text_chain, html_e_td_td);
@@ -741,7 +752,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s%s", html_tr_td, text_Key, html_e_td_td);
           printTextInputWMin(chp, 'K', conf.radioKey, RADIO_KEY_SIZE - 1, RADIO_KEY_SIZE - 1);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Frequency, html_e_td_td);
-          printTwoButton(chp, "1", GET_CONF_SYSTEM_FLAG_RADIO_FREQ(conf.systemFlags), 0, 0b00,
+          printTwoButton(chp, "i", GET_CONF_SYSTEM_FLAG_RADIO_FREQ(conf.systemFlags), 0, 0b00,
                                    "868 Mhz", "915 Mhz");
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
 
@@ -769,8 +780,10 @@ int fs_open_custom(struct fs_file *file, const char *name){
           // chprintf(chp, "%s", html_br); printPassInput(chp, 'R', conf.mqtt.password, NAME_LENGTH, MIN_PASS_LNEGTH);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Connected, html_e_td_td);
           printOkNok(chp, !(GET_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting) | GET_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting)));
-          chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Subscribe, html_e_td_td);
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Global, text_Subscribe, html_e_td_td);
           printOnOffButton(chp, "0", GET_CONF_MQTT_SUBSCRIBE(conf.mqtt.setting));
+          chprintf(chp, "%s%s %s %s %s%s", html_e_td_e_tr_tr_td, text_Global, text_Home, text_Assistant, text_Discovery, html_e_td_td);
+          printOnOffButton(chp, "1", GET_CONF_MQTT_HAD(conf.mqtt.setting));
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           chprintf(chp, "<h1>%s</h1>\r\n%s", text_NTP, html_table);
           chprintf(chp, "%s%s %s%s", html_tr_td, text_Server, text_address,
@@ -1706,9 +1719,15 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   else                  conf.zone[webZone] |=  (1 << (name[0]-48));
                 break;
                 case 'a': // Handle all single radio buttons for settings 10 ->
+                case 'c':
                 case 'd':
+                  resp = GET_CONF_ZONE_MQTT_HAD(conf.zone[webZone]);
                   if (valueP[0] == '0') conf.zone[webZone] &= ~(1 << (name[0]-87)); // a(97) - 10
                   else                  conf.zone[webZone] |=  (1 << (name[0]-87));
+                  // Handle HAD change
+                  if (resp != GET_CONF_ZONE_MQTT_HAD(conf.zone[webZone])) {
+                    pushToMqttHAD(typeZone, webZone, functionHAD, GET_CONF_ZONE_MQTT_HAD(conf.zone[webZone]));
+                  }
                 break;
                 case 'g': // group
                   number = strtol(valueP, NULL, 10);
@@ -1782,8 +1801,13 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   if (resp) pushToMqtt(typeGroup, webGroup, functionName);
                 break;
                 case '0' ... '7': // Handle all single radio buttons for settings
+                  resp = GET_CONF_GROUP_MQTT_HAD(conf.group[webGroup].setting);
                   if (valueP[0] == '0') conf.group[webGroup].setting &= ~(1 << (name[0]-48));
                   else                  conf.group[webGroup].setting |=  (1 << (name[0]-48));
+                  // Handle HAD change
+                  if (resp != GET_CONF_GROUP_MQTT_HAD(conf.group[webGroup].setting)) {
+                    pushToMqttHAD(typeGroup, webGroup, functionHAD, GET_CONF_GROUP_MQTT_HAD(conf.group[webGroup].setting));
+                  }
                 break;
                 case 'a': // arm chain
                   number = strtol(valueP, NULL, 10);
@@ -1868,9 +1892,14 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   strncpy(conf.mqtt.password, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
                   conf.mqtt.password[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
                 break;
-                case '0': // MQTT subscribe
+                case '0' ... '1': // MQTT handle all single radio buttons for settings
+                  resp = GET_CONF_MQTT_HAD(conf.mqtt.setting);
                   if (valueP[0] == '0') conf.mqtt.setting &= ~(1 << (name[0]-48));
                   else                  conf.mqtt.setting |=  (1 << (name[0]-48));
+                  // Handle HAD change
+                  if (resp != GET_CONF_MQTT_HAD(conf.mqtt.setting)) {
+                    pushToMqttHAD(typeSystem, 0, functionHAD, GET_CONF_MQTT_HAD(conf.mqtt.setting));
+                  }
                 break;
                 case 'f': // NTP server
                   strncpy(conf.SNTPAddress, valueP, LWIP_MIN(valueLen, URL_LENGTH - 1));

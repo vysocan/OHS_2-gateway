@@ -9,7 +9,7 @@
 #define OHS_TH_MQTT_H_
 
 #ifndef OHS_MQTT_DEBUG
-#define OHS_MQTT_DEBUG 0
+#define OHS_MQTT_DEBUG 1
 #endif
 
 #if OHS_MQTT_DEBUG
@@ -37,7 +37,7 @@
  *     /function
  *     /value
  */
-static THD_WORKING_AREA(waMqttThread, 832);
+static THD_WORKING_AREA(waMqttThread, 1024);
 static THD_FUNCTION(MqttThread, arg) {
   chRegSetThreadName(arg);
   uint8_t counterMQTT = 225; // Force connect on start 255-30 seconds
@@ -46,7 +46,7 @@ static THD_FUNCTION(MqttThread, arg) {
   mqttEvent_t *inMsg;
   uint8_t qos;    // MQTT QoS: at most once(0); At least once (1); Exactly once (2)
   uint8_t retain; // MQTT retain messages: yes(1); no(0)
-  char topic[40], payload[20];
+  char topic[60];
 
   while (true) {
     msg = chMBFetchTimeout(&mqtt_mb, (msg_t*)&inMsg, TIME_S2I(1));
@@ -54,28 +54,46 @@ static THD_FUNCTION(MqttThread, arg) {
     // We have message
     if (msg == MSG_OK) {
       DBG_MQTT("MQTT Type: %d", (uint8_t)inMsg->type);
-      DBG_MQTT(", # %d", inMsg->number);
-      DBG_MQTT(", Function: %d\r\n", (uint8_t)inMsg->function);
+      DBG_MQTT(", Func: %d", (uint8_t)inMsg->function);
+      DBG_MQTT(", # %d >> ", inMsg->number);
 
       LOCK_TCPIP_CORE();
       retain = mqtt_client_is_connected(&mqtt_client); // retain as temp value
       UNLOCK_TCPIP_CORE();
       if (retain) {
         // Wait for free MQTT semaphore
-        DBG_MQTT("MQTT ");
         if (chBSemWaitTimeout(&mqttSem, TIME_MS2I(100)) == MSG_OK) {
-          DBG_MQTT("publish\r\n");
+          DBG_MQTT("publish");
           // Prepare message
           switch (inMsg->type) {
             case typeSystem:
               qos = 0; retain = 1;
               chsnprintf(topic, sizeof(topic), "%s", MQTT_MAIN_TOPIC);
               switch (inMsg->function) {
-                default: // State
+                case functionState: // State
                   strncat(topic, &text_state[0], LWIP_MIN(strlen(text_state), (sizeof(topic)-strlen(topic))));
                   // Payload based on state 0/1
-                  if (inMsg->number)  chsnprintf(payload, sizeof(payload), "%s", text_On);
-                  // covered by will // else chsnprintf(payload, sizeof(payload), "%s", text_Off);
+                  if (inMsg->number)  chsnprintf(mqttPayload, sizeof(mqttPayload), "%s", text_On);
+                  // covered by will // else chsnprintf(mqttPayload, sizeof(mqttPayload), "%s", text_Off);
+                  break;
+                case functionHAD:
+                  chsnprintf(topic, sizeof(topic), "%sbinary_sensor/%s/%s", MQTT_HAD_MAIN_TOPIC, mqttHadUid, MQTT_HAD_CONFIG_TOPIC);
+                  // Payload based on state 0/1
+                  if (inMsg->extra) {
+                    chsnprintf(mqttPayload, sizeof(mqttPayload),
+                      "{\"name\":\"%s %s\",\"obj_id\":\"%s\",\"uniq_id\":\"%s\","
+                        "\"ent_cat\":\"diagnostic\",\"ic\":\"mdi:security-network\","
+                        "\"pl_on\":\"%s\",\"pl_off\":\"%s\",\"stat_t\":\"%s%s\","
+                        "\"dev\":{\"name\":\"%s\",\"ids\":\"%s\",\"mf\":\"Adam Baron\","
+                        "\"mdl\":\"Open Home Security\","
+                        "\"hw\":\"2.0.4\",\"sw\":\"%u.%u.%u\",\"cu\":\"http://%s\"}}",
+                      text_System, text_State, text_state, mqttHadUid, text_On, text_Off, MQTT_MAIN_TOPIC, text_state,
+                        OHS_NAME, mqttHadUid, OHS_MAJOR, OHS_MINOR, OHS_MOD, ip4addr_ntoa((ip4_addr_t *)&netInfo.ip));
+                  } else {
+                    chsnprintf(mqttPayload, sizeof(mqttPayload),""); // Empty payload to remove it
+                  }
+                  break;
+                default:
                   break;
               }
               break;
@@ -85,31 +103,49 @@ static THD_FUNCTION(MqttThread, arg) {
               switch (inMsg->function) {
                 case functionName:
                   strncat(topic, &text_name[0], LWIP_MIN(strlen(text_name), (sizeof(topic)-strlen(topic))));
-                  chsnprintf(payload, sizeof(payload), "%s", conf.group[inMsg->number].name);
+                  chsnprintf(mqttPayload, sizeof(mqttPayload), "%s", conf.group[inMsg->number].name);
+                  break;
+                case functionHAD:
+                  chsnprintf(topic, sizeof(topic), "%salarm_control_panel/%s-G%d/%s",
+                             MQTT_HAD_MAIN_TOPIC, mqttHadUid, inMsg->number + 1, MQTT_HAD_CONFIG_TOPIC);
+                  if (inMsg->extra) {
+                    chsnprintf(mqttPayload, sizeof(mqttPayload),
+                      "{\"name\":\"%s: %s\",\"obj_id\":\"%s\",\"uniq_id\":\"%s-G%d\","
+                        "\"sup_feat\":[\"arm_home\",\"arm_away\"],\"pl_arm_away\":\"arm_away\","
+                        "\"pl_arm_home\":\"arm_home\",\"pl_disarm\":\"disarm\","
+                        "\"cod_arm_req\":\"false\",\"stat_t\":\"%sgroup/%d/state\","
+                        "\"cmd_t\":\"%sset/group/%d/state\","
+                        "\"dev\":{\"ids\":\"%s\"}}",
+                      text_Group, conf.group[inMsg->number].name, text_state, mqttHadUid, inMsg->number + 1,
+                        MQTT_MAIN_TOPIC, inMsg->number + 1, MQTT_MAIN_TOPIC, inMsg->number + 1,
+                        mqttHadUid);
+                  } else {
+                    chsnprintf(mqttPayload, sizeof(mqttPayload),""); // Empty payload to remove it
+                  }
                   break;
                 default: // State
                   strncat(topic, &text_state[0], LWIP_MIN(strlen(text_state), (sizeof(topic)-strlen(topic))));
                   // Payload based on state
                   if (GET_GROUP_ALARM(group[inMsg->number].setting) == 0) {
                     if (GET_GROUP_WAIT_AUTH(group[inMsg->number].setting)) {
-                      chsnprintf(payload, sizeof(payload), "%s", text_disarming);
+                      chsnprintf(mqttPayload, sizeof(mqttPayload), "%s", text_disarming);
                     } else {
                       if (GET_GROUP_ARMED(group[inMsg->number].setting)) {
                         if GET_GROUP_ARMED_HOME(group[inMsg->number].setting) {
-                          chsnprintf(payload, sizeof(payload), "%s_%s", text_armed, text_home);
+                          chsnprintf(mqttPayload, sizeof(mqttPayload), "%s_%s", text_armed, text_home);
                         } else {
-                          chsnprintf(payload, sizeof(payload), "%s_%s", text_armed, text_away);
+                          chsnprintf(mqttPayload, sizeof(mqttPayload), "%s_%s", text_armed, text_away);
                         }
                       } else {
                         if (group[inMsg->number].armDelay > 0) {
-                          chsnprintf(payload, sizeof(payload), "%s", text_arming);
+                          chsnprintf(mqttPayload, sizeof(mqttPayload), "%s", text_arming);
                         } else {
-                          chsnprintf(payload, sizeof(payload), "%s", text_disarmed);
+                          chsnprintf(mqttPayload, sizeof(mqttPayload), "%s", text_disarmed);
                         }
                       }
                     }
                   } else {
-                    chsnprintf(payload, sizeof(payload), "%s", text_triggered); // Alarm
+                    chsnprintf(mqttPayload, sizeof(mqttPayload), "%s", text_triggered); // Alarm
                   }
                   break;
               }
@@ -121,18 +157,33 @@ static THD_FUNCTION(MqttThread, arg) {
                 case functionName:
                   retain = 1;
                   strncat(topic, &text_name[0], LWIP_MIN(strlen(text_name), (sizeof(topic)-strlen(topic))));
-                  chsnprintf(payload, sizeof(payload), "%s", conf.zoneName[inMsg->number]);
+                  chsnprintf(mqttPayload, sizeof(mqttPayload), "%s", conf.zoneName[inMsg->number]);
+                  break;
+                case functionHAD:
+                  chsnprintf(topic, sizeof(topic), "%sbinary_sensor/%s-Z%d/%s",
+                             MQTT_HAD_MAIN_TOPIC, mqttHadUid, inMsg->number + 1, MQTT_HAD_CONFIG_TOPIC);
+                  if (inMsg->extra) {
+                    chsnprintf(mqttPayload, sizeof(mqttPayload),
+                      "{\"name\":\"%s: %s\",\"obj_id\":\"%s\",\"uniq_id\":\"%s-Z%d\","
+                        "\"pl_on\":\"alarm\",\"pl_off\":\"OK\","
+                        "\"stat_t\":\"%szone/%d/state\",\"ic\":\"mdi:motion-sensor\","
+                        "\"dev\":{\"ids\":\"%s\"}}",
+                      text_Zone, conf.zoneName[inMsg->number], text_state, mqttHadUid, inMsg->number + 1,
+                        MQTT_MAIN_TOPIC, inMsg->number + 1, mqttHadUid);
+                  } else {
+                    chsnprintf(mqttPayload, sizeof(mqttPayload),""); // Empty payload to remove it
+                  }
                   break;
                 default: // State
                   retain = 0;
                   strncat(topic, &text_state[0], LWIP_MIN(strlen(text_state), (sizeof(topic)-strlen(topic))));
                   // Payload based on lastEvent
                   switch (zone[inMsg->number].lastEvent) {
-                    case 'O': chsnprintf(payload, sizeof(payload), "%s", text_OK);
+                    case 'O': chsnprintf(mqttPayload, sizeof(mqttPayload), "%s", text_OK);
                       break;
-                    case 'P': chsnprintf(payload, sizeof(payload), "%s", text_alarm);
+                    case 'P': chsnprintf(mqttPayload, sizeof(mqttPayload), "%s", text_alarm);
                       break;
-                    default: chsnprintf(payload, sizeof(payload), "%s", text_tamper);
+                    default: chsnprintf(mqttPayload, sizeof(mqttPayload), "%s", text_tamper);
                       break;
                   }
                   break;
@@ -150,41 +201,48 @@ static THD_FUNCTION(MqttThread, arg) {
                 case functionName:
                   retain = 1;
                   strncat(topic, &text_name[0], LWIP_MIN(strlen(text_name), (sizeof(topic)-strlen(topic))));
-                  chsnprintf(payload, sizeof(payload), "%s", node[inMsg->number].name);
+                  chsnprintf(mqttPayload, sizeof(mqttPayload), "%s", node[inMsg->number].name);
                   break;
                 default: // Value
                   retain = 0;
                   strncat(topic, &text_value[0], LWIP_MIN(strlen(text_value), (sizeof(topic)-strlen(topic))));
                   // Keys are string rest is float
                   if (node[inMsg->number].type == 'K') {
-                    chsnprintf(payload, sizeof(payload), "%s", conf.contact[conf.key[(uint8_t)node[inMsg->number].value].contact].name);
+                    chsnprintf(mqttPayload, sizeof(mqttPayload), "%s", conf.contact[conf.key[(uint8_t)node[inMsg->number].value].contact].name);
                   } else {
-                    chsnprintf(payload, sizeof(payload), "%.2f", node[inMsg->number].value);
+                    chsnprintf(mqttPayload, sizeof(mqttPayload), "%.2f", node[inMsg->number].value);
                   }
                   break;
               }
               break;
             default:
-              DBG_MQTT("MQTT publish undefined!\r\n");
+              DBG_MQTT(" undefined!\r\n");
               break;
           }
           // publish
           LOCK_TCPIP_CORE();
-          err = mqtt_publish(&mqtt_client, &topic[0], &payload[0], strlen(payload),
+          err = mqtt_publish(&mqtt_client, &topic[0], &mqttPayload[0], strlen(mqttPayload),
                              qos, retain, mqttPubRequestCB, NULL);
           UNLOCK_TCPIP_CORE();
           if(err != ERR_OK) {
-            DBG_MQTT("MQTT publish err: %d\n", err);
+            DBG_MQTT(" error: %d\r\n", err);
             // Publish error
             tmpLog[0] = 'Q'; tmpLog[1] = 'E'; tmpLog[2] = 'P'; tmpLog[3] = abs(err); pushToLog(tmpLog, 4);
+            // Release semaphore in case of publish error, as CB is not called
+            chBSemSignal(&mqttSem);
+          } else {
+            DBG_MQTT(" OK\r\n");
           }
         } else {
-          DBG_MQTT("MQTT publish semaphore timeout!\r\n");
+          DBG_MQTT("publish semaphore timeout!\r\n");
           pushToLogText("QET");
           // Reset the semaphore to allow next publish
           //chBSemReset(&mqttSem, false);
         }
       } // MQTT client connected
+      else {
+        DBG_MQTT("not connected\r\n");
+      }
       chPoolFree(&mqtt_pool, inMsg);
 
     } else if (msg == MSG_TIMEOUT) {
@@ -207,7 +265,6 @@ static THD_FUNCTION(MqttThread, arg) {
     } else {
       DBG_MQTT("MQTT MB ERROR\r\n");
     }
-
   }
 }
 

@@ -29,23 +29,23 @@
  * Author: Simon Goldschmidt
  *
  * err_enum_t:
- * ERR_OK            No error, everything OK.
- * ERR_MEM           Out of memory error.
- * ERR_BUF           Buffer error.
- * ERR_TIMEOUT       Timeout.
- * ERR_RTE           Routing problem.
- * ERR_INPROGRESS    Operation in progress
- * ERR_VAL           Illegal value.
- * ERR_WOULDBLOCK    Operation would block.
- * ERR_USE           Address in use.
- * ERR_ALREADY       Already connecting.
- * ERR_ISCONN        Conn already established.
- * ERR_CONN          Not connected.
- * ERR_IF            Low-level netif error
- * ERR_ABRT          Connection aborted.
- * ERR_RST           Connection reset.
- * ERR_CLSD          Connection closed.
- * ERR_ARG           Illegal argument.
+ * No error, everything OK. ERR_OK         = 0,
+ * Out of memory error.     ERR_MEM        = -1,
+ * Buffer error.            ERR_BUF        = -2,
+ * Timeout.                 ERR_TIMEOUT    = -3,
+ * Routing problem.         ERR_RTE        = -4,
+ * Operation in progress    ERR_INPROGRESS = -5,
+ * Illegal value.           ERR_VAL        = -6,
+ * Operation would block.   ERR_WOULDBLOCK = -7,
+ * Address in use.          ERR_USE        = -8,
+ * Already connecting.      ERR_ALREADY    = -9,
+ * Conn already established.ERR_ISCONN     = -10,
+ * Not connected.           ERR_CONN       = -11,
+ * Low-level netif error    ERR_IF         = -12,
+ * Connection aborted.      ERR_ABRT       = -13,
+ * Connection reset.        ERR_RST        = -14,
+ * Connection closed.       ERR_CLSD       = -15,
+ * Illegal argument.        ERR_ARG        = -16
  *
  */
 #ifndef LWIP_HDR_LWIPOPTS_H__
@@ -213,6 +213,9 @@
 #endif
 
 #define LWIP_NETIF_HOSTNAME 1
+
+// MQTT extra settings
+#define MQTT_OUTPUT_RINGBUF_SIZE 512
 
 // MBED TLS
 /*

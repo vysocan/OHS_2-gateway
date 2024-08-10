@@ -21,8 +21,8 @@
 
 #define OHS_NAME         "OHS"
 #define OHS_MAJOR        1
-#define OHS_MINOR        4
-#define OHS_MOD          1
+#define OHS_MINOR        5
+#define OHS_MOD          0
 
 #define BACKUP_SRAM_SIZE 0x1000 // 4kB SRAM size
 
@@ -74,6 +74,9 @@
 #define MQTT_MAIN_TOPIC   OHS_NAME "/"
 #define MQTT_WILL_TOPIC   "state"
 #define MQTT_SET_TOPIC    "set/"
+// MQTT Home Assistant Discovery
+#define MQTT_HAD_MAIN_TOPIC "homeassistant/"
+#define MQTT_HAD_CONFIG_TOPIC "config"
 
 // Parameter checks
 #if NODE_SIZE >= DUMMY_NO_VALUE
@@ -111,7 +114,7 @@
 #define GET_CONF_ZONE_PIR_AS_TMP(x)  ((x >> 9U) & 0b1)
 #define GET_CONF_ZONE_BALANCED(x)    ((x >> 10U) & 0b1)
 #define GET_CONF_ZONE_(x)            ((x >> 11U) & 0b1)
-#define GET_CONF_ZONE__(x)           ((x >> 12U) & 0b1)
+#define GET_CONF_ZONE_MQTT_HAD(x)    ((x >> 12U) & 0b1)
 #define GET_CONF_ZONE_MQTT_PUB(x)    ((x >> 13U) & 0b1)
 #define GET_CONF_ZONE_IS_PRESENT(x)  ((x >> 14U) & 0b1)
 #define GET_CONF_ZONE_TYPE(x)        ((x >> 15U) & 0b1)
@@ -123,7 +126,7 @@
 #define SET_CONF_ZONE_PIR_AS_TMP(x)  x |= (1 << 9U)
 #define SET_CONF_ZONE_BALANCED(x)    x |= (1 << 10U)
 #define SET_CONF_ZONE_(x)            x |= (1 << 11U)
-#define SET_CONF_ZONE__(x)           x |= (1 << 12U)
+#define SET_CONF_ZONE_MQTT_HAD(x)    x |= (1 << 12U)
 #define SET_CONF_ZONE_MQTT_PUB(x)    x |= (1 << 13U)
 #define SET_CONF_ZONE_IS_PRESENT(x)  x |= (1 << 14U)
 #define SET_CONF_ZONE_TYPE(x)        x |= (1 << 15U)
@@ -133,7 +136,7 @@
 #define CLEAR_CONF_ZONE_PIR_AS_TMP(x)  x &= ~(1 << 9U)
 #define CLEAR_CONF_ZONE_BALANCED(x)    x &= ~(1 << 10U)
 #define CLEAR_CONF_ZONE_(x)            x &= ~(1 << 11U)
-#define CLEAR_CONF_ZONE__(x)           x &= ~(1 << 12U)
+#define CLEAR_CONF_ZONE_MQTT_HAD(x)    x &= ~(1 << 12U)
 #define CLEAR_CONF_ZONE_MQTT_PUB(x)    x &= ~(1 << 13U)
 #define CLEAR_CONF_ZONE_IS_PRESENT(x)  x &= ~(1 << 14U)
 #define CLEAR_CONF_ZONE_TYPE(x)        x &= ~(1 << 15U)
@@ -144,6 +147,7 @@
 #define GET_CONF_GROUP_PIR2(x)         ((x >> 3U) & 0b1)
 #define GET_CONF_GROUP_PIR1(x)         ((x >> 4U) & 0b1)
 #define GET_CONF_GROUP_AUTO_ARM(x)     ((x >> 5U) & 0b1)
+#define GET_CONF_GROUP_MQTT_HAD(x)     ((x >> 6U) & 0b1)
 #define GET_CONF_GROUP_MQTT(x)         ((x >> 7U) & 0b1)
 #define GET_CONF_GROUP_ARM_CHAIN(x)    ((x >> 8U) & 0b1111)
 #define GET_CONF_GROUP_DISARM_CHAIN(x) ((x >> 12U) & 0b1111)
@@ -153,6 +157,7 @@
 #define SET_CONF_GROUP_PIR2(x)           x |= (1 << 3U)
 #define SET_CONF_GROUP_PIR1(x)           x |= (1 << 4U)
 #define SET_CONF_GROUP_AUTO_ARM(x)       x |= (1 << 5U)
+#define SET_CONF_GROUP_MQTT_HAD(x)       x |= (1 << 6U)
 #define SET_CONF_GROUP_MQTT(x)           x |= (1 << 7U)
 #define SET_CONF_GROUP_ARM_CHAIN(x,y)    x = (((x)&(0b1111000011111111))|(((y & 0b1111) << 8U)&(0b0000111100000000)))
 #define SET_CONF_GROUP_DISARM_CHAIN(x,y) x = (((x)&(0b0000111111111111))|(((y & 0b1111) << 12U)&(0b1111000000000000)))
@@ -162,6 +167,7 @@
 #define CLEAR_CONF_GROUP_PIR2(x)         x &= ~(1 << 3U)
 #define CLEAR_CONF_GROUP_PIR1(x)         x &= ~(1 << 4U)
 #define CLEAR_CONF_GROUP_AUTO_ARM(x)     x &= ~(1 << 5U)
+#define CLEAR_CONF_GROUP_MQTT_HAD(x)     x &= ~(1 << 6U)
 #define CLEAR_CONF_GROUP_MQTT(x)         x &= ~(1 << 7U)
 
 #define GET_CONF_CONTACT_ENABLED(x)     ((x) & 0b1)
@@ -253,16 +259,19 @@
 #define CLEAR_CONF_TRIGGER_RESULT(x)     x &= ~(1 << 9U)
 
 #define GET_CONF_MQTT_SUBSCRIBE(x)           ((x) & 0b1)
+#define GET_CONF_MQTT_HAD(x)                 ((x >> 1U) & 0b1)
 #define GET_CONF_MQTT_ADDRESS_ERROR(x)       ((x >> 8U) & 0b1)
 #define GET_CONF_MQTT_CONNECT_ERROR(x)       ((x >> 9U) & 0b1)
 #define GET_CONF_MQTT_CONNECT_ERROR_LOG(x)   ((x >> 10U) & 0b1)
 #define GET_CONF_MQTT_SUBSCRIBE_ERROR(x)     ((x >> 11U) & 0b1)
 #define SET_CONF_MQTT_SUBSCRIBE(x)           x |= 1
+#define SET_CONF_MQTT_HAD(x)                 x |= (1 << 1U)
 #define SET_CONF_MQTT_ADDRESS_ERROR(x)       x |= (1 << 8U)
 #define SET_CONF_MQTT_CONNECT_ERROR(x)       x |= (1 << 9U)
 #define SET_CONF_MQTT_CONNECT_ERROR_LOG(x)   x |= (1 << 10U)
 #define SET_CONF_MQTT_SUBSCRIBE_ERROR(x)     x |= (1 << 11U)
 #define CLEAR_CONF_MQTT_SUBSCRIBE(x)         x &= ~1
+#define CLEAR_CONF_MQTT_HAD(x)               x &= ~(1 << 1U)
 #define CLEAR_CONF_MQTT_ADDRESS_ERROR(x)     x &= ~(1 << 8U)
 #define CLEAR_CONF_MQTT_CONNECT_ERROR(x)     x &= ~(1 << 9U)
 #define CLEAR_CONF_MQTT_CONNECT_ERROR_LOG(x) x &= ~(1 << 10U)
@@ -340,7 +349,8 @@ typedef enum {
 typedef enum {
   functionState = 0,
   functionValue,
-  functionName
+  functionName,
+  functionHAD
 } mqttPubFunction_t;
 
 // time_t conversion
@@ -419,7 +429,7 @@ typedef struct {
   mqttPubType_t type;         // Group, Sensor, Zone, System
   uint8_t number;             // index
   mqttPubFunction_t function; // Name, Value, State, Arm state
-  uint8_t dummy;              // align to 4
+  uint8_t extra;              // Extra values
 } mqttEvent_t;
 
 // TCL callback
@@ -755,7 +765,7 @@ typedef struct {
   time_t  lastOK; // = 0;
   void    *queue; //
   //                    |- MQTT publish
-  //                    ||- Free
+  //                    ||- MQTT HAD
   //                    |||- Battery low flag, for battery type node
   //                    |||||||- Group number
   //                    |||||||- 0 .. 15
@@ -903,7 +913,7 @@ void setConfDefault(void){
     //                    |- HW type Digital 0/ Analog 1
     //                    ||- Present - connected
     //                    |||- MQTT publish
-    //                    ||||- Free - was Remote zone
+    //                    ||||- MQTT HAD // - was Remote zone
     //                    |||||- Free - was Battery powered zone, they don't send OK, only PIR or Tamper.
     //                    ||||||- Logical type balanced 1/ unbalanced 0. Only Analog zones can be balanced.
     //                    |||||||- PIR as Tamper
@@ -1065,7 +1075,7 @@ void setConfDefault(void){
   //                    ||||||||         ||||-
   //                    ||||||||         |||||-
   //                    ||||||||         ||||||-
-  //                    ||||||||         |||||||-
+  //                    ||||||||         |||||||- Enable global Home Assistant Discovery
   //                    ||||||||         ||||||||- Enable global subscribe
   //                    54321098         76543210
   conf.mqtt.setting = 0b11111111 << 8 | 0b00000000;

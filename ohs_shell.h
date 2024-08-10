@@ -205,6 +205,7 @@ static void cmd_net(BaseSequentialStream *chp, int argc, char *argv[]) {
   chprintf(chp, "MAC        : %02x:%02x:%02x:%02x:%02x:%02x" SHELL_NEWLINE_STR,
            macAddr[0], macAddr[1], macAddr[2],
            macAddr[3], macAddr[4], macAddr[5]);
+  chprintf(chp, "MQTT uid   : %s" SHELL_NEWLINE_STR, mqttHadUid);
 }
 /*
  * Applet to allow DFU upgrade

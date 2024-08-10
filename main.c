@@ -1,6 +1,6 @@
 /*
  * OHS gateway code for HW v 2.0.x
- * Adam Baron (c) 2020
+ * Adam Baron (c) 2020-2024
  *
  *
  */
@@ -9,13 +9,6 @@
 #define PORT_INT_REQUIRED_STACK 128
 // Remove input queue for GPRS to save RAM
 #define STM32_SERIAL_USART6_IN_BUF_SIZE 0
-/*
- * OHS features
- */
-//#define OHS_WOLFSSL
-//#define OHS_HTTPS
-//#define OHS_HTTPS_CLIENT
-//#define OHS_ALERT_TELEGRAM
 
 // Standard libs
 #include <string.h>
@@ -65,6 +58,11 @@ struct tcl tcl;
 #define LOG_TEXT_LENGTH 80
 char logText[LOG_TEXT_LENGTH] __attribute__((section(".ram4"))); // To decode log text
 
+// MQTT HAD
+#define MQTT_PAYLOAD_LENGTH 512 // same as MQTT_OUTPUT_RINGBUF_SIZE in lwipopts.h
+char mqttPayload[MQTT_PAYLOAD_LENGTH] __attribute__((section(".ram4"))); // To decode log text
+char mqttHadUid[12];
+
 // OHS includes
 #include "ohs_text_const.h"
 #include "ohs_conf.h"
@@ -113,21 +111,6 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 // Shell functions
 #include "ohs_shell.h"
 
-//
-#ifdef OHS_WOLFSSL
-#include "crypto.h"
-#include "wolfssl_chibios.h"
-#endif
-//
-#ifdef OHS_HTTPS_CLIENT
-#include <httpc.h>
-#endif
-//
-#ifdef OHS_ALERT_TELEGRAM
-#include "lwip/netdb.h"
-#include "lwip/sockets.h"
-#endif
-
 // Thread handling
 #include "ohs_th_zone.h"
 #include "ohs_th_alarm.h"
@@ -146,11 +129,6 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 #include "ohs_th_heartbeat.h"
 
 #define SHELL_WA_SIZE THD_WORKING_AREA_SIZE(2*1024)
-
-#if defined(OHS_CRYPTO) && defined(OHS_HTTPS)
-// TODO OHS In wolfdssl_chibios.h: make all chHeap* as umm_*
-#include "ohs_th_https.h"
-#endif
 
 #if LWIP_MDNS_RESPONDER
 static void srv_txt(struct mdns_service *service, void *txt_userdata){
@@ -174,13 +152,6 @@ static void mdns_example_report(struct netif* netif, u8_t result, s8_t service){
 int main(void) {
   halInit();
   chSysInit();
-
-  // Initialize RNG
-  #ifdef OHS_WOLFSSL
-    rccEnableAHB2(RCC_AHB2ENR_RNGEN, 0);
-    RNG->CR |= RNG_CR_IE;
-    RNG->CR |= RNG_CR_RNGEN;
-  #endif
 
   // Semaphores
   chBSemObjectInit(&gprsSem, false);
@@ -234,6 +205,7 @@ int main(void) {
   memset(&gprsSmsText[0], 0, sizeof(gprsSmsText));
   memset(&gprsSystemInfo[0], 0, sizeof(gprsSystemInfo));
   memset(&logText[0], 0, LOG_TEXT_LENGTH);
+  memset(&mqttPayload[0], 0, MQTT_PAYLOAD_LENGTH);
   memset(&httpAlertMsg[0], 0 , HTTP_ALERT_MSG_SIZE); // Empty alert message
 
   shellInit();
@@ -323,8 +295,8 @@ int main(void) {
   readFromBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
   chprintf(console, "Size of conf: %u, group: %u\r\n", sizeof(conf), sizeof(group));
 
-  // Check if we have 1.3 -> 1.4 version update
-  if ((conf.versionMajor == 1) && (conf.versionMinor == 3) && (OHS_MINOR == 4)) {
+  // Check if we have 1.4 -> 1.5 version update
+  if ((conf.versionMajor == 1) && (conf.versionMinor == 4) && (OHS_MINOR == 5)) {
       // Set new version conf struct changes
 
       // Save the changes
@@ -358,7 +330,12 @@ int main(void) {
   UNLOCK_TCPIP_CORE();
   // MQTT
   CLEAR_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting); // Force resolve address on start
-  // Set HTTPD connection ID to be "unique", to disallow Id=NULL as vaild
+  // MQTT Home Assistant Discovery
+  chsnprintf(mqttHadUid, sizeof(mqttHadUid), "%s-%02x%02x%02x",
+             OHS_NAME, macAddr[3], macAddr[4], macAddr[5]);
+  CLEAR_CONF_MQTT_HAD(conf.mqtt.setting);
+
+  // Set HTTPD connection ID to be "unique", to disallow Id=NULL as valid
   authorizedConn.id = STM32_UUID[0] + rand();
 
   // Start
@@ -370,10 +347,6 @@ int main(void) {
   for (uint8_t i = 0; i < TIMER_SIZE; i++) {
     if (GET_CONF_TIMER_ENABLED(conf.timer[i].setting)) setTimer(i, true);
   }
-
-#ifdef OHS_WOLFSSL
-  wolfSSL_Init();
-#endif
 
   // Idle runner
   while (true) {

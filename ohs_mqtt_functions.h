@@ -21,8 +21,8 @@
 static ip_addr_t mqtt_ip; // = IPADDR4_INIT_BYTES(10,10,10,127);
 struct mqtt_client_s mqtt_client;
 #define MQTT_TOPIC_LENGTH   40
-#define MQTT_PAYLOAD_LENGTH 40
-char mqttInTopic[MQTT_TOPIC_LENGTH], mqttInPayload[MQTT_PAYLOAD_LENGTH];
+#define MQTT_IN_PAYLOAD_LENGTH 40
+char mqttInTopic[MQTT_TOPIC_LENGTH], mqttInPayload[MQTT_IN_PAYLOAD_LENGTH];
 
 // MQTT client information
 struct mqtt_connect_client_info_t mqttCI = {
@@ -89,9 +89,9 @@ static void mqttIncomingDataCB(void *arg, const u8_t *data, u16_t len, u8_t flag
   DBG_MQTT_FUNC("MQTT IncomingDataCB length: %d, flags: %u. Arg: %s\r\n", len, (u8_t)flags, arg);
 
   // Clear mqttInPayload
-  memset(mqttInPayload, 0, MQTT_PAYLOAD_LENGTH);
+  memset(mqttInPayload, 0, MQTT_IN_PAYLOAD_LENGTH);
   // Copy data payload to our mqttInPayload
-  strncpy(mqttInPayload, (const char *)data, LWIP_MIN(len, MQTT_PAYLOAD_LENGTH - 1));
+  strncpy(mqttInPayload, (const char *)data, LWIP_MIN(len, MQTT_IN_PAYLOAD_LENGTH - 1));
 
   // Last fragment of payload received (or whole part if payload fits receive buffer
   // See MQTT_VAR_HEADER_BUFFER_LEN)
@@ -235,6 +235,11 @@ static void mqttConnectionCB(mqtt_client_t *client, void *arg, mqtt_connection_s
 
     // Publish state
     pushToMqtt(typeSystem, 1, functionState);
+
+    // MQTT Home Assistant Discovery
+    if (GET_CONF_MQTT_HAD(conf.mqtt.setting)) {
+      pushToMqttHAD(typeSystem, 0, functionHAD, 1);
+    }
   } else {
     DBG_MQTT_FUNC("MQTT ConnectionCB: Disconnected, reason: %d\r\n", status);
     SET_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting);
