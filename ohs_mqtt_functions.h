@@ -20,9 +20,9 @@
 // MQTT test IP address
 static ip_addr_t mqtt_ip; // = IPADDR4_INIT_BYTES(10,10,10,127);
 struct mqtt_client_s mqtt_client;
-#define MQTT_TOPIC_LENGTH   40
+#define MQTT_IN_TOPIC_LENGTH   40
 #define MQTT_IN_PAYLOAD_LENGTH 40
-char mqttInTopic[MQTT_TOPIC_LENGTH], mqttInPayload[MQTT_IN_PAYLOAD_LENGTH];
+char mqttInTopic[MQTT_IN_TOPIC_LENGTH], mqttInPayload[MQTT_IN_PAYLOAD_LENGTH];
 
 // MQTT client information
 struct mqtt_connect_client_info_t mqttCI = {
@@ -61,9 +61,9 @@ static void mqttIncomingPublishCB(void *arg, const char *topic, u32_t tot_len) {
 
   DBG_MQTT_FUNC("MQTT IncomingPublishCB: %s, payload length: %u\r\n", topic, (unsigned int)tot_len);
   // Clear mqttInTopic passed to arg
-  memset(arg, 0, MQTT_TOPIC_LENGTH);
+  memset(arg, 0, MQTT_IN_TOPIC_LENGTH);
   // Copy last part of topic after OHS/set/ to *arg
-  strncpy(arg, &topic[strlen(MQTT_MAIN_TOPIC MQTT_SET_TOPIC)], MQTT_TOPIC_LENGTH - 1);
+  strncpy(arg, &topic[strlen(MQTT_MAIN_TOPIC MQTT_SET_TOPIC)], MQTT_IN_TOPIC_LENGTH - 1);
 }
 /*
  * MQTT subscribe data callback and processing

@@ -20,27 +20,37 @@
 /*
  * MQTT thread
  *
- * Publish topics: MQTT_MAIN_TOPIC
- * /state {On, Off} - Indicates if system is on
- * /group
- *   /{#} - index of group
- *     /name
- *     /state {disarmed, arming, armed_home, armed_away, triggered, disarming}
- * /zone
- *   /{#} - index of zone
- *     /name
- *     /state {OK, alarm, tamper}
- * /sensor
- *   /{address} - node address like W:2:K:i:0
- *     /name
- *     /type
- *     /function
- *     /value
+ * Publish topics:
+ * MQTT_MAIN_TOPIC - /OHS
+ *   /state {On, Off} - Indicates if system is on
+ *   /group
+ *     /{#} - index of group
+ *       /name
+ *       /state {disarmed, arming, armed_home, armed_away, triggered, disarming}
+ *   /zone
+ *     /{#} - index of zone
+ *       /name
+ *       /state {OK, alarm, tamper}
+ *   /sensor
+ *     /{address} - node address like W:2:K:i:0
+ *       /name
+ *       /type
+ *       /function
+ *       /value
+ *
+ * MQTT_HAD_MAIN_TOPIC - /homeassistant
+ *   /state/{UID}/config
+ *     - JSON payload with full identifier for Home Assistant MQTT auto discovery.
+ *   /group/{UID-G#}/config
+ *     - JSON payload with identifier for specific group # as HA alarm_control_panel.
+ *   /zone/{UID-Z#}/config
+ *     - JSON payload with identifier for specific zone # as HA binary_sensor.
+ *
  */
 static THD_WORKING_AREA(waMqttThread, 1024);
 static THD_FUNCTION(MqttThread, arg) {
   chRegSetThreadName(arg);
-  uint8_t counterMQTT = 225; // Force connect on start 255-30 seconds
+  uint8_t counterMQTT = 225; // Force faster connect on start, 255-30 seconds.
   err_t err; // lwip error type
   msg_t msg;
   mqttEvent_t *inMsg;

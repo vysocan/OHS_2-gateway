@@ -1725,7 +1725,8 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   if (valueP[0] == '0') conf.zone[webZone] &= ~(1 << (name[0]-87)); // a(97) - 10
                   else                  conf.zone[webZone] |=  (1 << (name[0]-87));
                   // Handle HAD change
-                  if (resp != GET_CONF_ZONE_MQTT_HAD(conf.zone[webZone])) {
+                  if (GET_CONF_ZONE_ENABLED(conf.zone[webZone]) &&
+                      (resp != GET_CONF_ZONE_MQTT_HAD(conf.zone[webZone]))) {
                     pushToMqttHAD(typeZone, webZone, functionHAD, GET_CONF_ZONE_MQTT_HAD(conf.zone[webZone]));
                   }
                 break;
@@ -1805,7 +1806,8 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   if (valueP[0] == '0') conf.group[webGroup].setting &= ~(1 << (name[0]-48));
                   else                  conf.group[webGroup].setting |=  (1 << (name[0]-48));
                   // Handle HAD change
-                  if (resp != GET_CONF_GROUP_MQTT_HAD(conf.group[webGroup].setting)) {
+                  if (GET_CONF_GROUP_ENABLED(conf.group[webGroup].setting) &&
+                      (resp != GET_CONF_GROUP_MQTT_HAD(conf.group[webGroup].setting))) {
                     pushToMqttHAD(typeGroup, webGroup, functionHAD, GET_CONF_GROUP_MQTT_HAD(conf.group[webGroup].setting));
                   }
                 break;

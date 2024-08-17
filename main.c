@@ -266,6 +266,7 @@ int main(void) {
   chThdCreateFromHeap(NULL, SHELL_WA_SIZE,"shell", NORMALPRIO + 1, shellThread, (void *)&shell_cfg);
   chThdCreateStatic(waHeartBeatThread, sizeof(waHeartBeatThread), LOWPRIO, HeartBeatThread, (void*)"h-beat");
 
+  // LWIP
   stats_init();
   //ETH->MACFFR |= ETH_MACFFR_PAM;
   LOCK_TCPIP_CORE();
@@ -283,11 +284,6 @@ int main(void) {
   //mdns_resp_announce(netif_default);
   chThdSleepMilliseconds(100);
 #endif
-
-#ifdef OHS_HTTPS
-  chThdCreateStatic(wa_https_server, sizeof(wa_https_server), NORMALPRIO + 1, https_server, NULL);
-#endif
-
 
   // Read last groups state
   readFromBkpRTC((uint8_t*)&group, sizeof(group), 0);
@@ -330,10 +326,9 @@ int main(void) {
   UNLOCK_TCPIP_CORE();
   // MQTT
   CLEAR_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting); // Force resolve address on start
-  // MQTT Home Assistant Discovery
+  // Make MQTT Home Assistant Discovery uid
   chsnprintf(mqttHadUid, sizeof(mqttHadUid), "%s-%02x%02x%02x",
              OHS_NAME, macAddr[3], macAddr[4], macAddr[5]);
-  CLEAR_CONF_MQTT_HAD(conf.mqtt.setting);
 
   // Set HTTPD connection ID to be "unique", to disallow Id=NULL as valid
   authorizedConn.id = STM32_UUID[0] + rand();
@@ -358,7 +353,6 @@ int main(void) {
                                               "shell", NORMALPRIO + 1, shellThread, (void *)&shell_cfg);
       chThdWait(shelltp); // Waiting termination.
     }
-
   }
 }
 

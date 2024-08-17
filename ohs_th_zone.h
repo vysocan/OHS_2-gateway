@@ -30,7 +30,7 @@ static THD_FUNCTION(ZoneThread, arg) {
   uint8_t  groupNum = DUMMY_NO_VALUE;
   triggerEvent_t *outMsgTrig;
 
-  // Delay to allow PIR to settle up during power up
+  // Delay to allow PIR sensors to settle up during power up
   chThdSleepSeconds(SECONDS_PER_MINUTE);
 
   // Monitoring started
@@ -41,9 +41,12 @@ static THD_FUNCTION(ZoneThread, arg) {
     if (GET_CONF_GROUP_ENABLED(conf.group[i].setting) && GET_CONF_GROUP_MQTT(conf.group[i].setting)) {
       pushToMqtt(typeGroup, i, functionName);
       pushToMqtt(typeGroup, i, functionState);
+      // MQTT HAD
+      if (GET_CONF_GROUP_MQTT_HAD(conf.group[i].setting)) {
+        pushToMqttHAD(typeGroup, i, functionHAD, 1);
+      }
     }
   }
-
   // Delay to allow MQTT to proceed
   chThdSleepSeconds(1);
 
@@ -51,8 +54,13 @@ static THD_FUNCTION(ZoneThread, arg) {
   for (uint8_t i=0; i < ALARM_ZONES ; i++) {
     if (GET_CONF_ZONE_ENABLED(conf.zone[i]) && GET_CONF_ZONE_MQTT_PUB(conf.zone[i])) {
       pushToMqtt(typeZone, i, functionName);
+      if (GET_CONF_ZONE_MQTT_HAD(conf.zone[i])) {
+        pushToMqttHAD(typeZone, i, functionHAD, 1);
+      }
     }
   }
+  // Delay to allow MQTT to proceed
+  chThdSleepSeconds(1);
 
   while (true) {
     chThdSleepMilliseconds(250); // time is used also for arm delay and others ...
