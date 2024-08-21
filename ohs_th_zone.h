@@ -36,14 +36,20 @@ static THD_FUNCTION(ZoneThread, arg) {
   // Monitoring started
   pushToLogText("SS");
 
+  // MQTT HAD
+  if (GET_CONF_MQTT_HAD(conf.mqtt.setting)) {
+    mqttGlobalHAD(GET_CONF_MQTT_HAD(conf.mqtt.setting));
+  }
+  // Delay to allow MQTT to proceed
+  chThdSleepSeconds(1);
+
   // Manage group MQTT publish
   for (uint8_t i=0; i < ALARM_GROUPS ; i++) {
-    if (GET_CONF_GROUP_ENABLED(conf.group[i].setting) && GET_CONF_GROUP_MQTT(conf.group[i].setting)) {
-      pushToMqtt(typeGroup, i, functionName);
-      pushToMqtt(typeGroup, i, functionState);
-      // MQTT HAD
-      if (GET_CONF_GROUP_MQTT_HAD(conf.group[i].setting)) {
-        pushToMqttHAD(typeGroup, i, functionHAD, 1);
+    if (GET_CONF_GROUP_ENABLED(conf.group[i].setting)) {
+      // MQTT Pub
+      if (GET_CONF_GROUP_MQTT(conf.group[i].setting)) {
+        pushToMqtt(typeGroup, i, functionName);
+        pushToMqtt(typeGroup, i, functionState);
       }
     }
   }
@@ -52,10 +58,10 @@ static THD_FUNCTION(ZoneThread, arg) {
 
   // Manage zone MQTT publish
   for (uint8_t i=0; i < ALARM_ZONES ; i++) {
-    if (GET_CONF_ZONE_ENABLED(conf.zone[i]) && GET_CONF_ZONE_MQTT_PUB(conf.zone[i])) {
-      pushToMqtt(typeZone, i, functionName);
-      if (GET_CONF_ZONE_MQTT_HAD(conf.zone[i])) {
-        pushToMqttHAD(typeZone, i, functionHAD, 1);
+    if (GET_CONF_ZONE_ENABLED(conf.zone[i])) {
+      // MQTT Pub
+      if (GET_CONF_ZONE_MQTT_PUB(conf.zone[i])) {
+        pushToMqtt(typeZone, i, functionName);
       }
     }
   }

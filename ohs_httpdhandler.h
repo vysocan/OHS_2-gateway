@@ -1900,7 +1900,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   else                  conf.mqtt.setting |=  (1 << (name[0]-48));
                   // Handle HAD change
                   if (resp != GET_CONF_MQTT_HAD(conf.mqtt.setting)) {
-                    pushToMqttHAD(typeSystem, 0, functionHAD, GET_CONF_MQTT_HAD(conf.mqtt.setting));
+                    mqttGlobalHAD(GET_CONF_MQTT_HAD(conf.mqtt.setting));
                   }
                 break;
                 case 'f': // NTP server

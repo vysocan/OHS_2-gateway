@@ -104,6 +104,30 @@ void pushToMqttHAD(mqttPubType_t type, uint8_t number, mqttPubFunction_t functio
     }
 }
 /*
+ * MQTT Home Assistant Discovery
+ *
+ * Manage HAD global state change.
+ */
+void mqttGlobalHAD(uint8_t state) {
+
+  // Manage system HAD
+  pushToMqttHAD(typeSystem, 0, functionHAD, state);
+  // Manage group HAD
+  for (uint8_t i=0; i < ALARM_GROUPS ; i++) {
+    if ((GET_CONF_GROUP_ENABLED(conf.group[i].setting)) &&
+        (GET_CONF_GROUP_MQTT_HAD(conf.group[i].setting))) {
+      pushToMqttHAD(typeGroup, i, functionHAD, state);
+    }
+  }
+  // Manage zone HAD
+  for (uint8_t i=0; i < ALARM_ZONES ; i++) {
+    if ((GET_CONF_ZONE_ENABLED(conf.zone[i])) &&
+        (GET_CONF_ZONE_MQTT_HAD(conf.zone[i]))) {
+      pushToMqttHAD(typeZone, i, functionHAD, state);
+    }
+  }
+}
+/*
  * Send data to node
  */
 int8_t sendData(uint8_t address, const uint8_t *data, uint8_t length){
