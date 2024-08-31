@@ -39,11 +39,11 @@
  *       /value
  *
  * MQTT_HAD_MAIN_TOPIC - /homeassistant
- *   /state/{UID}/config
+ *   /binary_sensor/{UID}/config - System State
  *     - JSON payload with full identifier for Home Assistant MQTT auto discovery.
- *   /group/{UID-G#}/config
+ *   /alarm_control_panel/{UID-G#}/config - Group(s)
  *     - JSON payload with identifier for specific group # as HA alarm_control_panel.
- *   /zone/{UID-Z#}/config
+ *   /binary_sensor/{UID-Z#}/config - Zone(s)
  *     - JSON payload with identifier for specific zone # as HA binary_sensor.
  *
  */
@@ -72,8 +72,8 @@ static THD_FUNCTION(MqttThread, arg) {
       UNLOCK_TCPIP_CORE();
       if (retain) {
         // Wait for free MQTT semaphore
+        DBG_MQTT("publish");
         if (chBSemWaitTimeout(&mqttSem, TIME_MS2I(100)) == MSG_OK) {
-          DBG_MQTT("publish");
           // Prepare message
           switch (inMsg->type) {
             case typeSystem:
@@ -242,10 +242,15 @@ static THD_FUNCTION(MqttThread, arg) {
             chBSemSignal(&mqttSem);
           } else {
             DBG_MQTT(" OK\r\n");
+            CLEAR_CONF_MQTT_SEMAPHORE_ERROR_LOG(conf.mqtt.setting);
           }
         } else {
-          DBG_MQTT("publish semaphore timeout!\r\n");
-          pushToLogText("QET");
+          DBG_MQTT(" semaphore timeout!\r\n");
+          // Log this event
+          if (!GET_CONF_MQTT_SEMAPHORE_ERROR_LOG(conf.mqtt.setting)) {
+            pushToLogText("QET");
+            SET_CONF_MQTT_SEMAPHORE_ERROR_LOG(conf.mqtt.setting);
+          }
           // Reset the semaphore to allow next publish
           //chBSemReset(&mqttSem, false);
         }

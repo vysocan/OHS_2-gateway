@@ -50,7 +50,8 @@ static void mqttPubRequestCB(void *arg, err_t result) {
 
   if(result != ERR_OK) {
     DBG_MQTT_FUNC("mqttPubRequestCB error: %d\r\n", result);
-    pushToLogText("QEP"); // Publish error
+    // Publish error callback
+    tmpLog[0] = 'Q'; tmpLog[1] = 'E'; tmpLog[2] = 'p'; tmpLog[3] = abs(result); pushToLog(tmpLog, 4);
   }
 }
 /*

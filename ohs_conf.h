@@ -258,24 +258,27 @@
 #define CLEAR_CONF_TRIGGER_ALERT(x)      x &= ~(1 << 6U)
 #define CLEAR_CONF_TRIGGER_RESULT(x)     x &= ~(1 << 9U)
 
-#define GET_CONF_MQTT_SUBSCRIBE(x)           ((x) & 0b1)
-#define GET_CONF_MQTT_HAD(x)                 ((x >> 1U) & 0b1)
-#define GET_CONF_MQTT_ADDRESS_ERROR(x)       ((x >> 8U) & 0b1)
-#define GET_CONF_MQTT_CONNECT_ERROR(x)       ((x >> 9U) & 0b1)
-#define GET_CONF_MQTT_CONNECT_ERROR_LOG(x)   ((x >> 10U) & 0b1)
-#define GET_CONF_MQTT_SUBSCRIBE_ERROR(x)     ((x >> 11U) & 0b1)
-#define SET_CONF_MQTT_SUBSCRIBE(x)           x |= 1
-#define SET_CONF_MQTT_HAD(x)                 x |= (1 << 1U)
-#define SET_CONF_MQTT_ADDRESS_ERROR(x)       x |= (1 << 8U)
-#define SET_CONF_MQTT_CONNECT_ERROR(x)       x |= (1 << 9U)
-#define SET_CONF_MQTT_CONNECT_ERROR_LOG(x)   x |= (1 << 10U)
-#define SET_CONF_MQTT_SUBSCRIBE_ERROR(x)     x |= (1 << 11U)
-#define CLEAR_CONF_MQTT_SUBSCRIBE(x)         x &= ~1
-#define CLEAR_CONF_MQTT_HAD(x)               x &= ~(1 << 1U)
-#define CLEAR_CONF_MQTT_ADDRESS_ERROR(x)     x &= ~(1 << 8U)
-#define CLEAR_CONF_MQTT_CONNECT_ERROR(x)     x &= ~(1 << 9U)
-#define CLEAR_CONF_MQTT_CONNECT_ERROR_LOG(x) x &= ~(1 << 10U)
-#define CLEAR_CONF_MQTT_SUBSCRIBE_ERROR(x)   x &= ~(1 << 11U)
+#define GET_CONF_MQTT_SUBSCRIBE(x)             ((x) & 0b1)
+#define GET_CONF_MQTT_HAD(x)                   ((x >> 1U) & 0b1)
+#define GET_CONF_MQTT_ADDRESS_ERROR(x)         ((x >> 8U) & 0b1)
+#define GET_CONF_MQTT_CONNECT_ERROR(x)         ((x >> 9U) & 0b1)
+#define GET_CONF_MQTT_CONNECT_ERROR_LOG(x)     ((x >> 10U) & 0b1)
+#define GET_CONF_MQTT_SUBSCRIBE_ERROR(x)       ((x >> 11U) & 0b1)
+#define GET_CONF_MQTT_SEMAPHORE_ERROR_LOG(x)   ((x >> 12U) & 0b1)
+#define SET_CONF_MQTT_SUBSCRIBE(x)             x |= 1
+#define SET_CONF_MQTT_HAD(x)                   x |= (1 << 1U)
+#define SET_CONF_MQTT_ADDRESS_ERROR(x)         x |= (1 << 8U)
+#define SET_CONF_MQTT_CONNECT_ERROR(x)         x |= (1 << 9U)
+#define SET_CONF_MQTT_CONNECT_ERROR_LOG(x)     x |= (1 << 10U)
+#define SET_CONF_MQTT_SUBSCRIBE_ERROR(x)       x |= (1 << 11U)
+#define SET_CONF_MQTT_SEMAPHORE_ERROR_LOG(x)   x |= (1 << 12U)
+#define CLEAR_CONF_MQTT_SUBSCRIBE(x)           x &= ~1
+#define CLEAR_CONF_MQTT_HAD(x)                 x &= ~(1 << 1U)
+#define CLEAR_CONF_MQTT_ADDRESS_ERROR(x)       x &= ~(1 << 8U)
+#define CLEAR_CONF_MQTT_CONNECT_ERROR(x)       x &= ~(1 << 9U)
+#define CLEAR_CONF_MQTT_CONNECT_ERROR_LOG(x)   x &= ~(1 << 10U)
+#define CLEAR_CONF_MQTT_SUBSCRIBE_ERROR(x)     x &= ~(1 << 11U)
+#define CLEAR_CONF_MQTT_SEMAPHORE_ERROR_LOG(x) x &= ~(1 << 12U)
 
 #define GET_ZONE_ALARM(x)     ((x >> 1U) & 0b1)
 #define GET_ZONE_ERROR(x)     ((x >> 5U) & 0b1)
@@ -1061,8 +1064,8 @@ void setConfDefault(void){
   strcpy(conf.mqtt.user, "");
   strcpy(conf.mqtt.password, "");
   conf.mqtt.port = 1883;
-  //                    ||||
-  //                    |||||
+  //                    ||||- Semaphore timeout reported
+  //                    |||||- Subscribe error
   //                    ||||||- Connect error reported
   //                    |||||||- Connect error
   //                    ||||||||- Address resolve error

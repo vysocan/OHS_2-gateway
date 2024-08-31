@@ -806,6 +806,7 @@ static uint8_t decodeLog(char *in, char *out, bool full){
             case 'R' : chprintf(chp, "%s %s %s %s", text_unable, text_to, text_resolve, text_address); break;
             case 'C' : chprintf(chp, "%s %s %s", text_unable, text_to, text_connect); break;
             case 'P' : chprintf(chp, "%s %s #%u", text_publish, text_error, (uint8_t)in[3]); break;
+            case 'p' : chprintf(chp, "%s %s %s #%u", text_publish, text_callback, text_error, (uint8_t)in[3]); break;
             case 'S' : chprintf(chp, "%s %s", text_subscribe, text_error); break;
             case 'T' : chprintf(chp, "%s %s", text_semaphore, text_timeout); break;
             // MQTT 1 - 7 callback reason errors

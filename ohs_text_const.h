@@ -127,6 +127,7 @@ const char text_Function[]          = "Function";
 const char text_Type[]              = "Type";
 const char text_type[]              = "type";
 const char text_publish[]           = "publish";
+const char text_callback[]          = "callback";
 const char text_subscribe[]         = "subscribe";
 const char text_semaphore[]         = "semaphore";
 const char text_Subscribe[]         = "Subscribe";
