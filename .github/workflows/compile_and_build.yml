@@ -31,6 +31,7 @@ jobs:
     - name: upload binaries to release
       uses: svenstaro/upload-release-action@v2
       with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: build/OHS_F437.bin
         asset_name: OHS_F437.bin
         tag: ${{ github.ref }}
