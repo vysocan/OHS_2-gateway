@@ -9,7 +9,7 @@
 #define OHS_TH_MQTT_H_
 
 #ifndef OHS_MQTT_DEBUG
-#define OHS_MQTT_DEBUG 1
+#define OHS_MQTT_DEBUG 0
 #endif
 
 #if OHS_MQTT_DEBUG
