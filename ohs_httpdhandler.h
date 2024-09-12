@@ -1709,7 +1709,13 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   strncpy(conf.zoneName[webZone], valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
                   conf.zoneName[webZone][LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
                   // MQTT
-                  if (resp) pushToMqtt(typeZone, webZone, functionName);
+                  if (resp) {
+                    pushToMqtt(typeZone, webZone, functionName);
+                    // HAD
+                    if (GET_CONF_ZONE_MQTT_HAD(conf.zone[webZone])) {
+                      pushToMqttHAD(typeZone, webZone, functionHAD, 1);
+                    }
+                  }
                 break;
                 case 'D': // delay
                   SET_CONF_ZONE_AUTH_TIME(conf.zone[webZone], (valueP[0] - 48));
@@ -1799,7 +1805,13 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   strncpy(conf.group[webGroup].name, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
                   conf.group[webGroup].name[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
                   // MQTT
-                  if (resp) pushToMqtt(typeGroup, webGroup, functionName);
+                  if (resp) {
+                    pushToMqtt(typeGroup, webGroup, functionName);
+                    // HAD
+                    if (GET_CONF_GROUP_MQTT_HAD(conf.group[webGroup].setting)) {
+                      pushToMqttHAD(typeGroup, webGroup, functionHAD, 1);
+                    }
+                  }
                 break;
                 case '0' ... '7': // Handle all single radio buttons for settings
                   resp = GET_CONF_GROUP_MQTT_HAD(conf.group[webGroup].setting);
