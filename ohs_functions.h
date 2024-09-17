@@ -17,6 +17,21 @@ volatile uint16_t FRAMReadPos  = 0;
 static char rxBuffer[FRAM_MSG_SIZE];
 static char txBuffer[FRAM_HEADER_SIZE + FRAM_MSG_SIZE];
 
+
+/*
+ * getLogEntry reads given log entry by logAddress and store it in global buffer
+ */
+void getLogEntry(uint16_t logAddress) {
+  txBuffer[0] = CMD_25AA_READ;
+  txBuffer[1] = 0;
+  txBuffer[2] = (logAddress >> 8) & 0xFF;
+  txBuffer[3] = logAddress & 0xFF;
+
+  spiSelect(&SPID1);                  // Slave Select assertion.
+  spiSend(&SPID1, FRAM_HEADER_SIZE, txBuffer); // Send read command
+  spiReceive(&SPID1, FRAM_MSG_SIZE, rxBuffer);
+  spiUnselect(&SPID1);                // Slave Select de-assertion.
+}
 /*
  * Get current timestamp with DST
  */
@@ -68,40 +83,42 @@ void pushToLogText(char *what) {
  * MQTT publish
  */
 void pushToMqtt(mqttPubType_t type, uint8_t number, mqttPubFunction_t function) {
-    mqttEvent_t *outMsg = chPoolAlloc(&mqtt_pool);
 
-    if (outMsg != NULL) {
-      outMsg->type = type;
-      outMsg->number = number;
-      outMsg->function = function;
+  mqttEvent_t *outMsg = chPoolAlloc(&mqtt_pool);
 
-      msg_t msg = chMBPostTimeout(&mqtt_mb, (msg_t)outMsg, TIME_IMMEDIATE);
-      if (msg != MSG_OK) {
-        //chprintf(console, "MB full %d\r\n", temp);
-      }
-    } else {
-      chprintf(console, "MQTT pool full!\r\n");
-      pushToLogText("FM"); // MQTT queue is full
+  if (outMsg != NULL) {
+    outMsg->type = type;
+    outMsg->number = number;
+    outMsg->function = function;
+
+    msg_t msg = chMBPostTimeout(&mqtt_mb, (msg_t)outMsg, TIME_IMMEDIATE);
+    if (msg != MSG_OK) {
+      //chprintf(console, "MB full %d\r\n", temp);
     }
+  } else {
+    chprintf(console, "MQTT pool full!\r\n");
+    pushToLogText("FM"); // MQTT queue is full
+  }
 }
 // for MQTT HAD
 void pushToMqttHAD(mqttPubType_t type, uint8_t number, mqttPubFunction_t function, uint8_t extra) {
-    mqttEvent_t *outMsg = chPoolAlloc(&mqtt_pool);
 
-    if (outMsg != NULL) {
-      outMsg->type = type;
-      outMsg->number = number;
-      outMsg->function = function;
-      outMsg->extra = extra;
+  mqttEvent_t *outMsg = chPoolAlloc(&mqtt_pool);
 
-      msg_t msg = chMBPostTimeout(&mqtt_mb, (msg_t)outMsg, TIME_IMMEDIATE);
-      if (msg != MSG_OK) {
-        //chprintf(console, "MB full %d\r\n", temp);
-      }
-    } else {
-      chprintf(console, "MQTT pool full!\r\n");
-      pushToLogText("FM"); // MQTT queue is full
+  if (outMsg != NULL) {
+    outMsg->type = type;
+    outMsg->number = number;
+    outMsg->function = function;
+    outMsg->extra = extra;
+
+    msg_t msg = chMBPostTimeout(&mqtt_mb, (msg_t)outMsg, TIME_IMMEDIATE);
+    if (msg != MSG_OK) {
+      //chprintf(console, "MB full %d\r\n", temp);
     }
+  } else {
+    chprintf(console, "MQTT pool full!\r\n");
+    pushToLogText("FM"); // MQTT queue is full
+  }
 }
 /*
  * MQTT Home Assistant Discovery

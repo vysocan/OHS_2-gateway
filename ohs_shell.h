@@ -31,16 +31,7 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
 
   spiAcquireBus(&SPID1);                // Acquire ownership of the bus.
   for(uint16_t i = 0; i < LOGGER_OUTPUT_LEN; i++) {
-    txBuffer[0] = CMD_25AA_READ;
-    txBuffer[1] = 0;
-    txBuffer[2] = (FRAMReadPos >> 8) & 0xFF;
-    txBuffer[3] = FRAMReadPos & 0xFF;
-
-    spiSelect(&SPID1);                  // Slave Select assertion.
-    spiSend(&SPID1, FRAM_HEADER_SIZE, txBuffer); // Send read command
-    spiReceive(&SPID1, FRAM_MSG_SIZE, rxBuffer);
-    spiUnselect(&SPID1);                // Slave Select de-assertion.
-
+    getLogEntry(FRAMReadPos);
     memcpy(&timeConv.ch[0], &rxBuffer[0], sizeof(timeConv.ch)); // Prepare timestamp
     decodeLog(&rxBuffer[4], logText, true);
 

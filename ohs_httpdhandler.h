@@ -63,7 +63,7 @@ typedef struct {
 static authorizedConn_t authorizedConn = {0, 0};
 
 // Size of dynamic HTML page
-#define HTML_PAGE_SIZE 1024 * 16
+#define HTML_PAGE_SIZE 1024 * 28
 #if HTML_PAGE_SIZE > (MEM_SIZE - 1600)
 #error HTML_PAGE_SIZE needs to be smaller then lwip MEM_SIZE!
 #endif
@@ -502,16 +502,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
             logAddress = webLog + (i * FRAM_MSG_SIZE);
             chprintf(chp, "%s%u.%s", html_tr_td, (logAddress / FRAM_MSG_SIZE) + 1 , html_e_td_td);
 
-            txBuffer[0] = CMD_25AA_READ;
-            txBuffer[1] = 0;
-            txBuffer[2] = (logAddress >> 8) & 0xFF;
-            txBuffer[3] = logAddress & 0xFF;
-
-            spiSelect(&SPID1);                  // Slave Select assertion.
-            spiSend(&SPID1, FRAM_HEADER_SIZE, txBuffer); // Send read command
-            spiReceive(&SPID1, FRAM_MSG_SIZE, rxBuffer);
-            spiUnselect(&SPID1);                // Slave Select de-assertion.
-
+            getLogEntry(logAddress);
             memcpy(&timeConv.ch[0], &rxBuffer[0], sizeof(timeConv.ch)); // Prepare timestamp
             decodeLog(&rxBuffer[4], logText, 1);
 
@@ -1348,7 +1339,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
         case PAGE_LOGIN:
           // Information table
           chprintf(chp, "%s%s%s", html_tr_td, text_User, html_e_td_td);
-          printPassInput(chp, 'u', "", NAME_LENGTH, MIN_PASS_LNEGTH);
+          printTextInputWMin(chp, 'u', "", NAME_LENGTH, MIN_PASS_LNEGTH);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Password, html_e_td_td);
           printPassInput(chp, 'p', "", NAME_LENGTH, MIN_PASS_LNEGTH);
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
