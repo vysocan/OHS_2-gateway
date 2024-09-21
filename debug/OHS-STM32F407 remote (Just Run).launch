@@ -31,8 +31,8 @@
     <stringAttribute key="org.eclipse.cdt.debug.mi.core.protocol" value="mi"/>
     <booleanAttribute key="org.eclipse.cdt.debug.mi.core.verboseMode" value="false"/>
     <stringAttribute key="org.eclipse.cdt.dsf.gdb.DEBUG_NAME" value="arm-none-eabi-gdb"/>
-    <booleanAttribute key="org.eclipse.cdt.dsf.gdb.REMOTE_TIMEOUT_ENABLED" value="false"/>
-    <stringAttribute key="org.eclipse.cdt.dsf.gdb.REMOTE_TIMEOUT_VALUE" value=""/>
+    <booleanAttribute key="org.eclipse.cdt.dsf.gdb.REMOTE_TIMEOUT_ENABLED" value="true"/>
+    <stringAttribute key="org.eclipse.cdt.dsf.gdb.REMOTE_TIMEOUT_VALUE" value="5"/>
     <booleanAttribute key="org.eclipse.cdt.dsf.gdb.UPDATE_THREADLIST_ON_SUSPEND" value="false"/>
     <intAttribute key="org.eclipse.cdt.launch.ATTR_BUILD_BEFORE_LAUNCH_ATTR" value="2"/>
     <stringAttribute key="org.eclipse.cdt.launch.COREFILE_PATH" value=""/>

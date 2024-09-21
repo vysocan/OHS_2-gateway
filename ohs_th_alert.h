@@ -33,13 +33,14 @@ void my_smtp_result_fn(void *arg, u8_t smtp_result, u16_t srv_err, err_t err){
 /*
  * Alert handling thread
  */
-static THD_WORKING_AREA(waAlertThread, 320);
+static THD_WORKING_AREA(waAlertThread, 512);
 static THD_FUNCTION(AlertThread, arg) {
   chRegSetThreadName(arg);
   msg_t msg;
   alertEvent_t *inMsg;
   uint8_t groupNum;
   int8_t resp;
+  err_t err; // lwip error type
 
   while (true) {
     msg = chMBFetchTimeout(&alert_mb, (msg_t*)&inMsg, TIME_INFINITE);
@@ -111,6 +112,43 @@ static THD_FUNCTION(AlertThread, arg) {
                     chprintf(console, "Email error, pending.\r\n");
                   }
                 }
+              }
+              break;
+            case 3: // MQTT
+              LOCK_TCPIP_CORE();
+              resp = mqtt_client_is_connected(&mqtt_client); // retain as temp value
+              UNLOCK_TCPIP_CORE();
+              if (resp) {
+                // Wait for free MQTT semaphore
+                if (chBSemWaitTimeout(&mqttSem, TIME_MS2I(100)) == MSG_OK) {
+                  // publish
+                  LOCK_TCPIP_CORE();
+                  err = mqtt_publish(&mqtt_client, MQTT_ALERT_TOPIC, &gprsSmsText[0], strlen(gprsSmsText),
+                                     0, 0, mqttPubRequestCB, NULL);
+                  UNLOCK_TCPIP_CORE();
+                  if(err != ERR_OK) {
+                    chprintf(console, "MQTT error: %d\r\n", err);
+                    // Publish error
+                    tmpLog[0] = 'Q'; tmpLog[1] = 'E'; tmpLog[2] = 'P'; tmpLog[3] = abs(err); pushToLog(tmpLog, 4);
+                    // Release semaphore in case of publish error, as CB is not called
+                    chBSemSignal(&mqttSem);
+                  } else {
+                    chprintf(console, "MQTT OK\r\n");
+                    CLEAR_CONF_MQTT_SEMAPHORE_ERROR_LOG(conf.mqtt.setting);
+                  }
+                } else {
+                  chprintf(console, "MQTT timeout!\r\n");
+                  // Log this event
+                  if (!GET_CONF_MQTT_SEMAPHORE_ERROR_LOG(conf.mqtt.setting)) {
+                    pushToLogText("QET");
+                    SET_CONF_MQTT_SEMAPHORE_ERROR_LOG(conf.mqtt.setting);
+                  }
+                  // Reset the semaphore to allow next publish
+                  //chBSemReset(&mqttSem, false);
+                }
+              } // MQTT client connected
+              else {
+                chprintf(console, "MQTT not connected\r\n");
               }
               break;
             default: // NOP

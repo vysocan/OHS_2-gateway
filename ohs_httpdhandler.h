@@ -330,7 +330,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
             printOkNok(chp, GET_CONF_KEY_ENABLED(conf.key[i].setting));
             chprintf(chp, "%s", html_e_td_td);
             uint32Conv.val = conf.key[i].value;
-            printKey(chp, (char *)&uint32Conv.byte[0]);
+            printKey(chp, (uint8_t *)&uint32Conv.byte[0]);
             chprintf(chp, "%s", html_e_td_e_tr);
           }
           chprintf(chp, "%s", html_e_table);
@@ -365,7 +365,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%u%s%u", html_t_tag_1, KEY_LENGTH * 2, html_s_tag_2, KEY_LENGTH * 2);
           chprintf(chp, "%sk%s", html_s_tag_3, html_m_tag);
           uint32Conv.val = conf.key[webKey].value;
-          printKey(chp, (char *)&uint32Conv.byte[0]);
+          printKey(chp, (uint8_t *)&uint32Conv.byte[0]);
           chprintf(chp, "%s%k%s", html_id_tag, html_e_tag);
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           // Buttons

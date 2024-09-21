@@ -127,8 +127,11 @@ void printNodeValue(BaseSequentialStream *chp, const uint8_t index) {
     case 'B': chprintf(chp, "%.2f V", node[index].value); break;
     case 'G': chprintf(chp, "%.2f ppm", node[index].value); break;
     case 'i':
-      if ((uint8_t)node[index].value != DUMMY_NO_VALUE) {
+      // Check if key index is valid
+      if ((uint8_t)node[index].value < KEYS_SIZE) {
         chprintf(chp, "%s", conf.contact[conf.key[(uint8_t)node[index].value].contact].name);
+      } else {
+        chprintf(chp, "%s", text_unknown);
       }
       break;
     default: chprintf(chp, "%.2f", node[index].value); break;

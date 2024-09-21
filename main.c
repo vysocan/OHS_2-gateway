@@ -98,10 +98,7 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 #include "lwip/apps/sntp.h"
 #include "lwip/apps/smtp.h"
 #include "lwip/apps/mdns.h"
-
-#include "lwip/inet.h"
-#include "lwip/apps/http_client.h"
-
+// HTTPD OHS handler
 #include "ohs_httpdhandler.h"
 // MQTT
 #include "lwip/apps/mqtt_priv.h" // Needed for conf.mqtt
@@ -125,9 +122,7 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 #include "ohs_th_trigger.h"
 #include "ohs_th_tcl.h"
 #include "ohs_th_mqtt.h"
-//static THD_WORKING_AREA(waShell, 3*1024);
 #include "ohs_th_heartbeat.h"
-
 #define SHELL_WA_SIZE THD_WORKING_AREA_SIZE(2*1024)
 
 #if LWIP_MDNS_RESPONDER
@@ -168,7 +163,7 @@ int main(void) {
   initRuntimeNodes();
   // RS485
   rs485Start(&RS485D2, &rs485cfg);
-  chprintf(console, "RS485 timeout: %d(uS)/%d(tick)\r\n", RS485D2.oneByteTimeUS, RS485D2.oneByteTimeI);
+  // chprintf(console, "RS485 timeout: %d(uS)/%d(tick)\r\n", RS485D2.oneByteTimeUS, RS485D2.oneByteTimeI);
 
   // Ethernet
   macAddr[0] = LWIP_ETHADDR_0; macAddr[1] = LWIP_ETHADDR_1; macAddr[2] = LWIP_ETHADDR_2;
@@ -263,7 +258,6 @@ int main(void) {
   chThdCreateStatic(waTclThread, sizeof(waTclThread), LOWPRIO + 1, tclThread, (void*)"tcl");
   chThdCreateStatic(waMqttThread, sizeof(waMqttThread), NORMALPRIO - 2, MqttThread, (void*)"mqtt");
   //chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg);
-  chThdCreateFromHeap(NULL, SHELL_WA_SIZE,"shell", NORMALPRIO + 1, shellThread, (void *)&shell_cfg);
   chThdCreateStatic(waHeartBeatThread, sizeof(waHeartBeatThread), LOWPRIO, HeartBeatThread, (void*)"h-beat");
 
   // LWIP
@@ -293,12 +287,28 @@ int main(void) {
 
   // Check if we have 1.4 -> 1.5 version update
   if ((conf.versionMajor == 1) && (conf.versionMinor == 4) && (OHS_MINOR == 5)) {
-      // Set new version conf struct changes
+    // Set new version conf struct changes
 
-      // Save the changes
-      conf.versionMajor = OHS_MAJOR;
-      conf.versionMinor = OHS_MINOR;
-      writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+    // Copy alerts to new location
+    conf.alert[0] = conf.dummy[0];
+    conf.alert[1] = conf.dummy[1];
+    conf.alert[2] = conf.dummy[2];
+    conf.alert[3] = 0;
+    // Save the changes
+    conf.versionMajor = OHS_MAJOR;
+    conf.versionMinor = OHS_MINOR;
+    writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+  } else if ((conf.versionMajor == 1) && (conf.versionMinor == 5) && (OHS_MOD == 0))  {
+    // Copy alerts to new location
+    conf.alert[0] = conf.dummy[0];
+    conf.alert[1] = conf.dummy[1];
+    conf.alert[2] = conf.dummy[2];
+    conf.alert[3] = 0;
+
+    // Save the changes
+    conf.versionMajor = OHS_MAJOR;
+    conf.versionMinor = OHS_MINOR;
+    writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
   } else if (OHS_MINOR != conf.versionMinor) {
     // Unknown version change, clear all
     setConfDefault();
@@ -329,7 +339,6 @@ int main(void) {
   // Make MQTT Home Assistant Discovery uid
   chsnprintf(mqttHadUid, sizeof(mqttHadUid), "%s-%02x%02x%02x",
              OHS_NAME, macAddr[3], macAddr[4], macAddr[5]);
-
   // Set HTTPD connection ID to be "unique", to disallow Id=NULL as valid
   authorizedConn.id = STM32_UUID[0] + rand();
 

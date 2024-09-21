@@ -218,13 +218,12 @@ static THD_FUNCTION(MqttThread, arg) {
                   strncat(topic, &text_value[0], LWIP_MIN(strlen(text_value), (sizeof(topic)-strlen(topic))));
                   // Keys are string rest is float
                   if (node[inMsg->number].type == 'K') {
-                    // Check if key assignment to contact is valid
-                    if ((uint8_t)node[inMsg->number].value < CONTACTS_SIZE) {
+                    // Check if key index is valid
+                    if ((uint8_t)node[inMsg->number].value < KEYS_SIZE) {
                       chsnprintf(mqttPayload, sizeof(mqttPayload), "%s", conf.contact[conf.key[(uint8_t)node[inMsg->number].value].contact].name);
                     } else {
                       chsnprintf(mqttPayload, sizeof(mqttPayload), "%s", text_unknown);
                     }
-
                   } else {
                     chsnprintf(mqttPayload, sizeof(mqttPayload), "%.2f", node[inMsg->number].value);
                   }

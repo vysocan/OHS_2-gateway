@@ -31,7 +31,7 @@ void cbTimer (char *result) {
  * Service thread
  * Perform various housekeeping services
  */
-static THD_WORKING_AREA(waServiceThread, 256);
+static THD_WORKING_AREA(waServiceThread, 320);
 static THD_FUNCTION(ServiceThread, arg) {
   chRegSetThreadName(arg);
   time_t  tempTime, timeNow;

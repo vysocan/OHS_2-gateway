@@ -22,7 +22,7 @@
 #define OHS_NAME         "OHS"
 #define OHS_MAJOR        1
 #define OHS_MINOR        5
-#define OHS_MOD          0
+#define OHS_MOD          2
 
 #define BACKUP_SRAM_SIZE 0x1000 // 4kB SRAM size
 
@@ -71,11 +71,12 @@
 #define SIREN_MSG_LENGTH  3
 
 // MQTT
-#define MQTT_MAIN_TOPIC   OHS_NAME "/"
-#define MQTT_WILL_TOPIC   "state"
-#define MQTT_SET_TOPIC    "set/"
+#define MQTT_MAIN_TOPIC       OHS_NAME "/"
+#define MQTT_WILL_TOPIC       "state"
+#define MQTT_SET_TOPIC        "set/"
+#define MQTT_ALERT_TOPIC      MQTT_MAIN_TOPIC "alert"
 // MQTT Home Assistant Discovery
-#define MQTT_HAD_MAIN_TOPIC "homeassistant/"
+#define MQTT_HAD_MAIN_TOPIC   "homeassistant/"
 #define MQTT_HAD_CONFIG_TOPIC "config"
 
 // Parameter checks
@@ -396,7 +397,7 @@ typedef struct {
 } alertEvent_t;
 
 // Registration events
-#define REG_FIFO_SIZE 6
+#define REG_FIFO_SIZE 10
 typedef struct {
   char     type;
   uint8_t  address;
@@ -468,7 +469,8 @@ const alertType_t alertType[] = {
   // 1234567890
   { "SMS" },
   { "Page" },
-  { "Email" }
+  { "Email" },
+  { "MQTT" }
 };
 // Check alertType size
 typedef char check_alertType[ARRAY_SIZE(alertType) <= 8 ? 1 : -1];
@@ -691,7 +693,7 @@ typedef struct {
   contact_conf_t contact[CONTACTS_SIZE];
   key_conf_t     key[KEYS_SIZE];
 
-  uint32_t alert[ARRAY_SIZE(alertType)];
+  uint32_t dummy[3];
 
   char     SNTPAddress[URL_LENGTH];
   uint8_t  timeStdWeekNum;//First, Second, Third, Fourth, or Last week of the month
@@ -725,6 +727,8 @@ typedef struct {
   char     radioKey[RADIO_KEY_SIZE];
 
   mqtt_conf_t mqtt;
+
+  uint32_t alert[ARRAY_SIZE(alertType)];
 
 } config_t;
 config_t conf __attribute__((section(".ram4")));

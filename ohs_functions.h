@@ -378,6 +378,8 @@ uint32_t sdbmHash(uint8_t *toHash, uint8_t length) {
 }
 /*
  * Check key value to saved keys
+ *
+ * @retval If key matches then key index, else DUMMY_NO_VALUE
  */
 uint8_t checkKey(uint8_t groupNum, armType_t armType, uint8_t *key, uint8_t length){
   uint8_t resp = DUMMY_NO_VALUE;
@@ -420,7 +422,8 @@ uint8_t checkKey(uint8_t groupNum, armType_t armType, uint8_t *key, uint8_t leng
       } // key matched
       else if (i == KEYS_SIZE-1) {
         // Log unknown keys
-        tmpLog[0] = 'A'; tmpLog[1] = 'U'; memcpy(&tmpLog[2], &keyHash, KEY_LENGTH); pushToLog(tmpLog, 10);
+        tmpLog[0] = 'A'; tmpLog[1] = 'U'; memcpy(&tmpLog[2], &keyHash, KEY_LENGTH);
+        pushToLog(tmpLog, 2 + KEY_LENGTH);
       }
     } // for
   } else {
@@ -614,7 +617,7 @@ void printFrmUpTime(BaseSequentialStream *chp, time_t *value) {
 /*
  * Print key HEX value
  */
-void printKey(BaseSequentialStream *chp, const char *value){
+void printKey(BaseSequentialStream *chp, const uint8_t *value){
   for (uint8_t i = KEY_LENGTH; i > 0 ; i--) {
     chprintf(chp, "%02x", value[i - 1]);
   }
@@ -785,7 +788,7 @@ static uint8_t decodeLog(char *in, char *out, bool full){
         case 'H': chprintf(chp, "%s %s", text_armed, text_home); break;
         case 'U': chprintf(chp, "%s %s ", text_is, text_unknown);
           if (full) {
-            printKey(chp, &in[2]);
+            printKey(chp, (uint8_t *)&in[2]);
           }
           break;
         case 'F': chprintf(chp, "%s %s", text_is, text_disabled); break;
