@@ -19,7 +19,7 @@
 // STM32 UID as Ethernet MAC
 #define STM32_UUID ((uint32_t *)UID_BASE)
 
-#define OHS_NAME         "OHS"
+#define OHS_NAME         "OHS2"
 #define OHS_MAJOR        1
 #define OHS_MINOR        5
 #define OHS_MOD          2
@@ -27,7 +27,7 @@
 #define BACKUP_SRAM_SIZE 0x1000 // 4kB SRAM size
 
 #define ALARM_GROUPS     10     // # of groups
-#define ALARM_ZONES      30     // # of zones
+#define ALARM_ZONES      56     // # of zones
 #define HW_ZONES         11     // # of hardware zones on gateway
 #define CONTACTS_SIZE    10     // # of contacts
 #define KEYS_SIZE        20     // # of keys
@@ -428,7 +428,7 @@ typedef struct {
 } triggerEvent_t;
 
 // MQTT events
-#define MQTT_FIFO_SIZE 20 // To accommodate various sources like zones, groups, sensors
+#define MQTT_FIFO_SIZE 80 // To accommodate various sources like zones, groups, sensors
 typedef struct {
   mqttPubType_t type;         // Group, Sensor, Zone, System
   uint8_t number;             // index
