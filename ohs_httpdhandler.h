@@ -458,7 +458,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
                           text_0x, text_1x, text_2x, text_3x, 0);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_MQTT, text_publish, html_e_td_td);
                     printOnOffButton(chp, "d", GET_CONF_ZONE_MQTT_PUB(conf.zone[webZone]));
-          chprintf(chp, "%s%s %s %s%s", html_e_td_e_tr_tr_td, text_MQTT, text_HAD, text_Discovery, html_e_td_td);
+          chprintf(chp, "%s%s %s %s%s", html_e_td_e_tr_tr_td, text_MQTT, text_HA, text_Discovery, html_e_td_td);
                               printOnOffButton(chp, "c", GET_CONF_ZONE_MQTT_HAD(conf.zone[webZone]));
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Group, html_e_td_td);
           selectGroup(chp, GET_CONF_ZONE_GROUP(conf.zone[webZone]), 'g');

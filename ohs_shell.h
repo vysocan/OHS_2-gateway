@@ -189,6 +189,9 @@ static void cmd_net(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
 
   chprintf(chp, "Hostname   : " OHS_NAME SHELL_NEWLINE_STR);
+#if LWIP_MDNS_RESPONDER
+  chprintf(chp, "mDNS       : http://%s.local" SHELL_NEWLINE_STR, MDNS_HOSTANME);
+#endif
   chprintf(chp, "IP address : %s" SHELL_NEWLINE_STR, ip4addr_ntoa((ip4_addr_t *)&netInfo.ip));
   chprintf(chp, "Netmask    : %s" SHELL_NEWLINE_STR, ip4addr_ntoa((ip4_addr_t *)&netInfo.mask));
   chprintf(chp, "Gateway    : %s" SHELL_NEWLINE_STR, ip4addr_ntoa((ip4_addr_t *)&netInfo.gw));

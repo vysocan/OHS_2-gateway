@@ -22,10 +22,12 @@
 #define OHS_NAME         "OHS"
 #define OHS_MAJOR        1
 #define OHS_MINOR        5
-#define OHS_MOD          2
+#define OHS_MOD          3
 
 #define BACKUP_SRAM_SIZE 0x1000 // 4kB SRAM size
 
+// A change on following define(s) will corrupt backup SRAM integrity.
+// It will need to be setDefault.
 #define ALARM_GROUPS     10     // # of groups
 #define ALARM_ZONES      30     // # of zones
 #define HW_ZONES         11     // # of hardware zones on gateway

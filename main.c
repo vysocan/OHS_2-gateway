@@ -18,9 +18,6 @@
 // ChibiOS
 #include "ch.h"
 #include "hal.h"
-// ChibiOS tests
-#include "rt_test_root.h"
-#include "oslib_test_root.h"
 // Added from ChibiOS
 #include "shell.h"
 #include "chprintf.h"
@@ -97,13 +94,18 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 #include "lwip/apps/httpd.h"
 #include "lwip/apps/sntp.h"
 #include "lwip/apps/smtp.h"
+#if LWIP_MDNS_RESPONDER
+#define MDNS_HOSTANME "ohs"
 #include "lwip/apps/mdns.h"
+#endif
 // HTTPD OHS handler
 #include "ohs_httpdhandler.h"
 // MQTT
 #include "lwip/apps/mqtt_priv.h" // Needed for conf.mqtt
 #include "lwip/apps/mqtt.h"
 #include "ohs_mqtt_functions.h"
+// mDNS
+#include "ohs_mdns_functions.h"
 
 // Shell functions
 #include "ohs_shell.h"
@@ -124,23 +126,6 @@ char gprsSmsText[128] __attribute__((section(".ram4")));
 #include "ohs_th_mqtt.h"
 #include "ohs_th_heartbeat.h"
 #define SHELL_WA_SIZE THD_WORKING_AREA_SIZE(2*1024)
-
-#if LWIP_MDNS_RESPONDER
-static void srv_txt(struct mdns_service *service, void *txt_userdata){
-  err_t res;
-  LWIP_UNUSED_ARG(txt_userdata);
-
-  res = mdns_resp_add_service_txtitem(service, "path=/", 6);
-  chprintf(console, "mdns add service txt status %d.\r\n", res);
-}
-#endif
-
-#if LWIP_MDNS_RESPONDER
-static void mdns_example_report(struct netif* netif, u8_t result, s8_t service){
-  chprintf(console,"mdns status[netif %d][service %d]: %d\r\n", netif->num, service, result);
-}
-#endif
-
 /*
  * Application entry point.
  */
@@ -173,7 +158,7 @@ int main(void) {
   struct lwipthread_opts lwip_opts =
   { &macAddr[0], 0, 0, 0, NET_ADDRESS_DHCP
     #if LWIP_NETIF_HOSTNAME
-      , OHS_NAME "2"
+      , OHS_NAME
     #endif
     ,NULL, NULL
   };
@@ -262,21 +247,18 @@ int main(void) {
 
   // LWIP
   stats_init();
-  //ETH->MACFFR |= ETH_MACFFR_PAM;
   LOCK_TCPIP_CORE();
   httpd_init();
   sntp_init();
   UNLOCK_TCPIP_CORE();
-  // TODO OHS implement IGMP and MDNS
 #if LWIP_MDNS_RESPONDER
-  chThdSleepMilliseconds(100);
-  mdns_resp_register_name_result_cb(mdns_example_report);
+  ETH->MACFFR |= ETH_MACFFR_PAM; // Allow multicast
+  mdns_resp_register_name_result_cb(mdnsStatusReport);
+  LOCK_TCPIP_CORE();
   mdns_resp_init();
-  mdns_resp_add_netif(netif_default, "ohs");
-  //chprintf(console, "netif_default %x\r\n", netif_default);
-  mdns_resp_add_service(netif_default, "ohs", "_http", DNSSD_PROTO_TCP, 80, srv_txt, NULL);
-  //mdns_resp_announce(netif_default);
-  chThdSleepMilliseconds(100);
+  mdns_resp_add_netif(netif_default, MDNS_HOSTANME);
+  mdns_resp_add_service(netif_default, MDNS_HOSTANME, "_http", DNSSD_PROTO_TCP, 80, mdnsSrvTxt, NULL);
+  UNLOCK_TCPIP_CORE();
 #endif
 
   // Read last groups state

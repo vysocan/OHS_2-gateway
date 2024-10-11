@@ -140,12 +140,17 @@
 #define DNS_DOES_NAME_CHECK             1   /** DNS do a name checking between the query and the response. */
 // DHCP
 #define LWIP_DHCP 1
-// IGMP
-#define LWIP_IGMP 0
 // MDNS
 // IGMP multicast in hal_mac_lld.c
-#define LWIP_MDNS_RESPONDER 0
+#define LWIP_MDNS_RESPONDER 1
 #define LWIP_NUM_NETIF_CLIENT_DATA (LWIP_MDNS_RESPONDER) // +1 MDSN
+#if LWIP_MDNS_RESPONDER
+// IGMP
+#define LWIP_IGMP 1
+#else
+// IGMP
+#define LWIP_IGMP 0
+#endif
 // Rename thread name
 #define TCPIP_THREAD_NAME               "tcpip"
 
@@ -200,7 +205,7 @@
 #define SNTP_UPDATE_DELAY       3600000 // SNTP update every # milliseconds
 
 // Maximum segment size
-#define TCP_MSS 1024 // TODO OHS change to Ethernet size 1460 and test memory constraints
+#define TCP_MSS 1460
 
 // Number of rx pbufs to enqueue to parse an incoming request (up to the first newline)
 #define LWIP_HTTPD_REQ_QUEUELEN 7
