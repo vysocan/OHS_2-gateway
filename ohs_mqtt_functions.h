@@ -69,7 +69,7 @@ static void mqttIncomingPublishCB(void *arg, const char *topic, u32_t tot_len) {
 /*
  * MQTT subscribe data callback and processing
  *
- * Subscribe topics: MQTT_MAIN_TOPIC MQTT_SET_TOPIC #
+ * Subscribe topics: MQTT_MAIN_TOPIC MQTT_SET_TOPIC
  * /group
  *   /{#} - index of group {1 .. ALARM_GROUPS}
  *     /state - allowed commands {disarm, arm_home, arm_away}
