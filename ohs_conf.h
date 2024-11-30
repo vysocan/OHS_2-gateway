@@ -482,7 +482,8 @@ const char alertDef[][3] = {
   "SS", "SX", "SB", "SA", "SR",
   "GS", "GD", "GA",
   "ZP", "ZT", "ZO",
-  "AA", "AH", "AD", "AU", "AF"
+  "AA", "AH", "AD", "AU", "AF",
+  "D"
 };
 // Check alertDef size
 typedef char check_alertDef[ARRAY_SIZE(alertDef) <= 32 ? 1 : -1];
