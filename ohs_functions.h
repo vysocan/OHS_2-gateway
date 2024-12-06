@@ -562,6 +562,7 @@ void printNodeFunction(BaseSequentialStream *chp, const char function) {
     case 'F': chprintf(chp, "%s", text_Float); break;
     case 'X': chprintf(chp, "%s", text_TX_Power); break;
     case 'G': chprintf(chp, "%s", text_Gas); break;
+    case 'I': chprintf(chp, "%s", text_Illumination); break;
     default : chprintf(chp, "%s", text_Undefined); break;
   }
 }
@@ -845,6 +846,9 @@ static uint8_t decodeLog(char *in, char *out, bool full){
         case 'C' : chprintf(chp, "%s", text_connected); break;
         default : chprintf(chp, "%s", text_unknown); break;
       }
+      break;
+    case 'D': // Dummy alert
+      chprintf(chp, "%s %s", text_Alert, text_test);
       break;
     case 0xff:
       chprintf(chp, "%s", text_Empty);

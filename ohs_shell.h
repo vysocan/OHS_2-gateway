@@ -190,7 +190,7 @@ static void cmd_net(BaseSequentialStream *chp, int argc, char *argv[]) {
 
   chprintf(chp, "Hostname   : " OHS_NAME SHELL_NEWLINE_STR);
 #if LWIP_MDNS_RESPONDER
-  chprintf(chp, "mDNS       : http://%s.local" SHELL_NEWLINE_STR, MDNS_HOSTANME);
+  chprintf(chp, "mDNS       : http://" MDNS_HOSTANME ".local" SHELL_NEWLINE_STR);
 #endif
   chprintf(chp, "IP address : %s" SHELL_NEWLINE_STR, ip4addr_ntoa((ip4_addr_t *)&netInfo.ip));
   chprintf(chp, "Netmask    : %s" SHELL_NEWLINE_STR, ip4addr_ntoa((ip4_addr_t *)&netInfo.mask));
@@ -223,6 +223,23 @@ static void cmd_boot(BaseSequentialStream *chp, int argc, char *argv[]) {
 
   // Rest is error
   shellUsage(chp, "boot dfu - reboot to DfuSe firmware upgrade mode.");
+}
+/*
+ * Applet to reset admin
+ */
+static void cmd_reset(BaseSequentialStream *chp, int argc, char *argv[]) {
+
+  if (argc == 1) {
+    if (strcmp(argv[0], "pass") == 0) {
+      strcpy(conf.user, "admin");
+      strcpy(conf.password, "pass");
+      chprintf(chp, "Admin user and pasword is reset." SHELL_NEWLINE_STR);
+      return;
+    }
+  }
+
+  // Rest is error
+  shellUsage(chp, "reset pass - reset admin user to default");
 }
 /*
  * Applet to show threads with used information
@@ -330,6 +347,7 @@ static const ShellCommand commands[] = {
   {"ubs",  cmd_ubs},
   {"network",  cmd_net},
   {"boot",  cmd_boot},
+  {"reset",  cmd_reset},
 #if SHELL_SHOW_PIN
   {"showpin", cmd_showpin},
 #endif

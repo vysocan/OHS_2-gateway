@@ -69,7 +69,7 @@ static void mqttIncomingPublishCB(void *arg, const char *topic, u32_t tot_len) {
 /*
  * MQTT subscribe data callback and processing
  *
- * Subscribe topics: MQTT_MAIN_TOPIC MQTT_SET_TOPIC #
+ * Subscribe topics: MQTT_MAIN_TOPIC MQTT_SET_TOPIC
  * /group
  *   /{#} - index of group {1 .. ALARM_GROUPS}
  *     /state - allowed commands {disarm, arm_home, arm_away}
@@ -240,6 +240,14 @@ static void mqttConnectionCB(mqtt_client_t *client, void *arg, mqtt_connection_s
     // MQTT Home Assistant Discovery
     if (GET_CONF_MQTT_HAD(conf.mqtt.setting)) {
       pushToMqttHAD(typeSystem, 0, functionHAD, 1);
+    }
+
+    // Re-publish zone states
+    for (uint8_t i=0; i < ALARM_ZONES ; i++) {
+      if ((GET_CONF_ZONE_ENABLED(conf.zone[i]))
+          && (GET_CONF_ZONE_MQTT_PUB(conf.zone[i]))) {
+          pushToMqtt(typeZone, i, functionState);
+      }
     }
   } else {
     DBG_MQTT_FUNC("MQTT ConnectionCB: Disconnected, reason: %d\r\n", status);

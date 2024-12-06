@@ -94,9 +94,9 @@ static THD_FUNCTION(MqttThread, arg) {
                       "{\"name\":\"%s %s\",\"obj_id\":\"%s\",\"uniq_id\":\"%s\","
                         "\"ent_cat\":\"diagnostic\",\"ic\":\"mdi:security-network\","
                         "\"pl_on\":\"%s\",\"pl_off\":\"%s\",\"stat_t\":\"%s%s\","
-                        "\"dev\":{\"name\":\"%s\",\"ids\":\"%s\",\"mf\":\"Adam Baron\","
+                        "\"dev\":{\"name\":\"%s\",\"ids\":\"%s\",\"mf\":\"vysocan\","
                         "\"mdl\":\"Open Home Security\","
-                        "\"hw\":\"2.0.4\",\"sw\":\"%u.%u.%u\",\"cu\":\"http://%s\"}}",
+                        "\"hw\":\"2.0.x\",\"sw\":\"%u.%u.%u\",\"cu\":\"http://%s\"}}",
                       text_System, text_State, text_state, mqttHadUid, text_On, text_Off, MQTT_MAIN_TOPIC, text_state,
                         OHS_NAME, mqttHadUid, OHS_MAJOR, OHS_MINOR, OHS_MOD, ip4addr_ntoa((ip4_addr_t *)&netInfo.ip));
                   } else {

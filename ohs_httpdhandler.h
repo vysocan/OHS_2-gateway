@@ -488,7 +488,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           }
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           // Buttons
-          chprintf(chp, "%s%s", html_Apply, html_Save);
+          chprintf(chp, "%s%s%s", html_Apply, html_Save, html_SendDummy);
           break;
         case PAGE_LOG:
           chprintf(chp, "%s#", html_tr_th);
@@ -1748,6 +1748,9 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                 break;
                 case 'e': // save
                   writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+                break;
+                case 'M': // dummy alert
+                  pushToLogText("D");
                 break;
               }
             } while (repeat);

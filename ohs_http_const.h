@@ -73,6 +73,7 @@ const char html_Save[]              = "<input type='submit' name='e' value='Save
 const char html_Disarm[]            = "<input type='submit' name='D' value='Disarm'/>";
 const char html_LoadDefault[]       = "<input type='submit' name='D' value='Load defaults'/>";
 const char html_Reregister[]        = "<input type='submit' name='R' value='Call registration'/>";
+const char html_SendDummy[]         = "<input type='submit' name='M' value='Send Dummy'/>";
 const char html_Now[]               = "<input type='submit' name='N' value='Now'/>";
 const char html_FR[]                = "<input type='submit' name='R' value='<<'/>";
 const char html_R[]                 = "<input type='submit' name='r' value='<'/>";
