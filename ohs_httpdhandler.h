@@ -488,7 +488,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           }
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           // Buttons
-          chprintf(chp, "%s%s%s", html_Apply, html_Save, html_SendDummy);
+          chprintf(chp, "%s%s%s", html_Apply, html_Save, html_SendTest);
           break;
         case PAGE_LOG:
           chprintf(chp, "%s#", html_tr_th);
