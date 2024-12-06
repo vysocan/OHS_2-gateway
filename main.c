@@ -267,30 +267,10 @@ int main(void) {
   readFromBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
   chprintf(console, "Size of conf: %u, group: %u\r\n", sizeof(conf), sizeof(group));
 
-  // Check if we have 1.4 -> 1.5 version update
-  if ((conf.versionMajor == 1) && (conf.versionMinor == 4) && (OHS_MINOR == 5)) {
+  // Check if we have 1.5.0 -> 1.5.x version update
+  if ((conf.versionMajor == 1) && (conf.versionMinor == 5)) {
     // Set new version conf struct changes
 
-    // Copy alerts to new location
-    conf.alert[0] = conf.dummy[0];
-    conf.alert[1] = conf.dummy[1];
-    conf.alert[2] = conf.dummy[2];
-    conf.alert[3] = 0;
-    // Save the changes
-    conf.versionMajor = OHS_MAJOR;
-    conf.versionMinor = OHS_MINOR;
-    writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
-  } else if ((conf.versionMajor == 1) && (conf.versionMinor == 5) && (OHS_MOD == 0))  {
-    // Copy alerts to new location
-    conf.alert[0] = conf.dummy[0];
-    conf.alert[1] = conf.dummy[1];
-    conf.alert[2] = conf.dummy[2];
-    conf.alert[3] = 0;
-
-    // Save the changes
-    conf.versionMajor = OHS_MAJOR;
-    conf.versionMinor = OHS_MINOR;
-    writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
   } else if (OHS_MINOR != conf.versionMinor) {
     // Unknown version change, clear all
     setConfDefault();
