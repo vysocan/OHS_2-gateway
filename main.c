@@ -190,9 +190,6 @@ int main(void) {
 
   shellInit();
 
-  // Creating the mailboxes.
-  //chMBObjectInit(&alarmEvent_mb, alarmEvent_mb_buffer, ALARM_EVENT_FIFO_SIZE);
-
   // Pools
   chPoolObjectInit(&alarmEvent_pool, sizeof(alarmEvent_t), NULL);
   chPoolObjectInit(&logger_pool, sizeof(loggerEvent_t), NULL);
@@ -215,6 +212,9 @@ int main(void) {
   // SPI
   spiStart(&SPID1, &spi1cfg);
   // RFM69
+  if (GET_CONF_SYSTEM_FLAG_RADIO_FREQ(conf.systemFlags)) {
+    rfm69cfg.freqBand = RF69_915MHZ;
+  }
   rfm69Start(&rfm69cfg);
   rfm69SetHighPower(true); // long range version
 
@@ -283,7 +283,6 @@ int main(void) {
     writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);
   }
 
-  // TODO OHS Allow driver to set frequency
   // RFM69 key
   if (conf.radioKey[0] != 0) rfm69Encrypt(conf.radioKey);
 
