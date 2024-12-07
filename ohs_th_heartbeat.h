@@ -24,6 +24,9 @@ static THD_FUNCTION(HeartBeatThread, arg) {
     chThdSleepMilliseconds(time);
     palClearPad(GPIOC, GPIOC_HEARTBEAT);
     chThdSleepMilliseconds(500);
+
+    // Reset
+    wdgReset(&WDGD1);
   }
 }
 

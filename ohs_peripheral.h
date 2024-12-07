@@ -158,7 +158,7 @@ static const ADCConversionGroup adcgrpcfg1 = {
  */
 static const WDGConfig wdgcfg = {
   STM32_IWDG_PR_64,
-  STM32_IWDG_RL(1000)
+  STM32_IWDG_RL(2000) // ~2000ms
 };
 
 #endif /* OHS_PERIPHERAL_H_ */

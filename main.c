@@ -313,6 +313,9 @@ int main(void) {
     if (GET_CONF_TIMER_ENABLED(conf.timer[i].setting)) setTimer(i, true);
   }
 
+  // Starting the watchdog driver.
+  wdgStart(&WDGD1, &wdgcfg);
+
   // Idle runner
   while (true) {
     chThdSleepMilliseconds(100);
