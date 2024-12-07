@@ -15,7 +15,9 @@
  *
  * FREE_MAP   - Creates free block map. Free blocks are then searched in memory map
  *              rather then in FRAM.
- * MASTER_MAP - Creates master block map. Not yet implemented.
+ * MASTER_MAP - Creates master block map. Master blocks are then searched in memory map
+ *              rather then in FRAM.
+ *              Not yet fully implemented.
  */
 #define UBS_USE_FREE_MAP      0 // Put 0 or 1
 #define UBS_USE_MASTER_MAP    0 // Put 0 or 1

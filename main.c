@@ -186,7 +186,7 @@ int main(void) {
   memset(&gprsSystemInfo[0], 0, sizeof(gprsSystemInfo));
   memset(&logText[0], 0, LOG_TEXT_LENGTH);
   memset(&mqttPayload[0], 0, MQTT_PAYLOAD_LENGTH);
-  memset(&httpAlertMsg[0], 0 , HTTP_ALERT_MSG_SIZE); // Empty alert message
+  memset(&httpAlertMsg[0], 0 , HTTP_ALERT_MSG_SIZE);
 
   shellInit();
 
