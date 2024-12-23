@@ -133,6 +133,9 @@ int main(void) {
   halInit();
   chSysInit();
 
+  // Retrieve the reset reason
+  uint8_t resetReason = get_reset_reason();
+
   // Semaphores
   chBSemObjectInit(&gprsSem, false);
   chBSemObjectInit(&emailSem, false);
@@ -315,6 +318,9 @@ int main(void) {
 
   // Starting the watchdog driver.
   wdgStart(&WDGD1, &wdgcfg);
+  // Log reset reason
+  tmpLog[0] = 'S'; tmpLog[1] = 'r'; tmpLog[2] = resetReason;
+  pushToLog(tmpLog, 3);
 
   // Idle runner
   while (true) {

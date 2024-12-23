@@ -744,7 +744,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           printTextInputWMin(chp, 'K', conf.radioKey, RADIO_KEY_SIZE - 1, RADIO_KEY_SIZE - 1);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Frequency, html_e_td_td);
           printTwoButton(chp, "i", GET_CONF_SYSTEM_FLAG_RADIO_FREQ(conf.systemFlags), 0, 0b00,
-                                   "868 Mhz", "915 Mhz");
+                                   "868 MHz", "915 MHz");
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
 
           chprintf(chp, "<h1>%s</h1>\r\n%s", text_SMTP, html_table);

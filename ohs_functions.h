@@ -694,6 +694,23 @@ static uint8_t decodeLog(char *in, char *out, bool full){
             chprintf(chp, " %s", text_state);
           }
           break;
+        case 'r': chprintf(chp, "%s %s: ", text_reset, text_reason);
+          if (((uint32_t)in[2]<<24) & RCC_CSR_LPWRRSTF) {
+            chprintf(chp, "%s %s", text_low, text_power);
+          } else if (((uint32_t)in[2]<<24) & RCC_CSR_WWDGRSTF) {
+              chprintf(chp, "%s", text_watchdog);
+          } else if (((uint32_t)in[2]<<24) & RCC_CSR_IWDGRSTF) {
+              chprintf(chp, "%s %s", text_independent, text_watchdog);
+          } else if (((uint32_t)in[2]<<24) & RCC_CSR_SFTRSTF) {
+              chprintf(chp, "%s", text_software);
+          } else if (((uint32_t)in[2]<<24) & RCC_CSR_PORRSTF) {
+              chprintf(chp, "%s", text_power_on);
+          } else if (((uint32_t)in[2]<<24) & RCC_CSR_PADRSTF) {
+              chprintf(chp, "%s", text_reset);
+          } else if (((uint32_t)in[2]<<24) & RCC_CSR_BORRSTF) {
+              chprintf(chp, "%s", text_brown_out);
+          }
+          break;
         default: chprintf(chp, "%s", text_unknown); break; // unknown
       }
     break;
@@ -862,6 +879,19 @@ static uint8_t decodeLog(char *in, char *out, bool full){
   //chprintf(chp, "."); // "." as end
 
   return groupNum;
+}
+/*
+ * Function to retrieve the reset reason
+ */
+uint8_t get_reset_reason(void) {
+  // Read the RCC Control/Status register and move the result to 8 bit int
+  // RCC_CSR_RMVF as 0
+  uint8_t reset_reason = (RCC->CSR >> 24);
+
+  // Clear the reset flags by setting the RMVF bit
+  RCC->CSR |= RCC_CSR_RMVF;
+
+  return reset_reason;
 }
 
 #endif /* OHS_FUNCTIONS_H_ */
