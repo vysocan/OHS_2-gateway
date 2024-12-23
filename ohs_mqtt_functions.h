@@ -76,6 +76,8 @@ static void mqttIncomingPublishCB(void *arg, const char *topic, u32_t tot_len) {
  * /sensor - allowed only  for 'I'nput nodes
  *   /{address} - node address like W:2:I:D:0
  *     /value - float value
+ * /zone
+ *   /refresh - request for all zones status republish
  *
  * ToDo:
  * /SMS - send SMS to contact
@@ -174,6 +176,17 @@ static void mqttIncomingDataCB(void *arg, const u8_t *data, u16_t len, u8_t flag
           }
         }
       } // Sensors
+      // Zones
+      else if (strcmp(pch, text_zone) == 0) {
+        pch = strtok(NULL, "/");
+        if (pch != NULL) {
+          // refresh
+          if (strcmp(pch, text_refresh) == 0) {
+            DBG_MQTT_FUNC(", refresh");
+            mqttRefreshZonesState();
+          }
+        }
+      } // Zones
       else {
         DBG_MQTT_FUNC(" %s", text_unknown);
       }
@@ -243,12 +256,8 @@ static void mqttConnectionCB(mqtt_client_t *client, void *arg, mqtt_connection_s
     }
 
     // Re-publish zone states
-    for (uint8_t i=0; i < ALARM_ZONES ; i++) {
-      if ((GET_CONF_ZONE_ENABLED(conf.zone[i]))
-          && (GET_CONF_ZONE_MQTT_PUB(conf.zone[i]))) {
-          pushToMqtt(typeZone, i, functionState);
-      }
-    }
+    mqttRefreshZonesState();
+
   } else {
     DBG_MQTT_FUNC("MQTT ConnectionCB: Disconnected, reason: %d\r\n", status);
     SET_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting);

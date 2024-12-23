@@ -57,14 +57,8 @@ static THD_FUNCTION(ZoneThread, arg) {
   chThdSleepSeconds(1);
 
   // Manage zone MQTT publish
-  for (uint8_t i=0; i < ALARM_ZONES ; i++) {
-    if (GET_CONF_ZONE_ENABLED(conf.zone[i])) {
-      // MQTT Pub
-      if (GET_CONF_ZONE_MQTT_PUB(conf.zone[i])) {
-        pushToMqtt(typeZone, i, functionName);
-      }
-    }
-  }
+  mqttRefreshZonesState();
+
   // Delay to allow MQTT to proceed
   chThdSleepSeconds(1);
 

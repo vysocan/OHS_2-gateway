@@ -145,6 +145,18 @@ void mqttGlobalHAD(uint8_t state) {
   }
 }
 /*
+ * mqttRefreshZonesState
+ */
+void mqttRefreshZonesState(void) {
+  // Re-publish zone states
+  for (uint8_t i=0; i < ALARM_ZONES ; i++) {
+    if ((GET_CONF_ZONE_ENABLED(conf.zone[i]))
+      && (GET_CONF_ZONE_MQTT_PUB(conf.zone[i]))) {
+        pushToMqtt(typeZone, i, functionState);
+    }
+  }
+}
+/*
  * Send data to node
  */
 int8_t sendData(uint8_t address, const uint8_t *data, uint8_t length){

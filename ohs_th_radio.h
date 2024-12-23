@@ -99,7 +99,9 @@ static THD_FUNCTION(RadioThread, arg) {
               node[nodeIndex].value = (float)checkKey(GET_NODE_GROUP(node[nodeIndex].setting),
                        (rfm69Data.data[2] % 2), &rfm69Data.data[3], rfm69Data.length - 4);
               // MQTT
-              if (GET_NODE_MQTT(node[nodeIndex].setting)) pushToMqtt(typeZone, nodeIndex, functionValue);
+              if (GET_NODE_MQTT(node[nodeIndex].setting)) {
+                pushToMqtt(typeSensor, nodeIndex, functionValue);
+              }
             } else {
               // log disabled remote nodes
               tmpLog[0] = 'N'; tmpLog[1] = 'F'; tmpLog[2] = rfm69Data.senderId + RADIO_UNIT_OFFSET;

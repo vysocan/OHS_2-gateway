@@ -170,6 +170,7 @@ const char text_analog[]            = "analog";
 const char text_digital[]           = "digital";
 const char text_Zone[]              = "Zone";
 const char text_zone[]              = "zone";
+const char text_refresh[]           = "refresh";
 const char text_delay[]             = "delay";
 const char text_SMS[]               = "SMS";
 const char text_Page[]              = "Page";
