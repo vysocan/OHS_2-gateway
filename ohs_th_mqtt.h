@@ -206,12 +206,44 @@ static THD_FUNCTION(MqttThread, arg) {
                 (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? node[inMsg->number].address : (node[inMsg->number].address - RADIO_UNIT_OFFSET),
                 node[inMsg->number].type, node[inMsg->number].function,
                 node[inMsg->number].number);
-
               switch (inMsg->function) {
                 case functionName:
                   retain = 1;
                   strncat(topic, &text_name[0], LWIP_MIN(strlen(text_name), (sizeof(topic)-strlen(topic))));
                   chsnprintf(mqttPayload, sizeof(mqttPayload), "%s", node[inMsg->number].name);
+                  break;
+                case functionHAD:
+                  chsnprintf(topic, sizeof(topic), "%s%s/%s-%c%u%c%c%u/%s",
+                             MQTT_HAD_MAIN_TOPIC, text_sensor, mqttHadUid,
+                             (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? 'W' : 'R',
+                             (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? node[inMsg->number].address : (node[inMsg->number].address - RADIO_UNIT_OFFSET),
+                             node[inMsg->number].type, node[inMsg->number].function,
+                             node[inMsg->number].number, MQTT_HAD_CONFIG_TOPIC);
+                  if (inMsg->extra) {
+                    chsnprintf(mqttPayload, sizeof(mqttPayload),
+                      "{\"name\":\"%s: %s\",\"obj_id\":\"%s\","
+                        "\"uniq_id\":\"%s-%c%u%c%c%u/%s\","
+                        "\"stat_t\":\"%s%s/%c:%u:%c:%c:%u/%s\","
+                        "\"dev_cla\":\"%s\","
+                        "\"unit_of_meas\":\"%s\"",
+                        "\"dev\":{\"ids\":\"%s\"}}",
+                        getNodeFunctionString(node[inMsg->number].function), node[inMsg->number].name,
+                        text_state, mqttHadUid, inMsg->number + 1,
+                        (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? 'W' : 'R',
+                        (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? node[inMsg->number].address : (node[inMsg->number].address - RADIO_UNIT_OFFSET),
+                        node[inMsg->number].type, node[inMsg->number].function,
+                        node[inMsg->number].number,
+                        MQTT_MAIN_TOPIC, text_sensor,
+                        (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? 'W' : 'R',
+                        (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? node[inMsg->number].address : (node[inMsg->number].address - RADIO_UNIT_OFFSET),
+                        node[inMsg->number].type, node[inMsg->number].function,
+                        node[inMsg->number].number, text_value,
+                        getNodeFunctionHAClass(node[inMsg->number].function),
+                        getNodeFunctionHAClassUnit(node[inMsg->number].function),
+                        mqttHadUid);
+                  } else {
+                    chsnprintf(mqttPayload, sizeof(mqttPayload),""); // Empty payload to remove it
+                  }
                   break;
                 default: // Value
                   retain = 0;

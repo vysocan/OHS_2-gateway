@@ -122,7 +122,7 @@ void printNodeValue(BaseSequentialStream *chp, const uint8_t index) {
     case 'T': chprintf(chp, "%.2f °C", node[index].value); break;
     case 'H':
     case 'X': chprintf(chp, "%.2f %%", node[index].value); break;
-    case 'P': chprintf(chp, "%.2f mBar", node[index].value); break;
+    case 'P': chprintf(chp, "%.2f mbar", node[index].value); break;
     case 'V':
     case 'B': chprintf(chp, "%.2f V", node[index].value); break;
     case 'G': chprintf(chp, "%.2f ppm", node[index].value); break;

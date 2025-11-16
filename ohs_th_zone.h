@@ -71,7 +71,7 @@ static THD_FUNCTION(ZoneThread, arg) {
         group[i].armDelay--;
         if (group[i].armDelay == 0) {
           SET_GROUP_ARMED(group[i].setting); // Arm group
-          sendCmdToGrp(i, NODE_CMD_ARMED, 'K');  // Send arm message to all nodes
+          sendCmdToGrp(i, NODE_CMD_ARMED_AWAY, 'K');  // Send arm message to all nodes
           tmpLog[0] = 'G'; tmpLog[1] = 'S'; tmpLog[2] = i;  pushToLog(tmpLog, 3);
           // Save group state
           writeToBkpRTC((uint8_t*)&group, sizeof(group), 0);

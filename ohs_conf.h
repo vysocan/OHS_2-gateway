@@ -22,7 +22,7 @@
 #define OHS_NAME         "OHS"
 #define OHS_MAJOR        1
 #define OHS_MINOR        5
-#define OHS_MOD          4
+#define OHS_MOD          5
 
 #define BACKUP_SRAM_SIZE 0x1000 // 4kB SRAM size
 
@@ -105,8 +105,9 @@
 #define NODE_CMD_AUTH_1       12
 #define NODE_CMD_AUTH_2       13
 #define NODE_CMD_AUTH_3       14
-#define NODE_CMD_ARMED        15
+#define NODE_CMD_ARMED_AWAY   15
 #define NODE_CMD_DISARM       16
+#define NODE_CMD_ARMED_HOME   17
 
 // Bit wise macros for various settings
 #define GET_CONF_ZONE_ENABLED(x)     ((x) & 0b1)
@@ -315,13 +316,16 @@
 #define GET_NODE_ENABLED(x)    ((x) & 0b1)
 #define GET_NODE_GROUP(x)      ((x >> 1U) & 0b1111)
 #define GET_NODE_BATT_LOW(x)   ((x >> 5U) & 0b1)
+#define GET_NODE_MQTT_HAD(x)   ((x >> 6U) & 0b1)
 #define GET_NODE_MQTT(x)       ((x >> 7U) & 0b1)
 #define SET_NODE_ENABLED(x)    x |= 1
 #define SET_NODE_GROUP(x,y)    x = (((x)&(0b1111111111100001))|(((y & 0b1111) << 1U)&(0b0000000000011110)))
 #define SET_NODE_BATT_LOW(x)   x |= (1 << 5U)
+#define SET_NODE_MQTT_HAD(x)   x |= (1 << 6U)
 #define SET_NODE_MQTT(x)       x |= (1 << 7U)
 #define CLEAR_NODE_ENABLED(x)  x &= ~1
 #define CLEAR_NODE_BATT_LOW(x) x &= ~(1 << 5U)
+#define CLEAR_NODE_MQTT_HAD(x) x &= ~(1 << 6U)
 #define CLEAR_NODE_MQTT(x)     x &= ~(1 << 7U)
 
 // Helper macros. Do not use in functions parameter!

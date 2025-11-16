@@ -60,7 +60,7 @@ static THD_FUNCTION(RegistrationThread, arg) {
                     sendCmd(inMsg->address, NODE_CMD_AUTH_1);
                   } else {
                     if (GET_GROUP_ARMED(group[groupNum].setting)) {
-                      sendCmd(inMsg->address, NODE_CMD_ARMED);
+                      sendCmd(inMsg->address, NODE_CMD_ARMED_AWAY);
                     } else {
                       if (group[groupNum].armDelay > 0) {
                         sendCmd(inMsg->address, NODE_CMD_ARMING);

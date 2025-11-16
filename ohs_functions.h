@@ -549,35 +549,71 @@ bool isPhoneNum(const char* num) {
 /*
  * Print node type
  */
-void printNodeType(BaseSequentialStream *chp, const char type) {
+const char *getNodeTypeString(const char type) {
   switch(type){
-    case 'K': chprintf(chp, "%s", text_Authentication); break;
-    case 'S': chprintf(chp, "%s", text_Sensor); break;
-    case 'I': chprintf(chp, "%s", text_Output); break;
-    case 'H': chprintf(chp, "%s", text_Siren); break;
-    default: chprintf(chp, "%s", text_Undefined); break;
+    case 'K': return text_Authentication;
+    case 'S': return text_Sensor;
+    case 'I': return text_Output;
+    case 'H': return text_Siren;
+    default : return text_Undefined;
   }
 }
 /*
  * Print node function
  */
-void printNodeFunction(BaseSequentialStream *chp, const char function) {
+const char *getNodeFunctionString(const char function) {
   switch(function){
-    case 'i': chprintf(chp, "%s", text_iButton); break;
-    case 'T': chprintf(chp, "%s", text_Temperature); break;
-    case 'H': chprintf(chp, "%s", text_Humidity); break;
-    case 'P': chprintf(chp, "%s", text_Pressure); break;
-    case 'V': chprintf(chp, "%s", text_Voltage); break;
-    case 'B': chprintf(chp, "%s", text_Battery); break;
-    case 'D': chprintf(chp, "%s", text_Digital); break;
-    case 'A': chprintf(chp, "%s", text_Analog); break;
-    case 'F': chprintf(chp, "%s", text_Float); break;
-    case 'X': chprintf(chp, "%s", text_TX_Power); break;
-    case 'G': chprintf(chp, "%s", text_Gas); break;
-    case 'I': chprintf(chp, "%s", text_Illumination); break;
-    default : chprintf(chp, "%s", text_Undefined); break;
+    case 'i': return text_iButton;
+    case 'f': return text_Fingerprint;
+    case 'T': return text_Temperature;
+    case 'H': return text_Humidity;
+    case 'P': return text_Pressure;
+    case 'V': return text_Voltage;
+    case 'B': return text_Battery;
+    case 'D': return text_Digital;
+    case 'A': return text_Analog;
+    case 'F': return text_Float;
+    case 'X': return text_TX_Power;
+    case 'G': return text_Gas;
+    case 'I': return text_Illumination;
+    default : return text_Undefined;
   }
 }
+const char *getNodeFunctionHAClass(const char function) {
+  switch(function){
+    case 'T': return text_temperature;
+    case 'H': return text_humidity;
+    case 'P': return text_pressure;
+    case 'V':
+    case 'B': return text_voltage;
+    case 'I': return text_illuminance;
+    default : return text_None;
+  }
+}
+const char *getNodeFunctionHAClassUnit(const char function) {
+  switch(function){
+    case 'T': return "°C";
+    case 'H': return "%";
+    case 'P': return "mbar";
+    case 'V':
+    case 'B': return "V";
+    case 'I': return "lx";
+    default : return "";
+  }
+}
+void printNodeFunction(BaseSequentialStream *chp, const char function) {
+  chprintf(chp, "%s", getNodeFunctionString(function));
+}
+/*
+ *
+ */
+//void addNodeAddressString(const uint8_t index, char *output, const uint8_t size) {
+//  strncat(output, (node[index].address < RADIO_UNIT_OFFSET) ? 'W' : 'R', LWIP_MIN(1, (size-strlen(output))));
+//  strncat(output, (node[index].address < RADIO_UNIT_OFFSET) ? node[index].address : (node[index].address - RADIO_UNIT_OFFSET), LWIP_MIN(3, (size-strlen(output))));
+//  strncat(output, node[index].type, LWIP_MIN(1, (size-strlen(output))));
+//  strncat(output, node[index].function, LWIP_MIN(1, (size-strlen(output))));
+//  strncat(output, node[index].number, LWIP_MIN(3, (size-strlen(output))));
+//}
 /*
  * Print node address and node name or NOT_SET.
  * printName: If name is known print also name or not_found
@@ -709,17 +745,17 @@ static uint8_t decodeLog(char *in, char *out, bool full){
         case 'r': chprintf(chp, "%s %s: ", text_reset, text_reason);
           if (((uint32_t)in[2]<<24) & RCC_CSR_LPWRRSTF) {
             chprintf(chp, "%s %s", text_low, text_power);
-          } else if (((uint32_t)in[2]<<24) & RCC_CSR_WWDGRSTF) {
+          } else if (((uint32_t)in[2]<<RCC_CSR_RMVF_Pos) & RCC_CSR_WWDGRSTF) {
               chprintf(chp, "%s", text_watchdog);
-          } else if (((uint32_t)in[2]<<24) & RCC_CSR_IWDGRSTF) {
-              chprintf(chp, "%s %s", text_independent, text_watchdog);
-          } else if (((uint32_t)in[2]<<24) & RCC_CSR_SFTRSTF) {
+          } else if (((uint32_t)in[2]<<RCC_CSR_RMVF_Pos) & RCC_CSR_IWDGRSTF) {
+              chprintf(chp, "%s", text_watchdog);
+          } else if (((uint32_t)in[2]<<RCC_CSR_RMVF_Pos) & RCC_CSR_SFTRSTF) {
               chprintf(chp, "%s", text_software);
-          } else if (((uint32_t)in[2]<<24) & RCC_CSR_PORRSTF) {
+          } else if (((uint32_t)in[2]<<RCC_CSR_RMVF_Pos) & RCC_CSR_PORRSTF) {
               chprintf(chp, "%s", text_power_on);
-          } else if (((uint32_t)in[2]<<24) & RCC_CSR_PADRSTF) {
+          } else if (((uint32_t)in[2]<<RCC_CSR_RMVF_Pos) & RCC_CSR_PADRSTF) {
               chprintf(chp, "%s", text_reset);
-          } else if (((uint32_t)in[2]<<24) & RCC_CSR_BORRSTF) {
+          } else if (((uint32_t)in[2]<<RCC_CSR_RMVF_Pos) & RCC_CSR_BORRSTF) {
               chprintf(chp, "%s", text_brown_out);
           }
           break;
@@ -727,7 +763,7 @@ static uint8_t decodeLog(char *in, char *out, bool full){
       }
     break;
     case 'N': // Remote nodes
-      printNodeType(chp, in[3]); chprintf(chp, ":");
+      chprintf(chp, "%s:", getNodeTypeString(in[3]));
       printNodeFunction(chp, in[4]);
       chprintf(chp, " %s ", text_address);
       printNodeAddress(chp, (uint8_t)in[2], (uint8_t)in[3], (uint8_t)in[4], (uint8_t)in[5], false);

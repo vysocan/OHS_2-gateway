@@ -193,6 +193,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s", html_e_th_th, text_Address);
           chprintf(chp, "%s%s", html_e_th_th, text_On);
           chprintf(chp, "%s%s", html_e_th_th, text_MQTT);
+          chprintf(chp, "%s%s", html_e_th_th, text_HAD);
           chprintf(chp, "%s%s %s", html_e_th_th, text_Last, text_message);
           chprintf(chp, "%s%s", html_e_th_th, text_Queued);
           chprintf(chp, "%s%s", html_e_th_th, text_Type);
@@ -209,13 +210,15 @@ int fs_open_custom(struct fs_file *file, const char *name){
               chprintf(chp, "%s", html_e_td_td);
               printOkNok(chp, GET_NODE_MQTT(node[i].setting));
               chprintf(chp, "%s", html_e_td_td);
+              printOkNok(chp, GET_NODE_MQTT_HAD(node[i].setting));
+              chprintf(chp, "%s", html_e_td_td);
               printFrmTimestamp(chp, &node[i].lastOK);
               chprintf(chp, "%s", html_e_td_td);
               if (node[i].queue) number = 1;
               else number = 0;
               printOkNok(chp, number); // queued
               chprintf(chp, "%s", html_e_td_td);
-              printNodeType(chp, node[i].type);
+              chprintf(chp, "%s", getNodeTypeString(node[i].type));
               chprintf(chp, "%s", html_e_td_td);
               printNodeFunction(chp, node[i].function);
               chprintf(chp, "%s", html_e_td_td);
@@ -243,12 +246,14 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Address, html_e_td_td);
           printNodeAddress(chp, node[webNode].address, node[webNode].type, node[webNode].function, node[webNode].number, true);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Type, html_e_td_td);
-          printNodeType(chp, node[webNode].type);
+          chprintf(chp, "%s", getNodeTypeString(node[webNode].type));
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Function, html_e_td_td);
           printNodeFunction(chp, node[webNode].function);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Node, text_is, html_e_td_td);
           printOnOffButton(chp, "0", GET_NODE_ENABLED(node[webNode].setting));
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_MQTT, text_publish, html_e_td_td);
+          printOnOffButton(chp, "6", GET_NODE_MQTT_HAD(node[webNode].setting));
+          chprintf(chp, "%s%s %s %s%s", html_e_td_e_tr_tr_td, text_MQTT, text_HA, text_Discovery, html_e_td_td);
           printOnOffButton(chp, "7", GET_NODE_MQTT(node[webNode].setting));
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Group, html_e_td_td);
           selectGroup(chp, GET_NODE_GROUP(node[webNode].setting), 'g');
@@ -1587,7 +1592,13 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   strncpy(node[webNode].name, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
                   node[webNode].name[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
                   // MQTT
-                  if (resp) pushToMqtt(typeSensor, webNode, functionName);
+                  if (resp) {
+                    pushToMqtt(typeSensor, webNode, functionName);
+                    // HAD
+                    if (GET_NODE_MQTT_HAD(node[webNode].setting)) {
+                      pushToMqttHAD(typeSensor, webNode, functionHAD, 1);
+                    }
+                  }
                 break;
                 case '0' ... '7': // Handle all single radio buttons for settings
                   if (valueP[0] == '0') node[webNode].setting &= ~(1 << (name[0]-48));
