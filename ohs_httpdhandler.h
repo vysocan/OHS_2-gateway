@@ -1546,7 +1546,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   if (number != webNode) { webNode = number; repeat = 0; }
                 break;
                 case 'R': // Re-registration
-                  resp = sendCmd(15, NODE_CMD_REGISTRATION); // Broadcast to register
+                  resp = sendCmd(RADIO_UNIT_OFFSET, NODE_CMD_REGISTRATION); // Broadcast to register
                 break;
                 case 'A': // Apply
                   message[0] = 'R';

@@ -8,7 +8,7 @@
 // Optimize stack and overflow
 #define PORT_INT_REQUIRED_STACK 128
 // Remove input queue for GPRS to save RAM
-#define STM32_SERIAL_USART6_IN_BUF_SIZE 0
+//#define STM32_SERIAL_USART6_IN_BUF_SIZE 0
 
 // Standard libs
 #include <string.h>
@@ -18,6 +18,9 @@
 // ChibiOS
 #include "ch.h"
 #include "hal.h"
+// ChibiOS tests
+#include "rt_test_root.h"
+#include "oslib_test_root.h"
 // Added from ChibiOS
 #include "shell.h"
 #include "chprintf.h"
@@ -146,7 +149,7 @@ int main(void) {
   sdStart(&SD3,  &serialCfg);
   chprintf(console, "\r\nOHS v.%u.%u.%u start\r\n", OHS_MAJOR, OHS_MINOR, OHS_MOD);
   // GPRS modem
-  gprsInit(&SD6);
+  gprsInit(&UARTD6);
   // Init nodes
   initRuntimeNodes();
   // RS485
@@ -216,7 +219,7 @@ int main(void) {
   spiStart(&SPID1, &spi1cfg);
   // RFM69
   if (GET_CONF_SYSTEM_FLAG_RADIO_FREQ(conf.systemFlags)) {
-    rfm69cfg.freqBand = RF69_915MHZ;
+    rfm69cfg.freqBand = RF69_868MHZ;
   }
   rfm69Start(&rfm69cfg);
   rfm69SetHighPower(true); // long range version

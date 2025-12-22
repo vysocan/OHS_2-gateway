@@ -40,6 +40,8 @@
  */
 const SPIConfig spi1cfg = {
   false,
+  false,
+  NULL,
   NULL,
   GPIOD, // CS PORT
   GPIOD_SPI1_CS, // CS PIN
@@ -51,6 +53,8 @@ const SPIConfig spi1cfg = {
  */
 const SPIConfig spi3cfg = {
   false,
+  false,
+  NULL,
   NULL,
   GPIOD, // CS PORT
   GPIOD_SPI3_CS, // CS PIN
@@ -64,8 +68,7 @@ static SerialConfig serialCfg = {
   115200,
   0,
   0,
-  0,
-  NULL, NULL, NULL, NULL
+  0
 };
 /*
  * RS485 default setting
@@ -158,7 +161,7 @@ static const ADCConversionGroup adcgrpcfg1 = {
  */
 static const WDGConfig wdgcfg = {
   STM32_IWDG_PR_64,
-  STM32_IWDG_RL(2000) // ~2000ms
+  STM32_IWDG_RL(1000)
 };
 
 #endif /* OHS_PERIPHERAL_H_ */

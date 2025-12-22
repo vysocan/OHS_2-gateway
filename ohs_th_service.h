@@ -36,6 +36,7 @@ static THD_FUNCTION(ServiceThread, arg) {
   chRegSetThreadName(arg);
   time_t  tempTime, timeNow;
   uint8_t counterAC = 1;
+  uint16_t counter = 65536 - 50; //
   bool    flagAC = false; // Assume power is Off on start
   uint8_t nodeIndex;
   msg_t   resp;
@@ -48,6 +49,16 @@ static THD_FUNCTION(ServiceThread, arg) {
     chThdSleepMilliseconds(1000);
     // Get current time to prevent multiple queries
     timeNow = getTimeUnixSec();
+
+    // Time beacon
+    if (counter%SECONDS_PER_HOUR == 0) {
+      timeConv.val = timeNow;
+      message[0] = 'T';
+      memcpy(&message[1], &timeConv.ch[0], sizeof(timeConv.ch));
+      // Send it everywhere
+      sendData(RADIO_UNIT_OFFSET, message, 5);
+    }
+    counter++;
 
     // Node housekeeping
     for (uint8_t nodeIndex=0; nodeIndex < NODE_SIZE; nodeIndex++) {

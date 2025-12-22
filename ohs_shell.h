@@ -244,7 +244,7 @@ static void cmd_reset(BaseSequentialStream *chp, int argc, char *argv[]) {
 /*
  * Applet to show threads with used information
  */
-static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
+static void cmd_thread(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
   if (argc > 0) {
     shellUsage(chp, "threads");
@@ -281,7 +281,7 @@ static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
 
     chprintf(chp, "%08lx %08lx %08lx %6u %6u %3u%% %4lu %9s %12s" SHELL_NEWLINE_STR,
              stklimit, (uint32_t)tp->ctx.sp, (uint32_t)tp,
-             size, counter, used, (uint32_t)tp->prio, states[tp->state],
+             size, counter, used, (uint32_t)tp->realprio, states[tp->state],
              tp->name == NULL ? "" : tp->name);
 
     tp = chRegNextThread(tp);
@@ -342,7 +342,7 @@ void cmd_showpin (BaseSequentialStream *chp, int argc, char **argv) // Debug: pi
 static const ShellCommand commands[] = {
   {"date",  cmd_date},
   {"log",  cmd_log},
-  {"threads",  cmd_threads},
+  {"thread",  cmd_thread},
   {"debug",  cmd_debug},
   {"ubs",  cmd_ubs},
   {"network",  cmd_net},

@@ -22,6 +22,8 @@
 UMM_HEAP_INFO ummHeapInfo;
 
 void *umm_info( void *ptr, bool force ) {
+  (void)force;
+
   //if(umm_heap == NULL) { umm_init(); }
 
   uint16_t blockNo = 0;

@@ -942,4 +942,24 @@ uint8_t get_reset_reason(void) {
   return reset_reason;
 }
 
+/*
+ * @brief Check is phone number authorized
+ *
+ * @param *number Phone number to check
+ *
+ * @return int8_t Index of authorized number, or -1 if not authorized
+ *
+ */
+int8_t isPhoneNumberAuthorized(char *number) {
+  // Check against authorized numbers
+  for (uint8_t i = 0; i < CONTACTS_SIZE; i++) {
+    if (GET_CONF_CONTACT_ENABLED(i)) {
+      if (strcmp(conf.contact[i].phone, number) == 0) {
+        return i;
+      }
+    }
+  }
+  return -1;
+}
+
 #endif /* OHS_FUNCTIONS_H_ */

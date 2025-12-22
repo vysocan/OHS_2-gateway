@@ -90,7 +90,7 @@ PROJECT = OHS_F437
 MCU  = cortex-m4
 
 # Imported source files and paths.
-CHIBIOS  := ../../chibios_stable-20.3.x
+CHIBIOS  := ../../chibios_stable-21.11.x
 CONFDIR  := ./cfg
 BUILDDIR := ./build
 DEPDIR   := ./.dep
@@ -106,22 +106,17 @@ include $(CHIBIOS)/os/hal/boards/OHS_204/board.mk
 include $(CHIBIOS)/os/hal/osal/rt-nil/osal.mk
 # RTOS files (optional).
 include $(CHIBIOS)/os/rt/rt.mk
-include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/port_v7m.mk
+include $(CHIBIOS)/os/common/ports/ARMv7-M/compilers/GCC/mk/port.mk
 # Auto-build files in ./source recursively.
 include $(CHIBIOS)/tools/mk/autobuild.mk
 # Other files (optional).
-include $(CHIBIOS)/test/lib/test.mk
+include $(CHIBIOS)/os/test/test.mk
 include $(CHIBIOS)/test/rt/rt_test.mk
 include $(CHIBIOS)/test/oslib/oslib_test.mk
 # OHS added
 include $(CHIBIOS)/os/hal/lib/streams/streams.mk
 include $(CHIBIOS)/os/various/shell/shell.mk
 include $(CHIBIOS)/os/various/lwip_bindings/lwip.mk
-#include $(CHIBIOS)/ext/znp/znp.mk
-#include $(CHIBIOS)/ext/STM32F4xx_StdPeriph_Driver/stcrypt.mk
-#include $(CHIBIOS)/ext/STM32_Cryptographic_Library/stcryptolib.mk
-#include $(CHIBIOS)/os/various/wolfssl_bindings/wolfssl.mk
-#include $(CHIBIOS)/ext/mbedtls/mbedtls.mk
 
 # Define linker script file here
 LDSCRIPT= $(CONFDIR)/STM32F437xG.ld
@@ -132,11 +127,7 @@ CSRC = $(ALLCSRC) \
        $(TESTSRC) \
        $(CHIBIOS)/os/various/evtimer.c \
        $(CHIBIOS)/os/various/syscalls.c \
-       main.c
-#       $(CHIBIOS)/ext/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_rcc.c \
-#       $(CHIBIOS)/ext/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_rng.c \
-#       $(CHIBIOS)/ext/STM32F4xx_StdPeriph_Driver/src/stm32f4xx_cryp.c \
-       
+       main.c      
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -185,7 +176,6 @@ ULIBDIR =
 
 # List all user libraries here
 ULIBS = 
-#$(CHIBIOS)/ext/STM32_Cryptographic_Library/binary/EWARM/M4_CryptoFW_RngHW_2_0_6.a
 
 #
 # End of user section
