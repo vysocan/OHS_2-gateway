@@ -78,14 +78,14 @@ typedef enum {
   gprs_ForceReset,
   gprs_Failed
 } gprsStatus_t;
-volatile gprsStatus_t gsmStatus = gprs_NotInitialized;
-volatile int8_t gprsIsAlive = 0;
-volatile int8_t gprsSetSMS = 0;
-volatile int8_t gprsReg = 2;
-volatile int8_t gprsStrength = 0;
-char gprsModemInfo[20] __attribute__((section(".ram4"))); // SIMCOM_SIM7600x-x
-char gprsSystemInfo[80] __attribute__((section(".ram4")));
-char gprsSmsText[128] __attribute__((section(".ram4")));
+volatile gprsStatus_t modemStatus = gprs_NotInitialized;
+volatile int8_t modemIsAlive = 0;
+volatile int8_t modemSetSMS = 0;
+volatile int8_t modemReg = 2;
+volatile int8_t modemSigStrength = 0;
+char modemModelInfo[20] __attribute__((section(".ram4"))); // SIMCOM_SIM7600x-x
+char modemSystemInfo[80] __attribute__((section(".ram4")));
+char modemSmsText[160] __attribute__((section(".ram4")));
 
 // LWIP
 #include "lwipthread.h"
@@ -187,9 +187,9 @@ int main(void) {
   // Initialize .ram4
   memset(&tclCmd[0], 0, TCL_SCRIPT_LENGTH);
   memset(&tclOutput[0], 0, TCL_OUTPUT_LENGTH);
-  memset(&gprsModemInfo[0], 0, sizeof(gprsModemInfo));
-  memset(&gprsSmsText[0], 0, sizeof(gprsSmsText));
-  memset(&gprsSystemInfo[0], 0, sizeof(gprsSystemInfo));
+  memset(&modemModelInfo[0], 0, sizeof(modemModelInfo));
+  memset(&modemSmsText[0], 0, sizeof(modemSmsText));
+  memset(&modemSystemInfo[0], 0, sizeof(modemSystemInfo));
   memset(&logText[0], 0, LOG_TEXT_LENGTH);
   memset(&mqttPayload[0], 0, MQTT_PAYLOAD_LENGTH);
   memset(&httpAlertMsg[0], 0 , HTTP_ALERT_MSG_SIZE);

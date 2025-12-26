@@ -1,8 +1,8 @@
 /*
- *  Created on: Dec 21, 2025
- *      Author: vysocan
+ * Created on: Dec 21, 2025
+ * Author: vysocan
  *
- *  Hierarchical command dispatcher for embedded systems.
+ * Hierarchical command dispatcher for embedded systems.
  */
 
 #ifndef SOURCE_CMD_DISPATCHER_H_
@@ -10,10 +10,15 @@
 
 #include <stdint.h>
 #include <string.h>
+#include "ch.h"
+#include "hal.h"
+#include "chprintf.h"
 
 /* Token buffer - adjust for your max command length */
 #define CMD_MAX_TOKENS 5
-#define CMD_RESULT_LEN 128
+#define CMD_TOKEN_LEN 16
+/* Macro to get array count */
+#define ARRAY_COUNT(arr) ((uint8_t)(sizeof(arr) / sizeof((arr)[0])))
 
 /* Return codes */
 typedef enum {
@@ -25,8 +30,8 @@ typedef enum {
 } cmd_status_t;
 
 /* Command handler function signature */
-typedef cmd_status_t (*cmd_handler_t) (const char *tokens[],
-  uint8_t token_count, char *result, uint16_t result_len);
+typedef cmd_status_t (*cmd_handler_t)(const char *tokens[], uint8_t token_count,
+    char *result, uint16_t result_len);
 
 /* Forward declaration */
 struct cmd_entry;
@@ -40,19 +45,17 @@ typedef struct cmd_entry {
   uint8_t sub_count; /* length of sub table */
 } cmd_entry_t;
 
-/* Root dispatcher context */
-typedef struct {
-  const cmd_entry_t *commands;
-  uint8_t cmd_count;
-  const char *context;
-} cmd_dispatcher_t;
-
 /* API Functions */
-cmd_status_t cmd_process (char *input, const cmd_dispatcher_t *dispatcher, char *result, uint16_t result_len);
-cmd_status_t cmd_tokenize (char *input, const char *tokens[], uint8_t *token_count, uint8_t max_tokens);
+cmd_status_t cmdProcess(char *input, const cmd_entry_t *table,
+    uint8_t table_count, char *result, uint16_t result_len);
+cmd_status_t cmdTokenize(char *input, const char *tokens[],
+    uint8_t *token_count, uint8_t max_tokens);
+cmd_status_t cmdHandleHelp(const char *tokens[], uint8_t token_count,
+    char *result, uint16_t result_len);
+void cmdInitHelp(const cmd_entry_t *table, uint8_t count);
 
-// Help functions
-int8_t strcmpi (const char *a, const char *b);
-void safe_strcat (char *dest, uint16_t *len, uint16_t max, const char *src);
+/* Help functions */
+int8_t strcmpi(const char *a, const char *b);
+void safeStrcat(char *dest, uint16_t *len, uint16_t max, const char *src);
 
 #endif /* SOURCE_CMD_DISPATCHER_H_ */

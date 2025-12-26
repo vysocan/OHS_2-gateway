@@ -1,0 +1,23 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug STM32F437 (External OpenOCD)",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/OHS_F437.elf",
+            "request": "launch",
+            "type": "cortex-debug",
+            "servertype": "external",
+            "gdbTarget": "localhost:3333",
+            "gdbPath": "arm-none-eabi-gdb",
+            "preLaunchTask": "OpenOCD (Eclipse)",
+            "runToMain": true,
+            "showDevDebugOutput": "both",
+            "overrideLaunchCommands": [
+                "monitor reset init",
+                "load",
+                "monitor reset halt"
+            ]
+        }
+    ]
+}

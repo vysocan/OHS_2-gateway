@@ -45,6 +45,9 @@ const char durationSelect[][10] = {
   "day(s)"
 };
 
+const char text_Get[]               = "Get";
+const char text_Set[]               = "Set";
+const char text_Help[]              = "Help";
 const char text_System[]            = "System";
 const char text_info[]              = "information";
 const char text_started[]           = "started";

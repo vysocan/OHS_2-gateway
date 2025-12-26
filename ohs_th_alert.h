@@ -46,8 +46,8 @@ static THD_FUNCTION(AlertThread, arg) {
     msg = chMBFetchTimeout(&alert_mb, (msg_t*)&inMsg, TIME_INFINITE);
     if (msg == MSG_OK) {
       chprintf(console, "Alert: %s, Flags: %u, Text: ", inMsg->text, inMsg->flag);
-      groupNum = decodeLog(inMsg->text, gprsSmsText, true);
-      chprintf(console, "%s\r\n", gprsSmsText);
+      groupNum = decodeLog(inMsg->text, modemSmsText, true);
+      chprintf(console, "%s\r\n", modemSmsText);
 
       // Do alerts by type
       for(uint8_t i = 0; i < ARRAY_SIZE(alertType); i++) {
@@ -64,7 +64,7 @@ static THD_FUNCTION(AlertThread, arg) {
                     resp = gprsSendSMSBegin(conf.contact[j].phone);
                     chprintf(console, "SMS begin: %d\r\n", resp);
                     if (resp == 1) {
-                      chprintf(console, "SMS end: %d\r\n", gprsSendSMSEnd(gprsSmsText));
+                      chprintf(console, "SMS end: %d\r\n", gprsSendSMSEnd(modemSmsText));
                     }
                     chBSemSignal(&gprsSem); // Release semaphore
                   }
@@ -79,8 +79,8 @@ static THD_FUNCTION(AlertThread, arg) {
                      (GET_CONF_CONTACT_IS_GLOBAL(conf.contact[j].setting)))) {
                   // Wait for GPRS
                   if (chBSemWait(&gprsSem) == MSG_OK) {
-                    chsnprintf(gprsSmsText, sizeof(gprsSmsText), "%s%s;", AT_D, conf.contact[j].phone);
-                    resp = gprsSendCmd(gprsSmsText);
+                    chsnprintf(modemSmsText, sizeof(modemSmsText), "%s%s;", AT_D, conf.contact[j].phone);
+                    resp = gprsSendCmd(modemSmsText);
                     chprintf(console, "Page begin: %d\r\n", resp);
                     if (resp == 1) {
                       chThdSleepSeconds(25); // RING ... RING ...
@@ -99,8 +99,8 @@ static THD_FUNCTION(AlertThread, arg) {
                   if (chBSemWaitTimeout(&emailSem, TIME_IMMEDIATE) == MSG_OK) {
                     emailReqest.from = &conf.contact[j].email[0];
                     emailReqest.to   = &conf.contact[j].email[0];
-                    emailReqest.subject = &gprsSmsText[0];
-                    emailReqest.body = &gprsSmsText[0];
+                    emailReqest.subject = &modemSmsText[0];
+                    emailReqest.body = &modemSmsText[0];
                     emailReqest.callback_fn = my_smtp_result_fn;
                     emailReqest.callback_arg = NULL;
                     emailReqest.static_data = 1;
@@ -123,7 +123,7 @@ static THD_FUNCTION(AlertThread, arg) {
                 if (chBSemWaitTimeout(&mqttSem, TIME_MS2I(100)) == MSG_OK) {
                   // publish
                   LOCK_TCPIP_CORE();
-                  err = mqtt_publish(&mqtt_client, MQTT_ALERT_TOPIC, &gprsSmsText[0], strlen(gprsSmsText),
+                  err = mqtt_publish(&mqtt_client, MQTT_ALERT_TOPIC, &modemSmsText[0], strlen(modemSmsText),
                                      0, 0, mqttPubRequestCB, NULL);
                   UNLOCK_TCPIP_CORE();
                   if(err != ERR_OK) {

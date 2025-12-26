@@ -701,13 +701,13 @@ int fs_open_custom(struct fs_file *file, const char *name){
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           chprintf(chp, "<h1>%s</h1>\r\n", text_Modem);
           chprintf(chp, "%s%s", html_table, html_tr_td);
-          chprintf(chp, "%s%s%s", text_Type, html_e_td_td, gprsModemInfo);
+          chprintf(chp, "%s%s%s", text_Type, html_e_td_td, modemModelInfo);
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_On, html_e_td_td);
           printOkNok(chp, !palReadPad(GPIOD, GPIOD_GSM_STATUS));
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Alive, html_e_td_td);
-          printOkNok(chp, gprsIsAlive);
+          printOkNok(chp, modemIsAlive);
           chprintf(chp, "%s%sed%s", html_e_td_e_tr_tr_td, text_Register, html_e_td_td);
-          switch(gprsReg){
+          switch(modemReg){
             case 0 : chprintf(chp, "%s", html_i_OK); break;
             case 1 : chprintf(chp, "%s", html_i_home); break;
             case 2 : chprintf(chp, "%s", html_i_starting); break;
@@ -715,9 +715,9 @@ int fs_open_custom(struct fs_file *file, const char *name){
             case 5 : chprintf(chp, "%s", html_i_globe); break;
             default : chprintf(chp, "%s", html_i_question);; break; // case 4
           }
-          chprintf(chp, "%s%s %s%s%u%%", html_e_td_e_tr_tr_td, text_Signal, text_strength, html_e_td_td, gprsStrength);
+          chprintf(chp, "%s%s %s%s%u%%", html_e_td_e_tr_tr_td, text_Signal, text_strength, html_e_td_td, modemSigStrength);
           // +CPSI: GSM,Online,230-02,0x0726,4285,69 // remove +CPSI: &[7]
-          chprintf(chp, "%s%s %s%s%s%", html_e_td_e_tr_tr_td, text_System, text_info, html_e_td_td, &gprsSystemInfo[7]);
+          chprintf(chp, "%s%s %s%s%s%", html_e_td_e_tr_tr_td, text_System, text_info, html_e_td_td, &modemSystemInfo[7]);
           chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
           // Buttons
           chprintf(chp, "%s%s", html_LoadDefault, html_Save);
