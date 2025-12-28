@@ -102,10 +102,8 @@ static const cmd_entry_t* findCommand(const cmd_entry_t *table, uint8_t count,
  */
 static void appendSubHelp(const cmd_entry_t *cmd, char *result,
     uint16_t result_len) {
-  uint16_t len = (uint16_t) strlen (result);
-  safeStrcat (result, &len, result_len, "Subcommands for ");
-  safeStrcat (result, &len, result_len, cmd->name);
-  safeStrcat (result, &len, result_len, ":\n");
+
+  uint16_t len = chsnprintf(result, result_len, "Subcommands for %s:\n", cmd->name);
 
   for (uint8_t i = 0; i < cmd->sub_count; i++) {
     const cmd_entry_t *sub = &cmd->sub[i];
@@ -203,6 +201,7 @@ static uint8_t g_cmd_table_count = 0;
  */
 static void appendCmdHelp(const cmd_entry_t *cmd, uint8_t indent_level,
     char *result, uint16_t *result_len, uint16_t result_max) {
+
   for (uint8_t i = 0; i < indent_level; i++) {
     safeStrcat (result, result_len, result_max, "-");
   }

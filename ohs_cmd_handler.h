@@ -21,24 +21,29 @@ static cmd_status_t handle_set_generic(const char *tokens[], uint8_t count,
 
 /* === TABLES - PARENT REFERENCES ONLY ====================================== */
 /* Leaf tables - sub_count = 0 (no subcommands) */
-static const cmd_entry_t get_system_sub[] = { { text_Status,
-    handle_get_system_status, "Get system status", NULL, 0 } };
-static const cmd_entry_t get_zone_sub[] = { { text_Status,
-    handle_get_zone_status, "Get zone status", NULL, 0 } };
+static const cmd_entry_t get_system_sub[] = {
+  { text_Status, handle_get_system_status, "Get system status", NULL, 0 }
+};
+static const cmd_entry_t get_zone_sub[] = {
+  { text_Status, handle_get_zone_status, "Get zone status", NULL, 0 }
+};
 
 /* Parent tables - use ARRAY_COUNT(child) */
-static const cmd_entry_t get_sub[] = { { text_System, NULL,
-    "System information", get_system_sub, ARRAY_COUNT (get_system_sub) }, {
-    text_Zone, NULL, "Zone information", get_zone_sub, ARRAY_COUNT (
-        get_zone_sub) } };
+static const cmd_entry_t get_sub[] = {
+  { text_System, NULL, "System information", get_system_sub, ARRAY_COUNT(get_system_sub) },
+  { text_Zone, NULL, "Zone information", get_zone_sub, ARRAY_COUNT(get_zone_sub) }
+};
 
 /* Top-level */
-const cmd_entry_t top_commands[] = { { text_Get, NULL, "Read status", get_sub,
-    ARRAY_COUNT (get_sub) }, { text_Set, handle_set_generic,
-    "Modify configuration", NULL, 0 }, { text_Help, cmdHandleHelp,
-    "Show this help", NULL, 0 } };
+const cmd_entry_t top_commands[] = {
+  { text_Get, NULL, "Read status", get_sub, ARRAY_COUNT (get_sub) },
+  { text_Set, handle_set_generic, "Modify configuration", NULL, 0 },
+  { text_Help, cmdHandleHelp, "Show this help", NULL, 0 } // Help command has internal handler, no need to implement
+};
 
-/* === HANDLERS ============================================================= */
+/* === HANDLERS =============================================================
+ * Implement your command handlers below
+ */
 /*
  * Handle GET SYSTEM STATUS
  */
@@ -71,10 +76,9 @@ static cmd_status_t handle_get_zone_status(const char *tokens[], uint8_t count,
 static cmd_status_t handle_set_generic(const char *tokens[], uint8_t count,
     char *result, uint16_t result_len) {
 
-  chsnprintf (result, result_len, "SET command executed: ");
+  uint16_t len = chsnprintf (result, result_len, "SET command executed: ");
   for (uint8_t i = 0; i < count; i++) {
-    strncat (result, tokens[i],
-        LWIP_MIN (strlen (tokens[i]), (sizeof(result) - strlen (result))));
+    safeStrcat(result, &len, result_len, tokens[i]);
   }
   return CMD_OK;
 }

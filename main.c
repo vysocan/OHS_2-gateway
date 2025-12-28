@@ -1,14 +1,12 @@
 /*
  * OHS gateway code for HW v 2.0.x
- * Adam Baron (c) 2020-2025
+ * Adam Baron (c) 2020-now()
  *
  *
  */
 //TODO OHS move arm/disarm group to some kind of fifo, it take a lot of resources calling nodes, mqtt ...
 // Optimize stack and overflow
 #define PORT_INT_REQUIRED_STACK 128
-// Remove input queue for GPRS to save RAM
-//#define STM32_SERIAL_USART6_IN_BUF_SIZE 0
 
 // Standard libs
 #include <string.h>
