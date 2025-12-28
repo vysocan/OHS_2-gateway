@@ -17,12 +17,15 @@
 #define DBG_MQTT_FUNC(...)
 #endif
 
-// MQTT test IP address
-static ip_addr_t mqtt_ip; // = IPADDR4_INIT_BYTES(10,10,10,127);
-struct mqtt_client_s mqtt_client;
+/* MQTT buffer size constants */
 #define MQTT_IN_TOPIC_LENGTH   40
 #define MQTT_IN_PAYLOAD_LENGTH 40
-char mqttInTopic[MQTT_IN_TOPIC_LENGTH], mqttInPayload[MQTT_IN_PAYLOAD_LENGTH];
+
+/* MQTT module static data */
+static ip_addr_t mqtt_ip; // = IPADDR4_INIT_BYTES(10,10,10,127);
+struct mqtt_client_s mqtt_client;
+char mqttInTopic[MQTT_IN_TOPIC_LENGTH];
+char mqttInPayload[MQTT_IN_PAYLOAD_LENGTH];
 
 // MQTT client information
 struct mqtt_connect_client_info_t mqttCI = {
@@ -52,6 +55,8 @@ static void mqttPubRequestCB(void *arg, err_t result) {
     DBG_MQTT_FUNC("mqttPubRequestCB error: %d\r\n", result);
     // Publish error callback
     tmpLog[0] = 'Q'; tmpLog[1] = 'E'; tmpLog[2] = 'p'; tmpLog[3] = abs(result); pushToLog(tmpLog, 4);
+  } else {
+    DBG_MQTT_FUNC("mqttPubRequestCB success\r\n");
   }
 }
 /*
@@ -59,6 +64,11 @@ static void mqttPubRequestCB(void *arg, err_t result) {
  */
 static void mqttIncomingPublishCB(void *arg, const char *topic, u32_t tot_len) {
   LWIP_UNUSED_ARG(tot_len);
+
+  if (arg == NULL || topic == NULL) {
+    DBG_MQTT_FUNC("mqttIncomingPublishCB: NULL pointer\r\n");
+    return;
+  }
 
   DBG_MQTT_FUNC("MQTT IncomingPublishCB: %s, payload length: %u\r\n", topic, (unsigned int)tot_len);
   // Clear mqttInTopic passed to arg
@@ -87,7 +97,12 @@ static void mqttIncomingPublishCB(void *arg, const char *topic, u32_t tot_len) {
 static void mqttIncomingDataCB(void *arg, const u8_t *data, u16_t len, u8_t flags) {
   char *pch, *addressIndex[NODE_ADDRESS_SIZE];
   uint8_t index = 0;
-  uint8_t message[6];
+  uint8_t message[6]; // message to node buffer
+
+  if(arg == NULL || data == NULL) {
+    DBG_MQTT_FUNC("mqttIncomingDataCB: NULL pointer\r\n");
+    return;
+  }
 
   DBG_MQTT_FUNC("MQTT IncomingDataCB length: %d, flags: %u. Arg: %s\r\n", len, (u8_t)flags, arg);
 
@@ -98,7 +113,7 @@ static void mqttIncomingDataCB(void *arg, const u8_t *data, u16_t len, u8_t flag
 
   // Last fragment of payload received (or whole part if payload fits receive buffer
   // See MQTT_VAR_HEADER_BUFFER_LEN)
-  if ((arg != NULL) && (flags & MQTT_DATA_FLAG_LAST)) {
+  if (flags & MQTT_DATA_FLAG_LAST) {
     // Decode topic string
     pch = strtok(arg, "/");
     DBG_MQTT_FUNC("Parse: %s", pch);
@@ -211,6 +226,7 @@ static void mqttSubscribeCB(void *arg, err_t result) {
     pushToLogText("QES"); // Subscribe error
   } else {
     DBG_MQTT_FUNC("MQTT SubscribeCB OK\r\n");
+    CLEAR_CONF_MQTT_SUBSCRIBE_ERROR(conf.mqtt.setting);
   }
 }
 /*
@@ -221,51 +237,58 @@ static void mqttConnectionCB(mqtt_client_t *client, void *arg, mqtt_connection_s
   LWIP_UNUSED_ARG(arg);
 
   err_t err;
+
   if(status == MQTT_CONNECT_ACCEPTED) {
     DBG_MQTT_FUNC("MQTT ConnectionCB: Connected\r\n");
     CLEAR_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting);
     CLEAR_CONF_MQTT_CONNECT_ERROR_LOG(conf.mqtt.setting);
-    pushToLogText("QC"); // MQTT connected
-    // Reset the semaphore to allow next publish
+    pushToLogText("QC"); /* MQTT connected */
+
+    /* Reset the semaphore to allow next publish */
     chBSemReset(&mqttSem, false);
 
-    // Subscribe to set topic
+    /* Subscribe to set topic if enabled */
     if (GET_CONF_MQTT_SUBSCRIBE(conf.mqtt.setting)) {
-      // Setup callback for incoming publish requests
-      mqtt_set_inpub_callback(client, mqttIncomingPublishCB, mqttIncomingDataCB, &mqttInTopic);
+      /* Setup callback for incoming publish requests */
+      mqtt_set_inpub_callback(client, mqttIncomingPublishCB, mqttIncomingDataCB, (void*)&mqttInTopic);
 
-      // Subscribe to a topic
+      /* Subscribe to topic with wildcard */
       err = mqtt_subscribe(client, MQTT_MAIN_TOPIC MQTT_SET_TOPIC "#", 1, mqttSubscribeCB, arg);
 
       if(err != ERR_OK) {
         DBG_MQTT_FUNC("MQTT ConnectionCB: Subscribe error: %d\r\n", err);
         SET_CONF_MQTT_SUBSCRIBE_ERROR(conf.mqtt.setting);
-        pushToLogText("QES"); // Subscribe error
+        pushToLogText("QES"); /* Subscribe error */
       } else {
         DBG_MQTT_FUNC("MQTT ConnectionCB: Subscribe OK\r\n");
+        CLEAR_CONF_MQTT_SUBSCRIBE_ERROR(conf.mqtt.setting);
       }
+    }
 
-    } // Subscribe to set topic
-
-    // Publish state
+    /* Publish system state */
     pushToMqtt(typeSystem, 1, functionState);
 
-    // MQTT Home Assistant Discovery
+    /* MQTT Home Assistant Discovery (if enabled) */
     if (GET_CONF_MQTT_HAD(conf.mqtt.setting)) {
       pushToMqttHAD(typeSystem, 0, functionHAD, 1);
     }
 
-    // Re-publish zone states
+    /* Re-publish zone states */
     mqttRefreshZonesState();
 
   } else {
+    /* Connection failed */
     DBG_MQTT_FUNC("MQTT ConnectionCB: Disconnected, reason: %d\r\n", status);
     SET_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting);
+
     if (!GET_CONF_MQTT_CONNECT_ERROR_LOG(conf.mqtt.setting)) {
       tmpLog[0] = 'Q'; tmpLog[1] = 'E';
-      // As defined in lwip for mqtt_connection_status_t
-      if (status <= 5 ) tmpLog[2] = '0' + status;
-      else              tmpLog[2] = '6' + (uint8_t)(status-256);
+      /* lwip mqtt_connection_status_t error code mapping */
+      if (status <= 5 ) {
+        tmpLog[2] = '0' + status;
+      } else {
+        tmpLog[2] = '6' + (uint8_t)(status - 256);
+      }
       pushToLog(tmpLog, 3);
       SET_CONF_MQTT_CONNECT_ERROR_LOG(conf.mqtt.setting);
     }
@@ -277,47 +300,62 @@ static void mqttConnectionCB(mqtt_client_t *client, void *arg, mqtt_connection_s
 void mqttDoConnect(mqtt_client_t *client) {
   err_t err;
 
+  if(client == NULL) {
+    DBG_MQTT_FUNC("MQTT mqttDoConnect: NULL client pointer\r\n");
+    return;
+  }
+
   DBG_MQTT_FUNC("MQTT mqttDoConnect\r\n");
-  // Resolve mqtt.address to IP address
+
+  /* Resolve mqtt.address to IP address */
   if (!(ipaddr_aton(conf.mqtt.address, &mqtt_ip))) {
-    // Address is not in IP address format
+    /* Address is not in IP address format, try DNS resolution */
     err = netconn_gethostbyname_addrtype(conf.mqtt.address, &mqtt_ip, IPADDR_TYPE_V4);
     if (err != ERR_OK) {
-      // Host not found via DNS
+      /* Host not found via DNS */
+      DBG_MQTT_FUNC("MQTT DNS resolution failed: %d\r\n", err);
       SET_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting);
       pushToLogText("QER");
+      return;
     } else {
-      // Host found we have IP
+      DBG_MQTT_FUNC("MQTT Host resolved via DNS\r\n");
       CLEAR_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting);
     }
   } else {
-    // Address is in IP address format
+    /* Address is valid IP address format */
+    DBG_MQTT_FUNC("MQTT Using IP address format\r\n");
     CLEAR_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting);
   }
 
-  // Add user & pass
-  if (conf.mqtt.user[0]) mqttCI.client_user = &conf.mqtt.user[0];
-  else mqttCI.client_user = NULL;
-  if (conf.mqtt.password[0]) mqttCI.client_pass = &conf.mqtt.password[0];
-  else mqttCI.client_pass = NULL;
+  /* Configure authentication if provided */
+  if (conf.mqtt.user[0] != '\0') {
+    mqttCI.client_user = &conf.mqtt.user[0];
+  } else {
+    mqttCI.client_user = NULL;
+  }
 
-  // If we have presumably valid IP address, try to connect
-  if (!GET_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting)) {
-    // Try to connect
-    LOCK_TCPIP_CORE();
-    err = mqtt_client_connect(client, &mqtt_ip, conf.mqtt.port, mqttConnectionCB,
-                              LWIP_CONST_CAST(void*, &mqttCI), &mqttCI);
-    UNLOCK_TCPIP_CORE();
+  if (conf.mqtt.password[0] != '\0') {
+    mqttCI.client_pass = &conf.mqtt.password[0];
+  } else {
+    mqttCI.client_pass = NULL;
+  }
 
-    // Check immediate return code
-    if(err != ERR_OK) {
-      DBG_MQTT_FUNC("MQTT Connect error: %d\r\n", err);
-      SET_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting);
-      if (!GET_CONF_MQTT_CONNECT_ERROR_LOG(conf.mqtt.setting)) {
-        pushToLogText("QEC");
-        SET_CONF_MQTT_CONNECT_ERROR_LOG(conf.mqtt.setting);
-      }
+  /* Attempt MQTT connection */
+  LOCK_TCPIP_CORE();
+  err = mqtt_client_connect(client, &mqtt_ip, conf.mqtt.port, mqttConnectionCB,
+                            LWIP_CONST_CAST(void*, &mqttCI), &mqttCI);
+  UNLOCK_TCPIP_CORE();
+
+  /* Check immediate return code */
+  if(err != ERR_OK) {
+    DBG_MQTT_FUNC("MQTT Connect error: %d\r\n", err);
+    SET_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting);
+    if (!GET_CONF_MQTT_CONNECT_ERROR_LOG(conf.mqtt.setting)) {
+      pushToLogText("QEC");
+      SET_CONF_MQTT_CONNECT_ERROR_LOG(conf.mqtt.setting);
     }
+  } else {
+    DBG_MQTT_FUNC("MQTT Connect initiated\r\n");
   }
 }
 
