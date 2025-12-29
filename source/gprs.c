@@ -14,7 +14,7 @@
  */
 
 #ifndef GPRS_DEBUG
-#define GPRS_DEBUG 1
+#define GPRS_DEBUG 0
 #endif
 
 #if GPRS_DEBUG

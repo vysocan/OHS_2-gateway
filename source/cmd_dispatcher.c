@@ -132,8 +132,15 @@ static cmd_status_t execCommandTree(const cmd_entry_t *table,
     char *result, uint16_t result_len) {
   if (token_count == 0) return CMD_INCOMPLETE;
 
-  const cmd_entry_t *cmd = findCommand (table, table_count, tokens[0]);
+  const cmd_entry_t* cmd = findCommand(table, table_count, tokens[0]);
+#if SMD_STRICT_MODE
   if (!cmd) return CMD_UNKNOWN;
+#else
+  if (!cmd) {
+    cmd = findCommand(table, table_count, "help");
+    if (!cmd) return CMD_UNKNOWN;
+  }
+#endif
 
   const char **next_tokens = tokens + 1;
   uint8_t next_count = token_count - 1;
@@ -174,8 +181,7 @@ cmd_status_t cmdProcess(char *input, const cmd_entry_t *table,
 
   const char *tokens[CMD_MAX_TOKENS];
   uint8_t token_count = 0;
-  cmd_status_t status = cmdTokenize (input, tokens, &token_count,
-      CMD_MAX_TOKENS);
+  cmd_status_t status = cmdTokenize(input, tokens, &token_count, CMD_MAX_TOKENS);
   if (status != CMD_OK) return status;
 
   result[0] = '\0';

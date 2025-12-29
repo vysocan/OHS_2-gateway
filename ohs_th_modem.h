@@ -45,9 +45,12 @@ static THD_FUNCTION ( ModemThread, arg) {
   uint8_t counter = 0, tmp;
   uint8_t gprsLastStatus = DUMMY_NO_VALUE; // get status on start
   int8_t resp = 0;
-  uint8_t smsIndex;
+  uint8_t smsIndex, contactIndex;
   uint8_t tempText[16]; // Need to hold whole response of AT command
   char *pch;
+
+  /* Initialize help handler with command table */
+  cmdInitHelp(top_commands, ARRAY_COUNT(top_commands));
 
   while (true) {
     // Check is GPRS is free
@@ -106,16 +109,15 @@ static THD_FUNCTION ( ModemThread, arg) {
             if (modemSetSMS == 1) modemSetSMS = gprsSendCmd (AT_set_sms_store); // Set modem SMS receive mode
             resp = gprsSendCmdWR (AT_model_info, (uint8_t*) modemModelInfo,
                                   sizeof(modemModelInfo)); // Get model
-            resp = gprsSendCmdWR (AT_get_sms_storage, (uint8_t*) modemSmsText,
-                                  sizeof(modemSmsText)); // Get SMS storage info
-            DBG_MODEM("SMS Storage: %s, %d\r\n", modemSmsText, resp);
+//            resp = gprsSendCmdWR (AT_get_sms_storage, (uint8_t*) modemSmsText,
+//                                  sizeof(modemSmsText)); // Get SMS storage info
+//            DBG_MODEM("SMS Storage: %s, %d\r\n", modemSmsText, resp);
             resp = gprsSendCmd (AT_set_ATD);
           }
           resp = gprsSendCmdWRI (AT_registered, tempText, sizeof(tempText), 3);
           if (resp > 0) modemReg = strtol ((char*) tempText, NULL, 10);
-          DBG_MODEM("gprsReg: %d, %d\r\n", modemReg, resp);
-          resp = gprsSendCmdWRI (AT_signal_strength, tempText, sizeof(tempText),
-                                 2);
+          DBG_MODEM("Modem reg: %d, (%d)\r\n", modemReg, resp);
+          resp = gprsSendCmdWRI (AT_signal_strength, tempText, sizeof(tempText), 2);
           if (resp > 0) {
             resp = (strtol ((char*) tempText, NULL, 10));
             if (resp > 31) modemSigStrength = 0;
@@ -173,42 +175,43 @@ static THD_FUNCTION ( ModemThread, arg) {
       // Read incoming SMS or missed messages
       while (gprsReadMsg ((uint8_t*) modemSmsText, sizeof(modemSmsText))) {
         DBG_MODEM("Modem: %s.\r\n", modemSmsText);
+
         // Check for incoming SMS
-        if (memcmp (AT_SMS_received, modemSmsText, strlen (AT_SMS_received))
-            == 0) {
+        if (memcmp(AT_SMS_received, modemSmsText, strlen(AT_SMS_received)) == 0) {
           // Get index
-          pch = strtok ((char*) modemSmsText, " ,.-");
+          pch = strtok((char*)modemSmsText, " ,.-");
           resp = 1;
           while (pch != NULL) {
-            DBG_MODEM(">i:%u>%s<\r\n", resp, pch);
             if (resp == 3) break;
             pch = strtok (NULL, " ,.-");
             resp++;
           }
           smsIndex = strtol (pch, NULL, 10);
-          DBG_MODEM("New SMS index: %d\r\n", smsIndex);
+          DBG_MODEM("New SMS at: %d\r\n", smsIndex);
           // Read SMS
-          resp = gprsGetSMS (smsIndex, (uint8_t*) tempText, sizeof(tempText),
-                             (uint8_t*) modemSmsText, sizeof(modemSmsText));
-          DBG_MODEM("SMS number: %s \r\n", tempText);
-          DBG_MODEM("SMS text: %s| resp: %d\r\n", modemSmsText, resp);
-          // Process SMS
-
+          resp = gprsGetSMS(smsIndex, (uint8_t*) tempText, sizeof(tempText),
+                            (uint8_t*) modemSmsText, sizeof(modemSmsText));
+          DBG_MODEM("SMS number: %s, text: %s, resp: %d\r\n", tempText, modemSmsText, resp);
           // Check SMS number is authorized
-          resp = isPhoneNumberAuthorized ((char*) tempText);
-//          if (resp < 0) {
-          DBG_MODEM("SMS number authorized. Contact: %d\r\n", resp);
-          // Process SMS text
-          chsnprintf(modemSmsText, 128, "GET SYSTEM STATUS"); // For test purposes"
-          resp = cmdProcess (modemSmsText, top_commands,
-                              ARRAY_COUNT(top_commands), logText,
-                              LOG_TEXT_LENGTH);
-          DBG_MODEM("SMS command processed, status: %d, %s\r\n", resp, logText);
-//          } else {
-//            DBG_MODEM("SMS number NOT authorized!\r\n");
-//          }
-
-          // Delete SMS
+          contactIndex = isPhoneNumberAuthorized((char*)tempText);
+          // Process SMS if authorized and SMS text set
+          if ((resp >= 0) && (modemSetSMS)) {
+            DBG_MODEM("SMS from contact: %d\r\n", contactIndex+1); // Index at 0
+            // Process SMS text
+            resp = cmdProcess(modemSmsText, top_commands, ARRAY_COUNT(top_commands), logText, LOG_TEXT_LENGTH);
+            DBG_MODEM("SMS command processed, status: %d, response: %s\r\n", resp, logText);
+            // Send reply SMS
+            resp = gprsSendSMSBegin(conf.contact[contactIndex].phone);
+            if (resp == 1) {
+              resp = gprsSendSMSEnd(logText);
+              DBG_MODEM("SMS reply sent, resp: %d\r\n", resp);
+            } else {
+              DBG_MODEM("SMS reply failed, resp: %d\r\n", resp);
+            }
+          } else {
+            DBG_MODEM("SMS number NOT authorized!\r\n");
+          }
+          // Delete SMS anyway
           resp = gprsDeleteSMS (smsIndex); // Delete SMS after read
           DBG_MODEM("Delete SMS index %d, resp: %d\r\n", smsIndex, resp);
         }

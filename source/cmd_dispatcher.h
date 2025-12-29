@@ -14,6 +14,8 @@
 #include "hal.h"
 #include "chprintf.h"
 
+/* Command dispatcher definitions */
+#define SMD_STRICT_MODE FALSE  /* If TRUE, unknown commands return error instead of help */
 /* Token buffer - adjust for your max command length */
 #define CMD_MAX_TOKENS 5
 #define CMD_TOKEN_LEN 16
