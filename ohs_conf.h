@@ -1133,6 +1133,7 @@ void initScripts(struct scriptLL_t **pointer) {
         // cmd
         cmdSize = TCL_SCRIPT_LENGTH;
         if (uBSRead(&blockName[0], NAME_LENGTH, &tclCmd[0], &cmdSize) != UBS_RSLT_OK) {
+          umm_free(var->name);
           umm_free(var);
           chprintf(console, "uBS storage needs format!\r\n");
           break;
