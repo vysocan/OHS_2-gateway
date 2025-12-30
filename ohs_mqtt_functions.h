@@ -8,7 +8,7 @@
 #define OHS_MQTT_FUNCTIONS_H_
 
 #ifndef MQTT_FUNC_DEBUG
-#define MQTT_FUNC_DEBUG 0
+#define MQTT_FUNC_DEBUG 1
 #endif
 
 #if MQTT_FUNC_DEBUG
@@ -17,15 +17,13 @@
 #define DBG_MQTT_FUNC(...)
 #endif
 
-/* MQTT buffer size constants */
-#define MQTT_IN_TOPIC_LENGTH   40
-#define MQTT_IN_PAYLOAD_LENGTH 40
-
 /* MQTT module static data */
 static ip_addr_t mqtt_ip; // = IPADDR4_INIT_BYTES(10,10,10,127);
 struct mqtt_client_s mqtt_client;
-char mqttInTopic[MQTT_IN_TOPIC_LENGTH];
-char mqttInPayload[MQTT_IN_PAYLOAD_LENGTH];
+char mqttInTopic[MQTT_SUB_TOPIC_LENGTH];
+
+//#include "cmd_dispatcher.h"
+//#include "mqtt_cmd_handler.h"
 
 // MQTT client information
 struct mqtt_connect_client_info_t mqttCI = {
@@ -48,21 +46,21 @@ static void mqttPubRequestCB(void *arg, err_t result) {
   LWIP_UNUSED_ARG(arg);
   LWIP_UNUSED_ARG(result);
 
-  chBSemSignal(&mqttSem);
-  DBG_MQTT_FUNC("mqttPubRequestCB\r\n");
-
   if(result != ERR_OK) {
-    DBG_MQTT_FUNC("mqttPubRequestCB error: %d\r\n", result);
+    DBG_MQTT_FUNC("mqttPubReqCB error: %d\r\n", result);
     // Publish error callback
     tmpLog[0] = 'Q'; tmpLog[1] = 'E'; tmpLog[2] = 'p'; tmpLog[3] = abs(result); pushToLog(tmpLog, 4);
   } else {
-    DBG_MQTT_FUNC("mqttPubRequestCB success\r\n");
+    DBG_MQTT_FUNC("mqttPubReqCB OK\r\n");
   }
+
+  // Signal semaphore to allow next publish
+  chBSemSignal(&mqttSem);
 }
 /*
  * MQTT subscribe topic callback
  */
-static void mqttIncomingPublishCB(void *arg, const char *topic, u32_t tot_len) {
+static void mqttSubTopicCB(void *arg, const char *topic, u32_t tot_len) {
   LWIP_UNUSED_ARG(tot_len);
 
   if (arg == NULL || topic == NULL) {
@@ -72,9 +70,9 @@ static void mqttIncomingPublishCB(void *arg, const char *topic, u32_t tot_len) {
 
   DBG_MQTT_FUNC("MQTT IncomingPublishCB: %s, payload length: %u\r\n", topic, (unsigned int)tot_len);
   // Clear mqttInTopic passed to arg
-  memset(arg, 0, MQTT_IN_TOPIC_LENGTH);
+  memset(arg, 0, MQTT_SUB_TOPIC_LENGTH);
   // Copy last part of topic after OHS/set/ to *arg
-  strncpy(arg, &topic[strlen(MQTT_MAIN_TOPIC MQTT_SET_TOPIC)], MQTT_IN_TOPIC_LENGTH - 1);
+  strncpy(arg, &topic[strlen(MQTT_MAIN_TOPIC MQTT_SET_TOPIC)], MQTT_SUB_TOPIC_LENGTH - 1);
 }
 /*
  * MQTT subscribe data callback and processing
@@ -94,126 +92,135 @@ static void mqttIncomingPublishCB(void *arg, const char *topic, u32_t tot_len) {
  *   /{#} - index of user {1 .. CONTACTS_SIZE}
  *     /text - string to send
  */
-static void mqttIncomingDataCB(void *arg, const u8_t *data, u16_t len, u8_t flags) {
-  char *pch, *addressIndex[NODE_ADDRESS_SIZE];
-  uint8_t index = 0;
-  uint8_t message[6]; // message to node buffer
+//typedef struct {
+//  char *str;
+//  uint8_t strLen;
+//  uint8_t pos;
+//  const char delimiter;
+//} StringParser_t;
+///*
+// * @brief Parse next token from string parser, modifies input string to NULL-terminate tokens
+// * @param parser Pointer to StringParser_t structure
+// * @return Pointer to token string or NULL
+// *
+// */
+//static const char* parseNextToken(StringParser_t *parser) {
+//  // Skip leading delimiters
+//  while ((parser->pos < parser->strLen) && (parser->str[parser->pos] == parser->delimiter)) {
+//    parser->pos++;
+//  }
+//
+//  // No more tokens if at end or no non-delimiter chars left
+//  if (parser->pos >= parser->strLen) {
+//    return NULL;
+//  }
+//
+//  // Find end of token (next delimiter or end of buffer)
+//  uint8_t start = parser->pos;
+//  while ((parser->pos < parser->strLen) && (parser->str[parser->pos] != parser->delimiter)) {
+//    parser->pos++;
+//  }
+//
+//  // NULL terminate the token (safe - overwrites delimiter or points past end)
+//  if (parser->pos < parser->strLen) {
+//    parser->str[parser->pos] = '\0';
+//    parser->pos++;  // Skip the delimiter we just NULL'd
+//  } else {
+//    // At end of buffer - ensure NULL terminated (should already be)
+//    parser->str[parser->pos] = '\0';
+//  }
+//
+//  return (parser->pos > start) ? (&parser->str[start]) : NULL;
+//}
+///*
+// * MQTT incoming data callback
+// */
+//static void mqttIncomingDataCB(void *arg, const u8_t *data, u16_t len, u8_t flags) {
+//  StringParser_t parser = {
+//    (char *)arg, strlen((char *)data), 0, '/'
+//  };
+//  const char *token;
+//  uint8_t index = 0;
+//  uint8_t message[6];
+//
+//  if (arg == NULL || data == NULL) {
+//    DBG_MQTT_FUNC("mqttIncomingDataCB: NULL pointer\r\n");
+//    return;
+//  }
+//
+//  memset(mqttInPayload, 0, MQTT_IN_PAYLOAD_LENGTH);
+//  strncpy(mqttInPayload, (const char *)data, LWIP_MIN(len, MQTT_IN_PAYLOAD_LENGTH - 1));
+//
+//  if (flags & MQTT_DATA_FLAG_LAST) {
+//    token = parseNextToken(&parser);
+//
+//    if (token != NULL) {
+//      if (strcmp(token, text_group) == 0) {
+//        token = parseNextToken(&parser);
+//        if (token != NULL) {
+//          index = strtoul(token, NULL, 0) - 1;
+//          if ((index < ALARM_GROUPS) && (GET_CONF_GROUP_ENABLED(conf.group[index].setting))) {
+//            token = parseNextToken(&parser);
+//            if (token != NULL && strcmp(token, text_state) == 0) {
+//              // Handle group state commands
+//              if (strcmp(mqttInPayload, text_arm_home) == 0) {
+//                armGroup(index, index, armHome, 0);
+//              } else if (strcmp(mqttInPayload, text_arm_away) == 0) {
+//                armGroup(index, index, armAway, 0);
+//              } else if (strcmp(mqttInPayload, text_disarm) == 0) {
+//                disarmGroup(index, index, 0);
+//              }
+//            }
+//          }
+//        } else {
+//          return; // No group index
+//        }
+//      } else if (strcmp(token, text_sensor) == 0) {
+//        // Similar parsing for sensor tokens
+//      } else if (strcmp(token, text_zone) == 0) {
+//        token = parseNextToken(&parser);
+//        if (token != NULL && strcmp(token, text_refresh) == 0) {
+//          mqttRefreshZonesState();
+//        }
+//      }
+//    }
+//  }
+//}
+static void mqttSubDataCB(void *arg, const u8_t *data, u16_t len, u8_t flags) {
 
   if(arg == NULL || data == NULL) {
     DBG_MQTT_FUNC("mqttIncomingDataCB: NULL pointer\r\n");
     return;
   }
 
-  DBG_MQTT_FUNC("MQTT IncomingDataCB length: %d, flags: %u. Arg: %s\r\n", len, (u8_t)flags, arg);
-
-  // Clear mqttInPayload
-  memset(mqttInPayload, 0, MQTT_IN_PAYLOAD_LENGTH);
-  // Copy data payload to our mqttInPayload
-  strncpy(mqttInPayload, (const char *)data, LWIP_MIN(len, MQTT_IN_PAYLOAD_LENGTH - 1));
+  DBG_MQTT_FUNC("MQTT IncomingDataCB len: %d, flags: %d. Arg: %s<\r\n", len, (u8_t)flags, arg);
 
   // Last fragment of payload received (or whole part if payload fits receive buffer
   // See MQTT_VAR_HEADER_BUFFER_LEN)
   if (flags & MQTT_DATA_FLAG_LAST) {
-    // Decode topic string
-    pch = strtok(arg, "/");
-    DBG_MQTT_FUNC("Parse: %s", pch);
-    if (pch != NULL) {
-      // Groups
-      if (strcmp(pch, text_group) == 0) {
-        // Get group index from topic
-        pch = strtok(NULL, "/");
-        if (pch != NULL) {
-          index = strtoul(pch, NULL, 0) - 1;
-          if ((index < ALARM_GROUPS) &&
-              (GET_CONF_GROUP_ENABLED(conf.group[index].setting)) &&
-              (GET_CONF_GROUP_MQTT(conf.group[index].setting))) {
-            DBG_MQTT_FUNC(", # %d", index + 1);
-            pch = strtok(NULL, "/");
-            DBG_MQTT_FUNC(", func: %s", pch);
-            if (pch != NULL) {
-              // State
-              if (strcmp(pch, text_state) == 0) {
-                DBG_MQTT_FUNC(", payload %s =", mqttInPayload);
-                if (strcmp(mqttInPayload, text_arm_home) == 0) {
-                  DBG_MQTT_FUNC(" %s", text_arm_home);
-                  armGroup(index, index, armHome, 0);
-                } else if (strcmp(mqttInPayload, text_arm_away) == 0) {
-                  DBG_MQTT_FUNC(" %s", text_arm_away);
-                  armGroup(index, index, armAway, 0);
-                } else if (strcmp(mqttInPayload, text_disarm) == 0) {
-                  DBG_MQTT_FUNC(" %s", text_disarm);
-                  disarmGroup(index, index, 0);
-                } else {
-                  DBG_MQTT_FUNC(" %s", text_unknown);
-                }
-              }
-            }
-          }
-        }
-      } // Groups
-      // Sensors
-      else if (strcmp(pch, text_sensor) == 0) {
-        // Get node address from topic
-        pch = strtok(NULL, ":");
-        while ((pch != NULL) && (index < NODE_ADDRESS_SIZE)){
-          //DBG_MQTT_FUNC(">%u>%s<\r\n", indexNum, pch);
-          addressIndex[index] = pch;
-          index++;
-          if (index < (NODE_ADDRESS_SIZE - 1)) pch = strtok(NULL, ":");
-          else pch = strtok(NULL, "/");
-        }
-        if (index == NODE_ADDRESS_SIZE) {
-          index = getNodeIndex((*addressIndex[0] == 'R' ? RADIO_UNIT_OFFSET : 0) + strtoul(addressIndex[1], NULL, 0),
-                                *addressIndex[2], *addressIndex[3], strtoul(addressIndex[4], NULL, 0));
-          if ((index != DUMMY_NO_VALUE) &&
-              (GET_NODE_ENABLED(node[index].setting)) &&
-              (GET_NODE_MQTT(node[index].setting))) {
-            DBG_MQTT_FUNC(", node index: %d", index);
-            if (pch != NULL) {
-              DBG_MQTT_FUNC(", topic: %s", pch);
-              // Value only for Input nodes
-              if ((strcmp(pch, text_value) == 0) && (node[index].type == 'I')) {
-                DBG_MQTT_FUNC(" = '%.*s'", len, (const char *)mqttInPayload);
-                floatConv.val = strtof((const char *)mqttInPayload, NULL);
-                message[0] = node[index].type;
-                message[1] = node[index].number;
-                message[2] = floatConv.byte[0]; message[3] = floatConv.byte[1];
-                message[4] = floatConv.byte[2]; message[5] = floatConv.byte[3];
-                DBG_MQTT_FUNC(", message: %c-%d-%.2f", message[0], message[1], floatConv.val);
-                if (sendData(node[index].address, message, 6) == 1) {
-                  node[index].lastOK = getTimeUnixSec();
-                  node[index].value = floatConv.val;
-                  // MQTT pub
-                  if (GET_NODE_MQTT(node[index].setting)) pushToMqtt(typeSensor, index, functionValue);
-                }
-              }
-            }
-          }
-        }
-      } // Sensors
-      // Zones
-      else if (strcmp(pch, text_zone) == 0) {
-        pch = strtok(NULL, "/");
-        if (pch != NULL) {
-          // refresh
-          if (strcmp(pch, text_refresh) == 0) {
-            DBG_MQTT_FUNC(", refresh");
-            mqttRefreshZonesState();
-          }
-        }
-      } // Zones
-      else {
-        DBG_MQTT_FUNC(" %s", text_unknown);
+    // Pass data to Subscribe topic worker
+    mqttSubEvent_t *outMsg = chPoolAlloc(&mqtt_sub_pool);
+
+    if (outMsg != NULL) {
+      memset(outMsg, 0, sizeof(mqttSubEvent_t));
+      strncpy(&outMsg->topic[0], (const char *)arg, LWIP_MIN(strlen((const char *)arg), MQTT_SUB_TOPIC_LENGTH - 1));
+      strncpy(&outMsg->payload[0], (const char *)data, LWIP_MIN(len, MQTT_SUB_PAYLOAD_LENGTH - 1));
+
+      msg_t msg = chMBPostTimeout(&mqtt_sub_mb, (msg_t)outMsg, TIME_IMMEDIATE);
+      if (msg != MSG_OK) {
+        //chprintf(console, "MB full %d\r\n", temp);
       }
-    } // !NULL
-    DBG_MQTT_FUNC(".\r\n");
+    } else {
+      chprintf(console, "MQTT Sub pool full!\r\n");
+      pushToLogText("Fm"); // MQTT queue is full
+    }
   } // else { }
     // Handle fragmented payload, store in buffer, write to file or whatever
 }
 /*
  * MQTT subscribe topic callback
  */
-static void mqttSubscribeCB(void *arg, err_t result) {
+static void mqttSubscribedCB(void *arg, err_t result) {
   LWIP_UNUSED_ARG(arg);
 
   /* Just print the result code here for simplicity,
@@ -221,11 +228,11 @@ static void mqttSubscribeCB(void *arg, err_t result) {
      notifying user, retry subscribe or disconnect from server */
   // TODO OHS Add subscribe error handling mechanism if subscribe fails.
   if(result != ERR_OK) {
-    DBG_MQTT_FUNC("MQTT SubscribeCB error: %d\r\n", result);
+    DBG_MQTT_FUNC("MQTT Subscribed CB error: %d\r\n", result);
     SET_CONF_MQTT_SUBSCRIBE_ERROR(conf.mqtt.setting);
     pushToLogText("QES"); // Subscribe error
   } else {
-    DBG_MQTT_FUNC("MQTT SubscribeCB OK\r\n");
+    DBG_MQTT_FUNC("MQTT Subscribed CB OK\r\n");
     CLEAR_CONF_MQTT_SUBSCRIBE_ERROR(conf.mqtt.setting);
   }
 }
@@ -250,10 +257,10 @@ static void mqttConnectionCB(mqtt_client_t *client, void *arg, mqtt_connection_s
     /* Subscribe to set topic if enabled */
     if (GET_CONF_MQTT_SUBSCRIBE(conf.mqtt.setting)) {
       /* Setup callback for incoming publish requests */
-      mqtt_set_inpub_callback(client, mqttIncomingPublishCB, mqttIncomingDataCB, (void*)&mqttInTopic);
+      mqtt_set_inpub_callback(client, mqttSubTopicCB, mqttSubDataCB, (void*)&mqttInTopic);
 
       /* Subscribe to topic with wildcard */
-      err = mqtt_subscribe(client, MQTT_MAIN_TOPIC MQTT_SET_TOPIC "#", 1, mqttSubscribeCB, arg);
+      err = mqtt_subscribe(client, MQTT_MAIN_TOPIC MQTT_SET_TOPIC "#", 1, mqttSubscribedCB, arg);
 
       if(err != ERR_OK) {
         DBG_MQTT_FUNC("MQTT ConnectionCB: Subscribe error: %d\r\n", err);

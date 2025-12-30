@@ -49,22 +49,34 @@ void safeStrcat(char *dest, uint16_t *len, uint16_t max, const char *src) {
  * @param max_tokens Maximum number of tokens to extract
  * @return cmd_status_t Status code
  */
+/*
+ * @brief Tokenize input string by spaces OR forward slashes
+ * @param input Input string to tokenize
+ * @param tokens Array to store token pointers
+ * @param token_count Pointer to store number of tokens
+ * @param max_tokens Maximum number of tokens to extract
+ * @return cmd_status_t Status code
+ */
 cmd_status_t cmdTokenize(char *input, const char *tokens[],
     uint8_t *token_count, uint8_t max_tokens) {
   *token_count = 0;
+
   if (!input || !*input) return CMD_INVALID_ARGS;
 
   char *current = input;
-  while (*current == ' ' || *current == '\t')
+  // Skip leading whitespace or slashes
+  while (*current == ' ' || *current == '\t' || *current == '/')
     current++;
 
   while (*current && *token_count < max_tokens) {
-    while (*current == ' ' || *current == '\t')
+    // Skip whitespace or slashes between tokens
+    while (*current == ' ' || *current == '\t' || *current == '/')
       current++;
     if (!*current) break;
 
     tokens[*token_count] = current;
-    while (*current && *current != ' ' && *current != '\t')
+    // Advance until next delimiter (space, tab, or slash)
+    while (*current && *current != ' ' && *current != '\t' && *current != '/')
       current++;
 
     if (*current) {

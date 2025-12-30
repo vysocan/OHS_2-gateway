@@ -41,7 +41,7 @@ binary_semaphore_t mqttSem;
 // UMM
 #include "umm_malloc.h"
 #include "umm_malloc_cfg.h"
-#define UMM_MALLOC_CFG_HEAP_SIZE (1024*48)
+#define UMM_MALLOC_CFG_HEAP_SIZE (1024*50)
 char ohsUmmHeap[UMM_MALLOC_CFG_HEAP_SIZE] __attribute__((section(".ram4")));
 // TCL
 #define TCL_SCRIPT_LENGTH        (512)
@@ -202,7 +202,8 @@ int main(void) {
   chPoolObjectInit(&alert_pool, sizeof(alertEvent_t), NULL);
   chPoolObjectInit(&script_pool, sizeof(scriptEvent_t), NULL);
   chPoolObjectInit(&trigger_pool, sizeof(triggerEvent_t), NULL);
-  chPoolObjectInit(&mqtt_pool, sizeof(mqttEvent_t), NULL);
+  chPoolObjectInit(&mqtt_pub_pool, sizeof(mqttPubEvent_t), NULL);
+  chPoolObjectInit(&mqtt_sub_pool, sizeof(mqttSubEvent_t), NULL);
   // Prepare pools
   chPoolLoadArray(&alarmEvent_pool, (void *)alarmEvent_pool_queue, ALARM_EVENT_FIFO_SIZE);
   chPoolLoadArray(&logger_pool, (void *)logger_pool_queue, LOGGER_FIFO_SIZE);
@@ -211,7 +212,8 @@ int main(void) {
   chPoolLoadArray(&alert_pool, (void *)alert_pool_queue, ALERT_FIFO_SIZE);
   chPoolLoadArray(&script_pool, (void *)script_pool_queue, SCRIPT_FIFO_SIZE);
   chPoolLoadArray(&trigger_pool, (void *)trigger_pool_queue, TRIGGER_FIFO_SIZE);
-  chPoolLoadArray(&mqtt_pool, (void *)mqtt_pool_queue, MQTT_FIFO_SIZE);
+  chPoolLoadArray(&mqtt_pub_pool, (void *)mqtt_pub_pool_queue, MQTT_PUB_FIFO_SIZE);
+  chPoolLoadArray(&mqtt_sub_pool, (void *)mqtt_sub_pool_queue, MQTT_SUB_FIFO_SIZE);
 
   // SPI
   spiStart(&SPID1, &spi1cfg);
@@ -245,7 +247,8 @@ int main(void) {
   chThdCreateStatic(waRadioThread, sizeof(waRadioThread), NORMALPRIO, RadioThread, (void*)"radio");
   chThdCreateStatic(waTriggerThread, sizeof(waTriggerThread), NORMALPRIO - 1, TriggerThread, (void*)"trigger");
   chThdCreateStatic(waTclThread, sizeof(waTclThread), LOWPRIO + 1, tclThread, (void*)"tcl");
-  chThdCreateStatic(waMqttThread, sizeof(waMqttThread), NORMALPRIO - 2, MqttThread, (void*)"mqtt");
+  chThdCreateStatic(waMqttPubThread, sizeof(waMqttPubThread), NORMALPRIO - 2, MqttPubThread, (void*)"mqttPub");
+  chThdCreateStatic(waMqttSubThread, sizeof(waMqttSubThread), NORMALPRIO - 3, MqttSubThread, (void*)"mqttSub");
   //chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg);
   chThdCreateStatic(waHeartBeatThread, sizeof(waHeartBeatThread), LOWPRIO, HeartBeatThread, (void*)"h-beat");
 

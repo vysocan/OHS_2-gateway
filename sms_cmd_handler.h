@@ -5,8 +5,8 @@
  *      Author: vysocan
  */
 
-#ifndef OHS_CMD_HANDLER_H_
-#define OHS_CMD_HANDLER_H_
+#ifndef SMS_CMD_HANDLER_H_
+#define SMS_CMD_HANDLER_H_
 
 /*
  * Modem command handlers
@@ -35,7 +35,7 @@ static const cmd_entry_t get_sub[] = {
 };
 
 /* Top-level */
-const cmd_entry_t top_commands[] = {
+const cmd_entry_t sms_top_commands[] = {
   { text_Get, NULL, "Read status", get_sub, ARRAY_COUNT (get_sub) },
   { text_Set, handle_set_generic, "Modify configuration", NULL, 0 },
   { text_Help, cmdHandleHelp, "Show this help", NULL, 0 } // Help command has internal handler, no need to implement
@@ -83,4 +83,4 @@ static cmd_status_t handle_set_generic(const char *tokens[], uint8_t count,
   return CMD_OK;
 }
 
-#endif /* OHS_CMD_HANDLER_H_ */
+#endif /* SMS_CMD_HANDLER_H_ */

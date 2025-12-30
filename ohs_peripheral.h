@@ -160,8 +160,8 @@ static const ADCConversionGroup adcgrpcfg1 = {
  * Watchdog
  */
 static const WDGConfig wdgcfg = {
-  STM32_IWDG_PR_64,
-  STM32_IWDG_RL(1000)
+  STM32_IWDG_PR_256,
+  STM32_IWDG_RL(4095)
 };
 
 #endif /* OHS_PERIPHERAL_H_ */

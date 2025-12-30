@@ -433,14 +433,23 @@ typedef struct {
   float   value;    // = 0.0;
 } triggerEvent_t;
 
-// MQTT events
-#define MQTT_FIFO_SIZE 20 // To accommodate various sources like zones, groups, sensors
+// MQTT Pub events
+#define MQTT_PUB_FIFO_SIZE 20 // To accommodate various sources like zones, groups, sensors
 typedef struct {
   mqttPubType_t type;         // Group, Sensor, Zone, System
   uint8_t number;             // index
   mqttPubFunction_t function; // Name, Value, State, Arm state
   uint8_t extra;              // Extra values
-} mqttEvent_t;
+} mqttPubEvent_t;
+
+// MQTT Sub events
+#define MQTT_SUB_FIFO_SIZE 2
+#define MQTT_SUB_TOPIC_LENGTH 40
+#define MQTT_SUB_PAYLOAD_LENGTH 20
+typedef struct {
+  char topic[MQTT_SUB_TOPIC_LENGTH];
+  char payload[MQTT_SUB_PAYLOAD_LENGTH];
+} mqttSubEvent_t;
 
 // TCL callback
 typedef void (*script_cb_t) (char *result);
@@ -516,8 +525,11 @@ static MAILBOX_DECL(script_mb, script_mb_buffer, SCRIPT_FIFO_SIZE);
 static msg_t        trigger_mb_buffer[TRIGGER_FIFO_SIZE];
 static MAILBOX_DECL(trigger_mb, trigger_mb_buffer, TRIGGER_FIFO_SIZE);
 
-static msg_t        mqtt_mb_buffer[MQTT_FIFO_SIZE];
-static MAILBOX_DECL(mqtt_mb, mqtt_mb_buffer, MQTT_FIFO_SIZE);
+static msg_t        mqtt_pub_mb_buffer[MQTT_PUB_FIFO_SIZE];
+static MAILBOX_DECL(mqtt_pub_mb, mqtt_pub_mb_buffer, MQTT_PUB_FIFO_SIZE);
+
+static msg_t        mqtt_sub_mb_buffer[MQTT_SUB_FIFO_SIZE];
+static MAILBOX_DECL(mqtt_sub_mb, mqtt_sub_mb_buffer, MQTT_SUB_FIFO_SIZE);
 /*
  * Pools
  */
@@ -542,8 +554,12 @@ static MEMORYPOOL_DECL(script_pool, sizeof(scriptEvent_t), PORT_NATURAL_ALIGN, N
 static sensorEvent_t trigger_pool_queue[TRIGGER_FIFO_SIZE];
 static MEMORYPOOL_DECL(trigger_pool, sizeof(triggerEvent_t), PORT_NATURAL_ALIGN, NULL);
 
-static mqttEvent_t mqtt_pool_queue[MQTT_FIFO_SIZE];
-static MEMORYPOOL_DECL(mqtt_pool, sizeof(mqttEvent_t), PORT_NATURAL_ALIGN, NULL);
+static mqttPubEvent_t mqtt_pub_pool_queue[MQTT_PUB_FIFO_SIZE];
+static MEMORYPOOL_DECL(mqtt_pub_pool, sizeof(mqttPubEvent_t), PORT_NATURAL_ALIGN, NULL);
+
+static mqttSubEvent_t mqtt_sub_pool_queue[MQTT_SUB_FIFO_SIZE];
+static MEMORYPOOL_DECL(mqtt_sub_pool, sizeof(mqttSubEvent_t), PORT_NATURAL_ALIGN, NULL);
+
 
 // Triggers
 typedef struct {

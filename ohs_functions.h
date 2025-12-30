@@ -84,26 +84,26 @@ void pushToLogText(char *what) {
  */
 void pushToMqtt(mqttPubType_t type, uint8_t number, mqttPubFunction_t function) {
 
-  mqttEvent_t *outMsg = chPoolAlloc(&mqtt_pool);
+  mqttPubEvent_t *outMsg = chPoolAlloc(&mqtt_pub_pool);
 
   if (outMsg != NULL) {
     outMsg->type = type;
     outMsg->number = number;
     outMsg->function = function;
 
-    msg_t msg = chMBPostTimeout(&mqtt_mb, (msg_t)outMsg, TIME_IMMEDIATE);
+    msg_t msg = chMBPostTimeout(&mqtt_pub_mb, (msg_t)outMsg, TIME_IMMEDIATE);
     if (msg != MSG_OK) {
       //chprintf(console, "MB full %d\r\n", temp);
     }
   } else {
-    chprintf(console, "MQTT pool full!\r\n");
+    chprintf(console, "MQTT Pub pool full!\r\n");
     pushToLogText("FM"); // MQTT queue is full
   }
 }
 // for MQTT HAD
 void pushToMqttHAD(mqttPubType_t type, uint8_t number, mqttPubFunction_t function, uint8_t extra) {
 
-  mqttEvent_t *outMsg = chPoolAlloc(&mqtt_pool);
+  mqttPubEvent_t *outMsg = chPoolAlloc(&mqtt_pub_pool);
 
   if (outMsg != NULL) {
     outMsg->type = type;
@@ -111,12 +111,12 @@ void pushToMqttHAD(mqttPubType_t type, uint8_t number, mqttPubFunction_t functio
     outMsg->function = function;
     outMsg->extra = extra;
 
-    msg_t msg = chMBPostTimeout(&mqtt_mb, (msg_t)outMsg, TIME_IMMEDIATE);
+    msg_t msg = chMBPostTimeout(&mqtt_pub_mb, (msg_t)outMsg, TIME_IMMEDIATE);
     if (msg != MSG_OK) {
       //chprintf(console, "MB full %d\r\n", temp);
     }
   } else {
-    chprintf(console, "MQTT pool full!\r\n");
+    chprintf(console, "MQTT Pub pool full!\r\n");
     pushToLogText("FM"); // MQTT queue is full
   }
 }
