@@ -251,9 +251,9 @@ int fs_open_custom(struct fs_file *file, const char *name){
           printNodeFunction(chp, node[webNode].function);
           chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Node, text_is, html_e_td_td);
           printOnOffButton(chp, "0", GET_NODE_ENABLED(node[webNode].setting));
-          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_MQTT, text_publish, html_e_td_td);
-          printOnOffButton(chp, "6", GET_NODE_MQTT_HAD(node[webNode].setting));
           chprintf(chp, "%s%s %s %s%s", html_e_td_e_tr_tr_td, text_MQTT, text_HA, text_Discovery, html_e_td_td);
+          printOnOffButton(chp, "6", GET_NODE_MQTT_HAD(node[webNode].setting));
+          chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_MQTT, text_publish, html_e_td_td);
           printOnOffButton(chp, "7", GET_NODE_MQTT(node[webNode].setting));
           chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Group, html_e_td_td);
           selectGroup(chp, GET_NODE_GROUP(node[webNode].setting), 'g');
@@ -1602,7 +1602,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                 break;
                 case '0' ... '7': // Handle all single radio buttons for settings
                   if (valueP[0] == '0') node[webNode].setting &= ~(1 << (name[0]-48));
-                  else                 node[webNode].setting |=  (1 << (name[0]-48));
+                  else                  node[webNode].setting |=  (1 << (name[0]-48));
                 break;
                 case 'g': // group
                   number = strtol(valueP, NULL, 10);
