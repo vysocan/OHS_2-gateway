@@ -322,12 +322,122 @@ static THD_FUNCTION(MqttPubThread, arg) {
 /*
  *
  */
+typedef struct {
+  char *str;
+  uint8_t strLen;
+  uint8_t pos;
+  const char delimiter;
+  char *token;
+} StringParser_t;
+/*
+ * Parse next token.
+ * Modifies parser->str in-place by inserting '\0' at delimiters.
+ * On success:
+ *   - returns true
+ *   - parser->token points to a NUL-terminated token in parser->str
+ * On failure (no more tokens):
+ *   - returns false
+ *   - parser->token is set to NULL
+ */
+static bool parseNextToken(StringParser_t *parser) {
+  // Already at or past end?
+  if (parser->pos >= parser->strLen) {
+    parser->token = NULL;
+    return false;
+  }
+
+  // Skip single delimiter if at one
+  if (parser->str[parser->pos] == parser->delimiter) {
+    parser->pos++;
+  }
+
+  // Check again after skip
+  if (parser->pos >= parser->strLen) {
+    parser->token = NULL;
+    return false;
+  }
+
+  // Start of token
+  uint8_t start = parser->pos;
+
+  // Find end of token (next delimiter or end)
+  while (parser->pos < parser->strLen && parser->str[parser->pos] != parser->delimiter) {
+    parser->pos++;
+  }
+
+  // NUL-terminate the token
+  char original = '\0';
+  if (parser->pos < parser->strLen) {
+    original = parser->str[parser->pos];  // Save original byte
+    parser->str[parser->pos] = '\0';
+    parser->pos++;  // Move past delimiter for next call
+  }
+  // else: already at end, no write needed (caller must ensure buffer has room)
+
+  parser->token = &parser->str[start];
+  return true;
+}
+
+///*
+// * MQTT incoming data callback
+// */
+//static void mqttIncomingDataCB(void *arg, const u8_t *data, u16_t len, u8_t flags) {
+//  StringParser_t parser = {
+//    (char *)arg, strlen((char *)data), 0, '/'
+//  };
+//  const char *token;
+//  uint8_t index = 0;
+//  uint8_t message[6];
+//
+//  if (arg == NULL || data == NULL) {
+//    DBG_MQTT_FUNC("mqttIncomingDataCB: NULL pointer\r\n");
+//    return;
+//  }
+//
+//  memset(mqttInPayload, 0, MQTT_IN_PAYLOAD_LENGTH);
+//  strncpy(mqttInPayload, (const char *)data, LWIP_MIN(len, MQTT_IN_PAYLOAD_LENGTH - 1));
+//
+//  if (flags & MQTT_DATA_FLAG_LAST) {
+//    token = parseNextToken(&parser);
+//
+//    if (token != NULL) {
+//      if (strcmp(token, text_group) == 0) {
+//        token = parseNextToken(&parser);
+//        if (token != NULL) {
+//          index = strtoul(token, NULL, 0) - 1;
+//          if ((index < ALARM_GROUPS) && (GET_CONF_GROUP_ENABLED(conf.group[index].setting))) {
+//            token = parseNextToken(&parser);
+//            if (token != NULL && strcmp(token, text_state) == 0) {
+//              // Handle group state commands
+//              if (strcmp(mqttInPayload, text_arm_home) == 0) {
+//                armGroup(index, index, armHome, 0);
+//              } else if (strcmp(mqttInPayload, text_arm_away) == 0) {
+//                armGroup(index, index, armAway, 0);
+//              } else if (strcmp(mqttInPayload, text_disarm) == 0) {
+//                disarmGroup(index, index, 0);
+//              }
+//            }
+//          }
+//        } else {
+//          return; // No group index
+//        }
+//      } else if (strcmp(token, text_sensor) == 0) {
+//        // Similar parsing for sensor tokens
+//      } else if (strcmp(token, text_zone) == 0) {
+//        token = parseNextToken(&parser);
+//        if (token != NULL && strcmp(token, text_refresh) == 0) {
+//          mqttRefreshZonesState();
+//        }
+//      }
+//    }
+//  }
+//}
 static THD_WORKING_AREA(waMqttSubThread, 512);
 static THD_FUNCTION(MqttSubThread, arg) {
   chRegSetThreadName(arg);
 
-  char *pch, *addressIndex[NODE_ADDRESS_SIZE];
-  char *payloadStr;
+  char *addressIndex[NODE_ADDRESS_SIZE];
+  char *payloadStr, *topicStr;
   uint8_t index = 0;
   uint8_t message[6]; // message to node buffer
   msg_t msg;
@@ -339,27 +449,30 @@ static THD_FUNCTION(MqttSubThread, arg) {
     // We have message
     if (msg == MSG_OK) {
       payloadStr = &inMsg->payload[0];
-      DBG_MQTT_FUNC("MQTT Sub TH: Topic: %s, Payload: %s\r\n", &inMsg->topic[0], payloadStr);
+      topicStr = &inMsg->topic[0];
+
+      StringParser_t parser = {
+        topicStr, MQTT_SUB_TOPIC_LENGTH - 1, 0, '/', NULL
+      };
+
+      DBG_MQTT_FUNC("MQTT Sub TH: Topic: %s, Payload: %s\r\n", topicStr, payloadStr);
 
       // Decode topic string
-      pch = strtok (&inMsg->topic[0], "/");
-      DBG_MQTT_FUNC ("Parse: %s", pch);
-      if (pch != NULL) {
+      if (parseNextToken(&parser)) {
+        DBG_MQTT_FUNC ("Parse: %s", parser.token);
         // Groups
-        if (strcmp (pch, text_group) == 0) {
+        if (strcmp(parser.token, text_group) == 0) {
           // Get group index from topic
-          pch = strtok (NULL, "/");
-          if (pch != NULL) {
-            index = strtoul (pch, NULL, 0) - 1;
+          if (parseNextToken(&parser)) {
+            index = strtoul(parser.token, NULL, 0) - 1;
             if ((index < ALARM_GROUPS)
                 && (GET_CONF_GROUP_ENABLED (conf.group[index].setting))
                 && (GET_CONF_GROUP_MQTT (conf.group[index].setting))) {
               DBG_MQTT_FUNC (", # %d", index + 1);
-              pch = strtok (NULL, "/");
-              DBG_MQTT_FUNC (", func: %s", pch);
-              if (pch != NULL) {
+              if (parseNextToken(&parser)) {
+                DBG_MQTT_FUNC (", func: %s", parser.token);
                 // State
-                if (strcmp (pch, text_state) == 0) {
+                if (strcmp (parser.token, text_state) == 0) {
                   DBG_MQTT_FUNC (", payload = %s", payloadStr);
                   if (strcmp (payloadStr, text_arm_home) == 0) {
                     armGroup (index, index, armHome, 0);
@@ -372,60 +485,58 @@ static THD_FUNCTION(MqttSubThread, arg) {
               }
             }
           }
-        } // Groups
-        // Sensors
-        else if (strcmp (pch, text_sensor) == 0) {
+        } else if (strcmp(parser.token, text_sensor) == 0) {
+          // Sensors
+          DBG_MQTT_FUNC (", address: %s", parser.token);
           // Get node address from topic
-          pch = strtok (NULL, ":");
-          while ((pch != NULL) && (index < NODE_ADDRESS_SIZE)) {
-            //DBG_MQTT_FUNC(">%u>%s<\r\n", indexNum, pch);
-            addressIndex[index] = pch;
-            index++;
-            if (index < (NODE_ADDRESS_SIZE - 1)) pch = strtok (NULL, ":");
-            else pch = strtok (NULL, "/");
-          }
-          if (index == NODE_ADDRESS_SIZE) {
-            index = getNodeIndex (
-                (*addressIndex[0] == 'R' ? RADIO_UNIT_OFFSET : 0)
-                    + strtoul (addressIndex[1], NULL, 0), *addressIndex[2],
-                *addressIndex[3], strtoul (addressIndex[4], NULL, 0));
-            if ((index != DUMMY_NO_VALUE)
-                && (GET_NODE_ENABLED (node[index].setting))
-                && (GET_NODE_MQTT (node[index].setting))) {
-              DBG_MQTT_FUNC (", node index: %d", index);
-              if (pch != NULL) {
-                DBG_MQTT_FUNC (", topic: %s", pch);
-                // Value only for Input nodes
-                if ((strcmp (pch, text_value) == 0)
-                    && (node[index].type == 'I')) {
-                  //DBG_MQTT_FUNC (" = '%.*s'", len, (const char*) payloadStr);
-                  floatConv.val = strtof ((const char*) payloadStr, NULL);
-                  message[0] = node[index].type;
-                  message[1] = node[index].number;
-                  message[2] = floatConv.byte[0];
-                  message[3] = floatConv.byte[1];
-                  message[4] = floatConv.byte[2];
-                  message[5] = floatConv.byte[3];
-                  DBG_MQTT_FUNC (", message: %c-%d-%.2f", message[0],
-                      message[1], floatConv.val);
-                  if (sendData (node[index].address, message, 6) == 1) {
-                    node[index].lastOK = getTimeUnixSec ();
-                    node[index].value = floatConv.val;
-                    // MQTT pub
-                    if (GET_NODE_MQTT (node[index].setting)) pushToMqtt (
-                        typeSensor, index, functionValue);
-                  }
-                }
-              }
-            }
-          }
-        } // Sensors
-        // Zones
-        else if (strcmp (pch, text_zone) == 0) {
-          pch = strtok (NULL, "/");
-          if (pch != NULL) {
+//          pch = strtok (NULL, ":");
+//          while ((pch != NULL) && (index < NODE_ADDRESS_SIZE)) {
+//            //DBG_MQTT_FUNC(">%u>%s<\r\n", indexNum, pch);
+//            addressIndex[index] = pch;
+//            index++;
+//            if (index < (NODE_ADDRESS_SIZE - 1)) pch = strtok (NULL, ":");
+//            else pch = strtok (NULL, "/");
+//          }
+//          if (index == NODE_ADDRESS_SIZE) {
+//            index = getNodeIndex (
+//                (*addressIndex[0] == 'R' ? RADIO_UNIT_OFFSET : 0)
+//                    + strtoul (addressIndex[1], NULL, 0), *addressIndex[2],
+//                *addressIndex[3], strtoul (addressIndex[4], NULL, 0));
+//            if ((index != DUMMY_NO_VALUE)
+//                && (GET_NODE_ENABLED (node[index].setting))
+//                && (GET_NODE_MQTT (node[index].setting))) {
+//              DBG_MQTT_FUNC (", node index: %d", index);
+//              if (pch != NULL) {
+//                DBG_MQTT_FUNC (", topic: %s", pch);
+//                // Value only for Input nodes
+//                if ((strcmp (pch, text_value) == 0)
+//                    && (node[index].type == 'I')) {
+//                  //DBG_MQTT_FUNC (" = '%.*s'", len, (const char*) payloadStr);
+//                  floatConv.val = strtof ((const char*) payloadStr, NULL);
+//                  message[0] = node[index].type;
+//                  message[1] = node[index].number;
+//                  message[2] = floatConv.byte[0];
+//                  message[3] = floatConv.byte[1];
+//                  message[4] = floatConv.byte[2];
+//                  message[5] = floatConv.byte[3];
+//                  DBG_MQTT_FUNC (", message: %c-%d-%.2f", message[0],
+//                      message[1], floatConv.val);
+//                  if (sendData (node[index].address, message, 6) == 1) {
+//                    node[index].lastOK = getTimeUnixSec ();
+//                    node[index].value = floatConv.val;
+//                    // MQTT pub
+//                    if (GET_NODE_MQTT (node[index].setting)) pushToMqtt (
+//                        typeSensor, index, functionValue);
+//                  }
+//                }
+//              }
+//            }
+//          }
+        } else if (strcmp(parser.token, text_zone) == 0) {
+          // Zones
+          if (parseNextToken(&parser)) {
             // refresh
-            if (strcmp (pch, text_refresh) == 0) {
+            if (strcmp(parser.token, text_refresh) == 0) {
               DBG_MQTT_FUNC (", refresh");
               mqttRefreshZonesState ();
             }
