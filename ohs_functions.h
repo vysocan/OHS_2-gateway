@@ -8,6 +8,8 @@
 #ifndef OHS_FUNCTIONS_H_
 #define OHS_FUNCTIONS_H_
 
+#include <errno.h>
+
 // Logger related
 #define FRAM_MSG_SIZE     16
 #define FRAM_HEADER_SIZE  4
@@ -960,6 +962,64 @@ int8_t isPhoneNumberAuthorized(char *number) {
     }
   }
   return -1;
+}
+/**
+ * Safe strtof() with error handling
+ *
+ * @param str Input string to parse
+ * @param result Pointer to store parsed float
+ * @return 1 on success, 0 on error
+ */
+int8_t safeStrtof(const char *str, float *result) {
+  char *endptr;
+
+  if (str == NULL || *str == '\0') {
+    return 0; // Error empty string
+  }
+
+  errno = 0;
+  float val = strtof (str, &endptr);
+
+  if (errno == ERANGE) {
+    return 0; // Error out of range
+  }
+
+  if (endptr == str) {
+    return 0; // Error invalid float
+  }
+
+  *result = val;
+  return 1;
+}
+
+/**
+ * Safe strtoul() with error handling
+ *
+ * @param str Input string to parse
+ * @param result Pointer to store parsed value
+ * @param base Numeric base (10, 16, etc.)
+ * @return 1 on success, 0 on error
+ */
+int8_t safeStrtoul(const char *str, unsigned long *result, int base) {
+  char *endptr;
+
+  if (str == NULL || *str == '\0') {
+    return 0; // Error empty string
+  }
+
+  errno = 0;
+  unsigned long val = strtoul (str, &endptr, base);
+
+  if (errno == ERANGE) {
+    return 0; // Error out of range
+  }
+
+  if (endptr == str) {
+    return 0; // Error invalid number
+  }
+
+  *result = val;
+  return 1;
 }
 
 #endif /* OHS_FUNCTIONS_H_ */

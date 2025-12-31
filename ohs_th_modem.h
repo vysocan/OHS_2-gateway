@@ -50,7 +50,7 @@ static THD_FUNCTION ( ModemThread, arg) {
   char *pch;
 
   /* Initialize help handler with command table */
-  cmdInitHelp(sms_top_commands, ARRAY_COUNT(sms_top_commands));
+  cmdInitHelp(smsTopCommands, ARRAY_COUNT(smsTopCommands));
 
   while (true) {
     // Check is GPRS is free
@@ -198,7 +198,7 @@ static THD_FUNCTION ( ModemThread, arg) {
           if ((resp >= 0) && (modemSetSMS)) {
             DBG_MODEM("SMS from contact: %d\r\n", contactIndex+1); // Index at 0
             // Process SMS text
-            resp = cmdProcess(modemSmsText, sms_top_commands, ARRAY_COUNT(sms_top_commands), logText, LOG_TEXT_LENGTH);
+            resp = cmdProcess(modemSmsText, smsTopCommands, ARRAY_COUNT(smsTopCommands), logText, LOG_TEXT_LENGTH);
             DBG_MODEM("SMS command processed, status: %d, response: %s\r\n", resp, logText);
             // Send reply SMS
             resp = gprsSendSMSBegin(conf.contact[contactIndex].phone);

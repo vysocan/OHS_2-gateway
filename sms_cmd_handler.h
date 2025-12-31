@@ -1,5 +1,6 @@
+
 /*
- * ohs_cmd_handler.h
+ * sms_cmd_handler.h
  *
  *  Created on: Dec 26, 2025
  *      Author: vysocan
@@ -12,32 +13,38 @@
  * Modem command handlers
  */
 /* === FORWARD DECLARATIONS ================================================ */
-static cmd_status_t handle_get_system_status(const char *tokens[],
-    uint8_t count, char *result, uint16_t result_len);
-static cmd_status_t handle_get_zone_status(const char *tokens[], uint8_t count,
-    char *result, uint16_t result_len);
-static cmd_status_t handle_set_generic(const char *tokens[], uint8_t count,
-    char *result, uint16_t result_len);
+static cmdStatus_t handleGetGroupStatus(const char *tokens[], uint8_t count,
+    char *result, uint16_t resultLen);
+static cmdStatus_t handleGetSystemStatus(const char *tokens[], uint8_t count,
+    char *result, uint16_t resultLen);
+static cmdStatus_t handleGetZoneStatus(const char *tokens[], uint8_t count,
+    char *result, uint16_t resultLen);
+static cmdStatus_t handleSetGeneric(const char *tokens[], uint8_t count,
+    char *result, uint16_t resultLen);
 
 /* === TABLES - PARENT REFERENCES ONLY ====================================== */
 /* Leaf tables - sub_count = 0 (no subcommands) */
-static const cmd_entry_t get_system_sub[] = {
-  { text_Status, handle_get_system_status, "Get system status", NULL, 0 }
+static const cmdEntry_t smsGetGroupSub[] = {
+  { text_Status, handleGetGroupStatus, "Get group status", NULL, 0 }
 };
-static const cmd_entry_t get_zone_sub[] = {
-  { text_Status, handle_get_zone_status, "Get zone status", NULL, 0 }
+static const cmdEntry_t smsGetSystemSub[] = {
+  { text_Status, handleGetSystemStatus, "Get system status", NULL, 0 }
+};
+static const cmdEntry_t smsGetZoneSub[] = {
+  { text_Status, handleGetZoneStatus, "Get zone status", NULL, 0 }
 };
 
 /* Parent tables - use ARRAY_COUNT(child) */
-static const cmd_entry_t get_sub[] = {
-  { text_System, NULL, "System information", get_system_sub, ARRAY_COUNT(get_system_sub) },
-  { text_Zone, NULL, "Zone information", get_zone_sub, ARRAY_COUNT(get_zone_sub) }
+static const cmdEntry_t smsGetSub[] = {
+  { text_Group, NULL, "Group information", smsGetGroupSub, ARRAY_COUNT(smsGetGroupSub) },
+  { text_System, NULL, "System information", smsGetSystemSub, ARRAY_COUNT(smsGetSystemSub) },
+  { text_Zone, NULL, "Zone information", smsGetZoneSub, ARRAY_COUNT(smsGetZoneSub) }
 };
 
 /* Top-level */
-const cmd_entry_t sms_top_commands[] = {
-  { text_Get, NULL, "Read status", get_sub, ARRAY_COUNT (get_sub) },
-  { text_Set, handle_set_generic, "Modify configuration", NULL, 0 },
+const cmdEntry_t smsTopCommands[] = {
+  { text_Get, NULL, "Read status", smsGetSub, ARRAY_COUNT(smsGetSub) },
+  { text_Set, handleSetGeneric, "Modify configuration", NULL, 0 },
   { text_Help, cmdHandleHelp, "Show this help", NULL, 0 } // Help command has internal handler, no need to implement
 };
 
@@ -45,40 +52,82 @@ const cmd_entry_t sms_top_commands[] = {
  * Implement your command handlers below
  */
 /*
+ * Handle GET GROUP STATUS
+ */
+static cmdStatus_t handleGetGroupStatus(const char *tokens[], uint8_t count,
+    char *result, uint16_t resultLen) {
+
+  // Check arguments
+  if (count < 1) {
+    chsnprintf(result, resultLen, "Usage: GET GROUP STATUS <group_id>");
+    return CMD_INVALID_ARGS;
+  }
+
+  // Get group index
+  uint8_t groupIndex = DUMMY_NO_VALUE;
+  if (safeStrtoul(tokens[0], (unsigned long*)&groupIndex, 10)) {
+    groupIndex--; // Convert to 0-based index
+
+    // Check valid group
+    if (groupIndex < ALARM_GROUPS) {
+      if (GET_CONF_GROUP_ENABLED(conf.group[groupIndex].setting) == 0) {
+        chsnprintf (result, resultLen, "Group %d.%s is DISABLED", groupIndex + 1,
+            conf.group[groupIndex].name);
+        return CMD_OK;
+      } else {
+        if (GET_GROUP_ARMED(group[groupIndex].setting)) {
+          chsnprintf (result, resultLen, "Group %d.%s is %s", groupIndex + 1,
+              conf.group[groupIndex].name,
+              GET_GROUP_ARMED_HOME(group[groupIndex].setting) ? "ARMED HOME" : "ARMED AWAY");
+          return CMD_OK;
+        } else {
+          chsnprintf (result, resultLen, "Group %d.%s is DISARMED", groupIndex + 1,
+              conf.group[groupIndex].name);
+          return CMD_OK;
+        }
+      }
+    }
+  }
+
+  // Fallthrough invalid group
+  chsnprintf (result, resultLen, "Invalid group ID: %s", tokens[0]);
+  return CMD_INVALID_ARGS;
+}
+/*
  * Handle GET SYSTEM STATUS
  */
-static cmd_status_t handle_get_system_status(const char *tokens[],
-    uint8_t count, char *result, uint16_t result_len) {
+static cmdStatus_t handleGetSystemStatus(const char *tokens[],
+    uint8_t count, char *result, uint16_t resultLen) {
   (void) tokens;
   (void) count;
 
-  chsnprintf (result, result_len, "SYSTEM RUNNING | Uptime: 1234s");
+  chsnprintf(result, resultLen, "SYSTEM RUNNING | Uptime: 1234s");
   return CMD_OK;
 }
 /*
  * Handle GET ZONE STATUS
  */
-static cmd_status_t handle_get_zone_status(const char *tokens[], uint8_t count,
-    char *result, uint16_t result_len) {
+static cmdStatus_t handleGetZoneStatus(const char *tokens[], uint8_t count,
+    char *result, uint16_t resultLen) {
   if (count < 1) {
-    chsnprintf (result, result_len, "Usage: GET ZONE STATUS <zone_id>");
+    chsnprintf(result, resultLen, "Usage: GET ZONE STATUS <zone_id>");
     return CMD_INVALID_ARGS;
   }
 
-  const char *zone_id = tokens[0];
-  chsnprintf (result, result_len,
-      "ZONE %s STATUS | State: ACTIVE | Sensor: 23.5C", zone_id);
+  const char *zoneId = tokens[0];
+  chsnprintf(result, resultLen,
+      "ZONE %s STATUS | State: ACTIVE | Sensor: 23.5C", zoneId);
   return CMD_OK;
 }
 /*
  * Handle SET GENERIC
  */
-static cmd_status_t handle_set_generic(const char *tokens[], uint8_t count,
-    char *result, uint16_t result_len) {
+static cmdStatus_t handleSetGeneric(const char *tokens[], uint8_t count,
+    char *result, uint16_t resultLen) {
 
-  uint16_t len = chsnprintf (result, result_len, "SET command executed: ");
+  uint16_t len = chsnprintf(result, resultLen, "SET command executed: ");
   for (uint8_t i = 0; i < count; i++) {
-    safeStrcat(result, &len, result_len, tokens[i]);
+    safeStrcat(result, &len, resultLen, tokens[i]);
   }
   return CMD_OK;
 }

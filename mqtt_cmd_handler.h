@@ -11,31 +11,31 @@
 
 
 /* === FORWARD DECLARATIONS ================================================ */
-static cmd_status_t handle_group_state(const char *tokens[], uint8_t count,
+static cmdStatus_t handle_group_state(const char *tokens[], uint8_t count,
     char *result, uint16_t result_len);
-static cmd_status_t handle_sensor_value(const char *tokens[], uint8_t count,
+static cmdStatus_t handle_sensor_value(const char *tokens[], uint8_t count,
     char *result, uint16_t result_len);
-static cmd_status_t handle_zone_refresh(const char *tokens[], uint8_t count,
+static cmdStatus_t handle_zone_refresh(const char *tokens[], uint8_t count,
     char *result, uint16_t result_len);
 
 /* === TABLES - MQTT COMMAND STRUCTURE ====================================== */
 /* /group/{#}* */
-static const cmd_entry_t group_sub[] = {
+static const cmdEntry_t group_sub[] = {
   { text_state, handle_group_state, "Group state control", NULL, 0 }
 };
 
 /* /sensor/{address}* */
-static const cmd_entry_t sensor_sub[] = {
+static const cmdEntry_t sensor_sub[] = {
   { text_value, handle_sensor_value, "Sensor data", NULL, 0 }
 };
 
 /* /zone/refresh */
-static const cmd_entry_t zone_sub[] = {
+static const cmdEntry_t zone_sub[] = {
   { text_refresh, handle_zone_refresh, "Refresh zone states", NULL, 0 }
 };
 
 /* Top-level MQTT commands */
-const cmd_entry_t mqtt_top_commands[] = {
+const cmdEntry_t mqtt_top_commands[] = {
   { text_Group, NULL, "Group control", group_sub, ARRAY_COUNT (group_sub) },
   { text_Sensor, NULL, "Sensor data", sensor_sub, ARRAY_COUNT (sensor_sub) },
   { text_Zone, NULL, "Zone management", zone_sub, ARRAY_COUNT (zone_sub) },
@@ -43,7 +43,7 @@ const cmd_entry_t mqtt_top_commands[] = {
 };
 
 /* === HANDLERS ============================================================= */
-static cmd_status_t handle_group_state(const char *tokens[], uint8_t count,
+static cmdStatus_t handle_group_state(const char *tokens[], uint8_t count,
     char *result, uint16_t result_len) {
 
   if (count < 2) {
@@ -82,7 +82,7 @@ static cmd_status_t handle_group_state(const char *tokens[], uint8_t count,
   return CMD_OK;
 }
 
-static cmd_status_t handle_sensor_value(const char *tokens[], uint8_t count,
+static cmdStatus_t handle_sensor_value(const char *tokens[], uint8_t count,
     char *result, uint16_t result_len) {
 
   if (count < 1) {
@@ -97,7 +97,7 @@ static cmd_status_t handle_sensor_value(const char *tokens[], uint8_t count,
   return CMD_OK;
 }
 
-static cmd_status_t handle_zone_refresh(const char *tokens[], uint8_t count,
+static cmdStatus_t handle_zone_refresh(const char *tokens[], uint8_t count,
     char *result, uint16_t result_len) {
   (void)tokens;
   (void)count;

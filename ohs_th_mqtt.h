@@ -432,7 +432,7 @@ static THD_FUNCTION(MqttSubThread, arg) {
             // refresh
             if (strcmp (pch, text_refresh) == 0) {
               DBG_MQTT_FUNC (", refresh");
-              mqttRefreshZonesState ();
+              mqttRefreshZonesState();
             }
           }
         } // Zones

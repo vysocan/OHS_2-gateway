@@ -29,11 +29,11 @@ typedef enum {
   CMD_INVALID_ARGS = -1,
   CMD_INCOMPLETE = -2,
   CMD_ERROR = -3
-} cmd_status_t;
+} cmdStatus_t;
 
 /* Command handler function signature */
-typedef cmd_status_t (*cmd_handler_t)(const char *tokens[], uint8_t token_count,
-    char *result, uint16_t result_len);
+typedef cmdStatus_t (*cmdHandler_t)(const char *tokens[], uint8_t tokenCount,
+    char *result, uint16_t resultLen);
 
 /* Forward declaration */
 struct cmd_entry;
@@ -41,20 +41,20 @@ struct cmd_entry;
 /* Command entry in lookup table (statically typed tree node) */
 typedef struct cmd_entry {
   const char *name; /* command or subcommand name */
-  cmd_handler_t handler; /* may be NULL if purely namespace */
+  cmdHandler_t handler; /* may be NULL if purely namespace */
   const char *help; /* short help for this command */
   const struct cmd_entry *sub; /* pointer to subcommand table */
   uint8_t sub_count; /* length of sub table */
-} cmd_entry_t;
+} cmdEntry_t;
 
 /* API Functions */
-cmd_status_t cmdProcess(char *input, const cmd_entry_t *table,
-    uint8_t table_count, char *result, uint16_t result_len);
-cmd_status_t cmdTokenize(char *input, const char *tokens[],
-    uint8_t *token_count, uint8_t max_tokens);
-cmd_status_t cmdHandleHelp(const char *tokens[], uint8_t token_count,
-    char *result, uint16_t result_len);
-void cmdInitHelp(const cmd_entry_t *table, uint8_t count);
+cmdStatus_t cmdProcess(char *input, const cmdEntry_t *table,
+    uint8_t table_count, char *result, uint16_t resultLen);
+cmdStatus_t cmdTokenize(char *input, const char *tokens[],
+    uint8_t *tokenCount, uint8_t maxTokens);
+cmdStatus_t cmdHandleHelp(const char *tokens[], uint8_t tokenCount,
+    char *result, uint16_t resultLen);
+void cmdInitHelp(const cmdEntry_t *table, uint8_t count);
 
 /* Help functions */
 int8_t strcmpi(const char *a, const char *b);
