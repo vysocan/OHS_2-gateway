@@ -8,6 +8,13 @@
 #include "cmd_dispatcher.h"
 #include <string.h>
 #include <stdint.h>
+#include "hal.h"
+#include "chprintf.h"
+#include "memstreams.h"
+
+// Memory stream for output
+MemoryStream ms;
+BaseSequentialStream *chp;
 
 /*
  * @brief Case-insensitive string comparison
@@ -26,29 +33,6 @@ int8_t strcmpi(const char *a, const char *b) {
   return (unsigned char) *a - (unsigned char) *b;
 }
 
-/*
- * @brief Safe string copy with buffer overflow protection
- * @param dest Destination buffer
- * @param len Pointer to current length of destination buffer
- * @param max Maximum size of destination buffer
- * @param src Source string
- * @return void
- */
-void safeStrcat(char *dest, uint16_t *len, uint16_t max, const char *src) {
-  while (*src && *len < max - 1) {
-    dest[(*len)++] = *src++;
-  }
-  dest[*len] = '\0';
-}
-
-/*
- * @brief Tokenize input string by spaces
- * @param input Input string to tokenize
- * @param tokens Array to store token pointers
- * @param token_count Pointer to store number of tokens
- * @param max_tokens Maximum number of tokens to extract
- * @return cmd_status_t Status code
- */
 /*
  * @brief Tokenize input string by spaces OR forward slashes
  * @param input Input string to tokenize
@@ -109,23 +93,19 @@ static const cmdEntry_t* findCommand(const cmdEntry_t *table, uint8_t count,
 /*
  * @brief Append auto-generated help for subcommands (CMD_INCOMPLETE)
  * @param cmd Parent command entry
- * @param result Result buffer
- * @param result_len Maximum length of result buffer
+ * @param *chp Output stream
  */
-static void appendSubHelp(const cmdEntry_t *cmd, char *result,
-    uint16_t result_len) {
+static void appendSubHelp(const cmdEntry_t *cmd, BaseSequentialStream *chp) {
 
-  uint16_t len = chsnprintf(result, result_len, "Subcommands for %s:\n", cmd->name);
+  chprintf(chp, "Subcommands for %s:\n", cmd->name);
 
   for (uint8_t i = 0; i < cmd->sub_count; i++) {
     const cmdEntry_t *sub = &cmd->sub[i];
-    safeStrcat (result, &len, result_len, " ");
-    safeStrcat (result, &len, result_len, sub->name);
+    chprintf(chp, "  %s", sub->name);
     if (sub->help && sub->help[0]) {
-      safeStrcat (result, &len, result_len, " - ");
-      safeStrcat (result, &len, result_len, sub->help);
+      chprintf(chp, " %s %s", INDENT_STR, sub->help);
     }
-    safeStrcat (result, &len, result_len, "\n");
+    chprintf(chp, "\n");
   }
 }
 
@@ -135,13 +115,12 @@ static void appendSubHelp(const cmdEntry_t *cmd, char *result,
  * @param table_count Number of entries in table
  * @param tokens Tokenized input
  * @param token_count Number of tokens
- * @param result Result buffer
- * @param result_len Maximum length of result buffer
+ * @param *chp Output stream
  * @return cmd_status_t Status code
  */
 static cmdStatus_t execCommandTree(const cmdEntry_t *table,
     uint8_t table_count, const char *tokens[], uint8_t token_count,
-    char *result, uint16_t result_len) {
+    BaseSequentialStream *chp) {
   if (token_count == 0) return CMD_INCOMPLETE;
 
   const cmdEntry_t* cmd = findCommand(table, table_count, tokens[0]);
@@ -160,19 +139,18 @@ static cmdStatus_t execCommandTree(const cmdEntry_t *table,
   /* Try subcommands first */
   if (cmd->sub && cmd->sub_count > 0) {
     if (next_count == 0) {
-      result[0] = '\0';
-      appendSubHelp (cmd, result, result_len);
+      appendSubHelp (cmd, chp);
       return CMD_INCOMPLETE;
     }
 
     cmdStatus_t sub_status = execCommandTree (cmd->sub, cmd->sub_count,
-        next_tokens, next_count, result, result_len);
+        next_tokens, next_count, chp);
     if (sub_status != CMD_UNKNOWN) return sub_status;
   }
 
   /* Try handler */
   if (cmd->handler) {
-    return cmd->handler (next_tokens, next_count, result, result_len);
+    return cmd->handler (next_tokens, next_count, chp);
   }
 
   return CMD_UNKNOWN;
@@ -196,9 +174,13 @@ cmdStatus_t cmdProcess(char *input, const cmdEntry_t *table,
   cmdStatus_t status = cmdTokenize(input, tokens, &token_count, CMD_MAX_TOKENS);
   if (status != CMD_OK) return status;
 
-  result[0] = '\0';
-  return execCommandTree (table, table_count, tokens, token_count, result,
-      result_len);
+  // Prepare memory stream for output
+  memset(result, 0, result_len);
+  msObjectInit(&ms, (uint8_t *)result, result_len - 1, 0);
+  chp = (BaseSequentialStream *)(void *)&ms;
+
+  // Perform command execution
+  return execCommandTree (table, table_count, tokens, token_count, chp);
 }
 
 /*
@@ -213,23 +195,15 @@ static uint8_t g_cmd_table_count = 0;
  * @brief Append formatted help for a single command
  * @param cmd Command entry
  * @param indent_level Indentation level for hierarchy
- * @param result Result buffer
- * @param result_len Pointer to current length
- * @param result_max Maximum length of result buffer
+ * @param *chp Output stream
  */
 static void appendCmdHelp(const cmdEntry_t *cmd, uint8_t indent_level,
-    char *result, uint16_t *result_len, uint16_t result_max) {
+    BaseSequentialStream *chp) {
 
   for (uint8_t i = 0; i < indent_level; i++) {
-    safeStrcat (result, result_len, result_max, "-");
+    chprintf(chp, "%s", INDENT_STR);
   }
-
-  safeStrcat (result, result_len, result_max, cmd->name);
-  // if (cmd->help && cmd->help[0]) {
-  //     safeStrcat(result, result_len, result_max, " - ");
-  //     safeStrcat(result, result_len, result_max, cmd->help);
-  // }
-  safeStrcat (result, result_len, result_max, "\n");
+  chprintf(chp, "%s\n", cmd->name);
 }
 
 /*
@@ -237,22 +211,16 @@ static void appendCmdHelp(const cmdEntry_t *cmd, uint8_t indent_level,
  * @param table Command table
  * @param table_count Number of entries
  * @param indent_level Current indentation level
- * @param result Result buffer
- * @param result_len Pointer to current length
- * @param result_max Maximum length of result buffer
+ * @param *chp Output stream
  */
 static void appendTreeHelp(const cmdEntry_t *table, uint8_t table_count,
-    uint8_t indent_level, char *result, uint16_t *result_len,
-    uint16_t result_max) {
+    uint8_t indent_level, BaseSequentialStream *chp) {
   for (uint8_t i = 0; i < table_count; i++) {
-    // Stop if buffer is full
-    if (*result_len >= result_max - 1) break;
 
     const cmdEntry_t *cmd = &table[i];
-    appendCmdHelp (cmd, indent_level, result, result_len, result_max);
+    appendCmdHelp (cmd, indent_level, chp);
     if (cmd->sub && cmd->sub_count > 0) {
-      appendTreeHelp (cmd->sub, cmd->sub_count, indent_level + 1, result,
-          result_len, result_max);
+      appendTreeHelp (cmd->sub, cmd->sub_count, indent_level + 1, chp);
     }
   }
 }
@@ -261,27 +229,22 @@ static void appendTreeHelp(const cmdEntry_t *table, uint8_t table_count,
  * @brief Built-in HELP command handler (wrapper with correct signature)
  * @param tokens Token array (unused)
  * @param token_count Token count (unused)
- * @param result Output buffer
- * @param result_len Maximum length of output buffer
+ * @param *chp Output stream
  * @return cmd_status_t Always returns CMD_OK
  */
 cmdStatus_t cmdHandleHelp(const char *tokens[], uint8_t token_count,
-    char *result, uint16_t result_len) {
+    BaseSequentialStream *chp) {
   (void) tokens;
   (void) token_count;
 
   if (!g_cmd_table || g_cmd_table_count == 0) {
-    uint16_t len = 0;
-    safeStrcat (result, &len, result_len,
-        "ERROR: Command table not initialized\n");
+    chprintf(chp, "ERROR: Command table not initialized\n");
     return CMD_ERROR;
   }
 
-  uint16_t len = 0;
-  safeStrcat (result, &len, result_len, "Commands:\n");
-  appendTreeHelp (g_cmd_table, g_cmd_table_count, 0, result, &len,
-      result_len);
-  safeStrcat (result, &len, result_len, "\n");
+  chprintf(chp, "Commands:\n");
+  appendTreeHelp (g_cmd_table, g_cmd_table_count, 0, chp);
+  chprintf(chp, "\n");
   return CMD_OK;
 }
 

@@ -14,13 +14,13 @@
  */
 /* === FORWARD DECLARATIONS ================================================ */
 static cmdStatus_t handleGetGroupStatus(const char *tokens[], uint8_t count,
-    char *result, uint16_t resultLen);
+    BaseSequentialStream *chp);
 static cmdStatus_t handleGetSystemStatus(const char *tokens[], uint8_t count,
-    char *result, uint16_t resultLen);
+    BaseSequentialStream *chp);
 static cmdStatus_t handleGetZoneStatus(const char *tokens[], uint8_t count,
-    char *result, uint16_t resultLen);
+    BaseSequentialStream *chp);
 static cmdStatus_t handleSetGeneric(const char *tokens[], uint8_t count,
-    char *result, uint16_t resultLen);
+    BaseSequentialStream *chp);
 
 /* === TABLES - PARENT REFERENCES ONLY ====================================== */
 /* Leaf tables - sub_count = 0 (no subcommands) */
@@ -55,11 +55,11 @@ const cmdEntry_t smsTopCommands[] = {
  * Handle GET GROUP STATUS
  */
 static cmdStatus_t handleGetGroupStatus(const char *tokens[], uint8_t count,
-    char *result, uint16_t resultLen) {
+    BaseSequentialStream *chp) {
 
   // Check arguments
   if (count < 1) {
-    chsnprintf(result, resultLen, "Usage: GET GROUP STATUS <group_id>");
+    chprintf(chp, "Usage: GET GROUP STATUS <group_id>\n");
     return CMD_INVALID_ARGS;
   }
 
@@ -71,17 +71,17 @@ static cmdStatus_t handleGetGroupStatus(const char *tokens[], uint8_t count,
     // Check valid group
     if (groupIndex < ALARM_GROUPS) {
       if (GET_CONF_GROUP_ENABLED(conf.group[groupIndex].setting) == 0) {
-        chsnprintf (result, resultLen, "Group %d.%s is DISABLED", groupIndex + 1,
+        chprintf (chp, "Group %d.%s is DISABLED", groupIndex + 1,
             conf.group[groupIndex].name);
         return CMD_OK;
       } else {
         if (GET_GROUP_ARMED(group[groupIndex].setting)) {
-          chsnprintf (result, resultLen, "Group %d.%s is %s", groupIndex + 1,
+          chprintf (chp, "Group %d.%s is %s", groupIndex + 1,
               conf.group[groupIndex].name,
               GET_GROUP_ARMED_HOME(group[groupIndex].setting) ? "ARMED HOME" : "ARMED AWAY");
           return CMD_OK;
         } else {
-          chsnprintf (result, resultLen, "Group %d.%s is DISARMED", groupIndex + 1,
+          chprintf (chp, "Group %d.%s is DISARMED", groupIndex + 1,
               conf.group[groupIndex].name);
           return CMD_OK;
         }
@@ -90,44 +90,63 @@ static cmdStatus_t handleGetGroupStatus(const char *tokens[], uint8_t count,
   }
 
   // Fallthrough invalid group
-  chsnprintf (result, resultLen, "Invalid group ID: %s", tokens[0]);
+  chprintf (chp, "Invalid group ID: %s", tokens[0]);
   return CMD_INVALID_ARGS;
 }
 /*
  * Handle GET SYSTEM STATUS
  */
-static cmdStatus_t handleGetSystemStatus(const char *tokens[],
-    uint8_t count, char *result, uint16_t resultLen) {
+static cmdStatus_t handleGetSystemStatus(const char *tokens[], uint8_t count,
+    BaseSequentialStream *chp) {
   (void) tokens;
   (void) count;
 
-  chsnprintf(result, resultLen, "SYSTEM RUNNING | Uptime: 1234s");
+  chprintf(chp, "SYSTEM RUNNING | Uptime: 1234s");
   return CMD_OK;
 }
 /*
  * Handle GET ZONE STATUS
  */
 static cmdStatus_t handleGetZoneStatus(const char *tokens[], uint8_t count,
-    char *result, uint16_t resultLen) {
+    BaseSequentialStream *chp) {
+
   if (count < 1) {
-    chsnprintf(result, resultLen, "Usage: GET ZONE STATUS <zone_id>");
+    chprintf(chp, "Usage: GET ZONE STATUS <zone_id>");
     return CMD_INVALID_ARGS;
   }
 
-  const char *zoneId = tokens[0];
-  chsnprintf(result, resultLen,
-      "ZONE %s STATUS | State: ACTIVE | Sensor: 23.5C", zoneId);
-  return CMD_OK;
+  // Get zone index
+  uint8_t zoneIndex = DUMMY_NO_VALUE;
+  if (safeStrtoul (tokens[0], (unsigned long*) &zoneIndex, 10)) {
+    zoneIndex--; // Convert to 0-based index
+
+    // Check valid zone
+    if (zoneIndex < ALARM_ZONES) {
+      if (GET_CONF_ZONE_ENABLED (conf.zone[zoneIndex]) == 0) {
+        chprintf (chp, "Zone %d.%s is DISABLED", zoneIndex + 1,
+            conf.zoneName[zoneIndex]);
+        return CMD_OK;
+      } else {
+        chprintf (chp, "Zone %d.%s is ACTIVE", zoneIndex + 1,
+            conf.zoneName[zoneIndex]);
+        return CMD_OK;
+      }
+    }
+  }
+
+  // Fallthrough invalid zone
+  chprintf (chp, "Invalid zone ID: %s", tokens[0]);
+  return CMD_INVALID_ARGS;
 }
 /*
  * Handle SET GENERIC
  */
 static cmdStatus_t handleSetGeneric(const char *tokens[], uint8_t count,
-    char *result, uint16_t resultLen) {
+    BaseSequentialStream *chp) {
 
-  uint16_t len = chsnprintf(result, resultLen, "SET command executed: ");
+  chprintf(chp, "SET command executed: ");
   for (uint8_t i = 0; i < count; i++) {
-    safeStrcat(result, &len, resultLen, tokens[i]);
+    chprintf(chp, "%s", tokens[i]);
   }
   return CMD_OK;
 }

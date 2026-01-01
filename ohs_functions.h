@@ -973,17 +973,17 @@ int8_t isPhoneNumberAuthorized(char *number) {
 int8_t safeStrtof(const char *str, float *result) {
   char *endptr;
 
+  *result = 0;
+
   if (str == NULL || *str == '\0') {
     return 0; // Error empty string
   }
 
   errno = 0;
   float val = strtof (str, &endptr);
-
   if (errno == ERANGE) {
     return 0; // Error out of range
   }
-
   if (endptr == str) {
     return 0; // Error invalid float
   }
@@ -1003,17 +1003,17 @@ int8_t safeStrtof(const char *str, float *result) {
 int8_t safeStrtoul(const char *str, unsigned long *result, int base) {
   char *endptr;
 
+  *result = 0;
+
   if (str == NULL || *str == '\0') {
     return 0; // Error empty string
   }
 
   errno = 0;
   unsigned long val = strtoul (str, &endptr, base);
-
   if (errno == ERANGE) {
     return 0; // Error out of range
   }
-
   if (endptr == str) {
     return 0; // Error invalid number
   }

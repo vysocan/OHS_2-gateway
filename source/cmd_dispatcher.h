@@ -19,8 +19,11 @@
 /* Token buffer - adjust for your max command length */
 #define CMD_MAX_TOKENS 5
 #define CMD_TOKEN_LEN 16
+#define INDENT_STR "-" /* Indentation string for help */
 /* Macro to get array count */
 #define ARRAY_COUNT(arr) ((uint8_t)(sizeof(arr) / sizeof((arr)[0])))
+/* Macro to prepare indentation string */
+
 
 /* Return codes */
 typedef enum {
@@ -33,7 +36,7 @@ typedef enum {
 
 /* Command handler function signature */
 typedef cmdStatus_t (*cmdHandler_t)(const char *tokens[], uint8_t tokenCount,
-    char *result, uint16_t resultLen);
+    BaseSequentialStream *chp);
 
 /* Forward declaration */
 struct cmd_entry;
@@ -53,11 +56,10 @@ cmdStatus_t cmdProcess(char *input, const cmdEntry_t *table,
 cmdStatus_t cmdTokenize(char *input, const char *tokens[],
     uint8_t *tokenCount, uint8_t maxTokens);
 cmdStatus_t cmdHandleHelp(const char *tokens[], uint8_t tokenCount,
-    char *result, uint16_t resultLen);
+    BaseSequentialStream *chp);
 void cmdInitHelp(const cmdEntry_t *table, uint8_t count);
 
 /* Help functions */
 int8_t strcmpi(const char *a, const char *b);
-void safeStrcat(char *dest, uint16_t *len, uint16_t max, const char *src);
 
 #endif /* SOURCE_CMD_DISPATCHER_H_ */
