@@ -200,13 +200,15 @@ static THD_FUNCTION ( ModemThread, arg) {
             // Process SMS text
             resp = cmdProcess(modemSmsText, smsTopCommands, ARRAY_COUNT(smsTopCommands), logText, LOG_TEXT_LENGTH);
             DBG_MODEM("SMS command processed, status: %d, response: %s\r\n", resp, logText);
-            // Send reply SMS
-            resp = gprsSendSMSBegin(conf.contact[contactIndex].phone);
-            if (resp == 1) {
-              resp = gprsSendSMSEnd(logText);
-              DBG_MODEM("SMS reply sent, resp: %d\r\n", resp);
-            } else {
-              DBG_MODEM("SMS reply failed, resp: %d\r\n", resp);
+            if (resp == CMD_OK) {
+              // Send reply SMS
+              resp = gprsSendSMSBegin(conf.contact[contactIndex].phone);
+              if (resp == 1) {
+                resp = gprsSendSMSEnd(logText);
+                DBG_MODEM("SMS reply sent, resp: %d\r\n", resp);
+              } else {
+                DBG_MODEM("SMS reply failed, resp: %d\r\n", resp);
+              }
             }
           } else {
             DBG_MODEM("SMS number NOT authorized!\r\n");
