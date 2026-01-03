@@ -8,7 +8,7 @@
 #define OHS_MQTT_FUNCTIONS_H_
 
 #ifndef MQTT_FUNC_DEBUG
-#define MQTT_FUNC_DEBUG 1
+#define MQTT_FUNC_DEBUG 0
 #endif
 
 #if MQTT_FUNC_DEBUG
@@ -76,23 +76,7 @@ static void mqttSubTopicCB(void *arg, const char *topic, u32_t tot_len) {
 }
 /*
  * MQTT subscribe data callback and processing
- *
- * Subscribe topics: MQTT_MAIN_TOPIC MQTT_SET_TOPIC
- * /group
- *   /{#} - index of group {1 .. ALARM_GROUPS}
- *     /state - allowed commands {disarm, arm_home, arm_away}
- * /sensor - allowed only  for 'I'nput nodes
- *   /{address} - node address like W:2:I:D:0
- *     /value - float value
- * /zone
- *   /refresh - request for all zones status republish
- *
- * ToDo:
- * /SMS - send SMS to contact
- *   /{#} - index of user {1 .. CONTACTS_SIZE}
- *     /text - string to send
  */
-
 static void mqttSubDataCB(void *arg, const u8_t *data, u16_t len, u8_t flags) {
 
   if(arg == NULL || data == NULL) {
@@ -121,8 +105,9 @@ static void mqttSubDataCB(void *arg, const u8_t *data, u16_t len, u8_t flags) {
       chprintf(console, "MQTT Sub pool full!\r\n");
       pushToLogText("Fm"); // MQTT queue is full
     }
-  } // else { }
-    // Handle fragmented payload, store in buffer, write to file or whatever
+  } // else {
+    //  ToDo: OHS, Handle fragmented payload, store in buffer, write to file or whatever. We have small payloads now.
+    // }
 }
 /*
  * MQTT subscribe topic callback

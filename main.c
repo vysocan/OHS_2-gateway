@@ -6,7 +6,10 @@
  */
 //TODO OHS move arm/disarm group to some kind of fifo, it take a lot of resources calling nodes, mqtt ...
 // Optimize stack and overflow
-#define PORT_INT_REQUIRED_STACK 128
+#define PORT_IDLE_THREAD_STACK_SIZE 64
+#define PORT_INT_REQUIRED_STACK 256
+
+// ToDo OHS: replace strtoul, strtof with safe versions
 
 // Standard libs
 #include <string.h>
@@ -124,7 +127,8 @@ char modemSmsText[160] __attribute__((section(".ram4")));
 #include "ohs_th_radio.h"
 #include "ohs_th_trigger.h"
 #include "ohs_th_tcl.h"
-#include "ohs_th_mqtt.h"
+#include <ohs_th_mqtt_pub.h>
+#include <ohs_th_mqtt_sub.h>
 #include "ohs_th_heartbeat.h"
 #define SHELL_WA_SIZE THD_WORKING_AREA_SIZE(2*1024)
 /*
@@ -239,16 +243,16 @@ int main(void) {
   chThdCreateStatic(waAEThread3, sizeof(waAEThread3), NORMALPRIO + 1, AEThread, (void*)"alarm 3");
   chThdCreateStatic(waLoggerThread, sizeof(waLoggerThread), NORMALPRIO, LoggerThread, (void*)"logger");
   chThdCreateStatic(waRS485Thread, sizeof(waRS485Thread), NORMALPRIO, RS485Thread, (void*)"rs485");
-  chThdCreateStatic(waRegistrationThread, sizeof(waRegistrationThread), NORMALPRIO - 1, RegistrationThread, (void*)"reg");
-  chThdCreateStatic(waSensorThread, sizeof(waSensorThread), NORMALPRIO - 1, SensorThread, (void*)"sensor");
+  chThdCreateStatic(waRegistrationThread, sizeof(waRegistrationThread), NORMALPRIO - 2, RegistrationThread, (void*)"reg");
+  chThdCreateStatic(waSensorThread, sizeof(waSensorThread), NORMALPRIO - 3, SensorThread, (void*)"sensor");
   chThdCreateStatic(waModemThread, sizeof(waModemThread), NORMALPRIO, ModemThread, (void*)"modem");
   chThdCreateStatic(waAlertThread, sizeof(waAlertThread), NORMALPRIO, AlertThread, (void*)"alert");
   chThdCreateStatic(waServiceThread, sizeof(waServiceThread), NORMALPRIO, ServiceThread, (void*)"service");
   chThdCreateStatic(waRadioThread, sizeof(waRadioThread), NORMALPRIO, RadioThread, (void*)"radio");
   chThdCreateStatic(waTriggerThread, sizeof(waTriggerThread), NORMALPRIO - 1, TriggerThread, (void*)"trigger");
   chThdCreateStatic(waTclThread, sizeof(waTclThread), LOWPRIO + 1, tclThread, (void*)"tcl");
-  chThdCreateStatic(waMqttPubThread, sizeof(waMqttPubThread), NORMALPRIO - 2, MqttPubThread, (void*)"mqttPub");
-  chThdCreateStatic(waMqttSubThread, sizeof(waMqttSubThread), NORMALPRIO - 3, MqttSubThread, (void*)"mqttSub");
+  chThdCreateStatic(waMqttPubThread, sizeof(waMqttPubThread), NORMALPRIO - 5, MqttPubThread, (void*)"mqttPub");
+  chThdCreateStatic(waMqttSubThread, sizeof(waMqttSubThread), NORMALPRIO - 6, MqttSubThread, (void*)"mqttSub");
   //chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg);
   chThdCreateStatic(waHeartBeatThread, sizeof(waHeartBeatThread), LOWPRIO, HeartBeatThread, (void*)"h-beat");
 

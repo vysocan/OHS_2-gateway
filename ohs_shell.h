@@ -24,7 +24,8 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
     if (strcmp(argv[0], "format") == 0) {
       goto FORMAT;
     } else {
-      FRAMReadPos = (strtoul(argv[0], NULL, 0) - LOGGER_OUTPUT_LEN) * FRAM_MSG_SIZE;
+      safeStrtoul(argv[0], (uint32_t *)&FRAMReadPos, 0);
+      FRAMReadPos = (FRAMReadPos - LOGGER_OUTPUT_LEN) * FRAM_MSG_SIZE;
     }
   }
   if (argc == 0) { FRAMReadPos = FRAMWritePos - (FRAM_MSG_SIZE * LOGGER_OUTPUT_LEN); }

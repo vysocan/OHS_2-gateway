@@ -1662,7 +1662,7 @@ void httpd_post_finished(void *connection, char *response_uri, u16_t response_ur
                   conf.key[webKey].contact = strtol(valueP, NULL, 10);
                 break;
                 case 'k': // key
-                  conf.key[webKey].value = strtoul(valueP, NULL, 16); // as unsigned long int
+                  safeStrtoul(valueP, &conf.key[webKey].value , 16); // as unsigned long int
                 break;
                 case '0' ... '7': // Handle all single radio buttons for settings
                   if (valueP[0] == '0') conf.key[webKey].setting &= ~(1 << (name[0]-48));

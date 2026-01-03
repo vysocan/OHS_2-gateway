@@ -64,8 +64,8 @@ static cmdStatus_t handleGetGroupStatus(const char *tokens[], uint8_t count,
   }
 
   // Get group index
-  uint8_t groupIndex = DUMMY_NO_VALUE;
-  if (safeStrtoul(tokens[0], (unsigned long*)&groupIndex, 10)) {
+  uint32_t groupIndex = DUMMY_NO_VALUE;
+  if (safeStrtoul(tokens[0], &groupIndex, 10)) {
     groupIndex--; // Convert to 0-based index
 
     // Check valid group

@@ -13,8 +13,8 @@
 // Logger related
 #define FRAM_MSG_SIZE     16
 #define FRAM_HEADER_SIZE  4
-volatile uint16_t FRAMWritePos = 0;
-volatile uint16_t FRAMReadPos  = 0;
+volatile uint32_t FRAMWritePos = 0;
+volatile uint32_t FRAMReadPos  = 0;
 // FRAM buffers for decode
 static char rxBuffer[FRAM_MSG_SIZE];
 static char txBuffer[FRAM_HEADER_SIZE + FRAM_MSG_SIZE];
@@ -155,6 +155,20 @@ void mqttRefreshZonesState(void) {
     if ((GET_CONF_ZONE_ENABLED(conf.zone[i]))
       && (GET_CONF_ZONE_MQTT_PUB(conf.zone[i]))) {
         pushToMqtt(typeZone, i, functionState);
+    }
+  }
+}
+/*
+ * mqttRefreshGroupsState
+ */
+void mqttRefreshGroupsState(void) {
+  // Re-publish group states
+  for (uint8_t i=0; i < ALARM_GROUPS ; i++) {
+    if (GET_CONF_GROUP_ENABLED(conf.group[i].setting)) {
+      // MQTT Pub
+      if (GET_CONF_GROUP_MQTT(conf.group[i].setting)) {
+        pushToMqtt(typeGroup, i, functionState);
+      }
     }
   }
 }
@@ -971,24 +985,21 @@ int8_t isPhoneNumberAuthorized(char *number) {
  * @return 1 on success, 0 on error
  */
 int8_t safeStrtof(const char *str, float *result) {
-  char *endptr;
-
-  *result = 0;
 
   if (str == NULL || *str == '\0') {
     return 0; // Error empty string
   }
 
+  char *endptr;
   errno = 0;
-  float val = strtof (str, &endptr);
+  *result = strtof(str, &endptr);
   if (errno == ERANGE) {
     return 0; // Error out of range
   }
-  if (endptr == str) {
+  if (endptr == str || *endptr != '\0') {
     return 0; // Error invalid float
   }
 
-  *result = val;
   return 1;
 }
 
@@ -1000,26 +1011,98 @@ int8_t safeStrtof(const char *str, float *result) {
  * @param base Numeric base (10, 16, etc.)
  * @return 1 on success, 0 on error
  */
-int8_t safeStrtoul(const char *str, unsigned long *result, int base) {
-  char *endptr;
-
-  *result = 0;
+int8_t safeStrtoul(const char *str, uint32_t *result, int base) {
 
   if (str == NULL || *str == '\0') {
     return 0; // Error empty string
   }
 
+  char *endptr;
   errno = 0;
-  unsigned long val = strtoul (str, &endptr, base);
+  *result = strtoul(str, &endptr, base);
   if (errno == ERANGE) {
     return 0; // Error out of range
   }
-  if (endptr == str) {
+  if (endptr == str || *endptr != '\0') {
     return 0; // Error invalid number
   }
 
-  *result = val;
   return 1;
+}
+/*
+ * @brief Safe   strnlen implementation
+ * @param s      Input string
+ * @param maxlen Maximum length to check
+ * @return       Length of string up to maxlen
+ */
+static size_t safeStrnLen(const char *s, size_t maxlen) {
+    const char *p = memchr(s, 0, maxlen);
+    return p ? (size_t)(p - s) : maxlen;
+}
+
+/**
+ * Safe string comparison that respects buffer boundaries of both strings
+ *
+ * @param s1    First string buffer
+ * @param n1    Max size of first buffer
+ * @param s2    Second string buffer
+ * @param n2    Max size of second buffer
+ * @return      <0 if s1 < s2, >0 if s1 > s2, 0 if equal
+ */
+int safeStrcmp2(const char *s1, size_t n1, const char *s2, size_t n2) {
+    size_t l1 = safeStrnLen(s1, n1);
+    size_t l2 = safeStrnLen(s2, n2);
+
+    // Compare up to the length of the shorter string
+    size_t limit = (l1 < l2) ? l1 : l2;
+    int cmp = strncmp(s1, s2, limit);
+
+    // If characters differ, we have our answer
+    if (cmp != 0) {
+        return cmp;
+    }
+
+    // If prefixes match, the shorter string is "less than" the longer one
+    if (l1 < l2) {
+        return -1; // s1 is shorter, so s1 < s2
+    } else if (l1 > l2) {
+        return 1;  // s1 is longer, so s1 > s2
+    }
+
+    // Strings are identical in content and length
+    return 0;
+}
+/**
+ * Safe string comparison that respects buffer boundaries of first string only.
+ *
+ * @param s1    First string buffer
+ * @param n1    Max size of first buffer
+ * @param s2    Second string buffer
+ * @param n2    Max size of second buffer
+ * @return      <0 if s1 < s2, >0 if s1 > s2, 0 if equal
+ */
+int safeStrcmp1(const char *s1, size_t n1, const char *s2) {
+    size_t l1 = safeStrnLen(s1, n1);
+    size_t l2 = strlen(s2);
+
+    // Compare up to the length of the shorter string
+    size_t limit = (l1 < l2) ? l1 : l2;
+    int cmp = strncmp(s1, s2, limit);
+
+    // If characters differ, we have our answer
+    if (cmp != 0) {
+        return cmp;
+    }
+
+    // If prefixes match, the shorter string is "less than" the longer one
+    if (l1 < l2) {
+        return -1; // s1 is shorter, so s1 < s2
+    } else if (l1 > l2) {
+        return 1;  // s1 is longer, so s1 > s2
+    }
+
+    // Strings are identical in content and length
+    return 0;
 }
 
 #endif /* OHS_FUNCTIONS_H_ */
