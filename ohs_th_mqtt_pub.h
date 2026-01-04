@@ -82,13 +82,15 @@ static void handleMqttPubSystem(mqttPubEvent_t *inMsg, char *topic,
 
       if (inMsg->extra) {
         chsnprintf (payload, payload_size,
-            "{\"name\":\"%s %s\",\"obj_id\":\"%s\",\"uniq_id\":\"%s\","
+            "{\"name\":\"%s %s\",\"def_ent_id\":\"%s.%s\",\"uniq_id\":\"%s\","
             "\"ent_cat\":\"diagnostic\",\"ic\":\"mdi:security-network\","
             "\"pl_on\":\"%s\",\"pl_off\":\"%s\",\"stat_t\":\"%s%s\","
             "\"dev\":{\"name\":\"%s\",\"ids\":\"%s\",\"mf\":\"vysocan\","
             "\"mdl\":\"Open Home Security\","
             "\"hw\":\"2.0.x\",\"sw\":\"%u.%u.%u\",\"cu\":\"http://%s\"}}",
-            text_System, text_State, text_state, mqttHadUid, text_On, text_Off,
+            text_System, text_State,
+            text_binary_sensor, text_state,
+            mqttHadUid, text_On, text_Off,
             MQTT_MAIN_TOPIC, text_state, OHS_NAME, mqttHadUid, OHS_MAJOR,
             OHS_MINOR, OHS_MOD, ip4addr_ntoa ((ip4_addr_t*) &netInfo.ip));
       } else {
@@ -128,13 +130,15 @@ static void handleMqttPubGroup(mqttPubEvent_t *inMsg, char *topic,
 
       if (inMsg->extra) {
         chsnprintf (payload, payload_size,
-            "{\"name\":\"%s: %s\",\"obj_id\":\"%s\",\"uniq_id\":\"%s-G%u\","
+            "{\"name\":\"%s: %s\",\"def_ent_id\":\"%s.%s\",\"uniq_id\":\"%s-G%u\","
             "\"sup_feat\":[\"arm_home\",\"arm_away\"],\"pl_arm_away\":\"arm_away\","
             "\"pl_arm_home\":\"arm_home\",\"pl_disarm\":\"disarm\","
             "\"cod_arm_req\":\"false\",\"stat_t\":\"%sgroup/%u/state\","
             "\"cmd_t\":\"%sset/group/%u/state\","
-            "\"dev\":{\"ids\":\"%s\"}}", text_Group,
-            conf.group[inMsg->number].name, text_state, mqttHadUid, inMsg->number + 1,
+            "\"dev\":{\"ids\":\"%s\"}}",
+            text_Group, conf.group[inMsg->number].name,
+            text_alarm_control_panel, text_state,
+            mqttHadUid, inMsg->number + 1,
             MQTT_MAIN_TOPIC, inMsg->number + 1, MQTT_MAIN_TOPIC, inMsg->number + 1,
             mqttHadUid);
       } else {
@@ -203,11 +207,13 @@ static void handleMqttPubZone(mqttPubEvent_t *inMsg, char *topic,
 
       if (inMsg->extra) {
         chsnprintf (payload, payload_size,
-            "{\"name\":\"%s: %s\",\"obj_id\":\"%s\",\"uniq_id\":\"%s-Z%u\","
+            "{\"name\":\"%s: %s\",\"def_ent_id\":\"%s.%s\",\"uniq_id\":\"%s-Z%u\","
             "\"pl_on\":\"alarm\",\"pl_off\":\"OK\","
             "\"stat_t\":\"%szone/%u/state\",\"ic\":\"mdi:motion-sensor\","
-            "\"dev\":{\"ids\":\"%s\"}}", text_Zone, conf.zoneName[inMsg->number],
-            text_state, mqttHadUid, inMsg->number + 1, MQTT_MAIN_TOPIC, inMsg->number + 1,
+            "\"dev\":{\"ids\":\"%s\"}}",
+            text_Zone, conf.zoneName[inMsg->number],
+            text_binary_sensor, text_state,
+            mqttHadUid, inMsg->number + 1, MQTT_MAIN_TOPIC, inMsg->number + 1,
             mqttHadUid);
       } else {
         chsnprintf (payload, payload_size, ""); // Empty to remove
@@ -226,6 +232,9 @@ static void handleMqttPubZone(mqttPubEvent_t *inMsg, char *topic,
           break;
         case 'P':
           chsnprintf (payload, payload_size, "%s", text_alarm);
+          break;
+        case 'N': // Initial state
+          chsnprintf (payload, payload_size, "%s", text_unknown);
           break;
         default:
           chsnprintf (payload, payload_size, "%s", text_tamper);
@@ -247,7 +256,7 @@ static void handleMqttPubSensor(mqttPubEvent_t *inMsg, char *topic,
 
   if (inMsg->number >= NODE_SIZE) return;
 
-  chsnprintf (topic, topicSize, "%s%s/%c:%u:%c:%c:%u/", MQTT_MAIN_TOPIC,
+  chsnprintf(topic, topicSize, "%s%s/%c:%u:%c:%c:%u/", MQTT_MAIN_TOPIC,
       text_sensor,
       (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? 'W' : 'R',
       (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? node[inMsg->number].address :
@@ -260,12 +269,12 @@ static void handleMqttPubSensor(mqttPubEvent_t *inMsg, char *topic,
       *retain = 1;
       strncat (topic, &text_name[0],
           LWIP_MIN (strlen (text_name), (topicSize - strlen (topic) - 1)));
-      chsnprintf (payload, payloadSize, "%s", node[inMsg->number].name);
+      chsnprintf(payload, payloadSize, "%s", node[inMsg->number].name);
       break;
 
     case functionHAD: {
       *retain = 1;
-      chsnprintf (topic, topicSize, "%s%s/%s-%c%u%c%c%u/%s",
+      chsnprintf(topic, topicSize, "%s%s/%s-%c%u%c%c%u/%s",
           MQTT_HAD_MAIN_TOPIC, text_sensor, mqttHadUid,
           (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? 'W' : 'R',
           (node[inMsg->number].address < RADIO_UNIT_OFFSET) ?
@@ -275,27 +284,36 @@ static void handleMqttPubSensor(mqttPubEvent_t *inMsg, char *topic,
           node[inMsg->number].number, MQTT_HAD_CONFIG_TOPIC);
 
       if (inMsg->extra) {
+        if (getNodeFunctionHAClass (node[inMsg->number].function)[0] == '\0') {
+          // Unsupported function for HA auto discovery
+          chsnprintf (payload, payloadSize, "unsupported");
+          break;
+        }
+        // Supported function, prepare JSON payload
         chsnprintf (mqttPayload, payloadSize,
-            "{\"name\":\"%s: %s\",\"obj_id\":\"%s\","
-                "\"stat_t\":\"%s%s/%c:%u:%c:%c:%u/%s\","
-                "\"dev_cla\":\"%s\","
-                "\"unit_of_meas\":\"%s\"", "\"dev\":{\"ids\":\"%s\"}}",
-            getNodeFunctionString (node[inMsg->number].function),
-            node[inMsg->number].name, text_state, mqttHadUid, inMsg->number + 1,
-            (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? 'W' : 'R',
-            (node[inMsg->number].address < RADIO_UNIT_OFFSET) ?
-                node[inMsg->number].address :
-                (node[inMsg->number].address - RADIO_UNIT_OFFSET),
+            "{\"name\":\"%s: %s\","
+              "\"def_ent_id\":\"%s.%s\","
+              "\"uniq_id\":\"%s-%c%u%c%c%u\","
+              "\"stat_t\":\"%s%s/%c:%u:%c:%c:%u/%s\","
+              "\"dev_cla\":\"%s\","
+              "\"unit_of_meas\":\"%s\","
+              "\"dev\":{\"ids\":\"%s\"}"
+            "}",
+            text_Sensor, node[inMsg->number].name,
+            text_sensor, text_value,
+            mqttHadUid, (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? 'W' : 'R',
+            (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? node[inMsg->number].address : (node[inMsg->number].address - RADIO_UNIT_OFFSET),
             node[inMsg->number].type, node[inMsg->number].function,
-            node[inMsg->number].number, MQTT_MAIN_TOPIC, text_sensor,
+            node[inMsg->number].number
+            , MQTT_MAIN_TOPIC, text_sensor,
             (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? 'W' : 'R',
             (node[inMsg->number].address < RADIO_UNIT_OFFSET) ?
                 node[inMsg->number].address :
                 (node[inMsg->number].address - RADIO_UNIT_OFFSET),
             node[inMsg->number].type, node[inMsg->number].function,
             node[inMsg->number].number, text_value,
-            getNodeFunctionHAClass (node[inMsg->number].function),
-            getNodeFunctionHAClassUnit (node[inMsg->number].function),
+            getNodeFunctionHAClass(node[inMsg->number].function),
+            getNodeFunctionHAClassUnit(node[inMsg->number].function),
             mqttHadUid);
       } else {
         chsnprintf (payload, payloadSize, ""); // Empty to remove
@@ -340,6 +358,10 @@ static err_t mqttPublish(const char *topic, const char *payload,
   err = mqtt_publish(&mqtt_client, (char*)topic, (char*)payload, strlen(payload),
                      qos, retain, mqttPubRequestCB, NULL);
   UNLOCK_TCPIP_CORE();
+
+  DBG_MQTT_PUB(
+      "Publish Topic: %s, Payload: %s, QoS: %d, Retain: %d, Err: %d\r\n", topic,
+      payload, qos, retain, err);
 
   return err;
 }

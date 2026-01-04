@@ -83,7 +83,11 @@ static THD_FUNCTION(RegistrationThread, arg) {
             }
           }
           // MQTT publish name
-          if (GET_NODE_MQTT(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionName);
+          if (GET_NODE_MQTT(node[nodeIndex].setting))
+            pushToMqtt(typeSensor, nodeIndex, functionName);
+          // MQTT Home Assistant Discovery
+          if (GET_NODE_MQTT_HAD(node[nodeIndex].setting))
+            pushToMqttHAD(typeSensor, nodeIndex, functionHAD, 1);
           break;
           case 'Z': // Zone
             tmpLog[0] = 'Z'; // Log data

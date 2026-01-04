@@ -595,6 +595,9 @@ const char *getNodeFunctionString(const char function) {
     default : return text_Undefined;
   }
 }
+/*
+ * Print node function Home Assistant class and unit
+ */
 const char *getNodeFunctionHAClass(const char function) {
   switch(function){
     case 'T': return text_temperature;
@@ -603,9 +606,13 @@ const char *getNodeFunctionHAClass(const char function) {
     case 'V':
     case 'B': return text_voltage;
     case 'I': return text_illuminance;
-    default : return text_None;
+    default : return "";
   }
 }
+/*
+ * Print node function Home Assistant unit
+ * *MUST match getNodeFunctionHAClass*
+ */
 const char *getNodeFunctionHAClassUnit(const char function) {
   switch(function){
     case 'T': return "°C";
@@ -617,6 +624,9 @@ const char *getNodeFunctionHAClassUnit(const char function) {
     default : return "";
   }
 }
+/*
+ * Print node type
+ */
 void printNodeFunction(BaseSequentialStream *chp, const char function) {
   chprintf(chp, "%s", getNodeFunctionString(function));
 }

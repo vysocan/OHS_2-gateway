@@ -87,6 +87,10 @@ static THD_FUNCTION(ServiceThread, arg) {
         //node[nodeIndex].last_OK  = 0;
         //node[nodeIndex].queue    = NULL;
         //memset(&node[nodeIndex].name, 0, NAME_LENGTH);
+
+        // MQTT Home Assistant Discovery
+        if (GET_NODE_MQTT_HAD(node[nodeIndex].setting))
+          pushToMqttHAD(typeSensor, nodeIndex, functionHAD, 0);
       }
     }
 
