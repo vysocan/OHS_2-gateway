@@ -947,15 +947,15 @@ static uint8_t decodeLog(char *in, char *out, bool full){
 /*
  * Function to retrieve the reset reason
  */
-uint8_t get_reset_reason(void) {
+uint8_t getResetReason(void) {
   // Read the RCC Control/Status register and move the result to 8 bit int
   // RCC_CSR_RMVF as 0
-  uint8_t reset_reason = (RCC->CSR >> 24);
+  uint8_t reason = (RCC->CSR >> 24);
 
   // Clear the reset flags by setting the RMVF bit
   RCC->CSR |= RCC_CSR_RMVF;
 
-  return reset_reason;
+  return reason;
 }
 
 /*

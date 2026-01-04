@@ -5,8 +5,8 @@
  *      Author: vysocan
  */
 
-#ifndef OHS_HTTPDHANDLER_H_
-#define OHS_HTTPDHANDLER_H_
+#ifndef OHS_HTTPD_HANDLER_H_
+#define OHS_HTTPD_HANDLER_H_
 
 #include "lwip/opt.h"
 #include "lwip/apps/fs.h"
@@ -102,7 +102,7 @@ static const webPage_t webPage[] = {
   {"/timer.html",   "Timers"},
   {"/trigger.html", "Triggers"},
   {"/tcl.html",     "Scripts"},
-  {"/login.html",   "Login"}
+  {"/login.html",   "Login"} // keep as last page
 };
 // HTML pages global variables to remember elements user works with last
 static uint8_t webNode = 0, webContact = 0, webKey = 0, webZone = 0,
@@ -722,7 +722,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           // Buttons
           chprintf(chp, "%s%s", html_LoadDefault, html_Save);
           // TODO OHS add configuration download/upload
-          //chprintf(chp, "<a href='config.bin' download>");
+          //chprintf(chp, "<button type=\"submit\" onclick=\"window.open('/config.bin')\">Download</button>");
           break;
         case PAGE_SETTING:
           // Information table
@@ -1367,6 +1367,16 @@ int fs_open_custom(struct fs_file *file, const char *name){
         return 1;
       }
     }
+  }
+  // Other files
+  if (strcmp(name, "/config.bin") == 0) {
+    // Serve
+    file->data = (const char *)&conf;
+    file->len = sizeof(conf);
+    file->index = file->len;
+    // allow persistent connections
+    file->flags = FS_FILE_FLAGS_HEADER_PERSISTENT;
+    return 1;
   }
   return 0;
 }
@@ -2359,4 +2369,4 @@ void httpd_authorize_fs_open(void *connection, const char **name){
   authorizedConn.conn = NULL;
 }
 
-#endif /* OHS_HTTPDHANDLER_H_ */
+#endif /* OHS_HTTPD_HANDLER_H_ */

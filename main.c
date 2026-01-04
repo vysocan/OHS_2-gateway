@@ -103,7 +103,7 @@ char modemSmsText[160] __attribute__((section(".ram4")));
 #include "lwip/apps/mdns.h"
 #endif
 // HTTPD OHS handler
-#include "ohs_httpdhandler.h"
+#include <ohs_httpd_handler.h>
 // MQTT
 #include "lwip/apps/mqtt_priv.h" // Needed for conf.mqtt
 #include "lwip/apps/mqtt.h"
@@ -139,7 +139,7 @@ int main(void) {
   chSysInit();
 
   // Retrieve the reset reason
-  uint8_t resetReason = get_reset_reason();
+  uint8_t resetReason = getResetReason();
 
   // Semaphores
   chBSemObjectInit(&gprsSem, false);
