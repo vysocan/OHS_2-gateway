@@ -56,12 +56,6 @@ static THD_FUNCTION(ZoneThread, arg) {
   // Delay to allow MQTT to proceed
   chThdSleepSeconds(1);
 
-  // Manage zone MQTT publish
-  mqttRefreshZonesState();
-
-  // Delay to allow MQTT to proceed
-  chThdSleepSeconds(1);
-
   while (true) {
     chThdSleepMilliseconds(250); // time is used also for arm delay and others ...
 
