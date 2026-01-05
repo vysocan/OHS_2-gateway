@@ -201,6 +201,7 @@ static void handleMqttPubZone(mqttPubEvent_t *inMsg, char *topic,
       break;
 
     case functionHAD:
+      *retain = 1;
       chsnprintf (topic, topic_size, "%sbinary_sensor/%s-Z%u/%s",
           MQTT_HAD_MAIN_TOPIC, mqttHadUid, inMsg->number + 1,
           MQTT_HAD_CONFIG_TOPIC);
@@ -285,8 +286,8 @@ static void handleMqttPubSensor(mqttPubEvent_t *inMsg, char *topic,
 
       if (inMsg->extra) {
         if (getNodeFunctionHAClass (node[inMsg->number].function)[0] == '\0') {
-          // Unsupported function for HA auto discovery
-          chsnprintf (payload, payloadSize, "unsupported");
+          // Unsupported function for sensor HA auto discovery
+          chsnprintf (payload, payloadSize, "");
           break;
         }
         // Supported function, prepare JSON payload
@@ -302,14 +303,14 @@ static void handleMqttPubSensor(mqttPubEvent_t *inMsg, char *topic,
             text_Sensor, node[inMsg->number].name,
             text_sensor, text_value,
             mqttHadUid, (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? 'W' : 'R',
-            (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? node[inMsg->number].address : (node[inMsg->number].address - RADIO_UNIT_OFFSET),
+            (node[inMsg->number].address < RADIO_UNIT_OFFSET) ?
+                node[inMsg->number].address : (node[inMsg->number].address - RADIO_UNIT_OFFSET),
             node[inMsg->number].type, node[inMsg->number].function,
             node[inMsg->number].number
             , MQTT_MAIN_TOPIC, text_sensor,
             (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? 'W' : 'R',
             (node[inMsg->number].address < RADIO_UNIT_OFFSET) ?
-                node[inMsg->number].address :
-                (node[inMsg->number].address - RADIO_UNIT_OFFSET),
+                node[inMsg->number].address : (node[inMsg->number].address - RADIO_UNIT_OFFSET),
             node[inMsg->number].type, node[inMsg->number].function,
             node[inMsg->number].number, text_value,
             getNodeFunctionHAClass(node[inMsg->number].function),
