@@ -9,6 +9,7 @@
 #define OHS_FUNCTIONS_H_
 
 #include <errno.h>
+#include "gprs.h"
 
 // Logger related
 #define FRAM_MSG_SIZE     16
@@ -1113,6 +1114,22 @@ int safeStrcmp1(const char *s1, size_t n1, const char *s2) {
 
     // Strings are identical in content and length
     return 0;
+}
+/*
+ * @brief Send SMS to contact
+ * @param conatctIndex Index of contact in configuration
+ * @param message Message text to send
+ * @return Response code from GPRS module
+ */
+int8_t sendSMSToContact(uint8_t conatctIndex, char *message) {
+  int8_t resp;
+
+  resp = gprsSendSMSBegin (conf.contact[conatctIndex].phone);
+  if (resp == 1) {
+    resp = gprsSendSMSEnd (message);
+    return resp;
+  }
+  return resp;
 }
 
 #endif /* OHS_FUNCTIONS_H_ */

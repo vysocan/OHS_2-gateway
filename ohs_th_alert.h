@@ -61,12 +61,9 @@ static THD_FUNCTION(AlertThread, arg) {
                      (GET_CONF_CONTACT_IS_GLOBAL(conf.contact[j].setting)))) {
                   // Wait for GPRS
                   if (chBSemWait(&gprsSem) == MSG_OK) {
-                    resp = gprsSendSMSBegin(conf.contact[j].phone);
-                    chprintf(console, "SMS begin: %d\r\n", resp);
-                    if (resp == 1) {
-                      chprintf(console, "SMS end: %d\r\n", gprsSendSMSEnd(modemSmsText));
-                    }
+                    resp = sendSMSToContact(j, modemSmsText);
                     chBSemSignal(&gprsSem); // Release semaphore
+                    chprintf(console, "SMS to %s: %d\r\n", conf.contact[j].phone, resp);
                   }
                 }
               }

@@ -28,14 +28,13 @@ static void handleMqttSubGroup(char *args, char *savePtr, const char *payload) {
   // Parse Index
   if (!safeStrtoul(args, &index, 10)) return;
   index--; // Adjust to 0-based
+  DBG_MQTT_SUB(", # %d", index + 1);
 
   if (index >= ALARM_GROUPS ||
       !GET_CONF_GROUP_ENABLED(conf.group[index].setting) ||
       !GET_CONF_GROUP_MQTT(conf.group[index].setting)) {
     return;
   }
-
-  DBG_MQTT_SUB(", # %d", index + 1);
 
   // Parse Function (e.g., "state")
   pch = strtok_r(NULL, "/", &savePtr);
@@ -134,6 +133,78 @@ static void handleMqttSubZone(char *args, char *savePtr) {
     mqttRefreshZonesState();
   }
 }
+/*
+ * Handle MQTT sms command
+ */
+static void handleMqttSubSms(char *args, char *savePtr, const char *payload) {
+  uint32_t index;
+  int8_t resp;
+  char *pch;
+
+  if (args == NULL) return;
+
+  if (safeStrcmp1(args, MQTT_SUB_PAYLOAD_LENGTH, text_contact) == 0) {
+    // Parse Index
+    if (!safeStrtoul(args, &index, 10)) return;
+    index--;// Adjust to 0-based
+
+    DBG_MQTT_SUB(", # %d", index + 1);
+    if (index >= CONTACTS_SIZE ||
+        !GET_CONF_CONTACT_ENABLED(conf.contact[index].setting)) {
+      return;
+    }
+
+    // Parse Function (e.g., "state")
+    pch = strtok_r(NULL, "/", &savePtr);
+    if (pch == NULL) return;
+    DBG_MQTT_SUB(", func: %s", pch);
+
+    if (safeStrcmp1 (pch, MQTT_SUB_PAYLOAD_LENGTH, text_message) == 0) {
+      DBG_MQTT_SUB(", payload = %s", payload);
+      // Do not send if GPRS is busy, wait up to 1 second
+      if (chBSemWaitTimeout (&gprsSem, TIME_I2S(1)) == MSG_OK) {
+        resp = sendSMSToContact(index, (char*)payload);
+        chBSemSignal (&gprsSem);
+        DBG_MQTT_SUB(", SMS status: %u", resp);
+      }
+    }
+  } else if (safeStrcmp1 (args, MQTT_SUB_PAYLOAD_LENGTH, text_group) == 0) {
+    // Parse Index
+    if (!safeStrtoul(args, &index, 10)) return;
+    index--;// Adjust to 0-based
+
+    DBG_MQTT_SUB(", group # %d", index + 1);
+    if (index >= ALARM_GROUPS
+        || !GET_CONF_GROUP_ENABLED (conf.group[index].setting)) {
+      return;
+    }
+
+    // Parse Function (e.g., "state")
+    pch = strtok_r (NULL, "/", &savePtr);
+    if (pch == NULL) return;
+    DBG_MQTT_SUB (", func: %s", pch);
+
+    if (safeStrcmp1 (pch, MQTT_SUB_PAYLOAD_LENGTH, text_message) == 0) {
+      DBG_MQTT_SUB (", payload = %s", payload);
+
+      // Send SMS to all contacts in group
+      for (uint8_t i = 0; i < CONTACTS_SIZE; i++) {
+        if (GET_CONF_CONTACT_ENABLED (conf.contact[i].setting)
+            && ((GET_CONF_CONTACT_GROUP(conf.contact[i].setting) == index)
+                || (GET_CONF_CONTACT_IS_GLOBAL(conf.contact[i].setting)))) {
+          // Do not send if GPRS is busy, wait up to 1 second
+          if (chBSemWaitTimeout (&gprsSem, TIME_I2S(1)) == MSG_OK) {
+            resp = sendSMSToContact (i, (char*) payload);
+            chBSemSignal (&gprsSem);
+            DBG_MQTT_SUB(", SMS to contact %d status: %u", i + 1, resp);
+          }
+        }
+      }
+    }
+  } else {
+    DBG_MQTT_SUB(", unknown SMS command");
+  }
+}
 
 /*
  *
@@ -141,18 +212,21 @@ static void handleMqttSubZone(char *args, char *savePtr) {
  * /group
  *   /{#} - index of group {1 .. ALARM_GROUPS}
  *     /state - allowed commands {disarm, arm_home, arm_away}
- *   /refresh - request for all groups status republish
+ *   /refresh - request for all groups status republish {no payload}
  * /sensor - allowed only  for 'I'nput nodes
  *   /{address} - node address like W:2:I:D:0
  *     /value - float value
  * /zone
- *   /refresh - request for all zones status republish
+ *   /refresh - request for all zones status republish  {no payload}
  *
  * ToDo:
  * /SMS - send SMS to contact
- *   /{#} - index of user {1 .. CONTACTS_SIZE}
- *     /text - string to send
- *
+ *   /contact - send SMS to specific contact
+ *     /{#} - index of user {1 .. CONTACTS_SIZE}
+ *       /message - message text in payload
+ *   /group - send SMS to all contacts of group
+ *     /{#} - index of group {1 .. ALARM_GROUPS}
+ *       /message - message text in payload
  */
 static THD_WORKING_AREA(waMqttSubThread, 512);
 static THD_FUNCTION(MqttSubThread, arg) {
@@ -206,6 +280,11 @@ static THD_FUNCTION(MqttSubThread, arg) {
       else if (safeStrcmp1(pch, MQTT_SUB_PAYLOAD_LENGTH, text_zone) == 0) {
         char *nextTok = strtok_r(NULL, "/", &savePtr);
         if (nextTok) handleMqttSubZone(nextTok, savePtr);
+      }
+      // SMS
+      else if (safeStrcmp1 (pch, MQTT_SUB_PAYLOAD_LENGTH, text_SMS) == 0) {
+          char *nextTok = strtok_r(NULL, "/", &savePtr);
+          if (nextTok) handleMqttSubSms(nextTok, savePtr, payloadStr);
       }
       else {
         DBG_MQTT_SUB(" %s", text_unknown);

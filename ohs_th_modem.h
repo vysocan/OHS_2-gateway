@@ -202,13 +202,8 @@ static THD_FUNCTION ( ModemThread, arg) {
             DBG_MODEM("SMS command processed, status: %d, response: %s\r\n", resp, logText);
             if (resp == CMD_OK) {
               // Send reply SMS
-              resp = gprsSendSMSBegin(conf.contact[contactIndex].phone);
-              if (resp == 1) {
-                resp = gprsSendSMSEnd(logText);
-                DBG_MODEM("SMS reply sent, resp: %d\r\n", resp);
-              } else {
-                DBG_MODEM("SMS reply failed, resp: %d\r\n", resp);
-              }
+              resp = sendSMSToContact(contactIndex, logText);
+              DBG_MODEM("Reply SMS sent, status: %d\r\n", resp);
             }
           } else {
             DBG_MODEM("SMS number NOT authorized!\r\n");
