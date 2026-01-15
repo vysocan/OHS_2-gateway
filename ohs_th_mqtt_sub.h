@@ -163,7 +163,7 @@ static void handleMqttSubSms(char *args, char *savePtr, const char *payload) {
       DBG_MQTT_SUB(", payload = %s", payload);
       // Do not send if GPRS is busy, wait up to 1 second
       if (chBSemWaitTimeout (&gprsSem, TIME_I2S(1)) == MSG_OK) {
-        resp = sendSMSToContact(index, (char*)payload);
+        resp = sendSMSToContact(index, payload);
         chBSemSignal (&gprsSem);
         DBG_MQTT_SUB(", SMS status: %u", resp);
       }
@@ -174,8 +174,8 @@ static void handleMqttSubSms(char *args, char *savePtr, const char *payload) {
     index--;// Adjust to 0-based
 
     DBG_MQTT_SUB(", group # %d", index + 1);
-    if (index >= ALARM_GROUPS
-        || !GET_CONF_GROUP_ENABLED (conf.group[index].setting)) {
+    if (index >= ALARM_GROUPS ||
+        !GET_CONF_GROUP_ENABLED (conf.group[index].setting)) {
       return;
     }
 
@@ -190,11 +190,11 @@ static void handleMqttSubSms(char *args, char *savePtr, const char *payload) {
       // Send SMS to all contacts in group
       for (uint8_t i = 0; i < CONTACTS_SIZE; i++) {
         if (GET_CONF_CONTACT_ENABLED (conf.contact[i].setting)
-            && ((GET_CONF_CONTACT_GROUP(conf.contact[i].setting) == index)
-                || (GET_CONF_CONTACT_IS_GLOBAL(conf.contact[i].setting)))) {
+            && ((GET_CONF_CONTACT_GROUP (conf.contact[i].setting) == index)
+                || (GET_CONF_CONTACT_IS_GLOBAL (conf.contact[i].setting)))) {
           // Do not send if GPRS is busy, wait up to 1 second
-          if (chBSemWaitTimeout (&gprsSem, TIME_I2S(1)) == MSG_OK) {
-            resp = sendSMSToContact (i, (char*) payload);
+          if (chBSemWaitTimeout (&gprsSem, TIME_I2S (1)) == MSG_OK) {
+            resp = sendSMSToContact (i, payload);
             chBSemSignal (&gprsSem);
             DBG_MQTT_SUB(", SMS to contact %d status: %u", i + 1, resp);
           }

@@ -956,7 +956,9 @@ static uint8_t decodeLog(char *in, char *out, bool full){
   return groupNum;
 }
 /*
- * Function to retrieve the reset reason
+ * @brief Get reset reason
+ *
+ * @return uint8_t Reset reason code
  */
 uint8_t getResetReason(void) {
   // Read the RCC Control/Status register and move the result to 8 bit int
@@ -1121,12 +1123,12 @@ int safeStrcmp1(const char *s1, size_t n1, const char *s2) {
  * @param message Message text to send
  * @return Response code from GPRS module
  */
-int8_t sendSMSToContact(uint8_t conatctIndex, char *message) {
+int8_t sendSMSToContact(uint8_t conatctIndex, const char *message) {
   int8_t resp;
 
-  resp = gprsSendSMSBegin (conf.contact[conatctIndex].phone);
+  resp = gprsSendSMSBegin(conf.contact[conatctIndex].phone);
   if (resp == 1) {
-    resp = gprsSendSMSEnd (message);
+    resp = gprsSendSMSEnd(message);
     return resp;
   }
   return resp;

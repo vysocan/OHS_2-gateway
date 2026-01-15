@@ -62,8 +62,8 @@ uint8_t gprsReadMsg(uint8_t *where, uint8_t responseLength);
 int8_t gprsSendCmd(char *what);
 int8_t gprsSendCmdWR(char *what, uint8_t *response, uint8_t responseLength);
 int8_t gprsSendCmdWRI(char *what, uint8_t *response, uint8_t responseLength, uint8_t index);
-int8_t gprsSendSMSBegin(char *number);
-int8_t gprsSendSMSEnd(char *what);
+int8_t gprsSendSMSBegin(const char *number);
+int8_t gprsSendSMSEnd(const char *what);
 int8_t gprsGetSMS(uint8_t index, uint8_t *telNumber, uint8_t telNumberLength, uint8_t *text, uint8_t textLength);
 int8_t gprsDeleteSMS(uint8_t index);
 

@@ -358,7 +358,7 @@ int8_t gprsSendCmdWRI(char *what, uint8_t *response, uint8_t responseLength, uin
  * @return int8_t Result code
  *
  */
-int8_t gprsSendSMSBegin(char *number) {
+int8_t gprsSendSMSBegin(const char *number) {
   uint8_t resp;
   gprsFlushRX();
 
@@ -381,7 +381,7 @@ int8_t gprsSendSMSBegin(char *number) {
  * @return int8_t Result code
  *
  */
-int8_t gprsSendSMSEnd(char *what) {
+int8_t gprsSendSMSEnd(const char *what) {
   uint8_t resp;
   gprsFlushRX();
 
