@@ -9,6 +9,10 @@
 #define HTTPD_HANDLER_LOGIN_H_
 
 
+/*
+ * @brief HTTP login page handler
+ * @param chp Pointer to the output stream
+ */
 static void fs_open_custom_login(BaseSequentialStream *chp) {
   // Information table
   chprintf(chp, "%s%s%s", html_tr_td, text_User, html_e_td_td);

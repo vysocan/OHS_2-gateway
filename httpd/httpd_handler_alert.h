@@ -8,7 +8,10 @@
 #ifndef HTTPD_HANDLER_ALERT_H_
 #define HTTPD_HANDLER_ALERT_H_
 
-
+/*
+ * @brief HTTP alert page handler
+ * @param chp Pointer to the output stream
+ */
 static void fs_open_custom_alert(BaseSequentialStream *chp) {
   char temp[3] = "";
   chprintf(chp, "%s%s", html_tr_th, text_Name);

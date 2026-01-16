@@ -9,6 +9,10 @@
 #define HTTPD_HANDLER_SETTING_H_
 
 
+/*
+ * @brief HTTP setting page handler
+ * @param chp Pointer to the output stream
+ */
 static void fs_open_custom_setting(BaseSequentialStream *chp) {
   // Information table
   chprintf(chp, "%s%s / %s %s%s", html_tr_td, text_Arm, text_Authentication, text_time,

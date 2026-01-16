@@ -9,6 +9,10 @@
 #define HTTPD_HANDLER_HOME_H_
 
 
+/*
+ * @brief HTTP home page handler
+ * @param chp Pointer to the output stream
+ */
 static void fs_open_custom_home(BaseSequentialStream *chp) {
   time_t tempTime;
   // Information table

@@ -9,6 +9,10 @@
 #define HTTPD_HANDLER_TRIGGER_H_
 
 
+/*
+ * @brief HTTP trigger page handler
+ * @param chp Pointer to the output stream
+ */
 static void fs_open_custom_trigger(BaseSequentialStream *chp) {
   uint16_t logAddress;
   uint8_t number;

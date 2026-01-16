@@ -9,6 +9,10 @@
 #define HTTPD_HANDLER_TCL_H_
 
 
+/*
+ * @brief HTTP tcl page handler
+ * @param chp Pointer to the output stream
+ */
 static void fs_open_custom_tcl(BaseSequentialStream *chp) {
   uint16_t logAddress;
   // Information table - TCL heap

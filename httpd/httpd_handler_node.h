@@ -9,6 +9,10 @@
 #define HTTPD_HANDLER_NODE_H_
 
 
+/*
+ * @brief HTTP node page handler
+ * @param chp Pointer to the output stream
+ */
 static void fs_open_custom_node(BaseSequentialStream *chp) {
   uint8_t number;
   chprintf(chp, "%s#", html_tr_th);

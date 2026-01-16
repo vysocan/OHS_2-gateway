@@ -9,6 +9,10 @@
 #define HTTPD_HANDLER_TIMER_H_
 
 
+/*
+ * @brief HTTP timer page handler
+ * @param chp Pointer to the output stream
+ */
 static void fs_open_custom_timer(BaseSequentialStream *chp) {
   time_t tempTime;
   uint16_t logAddress;

@@ -9,6 +9,10 @@
 #define HTTPD_HANDLER_KEY_H_
 
 
+/*
+ * @brief HTTP key page handler
+ * @param chp Pointer to the output stream
+ */
 static void fs_open_custom_key(BaseSequentialStream *chp) {
   chprintf(chp, "%s#", html_tr_th);
   chprintf(chp, "%s%s", html_e_th_th, text_User);

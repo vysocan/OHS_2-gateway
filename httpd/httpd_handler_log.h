@@ -9,6 +9,10 @@
 #define HTTPD_HANDLER_LOG_H_
 
 
+/*
+ * @brief HTTP log page handler
+ * @param chp Pointer to the output stream
+ */
 static void fs_open_custom_log(BaseSequentialStream *chp) {
   uint16_t logAddress;
   chprintf(chp, "%s#", html_tr_th);
