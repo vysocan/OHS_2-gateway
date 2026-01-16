@@ -36,5 +36,33 @@ static void fs_open_custom_alert(BaseSequentialStream *chp) {
   chprintf(chp, "%s%s%s", html_Apply, html_Save, html_SendTest);
 }
 
+/*
+ * @brief HTTP alert POST handler
+ * @param postDataP Pointer to POST data string
+ */
+static void httpd_post_custom_alert(char **postDataP) {
+  uint16_t valueLen = 0;
+  char name[3];
+  bool repeat;
+  char *valueP;
+
+  do {
+    repeat = getPostData(postDataP, &name[0], sizeof(name), &valueP, &valueLen);
+    DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
+    switch(name[0]) {
+      case '0' ... ('0' + ARRAY_SIZE(alertType)): // Handle all radio buttons in groups 0 .. #, A .. #
+        if (valueP[0] == '0') conf.alert[name[0]-48] &= ~(1 << (name[1]-65));
+        else conf.alert[name[0]-48] |= (1 << (name[1]-65));
+      break;
+      case 'e': // save
+        writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+      break;
+      case 'M': // dummy alert
+        pushToLogText("D");
+      break;
+    }
+  } while (repeat);
+}
+
 
 #endif /* HTTPD_HANDLER_ALERT_H_ */

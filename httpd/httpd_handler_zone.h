@@ -111,5 +111,91 @@ static void fs_open_custom_zone(BaseSequentialStream *chp) {
   chprintf(chp, "%s%s", html_Apply, html_Save);
 }
 
+/*
+ * @brief HTTP zone POST handler
+ * @param postDataP Pointer to POST data string
+ */
+static void httpd_post_custom_zone(char **postDataP) {
+  uint16_t number, valueLen = 0;
+  int8_t resp;
+  char name[3];
+  uint8_t message[REG_PACKET_SIZE + 1];
+  bool repeat;
+  char *valueP;
+
+  do {
+    repeat = getPostData(postDataP, &name[0], sizeof(name), &valueP, &valueLen);
+    DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
+    switch(name[0]) {
+      case 'P': // select
+        number = strtol(valueP, NULL, 10);
+        if (number != webZone) { webZone = number; repeat = 0; }
+      break;
+      case 'A': // Apply, for remote zone send packet.
+        if (GET_CONF_ZONE_ENABLED(conf.zone[webZone]) &&
+            GET_CONF_ZONE_MQTT_PUB(conf.zone[webZone])) {
+          pushToMqtt(typeZone, webZone, functionState);
+        }
+        // Send remote zone changes
+        if (webZone >= HW_ZONES) {
+          message[0] = 'R';
+          message[1] = 'Z';
+          message[2] = (GET_CONF_ZONE_TYPE(conf.zone[webZone])) ? 'A' : 'D';
+          message[3] = webZone + 1;
+          message[4] = (uint8_t)((conf.zone[webZone] >> 8) & 0b11111111);;
+          message[5] = (uint8_t)(conf.zone[webZone] & 0b11111111);
+          memcpy(&message[6], conf.zoneName[webZone], NAME_LENGTH);
+          resp = sendData(conf.zoneAddress[webZone-HW_ZONES], message, REG_PACKET_SIZE + 1);
+        }
+      break;
+      case 'n': // name
+        // Calculate resp for MQTT
+        if (GET_CONF_ZONE_ENABLED(conf.zone[webZone]) &&
+            GET_CONF_ZONE_MQTT_PUB(conf.zone[webZone])) {
+          if (strlen(conf.zoneName[webZone]) != valueLen) resp = 1;
+          else resp = strncmp(conf.zoneName[webZone], valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+        } else resp = 0;
+        // Replace name
+        strncpy(conf.zoneName[webZone], valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+        conf.zoneName[webZone][LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
+        // MQTT
+        if (resp) {
+          pushToMqtt(typeZone, webZone, functionName);
+          // HAD
+          if (GET_CONF_ZONE_MQTT_HAD(conf.zone[webZone])) {
+            pushToMqttHAD(typeZone, webZone, functionHAD, 1);
+          }
+        }
+      break;
+      case 'D': // delay
+        SET_CONF_ZONE_AUTH_TIME(conf.zone[webZone], (valueP[0] - 48));
+      break;
+      case '0' ... '9': // Handle all single radio buttons for settings
+        if (valueP[0] == '0') conf.zone[webZone] &= ~(1 << (name[0]-48));
+        else                  conf.zone[webZone] |=  (1 << (name[0]-48));
+      break;
+      case 'a': // Handle all single radio buttons for settings 10 ->
+      case 'c':
+      case 'd':
+        resp = GET_CONF_ZONE_MQTT_HAD(conf.zone[webZone]);
+        if (valueP[0] == '0') conf.zone[webZone] &= ~(1 << (name[0]-87)); // a(97) - 10
+        else                  conf.zone[webZone] |=  (1 << (name[0]-87));
+        // Handle HAD change
+        if (GET_CONF_ZONE_ENABLED(conf.zone[webZone]) &&
+            (resp != GET_CONF_ZONE_MQTT_HAD(conf.zone[webZone]))) {
+          pushToMqttHAD(typeZone, webZone, functionHAD, GET_CONF_ZONE_MQTT_HAD(conf.zone[webZone]));
+        }
+      break;
+      case 'g': // group
+        number = strtol(valueP, NULL, 10);
+        SET_CONF_ZONE_GROUP(conf.zone[webZone], number);
+      break;
+      case 'e': // save
+        writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+      break;
+    }
+  } while (repeat);
+}
+
 
 #endif /* HTTPD_HANDLER_ZONE_H_ */

@@ -148,5 +148,139 @@ static void fs_open_custom_setting(BaseSequentialStream *chp) {
   chprintf(chp, "%s%s", html_ApplyValPass, html_Save);
 }
 
+/*
+ * @brief HTTP setting POST handler
+ * @param postDataP Pointer to POST data string
+ */
+static void httpd_post_custom_setting(char **postDataP) {
+  uint16_t valueLen = 0;
+  int8_t resp;
+  char name[3];
+  bool repeat;
+  char *valueP;
+
+  do {
+    repeat = getPostData(postDataP, &name[0], sizeof(name), &valueP, &valueLen);
+    DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
+    switch(name[0]) {
+      case 'A': // Apply
+        // SMTP
+        smtp_set_server_addr(conf.SMTPAddress);
+        smtp_set_server_port(conf.SMTPPort);
+        smtp_set_auth(conf.SMTPUser, conf.SMTPPassword);
+        // SNTP
+        sntp_setservername(0, conf.SNTPAddress);
+      break;
+      case 'C':
+        conf.armDelay = strtol(valueP, NULL, 10) * 4;
+      break;
+      case 'E':
+        conf.autoArm = strtol(valueP, NULL, 10);
+      break;
+      case 'F':
+        conf.openAlarm = strtol(valueP, NULL, 10);
+      break;
+      case 'u': // user
+        strncpy(conf.user, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+        conf.user[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
+      break;
+      case 'p': // password
+        strncpy(conf.password, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+        conf.password[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
+      break;
+      case 'a': // SMTP server
+        strncpy(conf.SMTPAddress, valueP, LWIP_MIN(valueLen, URL_LENGTH - 1));
+        conf.SMTPAddress[LWIP_MIN(valueLen, URL_LENGTH - 1)] = 0;
+      break;
+      case 'b': // SMTP port
+        conf.SMTPPort = strtol(valueP, NULL, 10);
+      break;
+      case 'c': // SMTP user
+        strncpy(conf.SMTPUser, valueP, LWIP_MIN(valueLen, EMAIL_LENGTH - 1));
+        conf.SMTPUser[LWIP_MIN(valueLen, EMAIL_LENGTH - 1)] = 0;
+      break;
+      case 'd': // SMTP password
+        strncpy(conf.SMTPPassword, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+        conf.SMTPPassword[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
+      break;
+      case 'y': // MQTT server
+        // Compute resp
+        if (strlen(conf.mqtt.address) != valueLen) resp = 1;
+        else resp = strncmp(conf.mqtt.address, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+        // Copy name
+        strncpy(conf.mqtt.address, valueP, LWIP_MIN(valueLen, URL_LENGTH - 1));
+        conf.mqtt.address[LWIP_MIN(valueLen, URL_LENGTH - 1)] = 0;
+        // Clear MQTT resolve flag
+        if (resp) CLEAR_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting);
+      break;
+      case 'q': // MQTT port
+        conf.mqtt.port = strtol(valueP, NULL, 10);
+      break;
+      case 't': // MQTT user
+        strncpy(conf.mqtt.user, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+        conf.mqtt.user[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
+      break;
+      case 'r': // MQTT password
+        strncpy(conf.mqtt.password, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+        conf.mqtt.password[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
+      break;
+      case '0' ... '1': // MQTT handle all single radio buttons for settings
+        resp = GET_CONF_MQTT_HAD(conf.mqtt.setting);
+        if (valueP[0] == '0') conf.mqtt.setting &= ~(1 << (name[0]-48));
+        else                  conf.mqtt.setting |=  (1 << (name[0]-48));
+        // Handle HAD change
+        if (resp != GET_CONF_MQTT_HAD(conf.mqtt.setting)) {
+          mqttGlobalHAD(GET_CONF_MQTT_HAD(conf.mqtt.setting));
+        }
+      break;
+      case 'f': // NTP server
+        strncpy(conf.SNTPAddress, valueP, LWIP_MIN(valueLen, URL_LENGTH - 1));
+        conf.SNTPAddress[LWIP_MIN(valueLen, URL_LENGTH - 1)] = 0;
+      break;
+      case 'w':
+        conf.timeStdWeekNum = strtol(valueP, NULL, 10);
+      break;
+      case 's':
+        conf.timeStdDow = strtol(valueP, NULL, 10);
+      break;
+      case 'm':
+        conf.timeStdMonth = strtol(valueP, NULL, 10);
+      break;
+      case 'h':
+        conf.timeStdHour = strtol(valueP, NULL, 10);
+      break;
+      case 'o':
+        conf.timeStdOffset = strtol(valueP, NULL, 10);
+      break;
+      case 'W':
+        conf.timeDstWeekNum = strtol(valueP, NULL, 10);
+      break;
+      case 'S':
+        conf.timeDstDow = strtol(valueP, NULL, 10);
+      break;
+      case 'M':
+        conf.timeDstMonth = strtol(valueP, NULL, 10);
+      break;
+      case 'H':
+        conf.timeDstHour = strtol(valueP, NULL, 10);
+      break;
+      case 'O':
+        conf.timeDstOffset = strtol(valueP, NULL, 10);
+      break;
+      case 'g': // time format
+        strncpy(conf.dateTimeFormat, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+        conf.dateTimeFormat[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
+      break;
+      case 'K': // radio key
+        strncpy(conf.radioKey, valueP, LWIP_MIN(valueLen, RADIO_KEY_SIZE - 1));
+        conf.radioKey[LWIP_MIN(valueLen, RADIO_KEY_SIZE - 1)] = 0;
+      break;
+      case 'e': // save
+        writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+      break;
+    }
+  } while (repeat);
+}
+
 
 #endif /* HTTPD_HANDLER_SETTING_H_ */

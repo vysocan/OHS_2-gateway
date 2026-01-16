@@ -69,5 +69,40 @@ static void fs_open_custom_key(BaseSequentialStream *chp) {
   chprintf(chp, "%s%s", html_Apply, html_Save);
 }
 
+/*
+ * @brief HTTP key POST handler
+ * @param postDataP Pointer to POST data string
+ */
+static void httpd_post_custom_key(char **postDataP) {
+  uint16_t number, valueLen = 0;
+  char name[3];
+  bool repeat;
+  char *valueP;
+
+  do {
+    repeat = getPostData(postDataP, &name[0], sizeof(name), &valueP, &valueLen);
+    DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
+    switch(name[0]) {
+      case 'P': // select
+        number = strtol(valueP, NULL, 10);
+        if (number != webKey) { webKey = number; repeat = 0; }
+      break;
+      case 'c': // Contact ID
+        conf.key[webKey].contact = strtol(valueP, NULL, 10);
+      break;
+      case 'k': // key
+        safeStrtoul(valueP, &conf.key[webKey].value , 16); // as unsigned long int
+      break;
+      case '0' ... '7': // Handle all single radio buttons for settings
+        if (valueP[0] == '0') conf.key[webKey].setting &= ~(1 << (name[0]-48));
+        else                  conf.key[webKey].setting |=  (1 << (name[0]-48));
+      break;
+      case 'e': // save
+        writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+      break;
+    }
+  } while (repeat);
+}
+
 
 #endif /* HTTPD_HANDLER_KEY_H_ */

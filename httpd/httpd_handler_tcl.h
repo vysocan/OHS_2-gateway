@@ -82,5 +82,147 @@ static void fs_open_custom_tcl(BaseSequentialStream *chp) {
   //DBG_HTTP("\r\n");
 }
 
+/*
+ * @brief HTTP TCL POST handler
+ * @param postDataP Pointer to POST data string
+ */
+static void httpd_post_custom_tcl(char **postDataP) {
+  uint16_t number, valueLen = 0;
+  char name[3];
+  bool repeat;
+  char *valueP;
+  scriptEvent_t *outMsg;
+
+  do {
+    repeat = getPostData(postDataP, &name[0], sizeof(name), &valueP, &valueLen);
+    DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
+    switch(name[0]) {
+      case 'P': // select
+        number = strtol(valueP, NULL, 10);
+        if (number != webScript) {
+          webScript = number; repeat = 0;
+          memset(&tclCmd[0], '\0', TCL_SCRIPT_LENGTH);
+          memset(&scriptName[0], '\0', NAME_LENGTH);
+          // For old script load values
+          if (webScript != DUMMY_NO_VALUE) {
+            number = 1;
+            for (scriptp = scriptLL; scriptp != NULL; scriptp = scriptp->next) {
+              if (number == webScript) break;
+              number++;
+            }
+            if (scriptp != NULL) {
+              strncpy(&scriptName[0], scriptp->name, NAME_LENGTH);
+              strncpy(&tclCmd[0], scriptp->cmd, TCL_SCRIPT_LENGTH);
+            }
+          }
+        }
+        break;
+      case 'n': // name
+        // For existing scripts do rename when name differs
+        if ((webScript != DUMMY_NO_VALUE) && (memcmp(scriptName, valueP, LWIP_MIN(valueLen, strlen(scriptName))))) {
+          DBG_HTTP("Rename: '%s' -> '%.*s'; %d;%d\r\n", scriptName, valueLen, valueP);
+          number = 1;
+          // Find pointer to script
+          for (scriptp = scriptLL; scriptp != NULL; scriptp = scriptp->next) {
+            if (number == webScript) break;
+            number++;
+          }
+          memset(scriptp->name, 0, NAME_LENGTH); // Make sure all is 0, as it gets stored in uBS
+          strncpy(scriptp->name, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+          // uBS rename
+          uBSRename(scriptName, strlen(scriptName),
+                    valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+        }
+        memset(&scriptName[0], 0, NAME_LENGTH); // Make sure all is 0, as it gets stored in uBS
+        strncpy(scriptName, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+        break;
+      case 'R': // Run
+        outMsg = chPoolAlloc(&script_pool);
+        if (outMsg != NULL) {
+          outMsg->callback = NULL;
+          outMsg->result = NULL;
+          outMsg->flags = 1;
+          outMsg->cmdP = &tclCmd[0];
+          msg_t msg = chMBPostTimeout(&script_mb, (msg_t)outMsg, TIME_IMMEDIATE);
+          if (msg != MSG_OK) {
+            //chprintf(console, "MB full %d\r\n", temp);
+          }
+        } else {
+          chprintf(console, "CB full %d \r\n", outMsg);
+        }
+      break;
+      case 's': // script
+        strncpy(tclCmd, valueP, LWIP_MIN(valueLen, TCL_SCRIPT_LENGTH - 1));
+        tclCmd[LWIP_MIN(valueLen, TCL_SCRIPT_LENGTH - 1)] = 0;
+      break;
+      case 'e': // save
+        if (webScript == DUMMY_NO_VALUE) {
+          if (!strlen(scriptName)) {
+            chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "Not allowed to save empty name");
+            break;
+          }
+          // For new script append linked list
+          scriptp = umm_malloc(sizeof(struct scriptLL_t));
+          if (scriptp == NULL) {
+            chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+          } else {
+            //if (checkPointer(scriptp, html_noSpace)) {}
+            scriptp->name = umm_malloc(NAME_LENGTH);
+            if (scriptp->name == NULL) {
+              umm_free(scriptp);
+              chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+            } else {
+              strncpy(scriptp->name, &scriptName[0], NAME_LENGTH);
+              number = strlen(tclCmd);
+              scriptp->cmd = umm_malloc(number + 1); // + NULL
+              if (scriptp->cmd == NULL) {
+                umm_free(scriptp->name);
+                umm_free(scriptp);
+                chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+              } else {
+                strncpy(scriptp->cmd, &tclCmd[0], number);
+                memset(scriptp->cmd + number, 0, 1);
+                scriptp->next = scriptLL;
+                scriptLL = scriptp;
+                // uBS
+                if (uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd)) != UBS_RSLT_OK) {
+                  chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_storage);
+                }
+                // new script is added to top of linked list, no need to do pointer check
+                webScript = 1;
+              }
+            }
+          }
+        } else {
+          // For old script replace values
+          number = 1;
+          // Find pointer to script
+          for (scriptp = scriptLL; scriptp != NULL; scriptp = scriptp->next) {
+            if (number == webScript) break;
+            number++;
+          }
+          if (scriptp != NULL) {
+            number = strlen(tclCmd);
+            //scriptp->cmd = umm_realloc(scriptp->cmd, number + 1);
+            umm_free(scriptp->cmd);
+            scriptp->cmd = umm_malloc(number + 1);
+            if (scriptp->cmd == NULL) {
+              chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+            } else {
+              strncpy(scriptp->cmd, &tclCmd[0], number);
+              memset(scriptp->cmd + number, 0, 1);
+              for (int i = 0; i < UBS_NAME_SIZE; i++) { DBG_HTTP("%x;", scriptName[i]); }
+              DBG_HTTP("\r\n");
+              if (uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd)) != UBS_RSLT_OK) {
+                chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_storage);
+              }
+            }
+          }
+        }
+      break;
+    }
+  } while (repeat);
+}
+
 
 #endif /* HTTPD_HANDLER_TCL_H_ */

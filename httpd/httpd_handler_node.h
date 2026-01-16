@@ -88,5 +88,83 @@ static void fs_open_custom_node(BaseSequentialStream *chp) {
   chprintf(chp, "%s%s", html_Apply, html_Reregister);
 }
 
+/*
+ * @brief HTTP node POST handler
+ * @param postDataP Pointer to POST data string
+ */
+static void httpd_post_custom_node(char **postDataP) {
+  uint16_t number, valueLen = 0;
+  int8_t resp;
+  char name[3];
+  uint8_t message[REG_PACKET_SIZE + 1];
+  bool repeat;
+  char *valueP;
+
+  do {
+    repeat = getPostData(postDataP, &name[0], sizeof(name), &valueP, &valueLen);
+    DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
+    switch(name[0]) {
+      case 'P': // select
+        number = strtol(valueP, NULL, 10);
+        if (number != webNode) { webNode = number; repeat = 0; }
+      break;
+      case 'R': // Re-registration
+        resp = sendCmd(RADIO_UNIT_OFFSET, NODE_CMD_REGISTRATION); // Broadcast to register
+      break;
+      case 'A': // Apply
+        message[0] = 'R';
+        message[1] = (uint8_t)node[webNode].type;
+        message[2] = (uint8_t)node[webNode].function;
+        message[3] = node[webNode].number;
+        message[4] = (uint8_t)((node[webNode].setting >> 8) & 0b11111111);;
+        message[5] = (uint8_t)(node[webNode].setting & 0b11111111);
+        memcpy(&message[6], node[webNode].name, NAME_LENGTH);
+        resp = sendData(node[webNode].address, message, REG_PACKET_SIZE + 1);
+        // Queue data if no response
+        if (resp != 1) {
+          // Not queued, allocate new
+          if (node[webNode].queue == NULL) {
+            node[webNode].queue = umm_malloc(REG_PACKET_SIZE + 1);
+          }
+          // Copy new message to queue pointer
+          if (node[webNode].queue != NULL) {
+            memcpy(node[webNode].queue, &message[0], REG_PACKET_SIZE + 1);
+          }
+        }
+      break;
+      case 'n': // name
+        // Calculate resp for MQTT
+        if (GET_NODE_ENABLED(node[webNode].setting) &&
+            GET_NODE_MQTT(node[webNode].setting)) {
+          if (strlen(node[webNode].name) != valueLen) resp = 1;
+          else resp = strncmp(node[webNode].name, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+        } else resp = 0;
+        // Replace name
+        strncpy(node[webNode].name, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+        node[webNode].name[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
+        // MQTT
+        if (resp) {
+          pushToMqtt(typeSensor, webNode, functionName);
+          // HAD
+          if (GET_NODE_MQTT_HAD(node[webNode].setting)) {
+            pushToMqttHAD(typeSensor, webNode, functionHAD, 1);
+          }
+        }
+      break;
+      case '0' ... '7': // Handle all single radio buttons for settings
+        if (valueP[0] == '0') node[webNode].setting &= ~(1 << (name[0]-48));
+        else                  node[webNode].setting |=  (1 << (name[0]-48));
+      break;
+      case 'g': // group
+        number = strtol(valueP, NULL, 10);
+        SET_NODE_GROUP(node[webNode].setting, number);
+      break;
+      case 'e': // save
+        writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+      break;
+    }
+  } while (repeat);
+}
+
 
 #endif /* HTTPD_HANDLER_NODE_H_ */

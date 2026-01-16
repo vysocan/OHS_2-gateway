@@ -56,5 +56,30 @@ static void fs_open_custom_home(BaseSequentialStream *chp) {
   //chprintf(chp, "<button type=\"submit\" onclick=\"window.open('/config.bin')\">Download</button>");
 }
 
+/*
+ * @brief HTTP home POST handler
+ * @param postDataP Pointer to POST data string
+ */
+static void httpd_post_custom_home(char **postDataP) {
+  uint16_t valueLen = 0;
+  char name[3];
+  bool repeat;
+  char *valueP;
+
+  do {
+    repeat = getPostData(postDataP, &name[0], sizeof(name), &valueP, &valueLen);
+    DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
+    switch(name[0]) {
+      case 'e': // save
+        writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+      break;
+      case 'D': // Load defaults
+        setConfDefault();    // Load OHS default conf.
+        initRuntimeGroups(); // Initialize runtime variables
+      break;
+    }
+  } while (repeat);
+}
+
 
 #endif /* HTTPD_HANDLER_HOME_H_ */

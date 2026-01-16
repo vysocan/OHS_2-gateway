@@ -24,5 +24,36 @@ static void fs_open_custom_login(BaseSequentialStream *chp) {
   chprintf(chp, "%s", html_Submit);
 }
 
+/*
+ * @brief HTTP login POST handler
+ * @param postDataP Pointer to POST data string
+ * @param connection Connection pointer for authentication
+ */
+static void httpd_post_custom_login(char **postDataP, void *connection) {
+  uint16_t number = 1, valueLen = 0; // number used to hold state of authentication
+  char name[3];
+  bool repeat;
+  char *valueP;
+
+  do {
+    repeat = getPostData(postDataP, &name[0], sizeof(name), &valueP, &valueLen);
+    DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
+    switch(name[0]) {
+      case 'u': // user
+        number = strcmp(valueP, conf.user);
+      break;
+      case 'p': // password
+        if (!number &&(!strcmp(valueP, conf.password))) {
+          verifiedConn = connection;
+          authorizedConn.id = STM32_UUID[0] + rand();
+          authorizedConn.conn = (void *)connection;
+        } else {
+          chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "User or password not valid!");
+        }
+      break;
+    }
+  } while (repeat);
+}
+
 
 #endif /* HTTPD_HANDLER_LOGIN_H_ */

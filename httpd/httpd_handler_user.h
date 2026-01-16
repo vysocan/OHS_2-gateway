@@ -75,5 +75,50 @@ static void fs_open_custom_user(BaseSequentialStream *chp) {
   chprintf(chp, "%s%s", html_Apply, html_Save);
 }
 
+/*
+ * @brief HTTP user POST handler
+ * @param postDataP Pointer to POST data string
+ */
+static void httpd_post_custom_user(char **postDataP) {
+  uint16_t number, valueLen = 0;
+  char name[3];
+  bool repeat;
+  char *valueP;
+
+  do {
+    repeat = getPostData(postDataP, &name[0], sizeof(name), &valueP, &valueLen);
+    DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
+    switch(name[0]) {
+      case 'P': // select
+        number = strtol(valueP, NULL, 10);
+        if (number != webContact) { webContact = number; repeat = 0; }
+      break;
+      case 'n': // name
+        strncpy(conf.contact[webContact].name, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+        conf.contact[webContact].name[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
+        break;
+      case 'p': // phone number
+        strncpy(conf.contact[webContact].phone, valueP, LWIP_MIN(valueLen, PHONE_LENGTH - 1));
+        conf.contact[webContact].phone[LWIP_MIN(valueLen, PHONE_LENGTH - 1)] = 0;
+        break;
+      case 'm': // email
+        strncpy(conf.contact[webContact].email, valueP, LWIP_MIN(valueLen, EMAIL_LENGTH - 1));
+        conf.contact[webContact].email[LWIP_MIN(valueLen, EMAIL_LENGTH - 1)] = 0;
+      break;
+      case '0' ... '7': // Handle all single radio buttons for settings
+        if (valueP[0] == '0') conf.contact[webContact].setting &= ~(1 << (name[0]-48));
+        else                  conf.contact[webContact].setting |=  (1 << (name[0]-48));
+      break;
+      case 'g': // group
+        number = strtol(valueP, NULL, 10);
+        SET_CONF_CONTACT_GROUP(conf.contact[webContact].setting, number);
+      break;
+      case 'e': // save
+        writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+      break;
+    }
+  } while (repeat);
+}
+
 
 #endif /* HTTPD_HANDLER_USER_H_ */

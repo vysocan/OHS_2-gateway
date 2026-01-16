@@ -174,5 +174,78 @@ static void fs_open_custom_group(BaseSequentialStream *chp) {
   chprintf(chp, "%s%s%s", html_Apply, html_Save, html_Disarm);
 }
 
+/*
+ * @brief HTTP group POST handler
+ * @param postDataP Pointer to POST data string
+ */
+static void httpd_post_custom_group(char **postDataP) {
+  uint16_t number, valueLen = 0;
+  int8_t resp;
+  char name[3];
+  bool repeat;
+  char *valueP;
+
+  do {
+    repeat = getPostData(postDataP, &name[0], sizeof(name), &valueP, &valueLen);
+    DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
+    switch(name[0]) {
+      case 'P': // select
+        number = strtol(valueP, NULL, 10);
+        if (number != webGroup) { webGroup = number; repeat = 0; }
+      break;
+      case 'A': // Apply
+        // MQTT publish state
+        if (GET_CONF_GROUP_ENABLED(conf.group[webGroup].setting) &&
+            GET_CONF_GROUP_MQTT(conf.group[webGroup].setting)) {
+          pushToMqtt(typeGroup, webGroup, functionState);
+        }
+      break;
+      case 'n': // name
+        // Calculate resp for MQTT
+        if (GET_CONF_GROUP_ENABLED(conf.group[webGroup].setting) &&
+            GET_CONF_GROUP_MQTT(conf.group[webGroup].setting)) {
+          if ( strlen(conf.group[webGroup].name) != valueLen) resp = 1;
+          else resp = strncmp(conf.group[webGroup].name, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+        } else resp = 0;
+        // Replace name
+        strncpy(conf.group[webGroup].name, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+        conf.group[webGroup].name[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
+        // MQTT
+        if (resp) {
+          pushToMqtt(typeGroup, webGroup, functionName);
+          // HAD
+          if (GET_CONF_GROUP_MQTT_HAD(conf.group[webGroup].setting)) {
+            pushToMqttHAD(typeGroup, webGroup, functionHAD, 1);
+          }
+        }
+      break;
+      case '0' ... '7': // Handle all single radio buttons for settings
+        resp = GET_CONF_GROUP_MQTT_HAD(conf.group[webGroup].setting);
+        if (valueP[0] == '0') conf.group[webGroup].setting &= ~(1 << (name[0]-48));
+        else                  conf.group[webGroup].setting |=  (1 << (name[0]-48));
+        // Handle HAD change
+        if (GET_CONF_GROUP_ENABLED(conf.group[webGroup].setting) &&
+            (resp != GET_CONF_GROUP_MQTT_HAD(conf.group[webGroup].setting))) {
+          pushToMqttHAD(typeGroup, webGroup, functionHAD, GET_CONF_GROUP_MQTT_HAD(conf.group[webGroup].setting));
+        }
+      break;
+      case 'a': // arm chain
+        number = strtol(valueP, NULL, 10);
+        SET_CONF_GROUP_ARM_CHAIN(conf.group[webGroup].setting, number);
+      break;
+      case 'd': // disarm chain
+        number = strtol(valueP, NULL, 10);
+        SET_CONF_GROUP_DISARM_CHAIN(conf.group[webGroup].setting, number);
+      break;
+      case 'e': // save
+        writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+      break;
+      case 'D': // Disarm
+        disarmGroup(webGroup, DUMMY_NO_VALUE, 0); // Disarm just this group
+      break;
+    }
+  } while (repeat);
+}
+
 
 #endif /* HTTPD_HANDLER_GROUP_H_ */

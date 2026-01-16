@@ -44,5 +44,32 @@ static void fs_open_custom_log(BaseSequentialStream *chp) {
   chprintf(chp, "%s%s%s", html_FR, html_Now, html_FF);
 }
 
+/*
+ * @brief HTTP log POST handler
+ * @param postDataP Pointer to POST data string
+ */
+static void httpd_post_custom_log(char **postDataP) {
+  uint16_t valueLen = 0;
+  char name[3];
+  bool repeat;
+  char *valueP;
+
+  do {
+    repeat = getPostData(postDataP, &name[0], sizeof(name), &valueP, &valueLen);
+    DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
+    switch(name[0]) {
+      case 'N': // Now
+        webLog = FRAMWritePos - (LOGGER_OUTPUT_LEN * FRAM_MSG_SIZE);
+      break;
+      case 'R': // Reverse
+        webLog -= LOGGER_OUTPUT_LEN * FRAM_MSG_SIZE;
+      break;
+      case 'F': // Forward
+        webLog += LOGGER_OUTPUT_LEN * FRAM_MSG_SIZE;
+      break;
+    }
+  } while (repeat);
+}
+
 
 #endif /* HTTPD_HANDLER_LOG_H_ */

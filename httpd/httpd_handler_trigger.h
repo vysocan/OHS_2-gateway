@@ -283,5 +283,113 @@ static void fs_open_custom_trigger(BaseSequentialStream *chp) {
   chprintf(chp, "%s%s", html_Apply, html_Save);
 }
 
+/*
+ * @brief HTTP trigger POST handler
+ * @param postDataP Pointer to POST data string
+ */
+static void httpd_post_custom_trigger(char **postDataP) {
+  uint16_t number, valueLen = 0, triggerNum;
+  char name[3];
+  bool repeat;
+  char *valueP;
+
+  do {
+    repeat = getPostData(postDataP, &name[0], sizeof(name), &valueP, &valueLen);
+    DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
+    switch(name[0]) {
+      case 'P': // select
+        number = strtol(valueP, NULL, 10);
+        if (number != webTrigger) { webTrigger = number; repeat = 0; }
+      break;
+      case 'A': // Apply
+      break;
+      case 'n': // name
+        strncpy(conf.trigger[webTrigger].name, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+        conf.trigger[webTrigger].name[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
+      break;
+      case 'a': // node aaddress
+        number = strtol(valueP, NULL, 10);
+        if (number == DUMMY_NO_VALUE) {
+          conf.trigger[webTrigger].toAddress  = 0;
+          conf.trigger[webTrigger].toFunction = ' ';
+          conf.trigger[webTrigger].toNumber   = 0;
+        } else {
+          conf.trigger[webTrigger].toAddress  = node[number].address;
+          conf.trigger[webTrigger].toFunction = node[number].function;
+          conf.trigger[webTrigger].toNumber   = node[number].number;
+        }
+      break;
+      case 'y': // type
+        triggerNum = number = strtol(valueP, NULL, 10);
+        if (number < ALARM_GROUPS) {
+          conf.trigger[webTrigger].type       = 'G';
+          conf.trigger[webTrigger].address  = 0;
+          conf.trigger[webTrigger].function = ' ';
+          conf.trigger[webTrigger].number   = number;
+        } else if ((number >= ALARM_GROUPS) && (number < (ALARM_ZONES + ALARM_GROUPS))) {
+          conf.trigger[webTrigger].type       = 'Z';
+          conf.trigger[webTrigger].address  = 0;
+          conf.trigger[webTrigger].function = ' ';
+          conf.trigger[webTrigger].number   = number - ALARM_GROUPS;
+        } else if (number >= (ALARM_ZONES + ALARM_GROUPS)) {
+          conf.trigger[webTrigger].type       = 'S';
+          conf.trigger[webTrigger].address  = node[number - ALARM_ZONES - ALARM_GROUPS].address;
+          conf.trigger[webTrigger].function = node[number - ALARM_ZONES - ALARM_GROUPS].function;
+          conf.trigger[webTrigger].number   = node[number - ALARM_ZONES - ALARM_GROUPS].number;
+        } else {
+          conf.trigger[webTrigger].type     = ' ';
+          conf.trigger[webTrigger].address  = 0;
+          conf.trigger[webTrigger].function = ' ';
+          conf.trigger[webTrigger].number   = 0;
+        }
+      break;
+      case 'c': // condition
+        conf.trigger[webTrigger].condition = strtol(valueP, NULL, 10);
+      break;
+      case 't': // off timer
+        conf.trigger[webTrigger].offTime = strtol(valueP, NULL, 10);
+      break;
+      case 'T': // period
+        SET_CONF_TRIGGER_OFF_PERIOD(conf.trigger[webTrigger].setting, strtol(valueP, NULL, 10));
+      break;
+      case 's': // Pass no yes once
+        SET_CONF_TRIGGER_PASS(conf.trigger[webTrigger].setting, strtol(valueP, NULL, 10));
+      break;
+      case 'S': // Pass off no yes timer
+        SET_CONF_TRIGGER_PASS_OFF(conf.trigger[webTrigger].setting, strtol(valueP, NULL, 10));
+      break;
+      case 'o':
+        conf.trigger[webTrigger].constantOn = strtof(valueP, NULL);
+      break;
+      case 'f':
+        conf.trigger[webTrigger].constantOff = strtof(valueP, NULL);
+      break;
+      case 'g': // Value for Group
+        if (triggerNum < ALARM_GROUPS)
+          conf.trigger[webTrigger].value = strtof(valueP, NULL);
+      break;
+      case 'z': // Value for Zone
+        if ((triggerNum >= (ALARM_GROUPS)) && (triggerNum < (ALARM_ZONES + ALARM_GROUPS)))
+          conf.trigger[webTrigger].value = strtof(valueP, NULL);
+      break;
+      case 'v': // Value for Sensor
+        if (triggerNum >= (ALARM_ZONES + ALARM_GROUPS))
+          conf.trigger[webTrigger].value = strtof(valueP, NULL);
+      break;
+      case 'p': // script
+        strncpy(conf.trigger[webTrigger].evalScript, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+        conf.trigger[webTrigger].evalScript[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
+      break;
+      case 'B' ... 'H': // Handle all single radio buttons for settings B(66)=0
+        if (valueP[0] == '0') conf.trigger[webTrigger].setting &= ~(1 << (name[0]-66));
+        else                  conf.trigger[webTrigger].setting |=  (1 << (name[0]-66));
+      break;
+      case 'e': // save
+        writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+      break;
+    }
+  } while (repeat);
+}
+
 
 #endif /* HTTPD_HANDLER_TRIGGER_H_ */

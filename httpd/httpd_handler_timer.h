@@ -165,5 +165,81 @@ static void fs_open_custom_timer(BaseSequentialStream *chp) {
   chprintf(chp, "%s%s", html_Apply, html_Save);
 }
 
+/*
+ * @brief HTTP timer POST handler
+ * @param postDataP Pointer to POST data string
+ */
+static void httpd_post_custom_timer(char **postDataP) {
+  uint16_t number, valueLen = 0;
+  char name[3];
+  bool repeat;
+  char *valueP, *endP;
+
+  do {
+    repeat = getPostData(postDataP, &name[0], sizeof(name), &valueP, &valueLen);
+    DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
+    switch(name[0]) {
+      case 'P': // select
+        number = strtol(valueP, NULL, 10);
+        if (number != webTimer) { webTimer = number; repeat = 0; }
+      break;
+      case 'A': // Apply
+        setTimer(webTimer, true);
+      break;
+      case 'n': // name
+        strncpy(conf.timer[webTimer].name, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+        conf.timer[webTimer].name[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
+      break;
+      case 's': // period
+        conf.timer[webTimer].periodTime = strtol(valueP, NULL, 10);
+      break;
+      case 'S': // period
+        number = strtol(valueP, NULL, 10);
+        SET_CONF_TIMER_PERIOD_TYPE(conf.timer[webTimer].setting, number);
+      break;
+      case 'r': // run
+        conf.timer[webTimer].runTime = strtol(valueP, NULL, 10);
+      break;
+      case 'R': // run
+        number = strtol(valueP, NULL, 10);
+        SET_CONF_TIMER_RUN_TYPE(conf.timer[webTimer].setting, number);
+      break;
+      case 'a': // node aaddress
+        number = strtol(valueP, NULL, 10);
+        if (number == DUMMY_NO_VALUE) {
+          conf.timer[webTimer].toAddress  = 0;
+          conf.timer[webTimer].toFunction = ' ';
+          conf.timer[webTimer].toNumber   = 0;
+        } else {
+          conf.timer[webTimer].toAddress  = node[number].address;
+          conf.timer[webTimer].toFunction = node[number].function;
+          conf.timer[webTimer].toNumber   = node[number].number;
+        }
+      break;
+      case 'o':
+        conf.timer[webTimer].constantOn = strtof(valueP, NULL);
+      break;
+      case 'f':
+        conf.timer[webTimer].constantOff = strtof(valueP, NULL);
+      break;
+      case 't': // time
+        conf.timer[webTimer].startTime = strtol(valueP, &endP, 10) * MINUTES_PER_HOUR ;
+        conf.timer[webTimer].startTime += strtol(++endP, NULL, 10);
+      break;
+      case 'p': // script
+        strncpy(conf.timer[webTimer].evalScript, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+        conf.timer[webTimer].evalScript[LWIP_MIN(valueLen, NAME_LENGTH - 1)] = 0;
+      break;
+      case 'B' ... 'J': // Handle all single radio buttons for settings B(66)=0
+        if (valueP[0] == '0') conf.timer[webTimer].setting &= ~(1 << (name[0]-66));
+        else                  conf.timer[webTimer].setting |=  (1 << (name[0]-66));
+      break;
+      case 'e': // save
+        writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
+      break;
+    }
+  } while (repeat);
+}
+
 
 #endif /* HTTPD_HANDLER_TIMER_H_ */
