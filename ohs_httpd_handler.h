@@ -310,6 +310,7 @@ err_t httpd_post_begin(void *connection, const char *uri, const char *http_reque
   }
   return ERR_VAL;
 }
+
 /*
  * Parse POST data.
  *
@@ -317,72 +318,65 @@ err_t httpd_post_begin(void *connection, const char *uri, const char *http_reque
  */
 bool getPostData(char **pPostData, char *pName, uint8_t nameLen, char **pValue, uint16_t *pValueLen){
   uint8_t ch, ch1, ch2;
-  char *pTail = (*pPostData); // Used as tail that overwrite the *pPostData
+  char *src = *pPostData;
+  char *dst = *pPostData;
+  bool isValue = false;
 
-  *pValueLen = 0;             // Set value length = 0
-  memset(pName, 0, nameLen);  // Clear out name
-  (*pValue) = NULL;           // Clear out value as NULL terminated
+  *pValueLen = 0;
+  if (nameLen > 0) *pName = 0;  // Initialize name
+  *pValue = NULL;
 
-  while (**pPostData != 0){
-    ch = **pPostData; (*pPostData)++;
-    //DBG_HTTP("ch:%c, ", ch);
-    switch (ch) {
-      case '+': ch = ' ';
-        *pTail = ch;
-        //DBG_HTTP("pTail:%s\r\n", pTail);
-        pTail++;
-        break;
-      case '%':  // handle URL encoded characters by converting back to original form
-        ch1 = **pPostData; (*pPostData)++;
-        ch2 = **pPostData; (*pPostData)++;
-        if (ch1 == 0 || ch2 == 0) {
-          *pTail = 0;
-          pTail++;
-          continue;
+  while (*src != '\0') {
+    ch = *src++;
+
+    if (ch == '+') {
+      ch = ' ';
+    } else if (ch == '%') {
+      ch1 = *src;
+      if (ch1 != '\0') {
+        src++;
+        ch2 = *src;
+        if (ch2 != '\0') {
+          src++;
+          // Fast hex to int conversion
+          ch1 = (ch1 >= 'a') ? (ch1 - 'a' + 10) : (ch1 >= 'A' ? (ch1 - 'A' + 10) : (ch1 - '0'));
+          ch2 = (ch2 >= 'a') ? (ch2 - 'a' + 10) : (ch2 >= 'A' ? (ch2 - 'A' + 10) : (ch2 - '0'));
+          ch = (ch1 << 4) | ch2;
+        } else {
+           *dst++ = 0; // Malformed
+           break;
         }
-        char hex[3] = { ch1, ch2, 0 };
-        ch = strtoul(hex, NULL, 16);
-        *pTail = ch;
-        //DBG_HTTP("pTail:%s\r\n", pTail);
-        pTail++;
-        break;
-      case '=': // that's end of name, switch to storing value
-        //DBG_HTTP("pTail:%s\r\n", pTail);
-        pTail++;
-        nameLen = 0;
-        (*pValue) = (*pPostData);
-        continue; // do not store '='
-        break;
-      case '&': // that's end of pair, go away
-        // null rest of *pPostData up to pTail
-        while (pTail != (*pPostData)) {
-          *pTail = 0; pTail++;
-        }
-        //DBG_HTTP("--*pValue:%s\r\n", *pValue);
-        return true;
-        break;
-      default:
-        *pTail = ch;
-        //DBG_HTTP("pTail:%s\r\n", pTail);
-        pTail++;
-        break;
-    }
-    // check against 1 so we don't overwrite the final NULL
-    if (nameLen > 1) {
-      *pName++ = ch;
-      --nameLen;
-    } else {
-      if (nameLen == 0) {
-        (*pValueLen)++;
+      } else {
+         *dst++ = 0; // Malformed
+         break;
       }
+    } else if (ch == '&') {
+      *dst = 0;
+      *pPostData = src;
+      return true;
+    } else if (ch == '=' && !isValue) {
+      isValue = true;
+      *dst++ = 0; // Terminate potential name in buffer (optional but clean)
+      *pValue = dst; // Start of value in the modified buffer
+      continue;
     }
-    //DBG_HTTP("nameLen:%u, valueLen:%u, value:%s\r\n", nameLen, *pValueLen, *pValue);
+
+    *dst++ = ch;
+
+    if (!isValue) {
+      if (nameLen > 1) {
+        *pName++ = ch;
+        *pName = 0;
+        nameLen--;
+      }
+    } else {
+      (*pValueLen)++;
+    }
   }
-  // null rest of *pPostData up to pTail
-  while (pTail != (*pPostData)) {
-    *pTail = 0; pTail++;
-  }
-  return false; // Null is end
+
+  *dst = 0;
+  *pPostData = src;
+  return false;
 }
 /*
  * Receiving POST
