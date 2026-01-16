@@ -55,6 +55,7 @@ char current_uri[LWIP_HTTPD_MAX_REQUEST_URI_LEN] __attribute__((section(".ram4")
 char postData[HTTP_POST_DATA_SIZE] __attribute__((section(".ram4")));
 char httpAlertMsg[HTTP_ALERT_MSG_SIZE] __attribute__((section(".ram4")));
 char setCookie[HTTP_SET_COOKIE_SIZE] __attribute__((section(".ram4")));
+static uint16_t postDataLen = 0;
 void *verifiedConn = NULL;
 typedef struct {
   uint32_t id;
@@ -302,7 +303,9 @@ err_t httpd_post_begin(void *connection, const char *uri, const char *http_reque
     currentConn = connection;
     chsnprintf(response_uri, response_uri_len, uri);
     chsnprintf(current_uri, response_uri_len, uri);
-    memset(postData, 0, HTTP_POST_DATA_SIZE); // Empty POST data buffer
+    //memset(postData, 0, HTTP_POST_DATA_SIZE); // Empty POST data buffer
+    postDataLen = 0;
+    postData[0] = 0;
     return ERR_OK;
   }
   return ERR_VAL;
@@ -388,25 +391,25 @@ err_t httpd_post_receive_data(void *connection, struct pbuf *p) {
 
   DBG_HTTP("-PD-connection: %u\r\n", (uint32_t *)connection);
   if (currentConn == connection) {
-    DBG_HTTP("p->payload: '%.*s'\r\n", p->len, p->payload);
-    //DBG_HTTP("p->ref: %u\r\n", p->ref);
-    //DBG_HTTP("p->next: %u\r\n", p->next);
-    //DBG_HTTP("p->tot_len: %u\r\n", p->tot_len);
-
-    //DBG_HTTP("strlen(postData): %u\r\n", strlen(postData));
-    // Append payload to buffer, maximum size of postData and null
-    strncat(postData, (const char *)p->payload, LWIP_MIN(p->tot_len, (sizeof(postData)-strlen(postData))));
-
-    //pPostData = &postData[strlen(postData)];
-    //pPostData = (char *)pbuf_get_contiguous(p, postData, sizeof(postData)-strlen(postData),
-                //LWIP_MIN(p->tot_len,sizeof(postData)-strlen(postData)), 0);
-    //DBG_HTTP("postData: %s\r\n", postData);
-    //DBG_HTTP("pPostData: %s\r\n", pPostData);
-    //--u8_t buf[32];
-    //--u8_t ptr = (u8_t)pbuf_get_contiguous(p, buf, sizeof(buf), LWIP_MIN(option_len, sizeof(buf)), offset);
-
-    //DBG_HTTP("strlen(postData): %u\r\n", strlen(postData));
-    if (p != NULL) pbuf_free(p);
+    //DBG_HTTP("p->payload: '%.*s'\r\n", p->len, p->payload);
+    
+    // Iterate through pbuf chain and copy data
+    if (p != NULL) {
+      struct pbuf *q = p;
+      do {
+        // Calculate space left
+        uint16_t spaceLeft = sizeof(postData) - postDataLen - 1; // -1 for null terminator
+        if (spaceLeft > 0) {
+           uint16_t copyLen = LWIP_MIN(q->len, spaceLeft);
+           memcpy(&postData[postDataLen], q->payload, copyLen);
+           postDataLen += copyLen;
+           postData[postDataLen] = 0; // Ensure null termination
+        }
+        q = q->next;
+      } while(q != NULL);
+      
+      pbuf_free(p);
+    }
     return ERR_OK;
   }
   if (p != NULL) pbuf_free(p);
