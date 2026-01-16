@@ -103,13 +103,12 @@ static cmdStatus_t handleGetSystemStatus(const char *tokens[], uint8_t count,
   time_t tempTime;
 
   // Substract start time from current time
-  tempTime -= startTime;
-
+  tempTime = getTimeUnixSec()-startTime;
 
   chprintf(chp, "SYSTEM RUNNING | Uptime: ");
   printFrmUpTime(chp, &tempTime);
-  chprintf(chp, "| AC Power: %s", palReadPad(GPIOD, GPIOD_AC_OFF) ? "OK" : "NOK");
-  chprintf(chp, "| Battery: %s", palReadPad(GPIOD, GPIOD_BAT_OK) ? "OK" : "NOK");
+  chprintf(chp, " | AC Power: %s", palReadPad(GPIOD, GPIOD_AC_OFF) ? "OK" : "NOK");
+  chprintf(chp, " | Battery: %s", palReadPad(GPIOD, GPIOD_BAT_OK) ? "OK" : "NOK");
   return CMD_OK;
 }
 /*
