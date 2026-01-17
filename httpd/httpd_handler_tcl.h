@@ -158,19 +158,22 @@ static void httpd_post_custom_tcl(char **postDataP) {
       case 'e': // save
         if (webScript == DUMMY_NO_VALUE) {
           if (!strlen(scriptName)) {
-            chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "Not allowed to save empty name");
+            chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "Not allowed to save empty name");
+            httpAlert.type = ALERT_ERROR;
             break;
           }
           // For new script append linked list
           scriptp = umm_malloc(sizeof(struct scriptLL_t));
           if (scriptp == NULL) {
-            chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+            chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+            httpAlert.type = ALERT_ERROR;
           } else {
             //if (checkPointer(scriptp, html_noSpace)) {}
             scriptp->name = umm_malloc(NAME_LENGTH);
             if (scriptp->name == NULL) {
               umm_free(scriptp);
-              chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+              chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+              httpAlert.type = ALERT_ERROR;
             } else {
               strncpy(scriptp->name, &scriptName[0], NAME_LENGTH);
               number = strlen(tclCmd);
@@ -178,7 +181,8 @@ static void httpd_post_custom_tcl(char **postDataP) {
               if (scriptp->cmd == NULL) {
                 umm_free(scriptp->name);
                 umm_free(scriptp);
-                chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+                chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+                httpAlert.type = ALERT_ERROR;
               } else {
                 strncpy(scriptp->cmd, &tclCmd[0], number);
                 memset(scriptp->cmd + number, 0, 1);
@@ -186,7 +190,8 @@ static void httpd_post_custom_tcl(char **postDataP) {
                 scriptLL = scriptp;
                 // uBS
                 if (uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd)) != UBS_RSLT_OK) {
-                  chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_storage);
+                  chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_storage);
+                  httpAlert.type = ALERT_ERROR;
                 }
                 // new script is added to top of linked list, no need to do pointer check
                 webScript = 1;
@@ -207,14 +212,16 @@ static void httpd_post_custom_tcl(char **postDataP) {
             umm_free(scriptp->cmd);
             scriptp->cmd = umm_malloc(number + 1);
             if (scriptp->cmd == NULL) {
-              chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+              chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+              httpAlert.type = ALERT_ERROR;
             } else {
               strncpy(scriptp->cmd, &tclCmd[0], number);
               memset(scriptp->cmd + number, 0, 1);
               for (int i = 0; i < UBS_NAME_SIZE; i++) { DBG_HTTP("%x;", scriptName[i]); }
               DBG_HTTP("\r\n");
               if (uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd)) != UBS_RSLT_OK) {
-                chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_storage);
+                chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_storage);
+                httpAlert.type = ALERT_ERROR;
               }
             }
           }

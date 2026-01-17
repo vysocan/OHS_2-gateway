@@ -48,7 +48,8 @@ static void httpd_post_custom_login(char **postDataP, void *connection) {
           authorizedConn.id = STM32_UUID[0] + rand();
           authorizedConn.conn = (void *)connection;
         } else {
-          chsnprintf(httpAlertMsg, HTTP_ALERT_MSG_SIZE, "User or password not valid!");
+          chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "User or password not valid!");
+          httpAlert.type = ALERT_ERROR;
         }
       break;
     }

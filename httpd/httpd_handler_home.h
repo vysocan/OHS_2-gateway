@@ -52,8 +52,8 @@ static void fs_open_custom_home(BaseSequentialStream *chp) {
   chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
   // Buttons
   chprintf(chp, "%s%s", html_LoadDefault, html_Save);
-  // TODO OHS add configuration download/upload
-  //chprintf(chp, "<button type=\"submit\" onclick=\"window.open('/config.bin')\">Download</button>");
+  // OHS add configuration download/upload
+  chprintf(chp, "%s%s%s", html_Download, html_Upload, html_js_upload);
 }
 
 /*
@@ -65,6 +65,14 @@ static void httpd_post_custom_home(char **postDataP) {
   char name[3];
   bool repeat;
   char *valueP;
+  
+  // Check if we received configuration file (binary data matches struct size)
+  if (postDataLen == sizeof(conf)) {
+      memcpy(&conf, *postDataP, sizeof(config_t));
+      chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "Configuration uploaded.");
+      httpAlert.type = ALERT_INFO;
+      return;
+  }
 
   do {
     repeat = getPostData(postDataP, &name[0], sizeof(name), &valueP, &valueLen);

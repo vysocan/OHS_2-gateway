@@ -44,7 +44,7 @@ binary_semaphore_t mqttSem;
 // UMM
 #include "umm_malloc.h"
 #include "umm_malloc_cfg.h"
-#define UMM_MALLOC_CFG_HEAP_SIZE (1024*50)
+#define UMM_MALLOC_CFG_HEAP_SIZE (1024*46)
 char ohsUmmHeap[UMM_MALLOC_CFG_HEAP_SIZE] __attribute__((section(".ram4")));
 // TCL
 #define TCL_SCRIPT_LENGTH        (512)
@@ -194,7 +194,7 @@ int main(void) {
   memset(&modemSystemInfo[0], 0, sizeof(modemSystemInfo));
   memset(&logText[0], 0, LOG_TEXT_LENGTH);
   memset(&mqttPayload[0], 0, MQTT_PAYLOAD_LENGTH);
-  memset(&httpAlertMsg[0], 0 , HTTP_ALERT_MSG_SIZE);
+  memset(&httpAlert, 0 , sizeof(HttpAlert));
 
   shellInit();
 

@@ -47,13 +47,25 @@
 #define DBG_HTTP(...)
 #endif
 
-#define HTTP_POST_DATA_SIZE 1024
+#define HTTP_POST_DATA_SIZE 4097 // 4KB + 1B for null terminator
 #define HTTP_ALERT_MSG_SIZE 80
 #define HTTP_SET_COOKIE_SIZE 48
+
+typedef enum {
+  ALERT_INFO,
+  ALERT_WARN,
+  ALERT_ERROR
+} AlertLevel;
+
+typedef struct {
+  char       msg[HTTP_ALERT_MSG_SIZE];
+  AlertLevel type;
+} HttpAlert;
+
 static void *currentConn;
 char current_uri[LWIP_HTTPD_MAX_REQUEST_URI_LEN] __attribute__((section(".ram4")));
 char postData[HTTP_POST_DATA_SIZE] __attribute__((section(".ram4")));
-char httpAlertMsg[HTTP_ALERT_MSG_SIZE] __attribute__((section(".ram4")));
+HttpAlert httpAlert __attribute__((section(".ram4")));
 char setCookie[HTTP_SET_COOKIE_SIZE] __attribute__((section(".ram4")));
 static uint16_t postDataLen = 0;
 void *verifiedConn = NULL;
@@ -176,6 +188,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           break;
         case PAGE_TCL:
         case PAGE_LOGIN:
+        case PAGE_HOME:
           chprintf(chp, "ca();"); // Close alerts
           break;
       }
@@ -191,11 +204,19 @@ int fs_open_custom(struct fs_file *file, const char *name){
       // Main Body
       chprintf(chp, "</ul></div><div class='mb'>\r\n");
       // Alert div
-      if (strlen(httpAlertMsg)) {
-        chprintf(chp, "<div class='alrt' id='at'><span class='cbtn' onclick=\"this.parentElement.style.display='none';\">&times;</span>");
-        chprintf(chp, "<b>Error!</b><br><br>");
-        chprintf(chp, "%s.%s", httpAlertMsg, html_div_e);
-        memset(httpAlertMsg, 0 , HTTP_ALERT_MSG_SIZE); // Empty alert message
+      if (strlen(httpAlert.msg)) {
+        const char *alertClass = "alrt";
+        const char *alertTitle = "Error!";
+        switch (httpAlert.type) {
+            case ALERT_INFO: alertClass = "alrt info"; alertTitle = "Info"; break;
+            case ALERT_WARN: alertClass = "alrt warn"; alertTitle = "Warning"; break;
+            case ALERT_ERROR: default: break;
+        }
+
+        chprintf(chp, "<div class='%s' id='at'><span class='cbtn' onclick=\"this.parentElement.style.display='none';\">&times;</span>", alertClass);
+        chprintf(chp, "<b>%s</b><br><br>", alertTitle);
+        chprintf(chp, "%s.%s", httpAlert.msg, html_div_e);
+        memset(&httpAlert, 0 , sizeof(HttpAlert)); // Empty alert message
       }
       // Header
       chprintf(chp, "<h1>%s</h1>\r\n", webPage[htmlPage].name);

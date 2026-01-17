@@ -94,6 +94,9 @@ const char html_table[]             = "<table>";
 const char html_form_1[]            = "<form action='";
 const char html_form_2[]            = "' method='post'>";
 const char html_br[]                = "<br>";
+const char html_Download[]          = "<button type='button' onclick=\"window.open('/config.bin')\">Download config</button>";
+const char html_Upload[]            = "<label class='cf'><input type='file' id='u' onchange='uC(this)'>Upload config</label>";
+const char html_js_upload[]         = "<script>function uC(e){var f=e.files[0];if(!f)return;var r=new FileReader();r.onload=function(e){var x=new XMLHttpRequest();x.onload=function(){if(x.status==200){document.open();document.write(x.responseText);document.close();}else{alert('Error '+x.status);}};x.open('POST','/index.html',true);x.send(e.target.result);};r.readAsArrayBuffer(f);}</script>";
 
 // Radio buttons
 const char html_cbPart1a[]          = "<div class='rc'><input type='radio' name='";
