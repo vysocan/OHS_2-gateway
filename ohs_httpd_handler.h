@@ -294,7 +294,7 @@ err_t httpd_post_begin(void *connection, const char *uri, const char *http_reque
   LWIP_UNUSED_ARG(content_len);
   LWIP_UNUSED_ARG(post_auto_wnd);
 
-  DBG_HTTP("-PB-connection: %u\r\n", (uint32_t *)connection);
+  //DBG_HTTP("-PB-connection: %u\r\n", (uint32_t *)connection);
   //DBG_HTTP("-PB-uri: %s\r\n", (char *)uri);
   //DBG_HTTP("-PB-http_request: %s\r\n", (char *)http_request);
   //DBG_HTTP("-PB-http_request_len: %u\r\n", http_request_len);
