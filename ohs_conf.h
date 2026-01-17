@@ -108,6 +108,7 @@
 #define NODE_CMD_ARMED_AWAY   15
 #define NODE_CMD_DISARM       16
 #define NODE_CMD_ARMED_HOME   17
+#define NODE_CMD_ARM_REJECTED 18
 
 // Bit wise macros for various settings
 #define GET_CONF_ZONE_ENABLED(x)     ((x) & 0b1)
@@ -117,7 +118,7 @@
 #define GET_CONF_ZONE_OPEN_ALARM(x)  ((x >> 8U) & 0b1)
 #define GET_CONF_ZONE_PIR_AS_TMP(x)  ((x >> 9U) & 0b1)
 #define GET_CONF_ZONE_BALANCED(x)    ((x >> 10U) & 0b1)
-#define GET_CONF_ZONE_(x)            ((x >> 11U) & 0b1)
+#define GET_CONF_ZONE_NEEDED(x)      ((x >> 11U) & 0b1)
 #define GET_CONF_ZONE_MQTT_HAD(x)    ((x >> 12U) & 0b1)
 #define GET_CONF_ZONE_MQTT_PUB(x)    ((x >> 13U) & 0b1)
 #define GET_CONF_ZONE_IS_PRESENT(x)  ((x >> 14U) & 0b1)
@@ -129,7 +130,7 @@
 #define SET_CONF_ZONE_OPEN_ALARM(x)  x |= (1 << 8U)
 #define SET_CONF_ZONE_PIR_AS_TMP(x)  x |= (1 << 9U)
 #define SET_CONF_ZONE_BALANCED(x)    x |= (1 << 10U)
-#define SET_CONF_ZONE_(x)            x |= (1 << 11U)
+#define SET_CONF_ZONE_NEEDED(x)      x |= (1 << 11U)
 #define SET_CONF_ZONE_MQTT_HAD(x)    x |= (1 << 12U)
 #define SET_CONF_ZONE_MQTT_PUB(x)    x |= (1 << 13U)
 #define SET_CONF_ZONE_IS_PRESENT(x)  x |= (1 << 14U)
@@ -139,7 +140,7 @@
 #define CLEAR_CONF_ZONE_STILL_OPEN(x)  x &= ~(1 << 8U)
 #define CLEAR_CONF_ZONE_PIR_AS_TMP(x)  x &= ~(1 << 9U)
 #define CLEAR_CONF_ZONE_BALANCED(x)    x &= ~(1 << 10U)
-#define CLEAR_CONF_ZONE_(x)            x &= ~(1 << 11U)
+#define CLEAR_CONF_ZONE_NEEDED(x)      x &= ~(1 << 11U)
 #define CLEAR_CONF_ZONE_MQTT_HAD(x)    x &= ~(1 << 12U)
 #define CLEAR_CONF_ZONE_MQTT_PUB(x)    x &= ~(1 << 13U)
 #define CLEAR_CONF_ZONE_IS_PRESENT(x)  x &= ~(1 << 14U)
@@ -944,7 +945,7 @@ void setConfDefault(void){
     //                    ||- Present - connected
     //                    |||- MQTT publish
     //                    ||||- MQTT HAD // - was Remote zone
-    //                    |||||- Free - was Battery powered zone, they don't send OK, only PIR or Tamper.
+    //                    |||||- Needed to Arm - was Battery powered zone, they don't send OK, only PIR or Tamper.
     //                    ||||||- Logical type balanced 1/ unbalanced 0. Only Analog zones can be balanced.
     //                    |||||||- PIR as Tamper
     //                    ||||||||- Still open alarm

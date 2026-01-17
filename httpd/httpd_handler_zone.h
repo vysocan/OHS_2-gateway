@@ -18,11 +18,12 @@ static void fs_open_custom_zone(BaseSequentialStream *chp) {
   chprintf(chp, "%s%s", html_e_th_th, text_Name);
   chprintf(chp, "%s%s", html_e_th_th, text_On);
   chprintf(chp, "%s%s", html_e_th_th, text_Type);
-  chprintf(chp, "%s%s %s", html_e_th_th, text_Arm, text_home);
-  chprintf(chp, "%s%s %s", html_e_th_th, text_Open, text_alarm);
-  chprintf(chp, "%s%s %s %s", html_e_th_th, text_Alarm, text_as, text_tamper);
+  chprintf(chp, "%s%s %s", html_e_th_th, text_Arm, text_Home);
+  chprintf(chp, "%s%s %s", html_e_th_th, text_Open, text_Alarm);
+  chprintf(chp, "%s%s %s", html_e_th_th, text_As, text_Tamper);
+  chprintf(chp, "%s%s", html_e_th_th, text_Needed);
   chprintf(chp, "%s%s", html_e_th_th, text_Delay);
-  chprintf(chp, "%s%s %s", html_e_th_th, text_Last, text_alarm);
+  chprintf(chp, "%s%s %s", html_e_th_th, text_Last, text_Alarm);
   chprintf(chp, "%s%s %s", html_e_th_th, text_Last, text_OK);
   chprintf(chp, "%s%s", html_e_th_th, text_MQTT);
   chprintf(chp, "%s%s", html_e_th_th, text_HAD);
@@ -46,6 +47,8 @@ static void fs_open_custom_zone(BaseSequentialStream *chp) {
       printOkNok(chp, GET_CONF_ZONE_OPEN_ALARM(conf.zone[i]));
       chprintf(chp, "%s", html_e_td_td);
       printOkNok(chp, GET_CONF_ZONE_PIR_AS_TMP(conf.zone[i]));
+      chprintf(chp, "%s", html_e_td_td);
+      printOkNok(chp, GET_CONF_ZONE_NEEDED(conf.zone[i]));
       chprintf(chp, "%s", html_e_td_td);
       chprintf(chp, "%u %s%s", GET_CONF_ZONE_AUTH_TIME(conf.zone[i])*conf.armDelay/4,
                durationSelect[0], html_e_td_td);
@@ -95,6 +98,8 @@ static void fs_open_custom_zone(BaseSequentialStream *chp) {
   printOnOffButton(chp, "9", GET_CONF_ZONE_PIR_AS_TMP(conf.zone[webZone]));
   chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Balanced, html_e_td_td);
   printOnOffButton(chp, "a", GET_CONF_ZONE_BALANCED(conf.zone[webZone]));
+  chprintf(chp, "%s%s %s %s%s", html_e_td_e_tr_tr_td, text_Needed, text_to, text_arm, html_e_td_td);
+  printOnOffButton(chp, "b", GET_CONF_ZONE_NEEDED(conf.zone[webZone]));
   chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Authentication, text_delay, html_e_td_td);
   printFourButton(chp, "D", GET_CONF_ZONE_AUTH_TIME(conf.zone[webZone]), 0, 0b0000,
                   text_0x, text_1x, text_2x, text_3x, 0);
@@ -174,9 +179,7 @@ static void httpd_post_custom_zone(char **postDataP) {
         if (valueP[0] == '0') conf.zone[webZone] &= ~(1 << (name[0]-48));
         else                  conf.zone[webZone] |=  (1 << (name[0]-48));
       break;
-      case 'a': // Handle all single radio buttons for settings 10 ->
-      case 'c':
-      case 'd':
+      case 'a' ... 'd': // Handle all single radio buttons for settings 10 -> 13
         resp = GET_CONF_ZONE_MQTT_HAD(conf.zone[webZone]);
         if (valueP[0] == '0') conf.zone[webZone] &= ~(1 << (name[0]-87)); // a(97) - 10
         else                  conf.zone[webZone] |=  (1 << (name[0]-87));

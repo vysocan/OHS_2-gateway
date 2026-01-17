@@ -437,6 +437,20 @@ uint8_t checkKey(uint8_t groupNum, armType_t armType, uint8_t *key, uint8_t leng
             tmpLog[0] = 'A'; tmpLog[1] = 'D'; tmpLog[2] = i; pushToLog(tmpLog, 3); // Key
             disarmGroup(groupNum, groupNum, 0); // Disarm group and all chained groups
           } else { // Just do arm
+            // Check if all zones needed to arm this group are OK
+            for (uint8_t j = 0; j < ALARM_ZONES; j++) {
+              if (GET_CONF_ZONE_GROUP(conf.zone[j]) == groupNum) {
+                if (GET_CONF_ZONE_ENABLED(conf.zone[j])) {
+                  if ((GET_CONF_ZONE_NEEDED(conf.zone[j])) && (zone[j].lastEvent != 'O')) {
+                    // Zone not OK, cannot arm
+                    sendCmdToGrp(groupNum, NODE_CMD_ARM_REJECTED, 'K'); // Send arm rejected to all Key nodes
+                    tmpLog[0] = 'A'; tmpLog[1] = 'R'; tmpLog[2] = i; tmpLog[3] = j; pushToLog(tmpLog, 4); // Key, Zone
+                    break;// no need to try other
+                  }
+                }
+              }
+            }
+            // All zones OK, arm the group
             tmpLog[0] = 'A';
             if (armType == armAway) tmpLog[1] = 'A';
             else                    tmpLog[1] = 'H';
@@ -879,6 +893,7 @@ static uint8_t decodeLog(char *in, char *out, bool full){
         case 'D': chprintf(chp, "%s", text_disarmed); break;
         case 'A': chprintf(chp, "%s %s", text_armed, text_away); break;
         case 'H': chprintf(chp, "%s %s", text_armed, text_home); break;
+        case 'R': chprintf(chp, "%s %s, %s: %u. %s ", text_arm, text_rejected, text_zone, (uint8_t)in[3] + 1, conf.zoneName[(uint8_t)in[3]]); break;
         case 'U': chprintf(chp, "%s %s ", text_is, text_unknown);
           if (full) {
             printKey(chp, (uint8_t *)&in[2]);
