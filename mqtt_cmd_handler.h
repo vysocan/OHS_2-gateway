@@ -21,25 +21,25 @@ static cmdStatus_t handle_zone_refresh(const char *tokens[], uint8_t count,
 /* === TABLES - MQTT COMMAND STRUCTURE ====================================== */
 /* /group/{#}* */
 static const cmdEntry_t group_sub[] = {
-  { text_state, handle_group_state, "Group state control", NULL, 0 }
+  { TEXT_state, handle_group_state, "Group state control", NULL, 0 }
 };
 
 /* /sensor/{address}* */
 static const cmdEntry_t sensor_sub[] = {
-  { text_value, handle_sensor_value, "Sensor data", NULL, 0 }
+  { TEXT_value, handle_sensor_value, "Sensor data", NULL, 0 }
 };
 
 /* /zone/refresh */
 static const cmdEntry_t zone_sub[] = {
-  { text_refresh, handle_zone_refresh, "Refresh zone states", NULL, 0 }
+  { TEXT_refresh, handle_zone_refresh, "Refresh zone states", NULL, 0 }
 };
 
 /* Top-level MQTT commands */
 const cmdEntry_t mqtt_top_commands[] = {
-  { text_Group, NULL, "Group control", group_sub, ARRAY_COUNT (group_sub) },
-  { text_Sensor, NULL, "Sensor data", sensor_sub, ARRAY_COUNT (sensor_sub) },
-  { text_Zone, NULL, "Zone management", zone_sub, ARRAY_COUNT (zone_sub) },
-  { text_Help, cmdHandleHelp, "Show this help", NULL, 0 }
+  { TEXT_Group, NULL, "Group control", group_sub, ARRAY_COUNT (group_sub) },
+  { TEXT_Sensor, NULL, "Sensor data", sensor_sub, ARRAY_COUNT (sensor_sub) },
+  { TEXT_Zone, NULL, "Zone management", zone_sub, ARRAY_COUNT (zone_sub) },
+  { TEXT_Help, cmdHandleHelp, "Show this help", NULL, 0 }
 };
 
 /* === HANDLERS ============================================================= */
@@ -60,19 +60,19 @@ static cmdStatus_t handle_group_state(const char *tokens[], uint8_t count,
   }
 
   // State command
-  if (strcmp (tokens[1], text_state) != 0) {
+  if (strcmp (tokens[1], TEXT_state) != 0) {
     chsnprintf (result, result_len, "Usage: GROUP <id> STATE <command>");
     return CMD_INVALID_ARGS;
   }
 
   // Parse state command from payload
-  if (strcmp (mqttInPayload, text_arm_home) == 0) {
+  if (strcmp (mqttInPayload, TEXT_arm_home) == 0) {
     armGroup (index, index, armHome, 0);
     chsnprintf (result, result_len, "Group %d armed home", index + 1);
-  } else if (strcmp (mqttInPayload, text_arm_away) == 0) {
+  } else if (strcmp (mqttInPayload, TEXT_arm_away) == 0) {
     armGroup (index, index, armAway, 0);
     chsnprintf (result, result_len, "Group %d armed away", index + 1);
-  } else if (strcmp (mqttInPayload, text_disarm) == 0) {
+  } else if (strcmp (mqttInPayload, TEXT_disarm) == 0) {
     disarmGroup (index, index, 0);
     chsnprintf (result, result_len, "Group %d disarmed", index + 1);
   } else {

@@ -359,9 +359,9 @@ static THD_FUNCTION(tclThread, arg) {
       // Run TCL
       DBG_TCL("Script: %s, length %u\r\n", inMsg->cmdP, strlen(inMsg->cmdP));
       if (tcl_eval(&tcl, inMsg->cmdP, strlen(inMsg->cmdP)) != FERROR) {
-        chprintf(tclChp, "\r\n%s: %.*s", text_Result, tcl_length(tcl.result), tcl_string(tcl.result));
+        chprintf(tclChp, "\r\n%s: %.*s", TEXT_Result, tcl_length(tcl.result), tcl_string(tcl.result));
       } else {
-        chprintf(tclChp, "\r\n%s: %s", text_Result, text_error);
+        chprintf(tclChp, "\r\n%s: %s", TEXT_Result, TEXT_error);
       }
       chprintf(tclChp, "\r\nElapsed: %u ms\r\n", TIME_I2MS(chVTGetSystemTimeX() - runTime));
 

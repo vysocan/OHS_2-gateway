@@ -25,27 +25,27 @@ static cmdStatus_t handleSetGeneric(const char *tokens[], uint8_t count,
 /* === TABLES - PARENT REFERENCES ONLY ====================================== */
 /* Leaf tables - sub_count = 0 (no subcommands) */
 static const cmdEntry_t smsGetGroupSub[] = {
-  { text_Status, handleGetGroupStatus, "Get group status", NULL, 0 }
+  { TEXT_Status, handleGetGroupStatus, "Get group status", NULL, 0 }
 };
 static const cmdEntry_t smsGetSystemSub[] = {
-  { text_Status, handleGetSystemStatus, "Get system status", NULL, 0 }
+  { TEXT_Status, handleGetSystemStatus, "Get system status", NULL, 0 }
 };
 static const cmdEntry_t smsGetZoneSub[] = {
-  { text_Status, handleGetZoneStatus, "Get zone status", NULL, 0 }
+  { TEXT_Status, handleGetZoneStatus, "Get zone status", NULL, 0 }
 };
 
 /* Parent tables - use ARRAY_COUNT(child) */
 static const cmdEntry_t smsGetSub[] = {
-  { text_Group, NULL, "Group information", smsGetGroupSub, ARRAY_COUNT(smsGetGroupSub) },
-  { text_System, NULL, "System information", smsGetSystemSub, ARRAY_COUNT(smsGetSystemSub) },
-  { text_Zone, NULL, "Zone information", smsGetZoneSub, ARRAY_COUNT(smsGetZoneSub) }
+  { TEXT_Group, NULL, "Group information", smsGetGroupSub, ARRAY_COUNT(smsGetGroupSub) },
+  { TEXT_System, NULL, "System information", smsGetSystemSub, ARRAY_COUNT(smsGetSystemSub) },
+  { TEXT_Zone, NULL, "Zone information", smsGetZoneSub, ARRAY_COUNT(smsGetZoneSub) }
 };
 
 /* Top-level */
 const cmdEntry_t smsTopCommands[] = {
-  { text_Get, NULL, "Read status", smsGetSub, ARRAY_COUNT(smsGetSub) },
-  { text_Set, handleSetGeneric, "Modify configuration", NULL, 0 },
-  { text_Help, cmdHandleHelp, "Show this help", NULL, 0 } // Help command has internal handler, no need to implement
+  { TEXT_Get, NULL, "Read status", smsGetSub, ARRAY_COUNT(smsGetSub) },
+  { TEXT_Set, handleSetGeneric, "Modify configuration", NULL, 0 },
+  { TEXT_Help, cmdHandleHelp, "Show this help", NULL, 0 } // Help command has internal handler, no need to implement
 };
 
 /* === HANDLERS =============================================================

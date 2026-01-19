@@ -32,7 +32,7 @@ struct mqtt_connect_client_info_t mqttCI = {
   NULL, /* pass */
   120,  /* keep alive */
   MQTT_MAIN_TOPIC MQTT_WILL_TOPIC, /* will_topic */
-  &text_Off[0], /* will_msg */
+  TEXT_Off, /* will_msg */
   2,    /* will_qos */
   1     /* will_retain */
 #if LWIP_ALTCP && LWIP_ALTCP_TLS

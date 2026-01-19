@@ -168,22 +168,22 @@ int fs_open_custom(struct fs_file *file, const char *name){
       // Common html page start
       chprintf(chp, "<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>Open home security</title>\r\n");
       chprintf(chp, "<link rel='stylesheet' href='/css/OHS.css'>\r\n");
-      chprintf(chp, "%sEnDis.js'>%s", html_script_src, html_e_script);
+      chprintf(chp, "%sEnDis.js'>%s", HTML_script_src, HTML_e_script);
       chprintf(chp, "</head>\r\n<body onload=\"");
       // JavaScript enable/disable on body load
       switch (htmlPage) {
         case PAGE_USER:
-          GET_CONF_CONTACT_IS_GLOBAL(conf.contact[webContact].setting) ? chprintf(chp, JSen1) : chprintf(chp, JSdis1);
+          GET_CONF_CONTACT_IS_GLOBAL(conf.contact[webContact].setting) ? chprintf(chp, JS_en1) : chprintf(chp, JS_dis1);
           break;
         case PAGE_ZONE:
-          GET_CONF_ZONE_TYPE(conf.zone[webZone]) ? chprintf(chp, JSen1) : chprintf(chp, JSdis1);
+          GET_CONF_ZONE_TYPE(conf.zone[webZone]) ? chprintf(chp, JS_en1) : chprintf(chp, JS_dis1);
           break;
         case PAGE_TIMER:
-          GET_CONF_TIMER_TYPE(conf.timer[webTimer].setting) ? chprintf(chp, JSen1) : chprintf(chp, JSdis1);
+          GET_CONF_TIMER_TYPE(conf.timer[webTimer].setting) ? chprintf(chp, JS_en1) : chprintf(chp, JS_dis1);
           break;
         case PAGE_TRIGGER:
-          GET_CONF_TRIGGER_PASS(conf.trigger[webTrigger].setting) ? chprintf(chp, JSen1) : chprintf(chp, JSdis1);
-          GET_CONF_TRIGGER_PASS_OFF(conf.trigger[webTrigger].setting) ? chprintf(chp, JSen2) : chprintf(chp, JSdis2);
+          GET_CONF_TRIGGER_PASS(conf.trigger[webTrigger].setting) ? chprintf(chp, JS_en1) : chprintf(chp, JS_dis1);
+          GET_CONF_TRIGGER_PASS_OFF(conf.trigger[webTrigger].setting) ? chprintf(chp, JS_en2) : chprintf(chp, JS_dis2);
           chprintf(chp, "sd(document.getElementById('y'));"); // Type select
           break;
         case PAGE_TCL:
@@ -215,12 +215,12 @@ int fs_open_custom(struct fs_file *file, const char *name){
 
         chprintf(chp, "<div class='%s' id='at'><span class='cbtn' onclick=\"this.parentElement.style.display='none';\">&times;</span>", alertClass);
         chprintf(chp, "<b>%s</b><br><br>", alertTitle);
-        chprintf(chp, "%s.%s", httpAlert.msg, html_div_e);
+        chprintf(chp, "%s.%s", httpAlert.msg, HTML_div_e);
         memset(&httpAlert, 0 , sizeof(HttpAlert)); // Empty alert message
       }
       // Header
       chprintf(chp, "<h1>%s</h1>\r\n", webPage[htmlPage].name);
-      chprintf(chp, "%s%s%s%s", html_form_1, webPage[htmlPage].link, html_form_2, html_table);
+      chprintf(chp, "%s%s%s%s", HTML_form_1, webPage[htmlPage].link, HTML_form_2, HTML_table);
       // Common html page end
 
       // Custom html page start

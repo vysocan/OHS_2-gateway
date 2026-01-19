@@ -45,284 +45,258 @@ const char durationSelect[][10] = {
   "day(s)"
 };
 
-const char text_Get[]               = "Get";
-const char text_Set[]               = "Set";
-const char text_Help[]              = "Help";
-const char text_System[]            = "System";
-const char text_info[]              = "information";
-const char text_started[]           = "started";
-const char text_Undefined[]         = "Undefined";
-const char text_removed[]           = "removed";
-const char text_disabled[]          = "disabled";
-const char text_address[]           = "address";
-const char text_unable[]            = "unable";
-const char text_to[]                = "to";
-const char text_Needed[]            = "Needed";
-const char text_resolve[]           = "resolve";
-const char text_Address[]           = "Address";
-const char text_Group[]             = "Group";
-const char text_group[]             = "group";
-const char text_registration[]      = "registration";
-const char text_error[]             = "error";
-const char text_failure[]           = "failure";
-const char text_registered[]        = "registered";
-const char text_is[]                = "is";
-const char text_Authentication[]    = "Authentication";
-const char text_authentication[]    = "authentication";
-const char text_disarming[]         = "disarming";
-const char text_Sensor[]            = "Sensor";
-const char text_sensor[]            = "sensor";
-const char text_Input[]             = "Input";
-const char text_Output[]            = "Output"; // :) Input on node is Output to GW
-const char text_Siren[]             = "Siren";
-const char text_iButton[]           = "iButton";
-const char text_Temperature[]       = "Temperature";
-const char text_temperature[]       = "temperature";
-const char text_Humidity[]          = "Humidity";
-const char text_humidity[]          = "humidity";
-const char text_Pressure[]          = "Pressure";
-const char text_pressure[]          = "pressure";
-const char text_Voltage[]           = "Voltage";
-const char text_voltage[]           = "voltage";
-const char text_Battery[]           = "Battery";
-const char text_RTC[]               = "RTC";
-const char text_reset[]             = "reset";
-const char text_reason[]            = "reason";
-const char text_Digital[]           = "Digital";
-const char text_Analog[]            = "Analog";
-const char text_Float[]             = "Float";
-const char text_TX_Power[]          = "TX_Power";
-const char text_Gas[]               = "Gas";
-const char text_Illumination[]      = "Illumination";
-const char text_illuminance[]       = "illuminance";
-const char text_Fingerprint[]       = "Fingerprint";
-const char text_not[]               = "not";
-const char text_None[]              = "None";
-const char text_Asterisk[]          = "*";
-const char text_authorized[]        = "authorized";
-const char text_disconnected[]      = "disconnected";
-const char text_connect[]           = "connect";
-const char text_timeout[]           = "timeout";
-const char text_refused[]           = "refused";
-const char text_server[]            = "server";
-const char text_protocol[]          = "protocol";
-const char text_version[]           = "version";
-const char text_identifier[]        = "identifier";
-const char text_strength[]          = "strength";
-const char text_unknown[]           = "unknown";
-const char text_empty[]             = "empty";
-const char text_Empty[]             = "Empty";
-const char text_roaming[]           = "roaming";
-const char text_searching[]         = "searching";
-const char text_network[]           = "network";
-const char text_denied[]            = "denied";
-const char text_cosp[]              = ", ";
-const char text_Modem[]             = "Modem";
-const char text_On[]                = "On";
-const char text_Off[]               = "Off";
-const char text_1[]                 = "1";
-const char text_2[]                 = "2";
-const char text_3[]                 = "3";
-const char text_4[]                 = "4";
-const char text_0x[]                = "0x";
-const char text_1x[]                = "1x";
-const char text_2x[]                = "2x";
-const char text_3x[]                = "3x";
-const char text_power[]             = "power";
-const char text_watchdog[]          = "watchdog";
-const char text_independent[]       = "independent";
-const char text_software[]          = "software";
-const char text_power_on[]          = "power-on";
-const char text_brown_out[]         = "brown-out";
-const char text_main[]              = "main";
-const char text_monitoring[]        = "monitoring";
-const char text_Node[]              = "Node";
-const char text_Name[]              = "Name";
-const char text_name[]              = "name";
-const char text_MQTT[]              = "MQTT";
-const char text_HA[]                = "HA";
-const char text_HAD[]               = "HAD";
-const char text_Function[]          = "Function";
-const char text_Type[]              = "Type";
-const char text_type[]              = "type";
-const char text_publish[]           = "publish";
-const char text_callback[]          = "callback";
-const char text_subscribe[]         = "subscribe";
-const char text_semaphore[]         = "semaphore";
-const char text_Subscribe[]         = "Subscribe";
-const char text_Last[]              = "Last";
-const char text_devation[]          = "deviation";
-const char text_message[]           = "message";
-const char text_Queued[]            = "Queued";
-const char text_Value[]             = "Value";
-const char text_Number[]            = "Number";
-const char text_Email[]             = "Email";
-const char text_Global[]            = "Global";
-const char text_Home[]              = "Home";
-const char text_Assistant[]         = "Assistant";
-const char text_Discovery[]         = "Discovery";
-const char text_Contact[]           = "Contact";
-const char text_contact[]           = "contact";
-const char text_User[]              = "User";
-const char text_all[]               = "all";
-const char text_Key[]               = "Key";
-const char text_Open[]              = "Open";
-const char text_alarm[]             = "alarm";
-const char text_Alarm[]             = "Alarm";
-const char text_as[]                = "as";
-const char text_As[]                = "As";
-const char text_tamper[]            = "tamper";
-const char text_tampered[]          = "tampered";
-const char text_Delay[]             = "Delay";
-const char text_OK[]                = "OK";
-const char text_Status[]            = "Status";
-const char text_remote[]            = "remote";
-const char text_local[]             = "local";
-const char text_battery[]           = "battery";
-const char text_analog[]            = "analog";
-const char text_digital[]           = "digital";
-const char text_Zone[]              = "Zone";
-const char text_zone[]              = "zone";
-const char text_refresh[]           = "refresh";
-const char text_rejected[]          = "rejected";
-const char text_delay[]             = "delay";
-const char text_SMS[]               = "SMS";
-const char text_sms[]               = "sms";
-const char text_Page[]              = "Page";
-const char text_disarmed[]          = "disarmed";
-const char text_pending[]           = "pending";
-const char text_armed[]             = "armed";
-const char text_auto[]              = "auto";
-const char text_open[]              = "open";
-const char text_allowed[]           = "allowed";
-const char text_matched[]           = "matched";
-const char text_re[]                = "re";
-const char text_Date[]              = "Date";
-const char text_Entry[]             = "Entry";
-const char text_Alert[]             = "Alert";
-const char text_test[]              = "test";
-const char text_key[]               = "key";
-const char text_value[]             = "value";
-const char text_once[]              = "once";
-const char text_after[]             = "after";
-const char text_always[]            = "always";
-const char text_constant[]          = "constant";
-const char text_connected[]         = "connected";
-const char text_Connected[]         = "Connected";
-const char text_Armed[]             = "Armed";
-const char text_Arm[]               = "Arm";
-const char text_arm[]               = "arm";
-const char text_arm_home[]          = "arm_home";
-const char text_arm_away[]          = "arm_away";
-const char text_disarm[]            = "disarm";
-const char text_arming[]            = "arming";
-const char text_Disarm[]            = "Disarm";
-const char text_chain[]             = "chain";
-const char text_trigger[]           = "trigger";
-const char text_triggered[]         = "triggered";
-const char text_Trigger[]           = "Trigger";
-const char text_Auto[]              = "Auto";
-const char text_Tamper[]            = "Tamper";
-const char text_relay[]             = "relay";
-const char text_home[]              = "home";
-const char text_away[]              = "away";
-const char text_Time[]              = "Time";
-const char text_time[]              = "time";
-const char text_Start[]             = "Start";
-const char text_Up[]                = "Up";
-const char text_AC[]                = "AC";
-const char text_Register[]          = "Register";
-const char text_Signal[]            = "Signal";
-const char text_Alive[]             = "Alive";
-const char text_Admin[]             = "Admin";
-const char text_user[]              = "user";
-const char text_Password[]          = "Password";
-const char text_password[]          = "password";
-const char text_SMTP[]              = "SMTP";
-const char text_NTP[]               = "NTP";
-const char text_Radio[]             = "Radio";
-const char text_Frequency[]         = "Frequency";
-const char text_Server[]            = "Server";
-const char text_port[]              = "port";
-const char text_of[]                = "of";
-const char text_at[]                = "at";
-const char text_offset[]            = "offset";
-const char text_end[]               = "end";
-const char text_start[]             = "start";
-const char text_DS[]                = "Daylight saving";
-const char text_Standard[]          = "Standard";
-const char text_format[]            = "format";
-const char text_oclock[]            = "o'clock";
-const char text_Balanced[]          = "Balanced";
-const char text_balanced[]          = "balanced";
-const char text_low[]               = "low";
-const char text_state[]             = "state";
-const char text_binary_sensor[]     = "binary_sensor";
-const char text_alarm_control_panel[] = "alarm_control_panel";
-const char text_State[]             = "State";
-const char text_Blocks[]            = "Blocks";
-const char text_Entries[]           = "Entries";
-const char text_Used[]              = "Used";
-const char text_Free[]              = "Free";
-const char text_Total[]             = "Total";
-const char text_Metric[]            = "Metric";
-const char text_Hash[]              = "Hash";
-const char text_Period[]            = "Period";
-const char text_Run[]               = "Run";
-const char text_Script[]            = "Script";
-const char text_Next[]              = "Next";
-const char text_on[]                = "on";
-const char text_off[]               = "off";
-const char text_Calendar[]          = "Calendar";
-const char text_Duration[]          = "Duration";
-const char text_duration[]          = "duration";
-const char text_Timer[]             = "Timer";
-const char text_timer[]             = "timer";
-const char text_kB[]                = "kB";
-const char text_Heap[]              = "Heap";
-const char text_heap[]              = "heap";
-const char text_Storage[]           = "Storage";
-const char text_storage[]           = "storage";
-const char text_Fragmentation[]     = "Fragmentation";
-const char text_Evaluate[]          = "Evaluate";
-const char text_script[]            = "script";
-const char text_Result[]            = "Result";
-const char text_linked_to[]         = "linked to";
-const char text_Condition[]         = "Condition";
-const char text_Hysteresis[]        = "Hysteresis";
-const char text_Pass[]              = "Pass";
-const char text_To[]                = "To";
-const char text_queue[]             = "queue";
-const char text_full[]              = "full";
-const char text_Registration[]      = "Registration";
-const char text_not_found[]         = "not found";
-const char text_activated[]         = "activated";
-const char text_error_free[]        = "Not enough free space in ";
-
-/*
-typedef enum {
-  langEN = 0,
-  langCZ,
-  langTOTAL // keep as last entry
-} language_t;
-
-const char *lang_empty = "";
-
-const char *lang(const char *text) {
-  return text ? text : lang_empty;
-  if (text) return text;
-  else return lang_empty;
-}
-
-const char *lang_languages[langTOTAL] = {
-  "English",
-  "Cesky"
-};
-
-const char *lang_Modem[langTOTAL] = {
-  "Modem",
-  "Modem"
-};
-*/
+#define TEXT_Get                      "Get"
+#define TEXT_Set                      "Set"
+#define TEXT_Help                     "Help"
+#define TEXT_System                   "System"
+#define TEXT_info                     "information"
+#define TEXT_started                  "started"
+#define TEXT_Undefined                "Undefined"
+#define TEXT_removed                  "removed"
+#define TEXT_disabled                 "disabled"
+#define TEXT_address                  "address"
+#define TEXT_unable                   "unable"
+#define TEXT_to                       "to"
+#define TEXT_Needed                   "Needed"
+#define TEXT_resolve                  "resolve"
+#define TEXT_Address                  "Address"
+#define TEXT_Group                    "Group"
+#define TEXT_group                    "group"
+#define TEXT_registration             "registration"
+#define TEXT_error                    "error"
+#define TEXT_failure                  "failure"
+#define TEXT_registered               "registered"
+#define TEXT_is                       "is"
+#define TEXT_Authentication           "Authentication"
+#define TEXT_authentication           "authentication"
+#define TEXT_disarming                "disarming"
+#define TEXT_Sensor                   "Sensor"
+#define TEXT_sensor                   "sensor"
+#define TEXT_Input                    "Input"
+#define TEXT_Output                   "Output"
+#define TEXT_Siren                    "Siren"
+#define TEXT_iButton                  "iButton"
+#define TEXT_Temperature              "Temperature"
+#define TEXT_temperature              "temperature"
+#define TEXT_Humidity                 "Humidity"
+#define TEXT_humidity                 "humidity"
+#define TEXT_Pressure                 "Pressure"
+#define TEXT_pressure                 "pressure"
+#define TEXT_Voltage                  "Voltage"
+#define TEXT_voltage                  "voltage"
+#define TEXT_Battery                  "Battery"
+#define TEXT_RTC                      "RTC"
+#define TEXT_reset                    "reset"
+#define TEXT_reason                   "reason"
+#define TEXT_Digital                  "Digital"
+#define TEXT_Analog                   "Analog"
+#define TEXT_Float                    "Float"
+#define TEXT_TX_Power                 "TX_Power"
+#define TEXT_Gas                      "Gas"
+#define TEXT_Illumination             "Illumination"
+#define TEXT_illuminance              "illuminance"
+#define TEXT_Fingerprint              "Fingerprint"
+#define TEXT_not                      "not"
+#define TEXT_None                     "None"
+#define TEXT_Asterisk                 "*"
+#define TEXT_authorized               "authorized"
+#define TEXT_disconnected             "disconnected"
+#define TEXT_connect                  "connect"
+#define TEXT_timeout                  "timeout"
+#define TEXT_refused                  "refused"
+#define TEXT_server                   "server"
+#define TEXT_protocol                 "protocol"
+#define TEXT_version                  "version"
+#define TEXT_identifier               "identifier"
+#define TEXT_strength                 "strength"
+#define TEXT_unknown                  "unknown"
+#define TEXT_empty                    "empty"
+#define TEXT_Empty                    "Empty"
+#define TEXT_roaming                  "roaming"
+#define TEXT_searching                "searching"
+#define TEXT_network                  "network"
+#define TEXT_denied                   "denied"
+#define TEXT_cosp                     ", "
+#define TEXT_Modem                    "Modem"
+#define TEXT_On                       "On"
+#define TEXT_Off                      "Off"
+#define TEXT_1                        "1"
+#define TEXT_2                        "2"
+#define TEXT_3                        "3"
+#define TEXT_4                        "4"
+#define TEXT_0x                       "0x"
+#define TEXT_1x                       "1x"
+#define TEXT_2x                       "2x"
+#define TEXT_3x                       "3x"
+#define TEXT_power                    "power"
+#define TEXT_watchdog                 "watchdog"
+#define TEXT_independent              "independent"
+#define TEXT_software                 "software"
+#define TEXT_power_on                 "power-on"
+#define TEXT_brown_out                "brown-out"
+#define TEXT_main                     "main"
+#define TEXT_monitoring               "monitoring"
+#define TEXT_Node                     "Node"
+#define TEXT_Name                     "Name"
+#define TEXT_name                     "name"
+#define TEXT_MQTT                     "MQTT"
+#define TEXT_HA                       "HA"
+#define TEXT_HAD                      "HAD"
+#define TEXT_Function                 "Function"
+#define TEXT_Type                     "Type"
+#define TEXT_type                     "type"
+#define TEXT_publish                  "publish"
+#define TEXT_callback                 "callback"
+#define TEXT_subscribe                "subscribe"
+#define TEXT_semaphore                "semaphore"
+#define TEXT_Subscribe                "Subscribe"
+#define TEXT_Last                     "Last"
+#define TEXT_devation                 "deviation"
+#define TEXT_message                  "message"
+#define TEXT_Queued                   "Queued"
+#define TEXT_Value                    "Value"
+#define TEXT_Number                   "Number"
+#define TEXT_Email                    "Email"
+#define TEXT_Global                   "Global"
+#define TEXT_Home                     "Home"
+#define TEXT_Assistant                "Assistant"
+#define TEXT_Discovery                "Discovery"
+#define TEXT_Contact                  "Contact"
+#define TEXT_contact                  "contact"
+#define TEXT_User                     "User"
+#define TEXT_all                      "all"
+#define TEXT_Key                      "Key"
+#define TEXT_Open                     "Open"
+#define TEXT_alarm                    "alarm"
+#define TEXT_Alarm                    "Alarm"
+#define TEXT_as                       "as"
+#define TEXT_As                       "As"
+#define TEXT_tamper                   "tamper"
+#define TEXT_tampered                 "tampered"
+#define TEXT_Delay                    "Delay"
+#define TEXT_OK                       "OK"
+#define TEXT_Status                   "Status"
+#define TEXT_remote                   "remote"
+#define TEXT_local                    "local"
+#define TEXT_battery                  "battery"
+#define TEXT_analog                   "analog"
+#define TEXT_digital                  "digital"
+#define TEXT_Zone                     "Zone"
+#define TEXT_zone                     "zone"
+#define TEXT_refresh                  "refresh"
+#define TEXT_rejected                 "rejected"
+#define TEXT_delay                    "delay"
+#define TEXT_SMS                      "SMS"
+#define TEXT_sms                      "sms"
+#define TEXT_Page                     "Page"
+#define TEXT_disarmed                 "disarmed"
+#define TEXT_pending                  "pending"
+#define TEXT_armed                    "armed"
+#define TEXT_auto                     "auto"
+#define TEXT_open                     "open"
+#define TEXT_allowed                  "allowed"
+#define TEXT_matched                  "matched"
+#define TEXT_re                       "re"
+#define TEXT_Date                     "Date"
+#define TEXT_Entry                    "Entry"
+#define TEXT_Alert                    "Alert"
+#define TEXT_test                     "test"
+#define TEXT_key                      "key"
+#define TEXT_value                    "value"
+#define TEXT_once                     "once"
+#define TEXT_after                    "after"
+#define TEXT_always                   "always"
+#define TEXT_constant                 "constant"
+#define TEXT_connected                "connected"
+#define TEXT_Connected                "Connected"
+#define TEXT_Armed                    "Armed"
+#define TEXT_Arm                      "Arm"
+#define TEXT_arm                      "arm"
+#define TEXT_arm_home                 "arm_home"
+#define TEXT_arm_away                 "arm_away"
+#define TEXT_disarm                   "disarm"
+#define TEXT_arming                   "arming"
+#define TEXT_Disarm                   "Disarm"
+#define TEXT_chain                    "chain"
+#define TEXT_trigger                  "trigger"
+#define TEXT_triggered                "triggered"
+#define TEXT_Trigger                  "Trigger"
+#define TEXT_Auto                     "Auto"
+#define TEXT_Tamper                   "Tamper"
+#define TEXT_relay                    "relay"
+#define TEXT_home                     "home"
+#define TEXT_away                     "away"
+#define TEXT_Time                     "Time"
+#define TEXT_time                     "time"
+#define TEXT_Start                    "Start"
+#define TEXT_Up                       "Up"
+#define TEXT_AC                       "AC"
+#define TEXT_Register                 "Register"
+#define TEXT_Signal                   "Signal"
+#define TEXT_Alive                    "Alive"
+#define TEXT_Admin                    "Admin"
+#define TEXT_user                     "user"
+#define TEXT_Password                 "Password"
+#define TEXT_password                 "password"
+#define TEXT_SMTP                     "SMTP"
+#define TEXT_NTP                      "NTP"
+#define TEXT_Radio                    "Radio"
+#define TEXT_Frequency                "Frequency"
+#define TEXT_Server                   "Server"
+#define TEXT_port                     "port"
+#define TEXT_of                       "of"
+#define TEXT_at                       "at"
+#define TEXT_offset                   "offset"
+#define TEXT_end                      "end"
+#define TEXT_start                    "start"
+#define TEXT_DS                       "Daylight saving"
+#define TEXT_Standard                 "Standard"
+#define TEXT_format                   "format"
+#define TEXT_oclock                   "o'clock"
+#define TEXT_Balanced                 "Balanced"
+#define TEXT_balanced                 "balanced"
+#define TEXT_low                      "low"
+#define TEXT_state                    "state"
+#define TEXT_binary_sensor            "binary_sensor"
+#define TEXT_alarm_control_panel      "alarm_control_panel"
+#define TEXT_State                    "State"
+#define TEXT_Blocks                   "Blocks"
+#define TEXT_Entries                  "Entries"
+#define TEXT_Used                     "Used"
+#define TEXT_Free                     "Free"
+#define TEXT_Total                    "Total"
+#define TEXT_Metric                   "Metric"
+#define TEXT_Hash                     "Hash"
+#define TEXT_Period                   "Period"
+#define TEXT_Run                      "Run"
+#define TEXT_Script                   "Script"
+#define TEXT_Next                     "Next"
+#define TEXT_on                       "on"
+#define TEXT_off                      "off"
+#define TEXT_Calendar                 "Calendar"
+#define TEXT_Duration                 "Duration"
+#define TEXT_duration                 "duration"
+#define TEXT_Timer                    "Timer"
+#define TEXT_timer                    "timer"
+#define TEXT_kB                       "kB"
+#define TEXT_Heap                     "Heap"
+#define TEXT_heap                     "heap"
+#define TEXT_Storage                  "Storage"
+#define TEXT_storage                  "storage"
+#define TEXT_Fragmentation            "Fragmentation"
+#define TEXT_Evaluate                 "Evaluate"
+#define TEXT_script                   "script"
+#define TEXT_Result                   "Result"
+#define TEXT_linked_to                "linked to"
+#define TEXT_Condition                "Condition"
+#define TEXT_Hysteresis               "Hysteresis"
+#define TEXT_Pass                     "Pass"
+#define TEXT_To                       "To"
+#define TEXT_queue                    "queue"
+#define TEXT_full                     "full"
+#define TEXT_Registration             "Registration"
+#define TEXT_not_found                "not found"
+#define TEXT_activated                "activated"
+#define TEXT_error_free               "Not enough free space in "
 
 #endif /* OHS_TEXT_CONST_H_ */

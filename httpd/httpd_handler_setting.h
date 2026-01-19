@@ -15,137 +15,137 @@
  */
 static void fs_open_custom_setting(BaseSequentialStream *chp) {
   // Information table
-  chprintf(chp, "%s%s / %s %s%s", html_tr_td, text_Arm, text_Authentication, text_time,
-           html_e_td_td);
+  chprintf(chp, "%s%s / %s %s%s", HTML_tr_td, TEXT_Arm, TEXT_Authentication, TEXT_time,
+           HTML_e_td_td);
   printIntInput(chp, 'C', conf.armDelay / 4, 3, 5, 60);
-  chprintf(chp, " %s%s%s %s %s %s%s", durationSelect[0], html_e_td_e_tr_tr_td, text_Auto,
-           text_arm, text_zone, text_delay, html_e_td_td);
+  chprintf(chp, " %s%s%s %s %s %s%s", durationSelect[0], HTML_e_td_e_tr_tr_td, TEXT_Auto,
+           TEXT_arm, TEXT_zone, TEXT_delay, HTML_e_td_td);
   printIntInput(chp, 'E', conf.autoArm, 3, 1, 240);
-  chprintf(chp, " %s%s%s %s %s %s%s", durationSelect[1], html_e_td_e_tr_tr_td, text_Zone,
-           text_open, text_alarm, text_delay, html_e_td_td);
+  chprintf(chp, " %s%s%s %s %s %s%s", durationSelect[1], HTML_e_td_e_tr_tr_td, TEXT_Zone,
+           TEXT_open, TEXT_alarm, TEXT_delay, HTML_e_td_td);
   printIntInput(chp, 'F', conf.openAlarm, 3, 1, 240);
-  chprintf(chp, " %s%s%s %s%s", durationSelect[1], html_e_td_e_tr_tr_td, text_Admin,
-           text_user, html_e_td_td);
+  chprintf(chp, " %s%s%s %s%s", durationSelect[1], HTML_e_td_e_tr_tr_td, TEXT_Admin,
+           TEXT_user, HTML_e_td_td);
   printTextInputWMin(chp, 'u', conf.user, NAME_LENGTH, MIN_PASS_LNEGTH);
-  chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Admin, text_password,
-           html_e_td_td);
-  printPassInput(chp, 'p', conf.password, NAME_LENGTH, MIN_PASS_LNEGTH); chprintf(chp, "%s", html_br);
+  chprintf(chp, "%s%s %s%s", HTML_e_td_e_tr_tr_td, TEXT_Admin, TEXT_password,
+           HTML_e_td_td);
+  printPassInput(chp, 'p', conf.password, NAME_LENGTH, MIN_PASS_LNEGTH); chprintf(chp, "%s", HTML_br);
   printPassInput(chp, 'P', conf.password, NAME_LENGTH, MIN_PASS_LNEGTH);
-  chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
+  chprintf(chp, "%s%s", HTML_e_td_e_tr, HTML_e_table);
 
-  chprintf(chp, "<h1>%s</h1>\r\n%s", text_Radio, html_table);
-  chprintf(chp, "%s%s%s", html_tr_td, text_Key, html_e_td_td);
+  chprintf(chp, "<h1>%s</h1>\r\n%s", TEXT_Radio, HTML_table);
+  chprintf(chp, "%s%s%s", HTML_tr_td, TEXT_Key, HTML_e_td_td);
   printTextInputWMin(chp, 'K', conf.radioKey, RADIO_KEY_SIZE - 1, RADIO_KEY_SIZE - 1);
-  chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Frequency, html_e_td_td);
+  chprintf(chp, "%s%s%s", HTML_e_td_e_tr_tr_td, TEXT_Frequency, HTML_e_td_td);
   printTwoButton(chp, "i", GET_CONF_SYSTEM_FLAG_RADIO_FREQ(conf.systemFlags), 0, 0b00,
                            "868 MHz", "915 MHz");
-  chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
+  chprintf(chp, "%s%s", HTML_e_td_e_tr, HTML_e_table);
 
-  chprintf(chp, "<h1>%s</h1>\r\n%s", text_SMTP, html_table);
-  chprintf(chp, "%s%s %s%s", html_tr_td, text_Server, text_address, html_e_td_td);
+  chprintf(chp, "<h1>%s</h1>\r\n%s", TEXT_SMTP, HTML_table);
+  chprintf(chp, "%s%s %s%s", HTML_tr_td, TEXT_Server, TEXT_address, HTML_e_td_td);
   printTextInput(chp, 'a', conf.SMTPAddress, URL_LENGTH);
-  chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Server, text_port, html_e_td_td);
+  chprintf(chp, "%s%s %s%s", HTML_e_td_e_tr_tr_td, TEXT_Server, TEXT_port, HTML_e_td_td);
   printIntInput(chp, 'b', conf.SMTPPort, 5, 0, 65535);
-  chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_User, text_name, html_e_td_td);
+  chprintf(chp, "%s%s %s%s", HTML_e_td_e_tr_tr_td, TEXT_User, TEXT_name, HTML_e_td_td);
   printTextInput(chp, 'c', conf.SMTPUser, EMAIL_LENGTH);
-  chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_User, text_password, html_e_td_td);
+  chprintf(chp, "%s%s %s%s", HTML_e_td_e_tr_tr_td, TEXT_User, TEXT_password, HTML_e_td_td);
   printPassInput(chp, 'd', conf.SMTPPassword, NAME_LENGTH, MIN_PASS_LNEGTH);
-  // chprintf(chp, "%s", html_br); printPassInput(chp, 'D', conf.SMTPPassword, NAME_LENGTH, MIN_PASS_LNEGTH);
-  chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
+  // chprintf(chp, "%s", HTML_br); printPassInput(chp, 'D', conf.SMTPPassword, NAME_LENGTH, MIN_PASS_LNEGTH);
+  chprintf(chp, "%s%s", HTML_e_td_e_tr, HTML_e_table);
 
-  chprintf(chp, "<h1>%s</h1>\r\n%s", text_MQTT, html_table);
-  chprintf(chp, "%s%s %s%s", html_tr_td, text_Server, text_address, html_e_td_td);
+  chprintf(chp, "<h1>%s</h1>\r\n%s", TEXT_MQTT, HTML_table);
+  chprintf(chp, "%s%s %s%s", HTML_tr_td, TEXT_Server, TEXT_address, HTML_e_td_td);
   printTextInput(chp, 'y', conf.mqtt.address, URL_LENGTH);
-  chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Server, text_port, html_e_td_td);
+  chprintf(chp, "%s%s %s%s", HTML_e_td_e_tr_tr_td, TEXT_Server, TEXT_port, HTML_e_td_td);
   printIntInput(chp, 'q', conf.mqtt.port, 5, 0, 65535);
-  chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_User, text_name, html_e_td_td);
+  chprintf(chp, "%s%s %s%s", HTML_e_td_e_tr_tr_td, TEXT_User, TEXT_name, HTML_e_td_td);
   printTextInput(chp, 't', conf.mqtt.user, NAME_LENGTH);
-  chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_User, text_password, html_e_td_td);
+  chprintf(chp, "%s%s %s%s", HTML_e_td_e_tr_tr_td, TEXT_User, TEXT_password, HTML_e_td_td);
   printPassInput(chp, 'r', conf.mqtt.password, NAME_LENGTH, MIN_PASS_LNEGTH);
-  // chprintf(chp, "%s", html_br); printPassInput(chp, 'R', conf.mqtt.password, NAME_LENGTH, MIN_PASS_LNEGTH);
-  chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Connected, html_e_td_td);
+  // chprintf(chp, "%s", HTML_br); printPassInput(chp, 'R', conf.mqtt.password, NAME_LENGTH, MIN_PASS_LNEGTH);
+  chprintf(chp, "%s%s%s", HTML_e_td_e_tr_tr_td, TEXT_Connected, HTML_e_td_td);
   printOkNok(chp, !(GET_CONF_MQTT_CONNECT_ERROR(conf.mqtt.setting) | GET_CONF_MQTT_ADDRESS_ERROR(conf.mqtt.setting)));
-  chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_Global, text_Subscribe, html_e_td_td);
+  chprintf(chp, "%s%s %s%s", HTML_e_td_e_tr_tr_td, TEXT_Global, TEXT_Subscribe, HTML_e_td_td);
   printOnOffButton(chp, "0", GET_CONF_MQTT_SUBSCRIBE(conf.mqtt.setting));
-  chprintf(chp, "%s%s %s %s %s%s", html_e_td_e_tr_tr_td, text_Global, text_Home, text_Assistant, text_Discovery, html_e_td_td);
+  chprintf(chp, "%s%s %s %s %s%s", HTML_e_td_e_tr_tr_td, TEXT_Global, TEXT_Home, TEXT_Assistant, TEXT_Discovery, HTML_e_td_td);
   printOnOffButton(chp, "1", GET_CONF_MQTT_HAD(conf.mqtt.setting));
-  chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
-  chprintf(chp, "<h1>%s</h1>\r\n%s", text_NTP, html_table);
-  chprintf(chp, "%s%s %s%s", html_tr_td, text_Server, text_address,
-           html_e_td_td);
+  chprintf(chp, "%s%s", HTML_e_td_e_tr, HTML_e_table);
+  chprintf(chp, "<h1>%s</h1>\r\n%s", TEXT_NTP, HTML_table);
+  chprintf(chp, "%s%s %s%s", HTML_tr_td, TEXT_Server, TEXT_address,
+           HTML_e_td_td);
   printTextInput(chp, 'f', conf.SNTPAddress, URL_LENGTH);
 
-  chprintf(chp, "%s%s %s%s", html_tr_td, text_DS, text_start, html_e_td_td);
-  chprintf(chp, "%sW%s", html_select, html_e_tag);
+  chprintf(chp, "%s%s %s%s", HTML_tr_td, TEXT_DS, TEXT_start, HTML_e_td_td);
+  chprintf(chp, "%sW%s", HTML_select, HTML_e_tag);
   for (uint8_t i = 0; i < ARRAY_SIZE(weekNumber); i++) {
-    chprintf(chp, "%s%u", html_option, i);
-    if (conf.timeDstWeekNum == i) { chprintf(chp, "%s", html_selected); }
-    else                          { chprintf(chp, "%s", html_e_tag); }
-    chprintf(chp, "%s%s", weekNumber[i], html_e_option);
+    chprintf(chp, "%s%u", HTML_option, i);
+    if (conf.timeDstWeekNum == i) { chprintf(chp, "%s", HTML_selected); }
+    else                          { chprintf(chp, "%s", HTML_e_tag); }
+    chprintf(chp, "%s%s", weekNumber[i], HTML_e_option);
   }
-  chprintf(chp, "%s", html_e_select);
-  chprintf(chp, "%sS%s", html_select, html_e_tag);
+  chprintf(chp, "%s", HTML_e_select);
+  chprintf(chp, "%sS%s", HTML_select, HTML_e_tag);
   for (uint8_t i = 0; i < ARRAY_SIZE(weekDay); i++) {
-    chprintf(chp, "%s%u", html_option, i);
-    if (conf.timeDstDow == i) { chprintf(chp, "%s", html_selected); }
-    else                      { chprintf(chp, "%s", html_e_tag); }
-    chprintf(chp, "%s%s", weekDay[i], html_e_option);
+    chprintf(chp, "%s%u", HTML_option, i);
+    if (conf.timeDstDow == i) { chprintf(chp, "%s", HTML_selected); }
+    else                      { chprintf(chp, "%s", HTML_e_tag); }
+    chprintf(chp, "%s%s", weekDay[i], HTML_e_option);
   }
-  chprintf(chp, "%s %s ", html_e_select, text_of);
-  chprintf(chp, "%sM%s", html_select, html_e_tag);
+  chprintf(chp, "%s %s ", HTML_e_select, TEXT_of);
+  chprintf(chp, "%sM%s", HTML_select, HTML_e_tag);
   for (uint8_t i = 0; i < ARRAY_SIZE(monthName); i++) {
-    chprintf(chp, "%s%u", html_option, i);
-    if (conf.timeDstMonth == i) { chprintf(chp, "%s", html_selected); }
-    else                        { chprintf(chp, "%s", html_e_tag); }
-    chprintf(chp, "%s%s", monthName[i], html_e_option);
+    chprintf(chp, "%s%u", HTML_option, i);
+    if (conf.timeDstMonth == i) { chprintf(chp, "%s", HTML_selected); }
+    else                        { chprintf(chp, "%s", HTML_e_tag); }
+    chprintf(chp, "%s%s", monthName[i], HTML_e_option);
   }
-  chprintf(chp, "%s %s ", html_e_select, text_at);
+  chprintf(chp, "%s %s ", HTML_e_select, TEXT_at);
   printIntInput(chp, 'h', conf.timeDstHour , 2, 0, 23);
-  chprintf(chp, " %s", text_oclock);
-  chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td, text_DS, text_offset, html_e_td_td);
+  chprintf(chp, " %s", TEXT_oclock);
+  chprintf(chp, "%s%s %s%s", HTML_e_td_e_tr_tr_td, TEXT_DS, TEXT_offset, HTML_e_td_td);
   printIntInput(chp, 'O', conf.timeDstOffset, 5, -1440, 1440);
-  chprintf(chp, " %s%s", durationSelect[1], html_e_td_e_tr_tr_td);
+  chprintf(chp, " %s%s", durationSelect[1], HTML_e_td_e_tr_tr_td);
 
-  chprintf(chp, "%s %s%s", text_DS, text_end, html_e_td_td);
-  chprintf(chp, "%sw%s", html_select, html_e_tag);
+  chprintf(chp, "%s %s%s", TEXT_DS, TEXT_end, HTML_e_td_td);
+  chprintf(chp, "%sw%s", HTML_select, HTML_e_tag);
   for (uint8_t i = 0; i < ARRAY_SIZE(weekNumber); i++) {
-    chprintf(chp, "%s%u", html_option, i);
-    if (conf.timeStdWeekNum == i) { chprintf(chp, "%s", html_selected); }
-    else                          { chprintf(chp, "%s", html_e_tag); }
-    chprintf(chp, "%s%s", weekNumber[i], html_e_option);
+    chprintf(chp, "%s%u", HTML_option, i);
+    if (conf.timeStdWeekNum == i) { chprintf(chp, "%s", HTML_selected); }
+    else                          { chprintf(chp, "%s", HTML_e_tag); }
+    chprintf(chp, "%s%s", weekNumber[i], HTML_e_option);
   }
-  chprintf(chp, "%s", html_e_select);
-  chprintf(chp, "%ss%s", html_select, html_e_tag);
+  chprintf(chp, "%s", HTML_e_select);
+  chprintf(chp, "%ss%s", HTML_select, HTML_e_tag);
   for (uint8_t i = 0; i < ARRAY_SIZE(weekDay); i++) {
-    chprintf(chp, "%s%u", html_option, i);
-    if (conf.timeStdDow == i) { chprintf(chp, "%s", html_selected); }
-    else                      { chprintf(chp, "%s", html_e_tag); }
-    chprintf(chp, "%s%s", weekDay[i], html_e_option);
+    chprintf(chp, "%s%u", HTML_option, i);
+    if (conf.timeStdDow == i) { chprintf(chp, "%s", HTML_selected); }
+    else                      { chprintf(chp, "%s", HTML_e_tag); }
+    chprintf(chp, "%s%s", weekDay[i], HTML_e_option);
   }
-  chprintf(chp, "%s %s ", html_e_select, text_of);
-  chprintf(chp, "%sm%s", html_select, html_e_tag);
+  chprintf(chp, "%s %s ", HTML_e_select, TEXT_of);
+  chprintf(chp, "%sm%s", HTML_select, HTML_e_tag);
   for (uint8_t i = 0; i < ARRAY_SIZE(monthName); i++) {
-    chprintf(chp, "%s%u", html_option, i);
-    if (conf.timeStdMonth == i) { chprintf(chp, "%s", html_selected); }
-    else                        { chprintf(chp, "%s", html_e_tag); }
-    chprintf(chp, "%s%s", monthName[i], html_e_option);
+    chprintf(chp, "%s%u", HTML_option, i);
+    if (conf.timeStdMonth == i) { chprintf(chp, "%s", HTML_selected); }
+    else                        { chprintf(chp, "%s", HTML_e_tag); }
+    chprintf(chp, "%s%s", monthName[i], HTML_e_option);
   }
-  chprintf(chp, "%s %s ", html_e_select, text_at);
+  chprintf(chp, "%s %s ", HTML_e_select, TEXT_at);
   printIntInput(chp, 'h', conf.timeStdHour , 2, 0, 23);
-  chprintf(chp, " %s", text_oclock);
-  chprintf(chp, "%s%s %s%s", html_e_td_e_tr_tr_td,
-           text_Standard, text_offset, html_e_td_td);
+  chprintf(chp, " %s", TEXT_oclock);
+  chprintf(chp, "%s%s %s%s", HTML_e_td_e_tr_tr_td,
+           TEXT_Standard, TEXT_offset, HTML_e_td_td);
   printIntInput(chp, 'o', conf.timeStdOffset, 5, -1440, 1440);
-  chprintf(chp, " %s%s", durationSelect[1], html_e_td_e_tr_tr_td);
-  chprintf(chp, "%s %s%s", text_Time, text_format, html_e_td_td);
+  chprintf(chp, " %s%s", durationSelect[1], HTML_e_td_e_tr_tr_td);
+  chprintf(chp, "%s %s%s", TEXT_Time, TEXT_format, HTML_e_td_td);
   printTextInput(chp, 'g', conf.dateTimeFormat, NAME_LENGTH);
-  chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
+  chprintf(chp, "%s%s", HTML_e_td_e_tr, HTML_e_table);
 
   // JavaScript
-  chprintf(chp, "%s%s%s", html_script, JSCredential, html_e_script);
-  chprintf(chp, "%sPass.js'>%s", html_script_src, html_e_script);
+  chprintf(chp, "%s%s%s", HTML_script, JS_Credential, HTML_e_script);
+  chprintf(chp, "%sPass.js'>%s", HTML_script_src, HTML_e_script);
   // Buttons
-  chprintf(chp, "%s%s", html_ApplyValPass, html_Save);
+  chprintf(chp, "%s%s", HTML_ApplyValPass, HTML_Save);
 }
 
 /*

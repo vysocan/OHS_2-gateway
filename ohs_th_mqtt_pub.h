@@ -62,21 +62,19 @@ static void handleMqttPubSystem(mqttPubEvent_t *inMsg, char *topic,
   *qos = 0;
   *retain = 1;
 
-  chsnprintf(topic, topic_size, "%s", MQTT_MAIN_TOPIC);
-
   switch (inMsg->function) {
     case functionState:
-      // Append "/state" to topic
-      strncat (topic, &text_state[0],
-          LWIP_MIN (strlen (text_state), (topic_size - strlen (topic) - 1)));
+      // topic: /OHS/state
+      chsnprintf(topic, topic_size, "%s%s", MQTT_MAIN_TOPIC, TEXT_state);
 
       if (inMsg->number) {
-        chsnprintf (payload, payload_size, "%s", text_On);
+        chsnprintf (payload, payload_size, "%s", TEXT_On);
       }
       // else: covered by will message, leave empty
       break;
 
     case functionHAD:
+      // topic: homeassistant/binary_sensor/{UID}/config
       chsnprintf (topic, topic_size, "%sbinary_sensor/%s/%s",
           MQTT_HAD_MAIN_TOPIC, mqttHadUid, MQTT_HAD_CONFIG_TOPIC);
 
@@ -88,10 +86,10 @@ static void handleMqttPubSystem(mqttPubEvent_t *inMsg, char *topic,
             "\"dev\":{\"name\":\"%s\",\"ids\":\"%s\",\"mf\":\"vysocan\","
             "\"mdl\":\"Open Home Security\","
             "\"hw\":\"2.0.x\",\"sw\":\"%u.%u.%u\",\"cu\":\"http://%s\"}}",
-            text_System, text_State,
-            text_binary_sensor, text_state,
-            mqttHadUid, text_On, text_Off,
-            MQTT_MAIN_TOPIC, text_state, OHS_NAME, mqttHadUid, OHS_MAJOR,
+            TEXT_System, TEXT_State,
+            TEXT_binary_sensor, TEXT_state,
+            mqttHadUid, TEXT_On, TEXT_Off,
+            MQTT_MAIN_TOPIC, TEXT_state, OHS_NAME, mqttHadUid, OHS_MAJOR,
             OHS_MINOR, OHS_MOD, ip4addr_ntoa ((ip4_addr_t*) &netInfo.ip));
       } else {
         chsnprintf (payload, payload_size, ""); // Empty to remove
@@ -114,17 +112,16 @@ static void handleMqttPubGroup(mqttPubEvent_t *inMsg, char *topic,
 
   if (inMsg->number >= ALARM_GROUPS) return;
 
-  chsnprintf (topic, topic_size, "%s%s/%u/", MQTT_MAIN_TOPIC, text_group,
-      inMsg->number + 1);
-
   switch (inMsg->function) {
     case functionName:
-      strncat (topic, &text_name[0],
-          LWIP_MIN (strlen (text_name), (topic_size - strlen (topic) - 1)));
+      // topic: /OHS/group/{#}/name
+      chsnprintf (topic, topic_size, "%s%s/%u/%s", MQTT_MAIN_TOPIC, TEXT_group,
+          inMsg->number + 1, TEXT_name);
       chsnprintf (payload, payload_size, "%s", conf.group[inMsg->number].name);
       break;
 
     case functionHAD:
+      // topic: homeassistant/alarm_control_panel/{UID}-G{#}/config
       chsnprintf (topic, topic_size, "%salarm_control_panel/%s-G%u/%s",
           MQTT_HAD_MAIN_TOPIC, mqttHadUid, inMsg->number + 1, MQTT_HAD_CONFIG_TOPIC);
 
@@ -136,8 +133,8 @@ static void handleMqttPubGroup(mqttPubEvent_t *inMsg, char *topic,
             "\"cod_arm_req\":\"false\",\"stat_t\":\"%sgroup/%u/state\","
             "\"cmd_t\":\"%sset/group/%u/state\","
             "\"dev\":{\"ids\":\"%s\"}}",
-            text_Group, conf.group[inMsg->number].name,
-            text_alarm_control_panel, text_state,
+            TEXT_Group, conf.group[inMsg->number].name,
+            TEXT_alarm_control_panel, TEXT_state,
             mqttHadUid, inMsg->number + 1,
             MQTT_MAIN_TOPIC, inMsg->number + 1, MQTT_MAIN_TOPIC, inMsg->number + 1,
             mqttHadUid);
@@ -147,32 +144,32 @@ static void handleMqttPubGroup(mqttPubEvent_t *inMsg, char *topic,
       break;
 
     default: // functionState
-      strncat (topic, &text_state[0],
-          LWIP_MIN (strlen (text_state), (topic_size - strlen (topic) - 1)));
-
+      // topic: /OHS/group/{#}/state
+      chsnprintf (topic, topic_size, "%s%s/%u/%s", MQTT_MAIN_TOPIC, TEXT_group,
+                inMsg->number + 1, TEXT_state);
       // State decode: Alarm → Disarm → Arm logic
       if (GET_GROUP_ALARM (group[inMsg->number].setting) == 0) {
         if (GET_GROUP_WAIT_AUTH (group[inMsg->number].setting)) {
-          chsnprintf (payload, payload_size, "%s", text_disarming);
+          chsnprintf (payload, payload_size, "%s", TEXT_disarming);
         } else {
           if (GET_GROUP_ARMED (group[inMsg->number].setting)) {
             if (GET_GROUP_ARMED_HOME (group[inMsg->number].setting)) {
-              chsnprintf (payload, payload_size, "%s_%s", text_armed,
-                  text_home);
+              chsnprintf (payload, payload_size, "%s_%s", TEXT_armed,
+                  TEXT_home);
             } else {
-              chsnprintf (payload, payload_size, "%s_%s", text_armed,
-                  text_away);
+              chsnprintf (payload, payload_size, "%s_%s", TEXT_armed,
+                  TEXT_away);
             }
           } else {
             if (group[inMsg->number].armDelay > 0) {
-              chsnprintf (payload, payload_size, "%s", text_arming);
+              chsnprintf (payload, payload_size, "%s", TEXT_arming);
             } else {
-              chsnprintf (payload, payload_size, "%s", text_disarmed);
+              chsnprintf (payload, payload_size, "%s", TEXT_disarmed);
             }
           }
         }
       } else {
-        chsnprintf (payload, payload_size, "%s", text_triggered); // Alarm
+        chsnprintf (payload, payload_size, "%s", TEXT_triggered); // Alarm
       }
       break;
   }
@@ -189,19 +186,18 @@ static void handleMqttPubZone(mqttPubEvent_t *inMsg, char *topic,
 
   if (inMsg->number >= ALARM_ZONES) return;
 
-  chsnprintf (topic, topic_size, "%s%s/%u/", MQTT_MAIN_TOPIC, text_zone,
-      inMsg->number + 1);
-
   switch (inMsg->function) {
     case functionName:
       *retain = 1;
-      strncat (topic, &text_name[0],
-          LWIP_MIN (strlen (text_name), (topic_size - strlen (topic) - 1)));
+      // topic: /OHS/zone/{#}/name
+      chsnprintf (topic, topic_size, "%s%s/%u/%s", MQTT_MAIN_TOPIC, TEXT_zone,
+            inMsg->number + 1, TEXT_name);
       chsnprintf (payload, payload_size, "%s", conf.zoneName[inMsg->number]);
       break;
 
     case functionHAD:
       *retain = 1;
+      // topic: homeassistant/binary_sensor/{UID}-Z{#}/config
       chsnprintf (topic, topic_size, "%sbinary_sensor/%s-Z%u/%s",
           MQTT_HAD_MAIN_TOPIC, mqttHadUid, inMsg->number + 1,
           MQTT_HAD_CONFIG_TOPIC);
@@ -212,8 +208,8 @@ static void handleMqttPubZone(mqttPubEvent_t *inMsg, char *topic,
             "\"pl_on\":\"alarm\",\"pl_off\":\"OK\","
             "\"stat_t\":\"%szone/%u/state\",\"ic\":\"mdi:motion-sensor\","
             "\"dev\":{\"ids\":\"%s\"}}",
-            text_Zone, conf.zoneName[inMsg->number],
-            text_binary_sensor, text_state,
+            TEXT_Zone, conf.zoneName[inMsg->number],
+            TEXT_binary_sensor, TEXT_state,
             mqttHadUid, inMsg->number + 1, MQTT_MAIN_TOPIC, inMsg->number + 1,
             mqttHadUid);
       } else {
@@ -223,22 +219,23 @@ static void handleMqttPubZone(mqttPubEvent_t *inMsg, char *topic,
 
     default: // functionState
       *retain = 0;
-      strncat (topic, &text_state[0],
-          LWIP_MIN (strlen (text_state), (topic_size - strlen (topic) - 1)));
+      // topic: /OHS/zone/{#}/state
+      chsnprintf (topic, topic_size, "%s%s/%u/%s", MQTT_MAIN_TOPIC, TEXT_zone,
+            inMsg->number + 1, TEXT_state);
 
       // Map zone event to state string
       switch (zone[inMsg->number].lastEvent) {
         case 'O':
-          chsnprintf (payload, payload_size, "%s", text_OK);
+          chsnprintf (payload, payload_size, "%s", TEXT_OK);
           break;
         case 'P':
-          chsnprintf (payload, payload_size, "%s", text_alarm);
+          chsnprintf (payload, payload_size, "%s", TEXT_alarm);
           break;
         case 'N': // Initial state
-          chsnprintf (payload, payload_size, "%s", text_unknown);
+          chsnprintf (payload, payload_size, "%s", TEXT_unknown);
           break;
         default:
-          chsnprintf (payload, payload_size, "%s", text_tamper);
+          chsnprintf (payload, payload_size, "%s", TEXT_tamper);
           break;
       }
       break;
@@ -257,8 +254,9 @@ static void handleMqttPubSensor(mqttPubEvent_t *inMsg, char *topic,
 
   if (inMsg->number >= NODE_SIZE) return;
 
+  // Base topic: /OHS/sensor/W|R{addr}:{type}:{function}:{number}/
   chsnprintf(topic, topicSize, "%s%s/%c:%u:%c:%c:%u/", MQTT_MAIN_TOPIC,
-      text_sensor,
+      TEXT_sensor,
       (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? 'W' : 'R',
       (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? node[inMsg->number].address :
           (node[inMsg->number].address - RADIO_UNIT_OFFSET),
@@ -268,15 +266,17 @@ static void handleMqttPubSensor(mqttPubEvent_t *inMsg, char *topic,
   switch (inMsg->function) {
     case functionName:
       *retain = 1;
-      strncat (topic, &text_name[0],
-          LWIP_MIN (strlen (text_name), (topicSize - strlen (topic) - 1)));
+      // Append "/name" to topic
+      strncat (topic, TEXT_name,
+          LWIP_MIN (strlen (TEXT_name), (topicSize - strlen (topic) - 1)));
       chsnprintf(payload, payloadSize, "%s", node[inMsg->number].name);
       break;
 
     case functionHAD: {
       *retain = 1;
+      // topic: homeassistant/sensor/{UID}-W|R{addr}:{type}:{function}:{number}/config
       chsnprintf(topic, topicSize, "%s%s/%s-%c%u%c%c%u/%s",
-          MQTT_HAD_MAIN_TOPIC, text_sensor, mqttHadUid,
+          MQTT_HAD_MAIN_TOPIC, TEXT_sensor, mqttHadUid,
           (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? 'W' : 'R',
           (node[inMsg->number].address < RADIO_UNIT_OFFSET) ?
               node[inMsg->number].address :
@@ -300,19 +300,19 @@ static void handleMqttPubSensor(mqttPubEvent_t *inMsg, char *topic,
               "\"unit_of_meas\":\"%s\","
               "\"dev\":{\"ids\":\"%s\"}"
             "}",
-            text_Sensor, node[inMsg->number].name,
-            text_sensor, text_value,
+            TEXT_Sensor, node[inMsg->number].name,
+            TEXT_sensor, TEXT_value,
             mqttHadUid, (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? 'W' : 'R',
             (node[inMsg->number].address < RADIO_UNIT_OFFSET) ?
                 node[inMsg->number].address : (node[inMsg->number].address - RADIO_UNIT_OFFSET),
             node[inMsg->number].type, node[inMsg->number].function,
             node[inMsg->number].number
-            , MQTT_MAIN_TOPIC, text_sensor,
+            , MQTT_MAIN_TOPIC, TEXT_sensor,
             (node[inMsg->number].address < RADIO_UNIT_OFFSET) ? 'W' : 'R',
             (node[inMsg->number].address < RADIO_UNIT_OFFSET) ?
                 node[inMsg->number].address : (node[inMsg->number].address - RADIO_UNIT_OFFSET),
             node[inMsg->number].type, node[inMsg->number].function,
-            node[inMsg->number].number, text_value,
+            node[inMsg->number].number, TEXT_value,
             getNodeFunctionHAClass(node[inMsg->number].function),
             getNodeFunctionHAClassUnit(node[inMsg->number].function),
             mqttHadUid);
@@ -324,8 +324,9 @@ static void handleMqttPubSensor(mqttPubEvent_t *inMsg, char *topic,
 
     default: // functionValue
       *retain = 0;
-      strncat (topic, &text_value[0],
-          LWIP_MIN (strlen (text_value), (topicSize - strlen (topic) - 1)));
+      // Append "/value" to topic
+      strncat (topic, TEXT_value,
+          LWIP_MIN (strlen (TEXT_value), (topicSize - strlen (topic) - 1)));
 
       // Key sensors: output contact name; others: float value
       if (node[inMsg->number].type == 'K') {
@@ -334,7 +335,7 @@ static void handleMqttPubSensor(mqttPubEvent_t *inMsg, char *topic,
           chsnprintf (payload, payloadSize, "%s",
               conf.contact[conf.key[key_idx].contact].name);
         } else {
-          chsnprintf (payload, payloadSize, "%s", text_unknown);
+          chsnprintf (payload, payloadSize, "%s", TEXT_unknown);
         }
       } else {
         chsnprintf (payload, payloadSize, "%.2f", node[inMsg->number].value);

@@ -15,13 +15,13 @@
  */
 static void fs_open_custom_login(BaseSequentialStream *chp) {
   // Information table
-  chprintf(chp, "%s%s%s", html_tr_td, text_User, html_e_td_td);
+  chprintf(chp, "%s%s%s", HTML_tr_td, TEXT_User, HTML_e_td_td);
   printTextInputWMin(chp, 'u', "", NAME_LENGTH, MIN_PASS_LNEGTH);
-  chprintf(chp, "%s%s%s", html_e_td_e_tr_tr_td, text_Password, html_e_td_td);
+  chprintf(chp, "%s%s%s", HTML_e_td_e_tr_tr_td, TEXT_Password, HTML_e_td_td);
   printPassInput(chp, 'p', "", NAME_LENGTH, MIN_PASS_LNEGTH);
-  chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
+  chprintf(chp, "%s%s", HTML_e_td_e_tr, HTML_e_table);
   // Buttons
-  chprintf(chp, "%s", html_Submit);
+  chprintf(chp, "%s", HTML_Submit);
 }
 
 /*

@@ -41,15 +41,15 @@ static void handleMqttSubGroup(char *args, char *savePtr, const char *payload) {
   if (pch == NULL) return;
   DBG_MQTT_SUB(", func: %s", pch);
 
-  if (safeStrcmp1(pch, MQTT_SUB_PAYLOAD_LENGTH, text_state) == 0) {
+  if (safeStrcmp1(pch, MQTT_SUB_PAYLOAD_LENGTH, TEXT_state) == 0) {
     DBG_MQTT_SUB(", payload = %s", payload);
 
     // Dispatch Action
-    if (safeStrcmp1(payload, MQTT_SUB_PAYLOAD_LENGTH, text_arm_home) == 0) {
+    if (safeStrcmp1(payload, MQTT_SUB_PAYLOAD_LENGTH, TEXT_arm_home) == 0) {
       armGroup(index, index, armHome, 0);
-    } else if (safeStrcmp1(payload, MQTT_SUB_PAYLOAD_LENGTH, text_arm_away) == 0) {
+    } else if (safeStrcmp1(payload, MQTT_SUB_PAYLOAD_LENGTH, TEXT_arm_away) == 0) {
       armGroup(index, index, armAway, 0);
-    } else if (safeStrcmp1(payload, MQTT_SUB_PAYLOAD_LENGTH, text_disarm) == 0) {
+    } else if (safeStrcmp1(payload, MQTT_SUB_PAYLOAD_LENGTH, TEXT_disarm) == 0) {
       disarmGroup(index, index, 0);
     }
   }
@@ -96,7 +96,7 @@ static void handleMqttSubSensor(char *args, char *savePtr, const char *payload) 
   if (pch != NULL) {
     DBG_MQTT_SUB(", topic: %s", pch);
 
-    if (safeStrcmp1(pch, MQTT_SUB_PAYLOAD_LENGTH, text_value) == 0 &&
+    if (safeStrcmp1(pch, MQTT_SUB_PAYLOAD_LENGTH, TEXT_value) == 0 &&
         node[index].type == 'I') {
 
       if (safeStrtof(payload, &floatConv.val)) {
@@ -128,7 +128,7 @@ static void handleMqttSubZone(char *args, char *savePtr) {
   (void)savePtr;
   if (args == NULL) return;
 
-  if (safeStrcmp1(args, MQTT_SUB_PAYLOAD_LENGTH, text_refresh) == 0) {
+  if (safeStrcmp1(args, MQTT_SUB_PAYLOAD_LENGTH, TEXT_refresh) == 0) {
     DBG_MQTT_SUB(", refresh");
     mqttRefreshZonesState();
   }
@@ -143,7 +143,7 @@ static void handleMqttSubSms(char *args, char *savePtr, const char *payload) {
 
   if (args == NULL) return;
 
-  if (safeStrcmp1(args, MQTT_SUB_PAYLOAD_LENGTH, text_contact) == 0) {
+  if (safeStrcmp1(args, MQTT_SUB_PAYLOAD_LENGTH, TEXT_contact) == 0) {
     // Parse Index
     if (!safeStrtoul(args, &index, 10)) return;
     index--;// Adjust to 0-based
@@ -159,7 +159,7 @@ static void handleMqttSubSms(char *args, char *savePtr, const char *payload) {
     if (pch == NULL) return;
     DBG_MQTT_SUB(", func: %s", pch);
 
-    if (safeStrcmp1 (pch, MQTT_SUB_PAYLOAD_LENGTH, text_message) == 0) {
+    if (safeStrcmp1 (pch, MQTT_SUB_PAYLOAD_LENGTH, TEXT_message) == 0) {
       DBG_MQTT_SUB(", payload = %s", payload);
       // Do not send if GPRS is busy, wait up to 1 second
       if (chBSemWaitTimeout (&gprsSem, TIME_I2S(1)) == MSG_OK) {
@@ -168,7 +168,7 @@ static void handleMqttSubSms(char *args, char *savePtr, const char *payload) {
         DBG_MQTT_SUB(", SMS status: %u", resp);
       }
     }
-  } else if (safeStrcmp1 (args, MQTT_SUB_PAYLOAD_LENGTH, text_group) == 0) {
+  } else if (safeStrcmp1 (args, MQTT_SUB_PAYLOAD_LENGTH, TEXT_group) == 0) {
     // Parse Index
     if (!safeStrtoul(args, &index, 10)) return;
     index--;// Adjust to 0-based
@@ -184,7 +184,7 @@ static void handleMqttSubSms(char *args, char *savePtr, const char *payload) {
     if (pch == NULL) return;
     DBG_MQTT_SUB (", func: %s", pch);
 
-    if (safeStrcmp1 (pch, MQTT_SUB_PAYLOAD_LENGTH, text_message) == 0) {
+    if (safeStrcmp1 (pch, MQTT_SUB_PAYLOAD_LENGTH, TEXT_message) == 0) {
       DBG_MQTT_SUB (", payload = %s", payload);
 
       // Send SMS to all contacts in group
@@ -256,11 +256,11 @@ static THD_FUNCTION(MqttSubThread, arg) {
       // Note: strtok_r saves state in savePtr, so handlers continue from where we left off
 
       // GROUP
-      if (safeStrcmp1(pch, MQTT_SUB_PAYLOAD_LENGTH, text_group) == 0) {
+      if (safeStrcmp1(pch, MQTT_SUB_PAYLOAD_LENGTH, TEXT_group) == 0) {
         // Get next token immediately to pass to handler
         char *nextTok = strtok_r(NULL, "/", &savePtr);
         if (nextTok) {
-          if (safeStrcmp1(nextTok, MQTT_SUB_PAYLOAD_LENGTH, text_refresh) == 0) {
+          if (safeStrcmp1(nextTok, MQTT_SUB_PAYLOAD_LENGTH, TEXT_refresh) == 0) {
              DBG_MQTT_SUB(", refresh");
              mqttRefreshGroupsState();
           } else {
@@ -270,24 +270,24 @@ static THD_FUNCTION(MqttSubThread, arg) {
         }
       }
       // SENSOR
-      else if (safeStrcmp1(pch, MQTT_SUB_PAYLOAD_LENGTH, text_sensor) == 0) {
+      else if (safeStrcmp1(pch, MQTT_SUB_PAYLOAD_LENGTH, TEXT_sensor) == 0) {
         // Sensor format: "sensor/ADDR:ADDR:ADDR:ADDR/value"
         // We need to switch delimiter logic inside the handler
         char *nextTok = strtok_r(NULL, ":", &savePtr); // First part of address
         if (nextTok) handleMqttSubSensor(nextTok, savePtr, payloadStr);
       }
       // ZONE
-      else if (safeStrcmp1(pch, MQTT_SUB_PAYLOAD_LENGTH, text_zone) == 0) {
+      else if (safeStrcmp1(pch, MQTT_SUB_PAYLOAD_LENGTH, TEXT_zone) == 0) {
         char *nextTok = strtok_r(NULL, "/", &savePtr);
         if (nextTok) handleMqttSubZone(nextTok, savePtr);
       }
       // SMS
-      else if (safeStrcmp1 (pch, MQTT_SUB_PAYLOAD_LENGTH, text_SMS) == 0) {
+      else if (safeStrcmp1 (pch, MQTT_SUB_PAYLOAD_LENGTH, TEXT_SMS) == 0) {
           char *nextTok = strtok_r(NULL, "/", &savePtr);
           if (nextTok) handleMqttSubSms(nextTok, savePtr, payloadStr);
       }
       else {
-        DBG_MQTT_SUB(" %s", text_unknown);
+        DBG_MQTT_SUB(" %s", TEXT_unknown);
       }
     }
 

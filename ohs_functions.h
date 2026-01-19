@@ -582,11 +582,11 @@ bool isPhoneNum(const char* num) {
  */
 const char *getNodeTypeString(const char type) {
   switch(type){
-    case 'K': return text_Authentication;
-    case 'S': return text_Sensor;
-    case 'I': return text_Output;
-    case 'H': return text_Siren;
-    default : return text_Undefined;
+    case 'K': return TEXT_Authentication;
+    case 'S': return TEXT_Sensor;
+    case 'I': return TEXT_Output;
+    case 'H': return TEXT_Siren;
+    default : return TEXT_Undefined;
   }
 }
 /*
@@ -594,20 +594,20 @@ const char *getNodeTypeString(const char type) {
  */
 const char *getNodeFunctionString(const char function) {
   switch(function){
-    case 'i': return text_iButton;
-    case 'f': return text_Fingerprint;
-    case 'T': return text_Temperature;
-    case 'H': return text_Humidity;
-    case 'P': return text_Pressure;
-    case 'V': return text_Voltage;
-    case 'B': return text_Battery;
-    case 'D': return text_Digital;
-    case 'A': return text_Analog;
-    case 'F': return text_Float;
-    case 'X': return text_TX_Power;
-    case 'G': return text_Gas;
-    case 'I': return text_Illumination;
-    default : return text_Undefined;
+    case 'i': return TEXT_iButton;
+    case 'f': return TEXT_Fingerprint;
+    case 'T': return TEXT_Temperature;
+    case 'H': return TEXT_Humidity;
+    case 'P': return TEXT_Pressure;
+    case 'V': return TEXT_Voltage;
+    case 'B': return TEXT_Battery;
+    case 'D': return TEXT_Digital;
+    case 'A': return TEXT_Analog;
+    case 'F': return TEXT_Float;
+    case 'X': return TEXT_TX_Power;
+    case 'G': return TEXT_Gas;
+    case 'I': return TEXT_Illumination;
+    default : return TEXT_Undefined;
   }
 }
 /*
@@ -615,12 +615,12 @@ const char *getNodeFunctionString(const char function) {
  */
 const char *getNodeFunctionHAClass(const char function) {
   switch(function){
-    case 'T': return text_temperature;
-    case 'H': return text_humidity;
-    case 'P': return text_pressure;
+    case 'T': return TEXT_temperature;
+    case 'H': return TEXT_humidity;
+    case 'P': return TEXT_pressure;
     case 'V':
-    case 'B': return text_voltage;
-    case 'I': return text_illuminance;
+    case 'B': return TEXT_voltage;
+    case 'I': return TEXT_illuminance;
     default : return "";
   }
 }
@@ -670,7 +670,7 @@ void printNodeAddress(BaseSequentialStream *chp, const uint8_t address, const ch
     if (printName) {
       nodeIndex = getNodeIndex(address, type, function, number);
       if (nodeIndex != DUMMY_NO_VALUE) chprintf(chp, " - %s", node[nodeIndex].name);
-      else chprintf(chp, " - %s", text_not_found);
+      else chprintf(chp, " - %s", TEXT_not_found);
     }
   } else {
     chprintf(chp, "%s", NOT_SET);
@@ -689,7 +689,7 @@ void printFrmTimestamp(BaseSequentialStream *chp, time_t *value) {
   ptm = gmtime(value);
   // Check if return is 0 then format is invalid
   if (strftime(dateTime, 30, conf.dateTimeFormat, ptm) != 0) chprintf(chp, "%s", dateTime);
-  else chprintf(chp, "%s", text_unknown);
+  else chprintf(chp, "%s", TEXT_unknown);
 }
 /*
  * Print formated up time as days and time
@@ -745,222 +745,222 @@ static uint8_t decodeLog(char *in, char *out, bool full){
 
   switch(in[0]){
     case 'S': // System
-      chprintf(chp, "%s ", text_System);
+      chprintf(chp, "%s ", TEXT_System);
       switch(in[1]){
-        case 's': chprintf(chp, "%s", text_started); break; // boot
-        case 'S': chprintf(chp, "%s %s", text_monitoring, text_started); break; // Zone thread start
-        case 'X': chprintf(chp, "%s", text_alarm);
-          if (full) chprintf(chp, "! %s %u.%s", text_Group, (uint8_t)in[2] + 1, conf.group[(uint8_t)in[2]].name);
+        case 's': chprintf(chp, "%s", TEXT_started); break; // boot
+        case 'S': chprintf(chp, "%s %s", TEXT_monitoring, TEXT_started); break; // Zone thread start
+        case 'X': chprintf(chp, "%s", TEXT_alarm);
+          if (full) chprintf(chp, "! %s %u.%s", TEXT_Group, (uint8_t)in[2] + 1, conf.group[(uint8_t)in[2]].name);
           groupNum = (uint8_t)in[2];
           break;
-        case 'B': chprintf(chp, "%s ", text_battery);
+        case 'B': chprintf(chp, "%s ", TEXT_battery);
           if (full) {
             switch(in[2]){
-              case 'L': chprintf(chp, "%s", text_low); break;
-              default:  chprintf(chp, "%s", text_OK); break;
+              case 'L': chprintf(chp, "%s", TEXT_low); break;
+              default:  chprintf(chp, "%s", TEXT_OK); break;
             }
           } else {
-            chprintf(chp, " %s", text_state);
+            chprintf(chp, " %s", TEXT_state);
           }
           break;
-        case 'A': chprintf(chp, "%s %s ", text_main, text_power);
+        case 'A': chprintf(chp, "%s %s ", TEXT_main, TEXT_power);
           if (full) {
             switch(in[2]){
-              case 'L': chprintf(chp, "%s", text_Off); break;
-              default:  chprintf(chp, "%s", text_On); break;
+              case 'L': chprintf(chp, "%s", TEXT_Off); break;
+              default:  chprintf(chp, "%s", TEXT_On); break;
             }
           } else {
-            chprintf(chp, "%s", text_state);
+            chprintf(chp, "%s", TEXT_state);
           }
           break;
-        case 'R': chprintf(chp, "%s %s ", text_RTC, text_battery);
+        case 'R': chprintf(chp, "%s %s ", TEXT_RTC, TEXT_battery);
           if (full) {
             switch(in[2]){
-              case 'L': chprintf(chp, "%s", text_low); break;
-              default:  chprintf(chp, "%s", text_OK); break;
+              case 'L': chprintf(chp, "%s", TEXT_low); break;
+              default:  chprintf(chp, "%s", TEXT_OK); break;
             }
           } else {
-            chprintf(chp, " %s", text_state);
+            chprintf(chp, " %s", TEXT_state);
           }
           break;
-        case 'r': chprintf(chp, "%s %s: ", text_reset, text_reason);
+        case 'r': chprintf(chp, "%s %s: ", TEXT_reset, TEXT_reason);
           if (((uint32_t)in[2]<<24) & RCC_CSR_LPWRRSTF) {
-            chprintf(chp, "%s %s", text_low, text_power);
+            chprintf(chp, "%s %s", TEXT_low, TEXT_power);
           } else if (((uint32_t)in[2]<<RCC_CSR_RMVF_Pos) & RCC_CSR_WWDGRSTF) {
-              chprintf(chp, "%s", text_watchdog);
+              chprintf(chp, "%s", TEXT_watchdog);
           } else if (((uint32_t)in[2]<<RCC_CSR_RMVF_Pos) & RCC_CSR_IWDGRSTF) {
-              chprintf(chp, "%s", text_watchdog);
+              chprintf(chp, "%s", TEXT_watchdog);
           } else if (((uint32_t)in[2]<<RCC_CSR_RMVF_Pos) & RCC_CSR_SFTRSTF) {
-              chprintf(chp, "%s", text_software);
+              chprintf(chp, "%s", TEXT_software);
           } else if (((uint32_t)in[2]<<RCC_CSR_RMVF_Pos) & RCC_CSR_PORRSTF) {
-              chprintf(chp, "%s", text_power_on);
+              chprintf(chp, "%s", TEXT_power_on);
           } else if (((uint32_t)in[2]<<RCC_CSR_RMVF_Pos) & RCC_CSR_PADRSTF) {
-              chprintf(chp, "%s", text_reset);
+              chprintf(chp, "%s", TEXT_reset);
           } else if (((uint32_t)in[2]<<RCC_CSR_RMVF_Pos) & RCC_CSR_BORRSTF) {
-              chprintf(chp, "%s", text_brown_out);
+              chprintf(chp, "%s", TEXT_brown_out);
           }
           break;
-        default: chprintf(chp, "%s", text_unknown); break; // unknown
+        default: chprintf(chp, "%s", TEXT_unknown); break; // unknown
       }
     break;
     case 'N': // Remote nodes
       chprintf(chp, "%s:", getNodeTypeString(in[3]));
       printNodeFunction(chp, in[4]);
-      chprintf(chp, " %s ", text_address);
+      chprintf(chp, " %s ", TEXT_address);
       printNodeAddress(chp, (uint8_t)in[2], (uint8_t)in[3], (uint8_t)in[4], (uint8_t)in[5], false);
-      if (in[1] != 'E') {chprintf(chp, " %s ", text_is);}
+      if (in[1] != 'E') {chprintf(chp, " %s ", TEXT_is);}
       switch(in[1]){
-        case 'Z' : chprintf(chp, "%s", text_removed); break;
-        case 'F' : chprintf(chp, "%s", text_disabled); break;
-        case 'R' : chprintf(chp, "%s", text_registered); break;
-        case 'r' : chprintf(chp, "%s%s", text_re, text_registered); break;
-        default : chprintf(chp, "%s %s", text_registration, text_error); break; // 'E'
+        case 'Z' : chprintf(chp, "%s", TEXT_removed); break;
+        case 'F' : chprintf(chp, "%s", TEXT_disabled); break;
+        case 'R' : chprintf(chp, "%s", TEXT_registered); break;
+        case 'r' : chprintf(chp, "%s%s", TEXT_re, TEXT_registered); break;
+        default : chprintf(chp, "%s %s", TEXT_registration, TEXT_error); break; // 'E'
       }
     break;
     case 'M': // Modem
-      chprintf(chp, "%s ", text_Modem);
+      chprintf(chp, "%s ", TEXT_Modem);
       if ((uint8_t)in[1] <= 5) {
-        chprintf(chp, "%s ", text_network);
+        chprintf(chp, "%s ", TEXT_network);
         switch(in[1]){
-          case 0 : chprintf(chp, "%s %s", text_not, text_registered); break;
-          case 1 : chprintf(chp, "%s", text_registered); break;
-          case 2 : chprintf(chp, "%s", text_searching); break;
-          case 3 : chprintf(chp, "%s %s", text_registration, text_denied); break;
-          case 5 : chprintf(chp, "%s", text_roaming); break;
-          default : chprintf(chp, "%s", text_unknown); break; // 4 = unknown
+          case 0 : chprintf(chp, "%s %s", TEXT_not, TEXT_registered); break;
+          case 1 : chprintf(chp, "%s", TEXT_registered); break;
+          case 2 : chprintf(chp, "%s", TEXT_searching); break;
+          case 3 : chprintf(chp, "%s %s", TEXT_registration, TEXT_denied); break;
+          case 5 : chprintf(chp, "%s", TEXT_roaming); break;
+          default : chprintf(chp, "%s", TEXT_unknown); break; // 4 = unknown
         }
-        chprintf(chp, "%s%s %u%%", text_cosp, text_strength, (uint8_t)in[2]);
+        chprintf(chp, "%s%s %u%%", TEXT_cosp, TEXT_strength, (uint8_t)in[2]);
       } else {
-        chprintf(chp, "%s ", text_power);
+        chprintf(chp, "%s ", TEXT_power);
         switch(in[1]){
-          case 'O' : chprintf(chp, "%s", text_On); break;
-          case 'F' : chprintf(chp, "%s", text_Off); break;
-          default : chprintf(chp, "%s", text_failure); break;
+          case 'O' : chprintf(chp, "%s", TEXT_On); break;
+          case 'F' : chprintf(chp, "%s", TEXT_Off); break;
+          default : chprintf(chp, "%s", TEXT_failure); break;
         }
       }
     break;
     case 'G': // Group related
-      chprintf(chp, "%s ", text_Group);
+      chprintf(chp, "%s ", TEXT_Group);
       if (full) {
         printGroup(chp, (uint8_t)in[2]);
       }
       switch(in[1]){
-        case 'F': chprintf(chp, "%s %s", text_is, text_disabled); break;
-        case 'S': chprintf(chp, "%s", text_armed); break;
-        case 'D': chprintf(chp, "%s", text_disarmed); break;
-        case 'A': chprintf(chp, "%s %s", text_auto, text_armed); break;
-        default: chprintf(chp, "%s", text_unknown); break;
+        case 'F': chprintf(chp, "%s %s", TEXT_is, TEXT_disabled); break;
+        case 'S': chprintf(chp, "%s", TEXT_armed); break;
+        case 'D': chprintf(chp, "%s", TEXT_disarmed); break;
+        case 'A': chprintf(chp, "%s %s", TEXT_auto, TEXT_armed); break;
+        default: chprintf(chp, "%s", TEXT_unknown); break;
       }
       groupNum = (uint8_t)in[2];
     break;
     case 'Z': // Zone
-      chprintf(chp, "%s ", text_Zone);
+      chprintf(chp, "%s ", TEXT_Zone);
       if (full) {
         if ((uint8_t)in[2] < ALARM_ZONES) {
           chprintf(chp, "%u. %s ", (uint8_t)in[2] + 1, conf.zoneName[(uint8_t)in[2]]);
         } else {
-          chprintf(chp, "%s ", text_unknown);
+          chprintf(chp, "%s ", TEXT_unknown);
         }
       }
       switch(in[1]){
-        case 'P': chprintf(chp, "%s", text_alarm); break;
-        case 'T': chprintf(chp, "is %s", text_tampered); break;
-        case 'O': chprintf(chp, "%s", text_open); break;
-        case 'R': chprintf(chp, "%s", text_registered); break;
-        case 'r': chprintf(chp, "%s%s", text_re, text_registered); break;
-        case 'E': chprintf(chp, "%s %s", text_registration, text_error); break;
-        case 'e': chprintf(chp, "%s, %s %s ", text_error, text_address, text_not);
+        case 'P': chprintf(chp, "%s", TEXT_alarm); break;
+        case 'T': chprintf(chp, "is %s", TEXT_tampered); break;
+        case 'O': chprintf(chp, "%s", TEXT_open); break;
+        case 'R': chprintf(chp, "%s", TEXT_registered); break;
+        case 'r': chprintf(chp, "%s%s", TEXT_re, TEXT_registered); break;
+        case 'E': chprintf(chp, "%s %s", TEXT_registration, TEXT_error); break;
+        case 'e': chprintf(chp, "%s, %s %s ", TEXT_error, TEXT_address, TEXT_not);
           switch(in[3]){
-            case 'M': chprintf(chp, "%s", text_matched); break;
-            default : chprintf(chp, "%s", text_allowed); break;
+            case 'M': chprintf(chp, "%s", TEXT_matched); break;
+            default : chprintf(chp, "%s", TEXT_allowed); break;
           }
         break;
-        default: chprintf(chp, "%s", text_unknown); break;
+        default: chprintf(chp, "%s", TEXT_unknown); break;
       }
       groupNum = GET_CONF_ZONE_GROUP((uint8_t)in[2]);
     break;
     case 'A': // Authentication
-      chprintf(chp, "%s ", text_Key);
+      chprintf(chp, "%s ", TEXT_Key);
       if (full) {
         if (in[1] != 'U') {
-          chprintf(chp, "#%u, %s ", (uint8_t)in[2] + 1, text_linked_to);
+          chprintf(chp, "#%u, %s ", (uint8_t)in[2] + 1, TEXT_linked_to);
           if (conf.key[(uint8_t)in[2]].contact == DUMMY_NO_VALUE) chprintf(chp, "%s ", NOT_SET);
           else chprintf(chp, "%s ", conf.contact[(conf.key[(uint8_t)in[2]].contact)].name);
           groupNum = GET_CONF_CONTACT_GROUP(conf.key[(uint8_t)in[2]].contact);
         }
       }
       switch(in[1]){
-        case 'D': chprintf(chp, "%s", text_disarmed); break;
-        case 'A': chprintf(chp, "%s %s", text_armed, text_away); break;
-        case 'H': chprintf(chp, "%s %s", text_armed, text_home); break;
-        case 'R': chprintf(chp, "%s %s, %s: %u. %s ", text_arm, text_rejected, text_zone, (uint8_t)in[3] + 1, conf.zoneName[(uint8_t)in[3]]); break;
-        case 'U': chprintf(chp, "%s %s ", text_is, text_unknown);
+        case 'D': chprintf(chp, "%s", TEXT_disarmed); break;
+        case 'A': chprintf(chp, "%s %s", TEXT_armed, TEXT_away); break;
+        case 'H': chprintf(chp, "%s %s", TEXT_armed, TEXT_home); break;
+        case 'R': chprintf(chp, "%s %s, %s: %u. %s ", TEXT_arm, TEXT_rejected, TEXT_zone, (uint8_t)in[3] + 1, conf.zoneName[(uint8_t)in[3]]); break;
+        case 'U': chprintf(chp, "%s %s ", TEXT_is, TEXT_unknown);
           if (full) {
             printKey(chp, (uint8_t *)&in[2]);
           }
           break;
-        case 'F': chprintf(chp, "%s %s", text_is, text_disabled); break;
-        default : chprintf(chp, "%s", text_unknown); break;
+        case 'F': chprintf(chp, "%s %s", TEXT_is, TEXT_disabled); break;
+        default : chprintf(chp, "%s", TEXT_unknown); break;
       }
 
     break;
     case 'F': // Fifos
       switch(in[1]){
-        case 'S' : chprintf(chp, "%s", text_Sensor); break;
-        case 'T' : chprintf(chp, "%s", text_Trigger); break;
-        case 'R' : chprintf(chp, "%s", text_Registration); break;
-        case 'A' : chprintf(chp, "%s", text_Alarm); break;
-        case 'N' : chprintf(chp, "%s", text_Node); break;
-        case 'L' : chprintf(chp, "%s", text_Script); break;
-        case 'M' : chprintf(chp, "%s", text_MQTT); break;
-        default : chprintf(chp, "%s", text_unknown); break;
+        case 'S' : chprintf(chp, "%s", TEXT_Sensor); break;
+        case 'T' : chprintf(chp, "%s", TEXT_Trigger); break;
+        case 'R' : chprintf(chp, "%s", TEXT_Registration); break;
+        case 'A' : chprintf(chp, "%s", TEXT_Alarm); break;
+        case 'N' : chprintf(chp, "%s", TEXT_Node); break;
+        case 'L' : chprintf(chp, "%s", TEXT_Script); break;
+        case 'M' : chprintf(chp, "%s", TEXT_MQTT); break;
+        default : chprintf(chp, "%s", TEXT_unknown); break;
       }
-      chprintf(chp, " %s %s", text_queue, text_full);
+      chprintf(chp, " %s %s", TEXT_queue, TEXT_full);
     break;
     case 'R': // Triggers
-      chprintf(chp, "%s %u. %s", text_Trigger, (uint8_t)in[2], conf.trigger[(uint8_t)in[2]].name);
+      chprintf(chp, "%s %u. %s", TEXT_Trigger, (uint8_t)in[2], conf.trigger[(uint8_t)in[2]].name);
       switch(in[1]){
-        case 'A' : chprintf(chp, "%s", text_activated); break;
-        case 'N' : chprintf(chp, "de%s", text_activated); break;
-        default : chprintf(chp, "%s", text_unknown); break;
+        case 'A' : chprintf(chp, "%s", TEXT_activated); break;
+        case 'N' : chprintf(chp, "de%s", TEXT_activated); break;
+        default : chprintf(chp, "%s", TEXT_unknown); break;
       }
-      chprintf(chp, " %s %s", text_queue, text_full);
+      chprintf(chp, " %s %s", TEXT_queue, TEXT_full);
     break;
     case 'Q': // MQTT
-      chprintf(chp, "%s ", text_MQTT);
+      chprintf(chp, "%s ", TEXT_MQTT);
       switch(in[1]){
-        case 'E' : chprintf(chp, "%s, ", text_error);
+        case 'E' : chprintf(chp, "%s, ", TEXT_error);
           switch(in[2]) {
-            case 'R' : chprintf(chp, "%s %s %s %s", text_unable, text_to, text_resolve, text_address); break;
-            case 'C' : chprintf(chp, "%s %s %s", text_unable, text_to, text_connect); break;
-            case 'P' : chprintf(chp, "%s %s #%u", text_publish, text_error, (uint8_t)in[3]); break;
-            case 'p' : chprintf(chp, "%s %s %s #%u", text_publish, text_callback, text_error, (uint8_t)in[3]); break;
-            case 'S' : chprintf(chp, "%s %s", text_subscribe, text_error); break;
-            case 'T' : chprintf(chp, "%s %s", text_semaphore, text_timeout); break;
+            case 'R' : chprintf(chp, "%s %s %s %s", TEXT_unable, TEXT_to, TEXT_resolve, TEXT_address); break;
+            case 'C' : chprintf(chp, "%s %s %s", TEXT_unable, TEXT_to, TEXT_connect); break;
+            case 'P' : chprintf(chp, "%s %s #%u", TEXT_publish, TEXT_error, (uint8_t)in[3]); break;
+            case 'p' : chprintf(chp, "%s %s %s #%u", TEXT_publish, TEXT_callback, TEXT_error, (uint8_t)in[3]); break;
+            case 'S' : chprintf(chp, "%s %s", TEXT_subscribe, TEXT_error); break;
+            case 'T' : chprintf(chp, "%s %s", TEXT_semaphore, TEXT_timeout); break;
             // MQTT 1 - 7 callback reason errors
-            case '1' : chprintf(chp, "%s %s %s", text_refused, text_protocol, text_version); break;
-            case '2' : chprintf(chp, "%s %s", text_refused, text_identifier); break;
-            case '3' : chprintf(chp, "%s %s", text_refused, text_server); break;
-            case '4' : chprintf(chp, "%s %s/%s", text_refused, text_user, text_password); break;
-            case '5' : chprintf(chp, "%s %s", text_not, text_authorized); break;
+            case '1' : chprintf(chp, "%s %s %s", TEXT_refused, TEXT_protocol, TEXT_version); break;
+            case '2' : chprintf(chp, "%s %s", TEXT_refused, TEXT_identifier); break;
+            case '3' : chprintf(chp, "%s %s", TEXT_refused, TEXT_server); break;
+            case '4' : chprintf(chp, "%s %s/%s", TEXT_refused, TEXT_user, TEXT_password); break;
+            case '5' : chprintf(chp, "%s %s", TEXT_not, TEXT_authorized); break;
             case '6' : // 256
-              chprintf(chp, "%s", text_disconnected); break;
+              chprintf(chp, "%s", TEXT_disconnected); break;
             case '7' : // 257
-              chprintf(chp, "%s", text_timeout); break;
-            default : chprintf(chp, "%s", text_unknown); break;
+              chprintf(chp, "%s", TEXT_timeout); break;
+            default : chprintf(chp, "%s", TEXT_unknown); break;
           }
           break;
-        case 'C' : chprintf(chp, "%s", text_connected); break;
-        default : chprintf(chp, "%s", text_unknown); break;
+        case 'C' : chprintf(chp, "%s", TEXT_connected); break;
+        default : chprintf(chp, "%s", TEXT_unknown); break;
       }
       break;
     case 'D': // Dummy alert
-      chprintf(chp, "%s %s", text_Alert, text_test);
+      chprintf(chp, "%s %s", TEXT_Alert, TEXT_test);
       break;
     case 0xff:
-      chprintf(chp, "%s", text_Empty);
+      chprintf(chp, "%s", TEXT_Empty);
     break;
-    default: chprintf(chp, "%s", text_Undefined);
+    default: chprintf(chp, "%s", TEXT_Undefined);
       for(uint16_t ii = 0; ii < LOGGER_MSG_LENGTH; ii++) {
         chprintf(chp, "-%x", in[ii], in[ii]);
       }

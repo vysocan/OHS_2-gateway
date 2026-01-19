@@ -16,32 +16,32 @@
 static void fs_open_custom_tcl(BaseSequentialStream *chp) {
   uint16_t logAddress;
   // Information table - TCL heap
-  chprintf(chp, "%s%s %u %s", html_tr_th, text_Heap, UMM_MALLOC_CFG_HEAP_SIZE/1024, text_kB);
-  chprintf(chp, "%s%s", html_e_th_th, text_Used);
-  chprintf(chp, "%s%s", html_e_th_th, text_Free);
-  chprintf(chp, "%s%s", html_e_th_th, text_Total);
-  chprintf(chp, "%s%s%s", html_e_th_th, text_Metric, html_e_th_e_tr);
-  chprintf(chp, "%s%s%s", html_tr_td, text_Entries, html_e_td_td);
-  chprintf(chp, "%u%s", ummHeapInfo.usedEntries, html_e_td_td);
-  chprintf(chp, "%u%s", ummHeapInfo.freeEntries, html_e_td_td);
-  chprintf(chp, "%u%s", ummHeapInfo.totalEntries, html_e_td_td);
-  chprintf(chp, "%s %u%%%s", text_Fragmentation, umm_fragmentation_metric(), html_e_td_e_tr_tr_td);
-  chprintf(chp, "%s%s", text_Blocks, html_e_td_td);
-  chprintf(chp, "%u%s", ummHeapInfo.usedBlocks, html_e_td_td);
-  chprintf(chp, "%u%s", ummHeapInfo.freeBlocks, html_e_td_td);
-  chprintf(chp, "%u%s", ummHeapInfo.totalBlocks, html_e_td_td);
-  chprintf(chp, "%s %u%%", text_Used, umm_usage_metric());
-  chprintf(chp, "%s%s %u %s", html_tr_th, text_Storage, (UBS_BLOCK_SIZE * UBS_BLOCK_COUNT)/1024, text_kB);
-  chprintf(chp, "%s%s", html_e_th_th, text_Used);
-  chprintf(chp, "%s%s", html_e_th_th, text_Free);
-  chprintf(chp, "%s%s", html_e_th_th, text_Total);
-  chprintf(chp, "%s%s%s", html_e_th_th, text_Metric, html_e_th_e_tr);
-  chprintf(chp, "%s%s%s", html_tr_td, text_Blocks, html_e_td_td);
-  chprintf(chp, "%u%s", UBS_BLOCK_COUNT - uBSFreeBlocks, html_e_td_td);
-  chprintf(chp, "%u%s", uBSFreeBlocks, html_e_td_td);
-  chprintf(chp, "%u%s", UBS_BLOCK_COUNT, html_e_td_td);
-  chprintf(chp, "%s %u%%", text_Used, (uint8_t)((UBS_BLOCK_COUNT - uBSFreeBlocks) / (float)(UBS_BLOCK_COUNT / (float)100)));
-  chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
+  chprintf(chp, "%s%s %u %s", HTML_tr_th, TEXT_Heap, UMM_MALLOC_CFG_HEAP_SIZE/1024, TEXT_kB);
+  chprintf(chp, "%s%s", HTML_e_th_th, TEXT_Used);
+  chprintf(chp, "%s%s", HTML_e_th_th, TEXT_Free);
+  chprintf(chp, "%s%s", HTML_e_th_th, TEXT_Total);
+  chprintf(chp, "%s%s%s", HTML_e_th_th, TEXT_Metric, HTML_e_th_e_tr);
+  chprintf(chp, "%s%s%s", HTML_tr_td, TEXT_Entries, HTML_e_td_td);
+  chprintf(chp, "%u%s", ummHeapInfo.usedEntries, HTML_e_td_td);
+  chprintf(chp, "%u%s", ummHeapInfo.freeEntries, HTML_e_td_td);
+  chprintf(chp, "%u%s", ummHeapInfo.totalEntries, HTML_e_td_td);
+  chprintf(chp, "%s %u%%%s", TEXT_Fragmentation, umm_fragmentation_metric(), HTML_e_td_e_tr_tr_td);
+  chprintf(chp, "%s%s", TEXT_Blocks, HTML_e_td_td);
+  chprintf(chp, "%u%s", ummHeapInfo.usedBlocks, HTML_e_td_td);
+  chprintf(chp, "%u%s", ummHeapInfo.freeBlocks, HTML_e_td_td);
+  chprintf(chp, "%u%s", ummHeapInfo.totalBlocks, HTML_e_td_td);
+  chprintf(chp, "%s %u%%", TEXT_Used, umm_usage_metric());
+  chprintf(chp, "%s%s %u %s", HTML_tr_th, TEXT_Storage, (UBS_BLOCK_SIZE * UBS_BLOCK_COUNT)/1024, TEXT_kB);
+  chprintf(chp, "%s%s", HTML_e_th_th, TEXT_Used);
+  chprintf(chp, "%s%s", HTML_e_th_th, TEXT_Free);
+  chprintf(chp, "%s%s", HTML_e_th_th, TEXT_Total);
+  chprintf(chp, "%s%s%s", HTML_e_th_th, TEXT_Metric, HTML_e_th_e_tr);
+  chprintf(chp, "%s%s%s", HTML_tr_td, TEXT_Blocks, HTML_e_td_td);
+  chprintf(chp, "%u%s", UBS_BLOCK_COUNT - uBSFreeBlocks, HTML_e_td_td);
+  chprintf(chp, "%u%s", uBSFreeBlocks, HTML_e_td_td);
+  chprintf(chp, "%u%s", UBS_BLOCK_COUNT, HTML_e_td_td);
+  chprintf(chp, "%s %u%%", TEXT_Used, (uint8_t)((UBS_BLOCK_COUNT - uBSFreeBlocks) / (float)(UBS_BLOCK_COUNT / (float)100)));
+  chprintf(chp, "%s%s", HTML_e_td_e_tr, HTML_e_table);
 
   chprintf(chp, "<i class='icon' style='font-size:20px;' title=\"");
   tcl_list_cmd(&tcl, &chp, "\r\n", 0b00111100);
@@ -49,35 +49,35 @@ static void fs_open_custom_tcl(BaseSequentialStream *chp) {
   chprintf(chp, "<i class='icon' style='font-size:20px;' title=\"");
   tcl_list_var(&tcl, &chp, "\r\n");
   chprintf(chp, "\">&#xf292;</i>");
-  chprintf(chp, "%s%s", html_br, html_br);
+  chprintf(chp, "%s%s", HTML_br, HTML_br);
   // Script area
   printTextArea(chp, 's', tclCmd, TCL_SCRIPT_LENGTH, 120, 20);
-  chprintf(chp, "%s%s", html_br, html_br);
+  chprintf(chp, "%s%s", HTML_br, HTML_br);
   // Select script
-  chprintf(chp, "%s%s%s%s", html_table, html_tr_td, text_Script, html_e_td_td);
+  chprintf(chp, "%s%s%s%s", HTML_table, HTML_tr_td, TEXT_Script, HTML_e_td_td);
 
-  chprintf(chp, "%sP%s", html_select_submit, html_e_tag);
+  chprintf(chp, "%sP%s", HTML_select_submit, HTML_e_tag);
   logAddress = 1;
   for (scriptp = scriptLL; scriptp != NULL; scriptp = scriptp->next) {
-    chprintf(chp, "%s%u", html_option, logAddress);
-    if (webScript == logAddress) { chprintf(chp, "%s", html_selected); }
-    else                         { chprintf(chp, "%s", html_e_tag); }
-    chprintf(chp, "%u. %s%s", logAddress, scriptp->name, html_e_option);
+    chprintf(chp, "%s%u", HTML_option, logAddress);
+    if (webScript == logAddress) { chprintf(chp, "%s", HTML_selected); }
+    else                         { chprintf(chp, "%s", HTML_e_tag); }
+    chprintf(chp, "%u. %s%s", logAddress, scriptp->name, HTML_e_option);
     logAddress++;
   }
-  chprintf(chp, "%s%u", html_option, DUMMY_NO_VALUE);
-  if (webScript == DUMMY_NO_VALUE) { chprintf(chp, "%s", html_selected); }
-  else                             { chprintf(chp, "%s", html_e_tag); }
-  chprintf(chp, "New script%s", html_e_option);
-  chprintf(chp, "%s%s", html_e_select, html_e_td_e_tr_tr_td);
+  chprintf(chp, "%s%u", HTML_option, DUMMY_NO_VALUE);
+  if (webScript == DUMMY_NO_VALUE) { chprintf(chp, "%s", HTML_selected); }
+  else                             { chprintf(chp, "%s", HTML_e_tag); }
+  chprintf(chp, "New script%s", HTML_e_option);
+  chprintf(chp, "%s%s", HTML_e_select, HTML_e_td_e_tr_tr_td);
 
-  chprintf(chp, "%s%s", text_Name, html_e_td_td);
+  chprintf(chp, "%s%s", TEXT_Name, HTML_e_td_td);
   printTextInput(chp, 'n', scriptName, NAME_LENGTH);
-  chprintf(chp, "%s%s", html_e_td_e_tr, html_e_table);
+  chprintf(chp, "%s%s", HTML_e_td_e_tr, HTML_e_table);
   // Buttons
-  chprintf(chp, "%s%s%s%s", html_Run, html_Refresh, html_Save, html_Restart);
+  chprintf(chp, "%s%s%s%s", HTML_Run, HTML_Refresh, HTML_Save, HTML_Restart);
   // Output
-  chprintf(chp, "%s<pre>Last output:\r\n%.*s</pre>", html_br, strlen(tclOutput), tclOutput);
+  chprintf(chp, "%s<pre>Last output:\r\n%.*s</pre>", HTML_br, strlen(tclOutput), tclOutput);
   //for (uint16_t j = 0; j < strlen(tclOutput); j++) { DBG_HTTP("-%x", tclOutput[j]); }
   //DBG_HTTP("\r\n");
 }
@@ -165,14 +165,14 @@ static void httpd_post_custom_tcl(char **postDataP) {
           // For new script append linked list
           scriptp = umm_malloc(sizeof(struct scriptLL_t));
           if (scriptp == NULL) {
-            chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+            chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", TEXT_error_free, TEXT_heap);
             httpAlert.type = ALERT_ERROR;
           } else {
             //if (checkPointer(scriptp, html_noSpace)) {}
             scriptp->name = umm_malloc(NAME_LENGTH);
             if (scriptp->name == NULL) {
               umm_free(scriptp);
-              chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+              chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", TEXT_error_free, TEXT_heap);
               httpAlert.type = ALERT_ERROR;
             } else {
               strncpy(scriptp->name, &scriptName[0], NAME_LENGTH);
@@ -181,7 +181,7 @@ static void httpd_post_custom_tcl(char **postDataP) {
               if (scriptp->cmd == NULL) {
                 umm_free(scriptp->name);
                 umm_free(scriptp);
-                chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+                chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", TEXT_error_free, TEXT_heap);
                 httpAlert.type = ALERT_ERROR;
               } else {
                 strncpy(scriptp->cmd, &tclCmd[0], number);
@@ -190,7 +190,7 @@ static void httpd_post_custom_tcl(char **postDataP) {
                 scriptLL = scriptp;
                 // uBS
                 if (uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd)) != UBS_RSLT_OK) {
-                  chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_storage);
+                  chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", TEXT_error_free, TEXT_storage);
                   httpAlert.type = ALERT_ERROR;
                 }
                 // new script is added to top of linked list, no need to do pointer check
@@ -212,7 +212,7 @@ static void httpd_post_custom_tcl(char **postDataP) {
             umm_free(scriptp->cmd);
             scriptp->cmd = umm_malloc(number + 1);
             if (scriptp->cmd == NULL) {
-              chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_heap);
+              chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", TEXT_error_free, TEXT_heap);
               httpAlert.type = ALERT_ERROR;
             } else {
               strncpy(scriptp->cmd, &tclCmd[0], number);
@@ -220,7 +220,7 @@ static void httpd_post_custom_tcl(char **postDataP) {
               for (int i = 0; i < UBS_NAME_SIZE; i++) { DBG_HTTP("%x;", scriptName[i]); }
               DBG_HTTP("\r\n");
               if (uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd)) != UBS_RSLT_OK) {
-                chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", text_error_free, text_storage);
+                chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", TEXT_error_free, TEXT_storage);
                 httpAlert.type = ALERT_ERROR;
               }
             }
