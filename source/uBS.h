@@ -78,7 +78,7 @@ extern uint16_t uBSFreeBlocks;
 
 void uBSFormat(void);
 int8_t uBSInit(void);
-int8_t uBSErase(void* name, uint8_t nameSize);
+int8_t uBSDelete(void* name, uint8_t nameSize);
 int8_t uBSWrite(void* name, uint8_t nameSize, void *data, uint16_t dataSize);
 int8_t uBSRead(void* name, uint8_t nameSize, void *data, uint16_t *dataSize);
 int8_t uBSSeekAll(uint32_t* address, void* name, uint8_t nameSize);

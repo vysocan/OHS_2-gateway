@@ -89,7 +89,11 @@ static uint8_t uBSFreeMap[UBS_MAP_SIZE];
 static uint8_t uBSMasterMap[UBS_MAP_SIZE];
 #endif
 /*
- * ReadBlock
+ * @brief ReadBlock - Read block from uBS.
+ * @param address - block address
+ * @param data - data buffer
+ * @param size - size of data
+ * @return UBS_RSLT_OK if success, else error code
  */
 static int8_t uBSReadBlock(uint32_t address, uint8_t *data, uint8_t size) {
   osalDbgCheck(size <= UBS_BLOCK_SIZE);
@@ -109,7 +113,10 @@ static int8_t uBSReadBlock(uint32_t address, uint8_t *data, uint8_t size) {
   return UBS_RSLT_OK;
 }
 /*
- * uBSWriteBlock
+ * @brief uBSWriteBlock - Write block to uBS.
+ * @param address - block address
+ * @param data - data to write
+ * @param size - size of data
  */
 static void uBSWriteBlock(uint32_t address, uint8_t* data, uint8_t size) {
   osalDbgCheck(size <= UBS_BLOCK_SIZE);
@@ -132,9 +139,10 @@ static void uBSWriteBlock(uint32_t address, uint8_t* data, uint8_t size) {
   spiReleaseBus(&SPID1);
 }
 /*
- * uBSGetFreeBlock
+ * @brief uBSGetFreeBlock - Find free block address.
+ * @param address - found free block address
+ * @return UBS_RSLT_OK if found, else error code
  *
- * Use UBS_END_ADDRESS as dummy value
  */
 static int8_t uBSGetFreeBlock(uint32_t* address) {
   uint8_t readBuf[UBS_HEADER_SIZE];
@@ -171,7 +179,11 @@ static int8_t uBSGetFreeBlock(uint32_t* address) {
   return UBS_RSLT_NOK;
 }
 /*
- * uBSSeekName - Find block with blockName.
+ * @breif uBSSeekName - Find block with blockName.
+ * @param blockName - name to seek
+ * @param nameSize - size of name
+ * @param address - found block address
+ * @return UBS_RSLT_OK if found, else error code
  */
 static int8_t uBSSeekName(void* blockName, uint8_t nameSize, uint32_t* address) {
   uint8_t readBuf[UBS_HEADER_BLOCK_SIZE + UBS_NAME_SIZE];
@@ -191,8 +203,12 @@ static int8_t uBSSeekName(void* blockName, uint8_t nameSize, uint32_t* address) 
   return UBS_RSLT_NOT_FOUND;
 }
 /*
- * uBSSeekNameGetBlockSize - Find block with blockName and its size in block(s)
- *
+ * @brief uBSSeekNameGetBlockSize - Find block with blockName and its size in block(s)
+ * @param blockName - name to seek
+ * @param nameSize - size of name
+ * @param address - found block address
+ * @param blocks - number of blocks occupied by the named block
+ * @return UBS_RSLT_OK if found, else error code
  */
 static int8_t uBSSeekNameGetBlockSize(void* blockName, uint8_t nameSize, uint32_t* address, uint16_t* blocks) {
   uint8_t readBuf[UBS_HEADER_BLOCK_SIZE + UBS_NAME_SIZE];
@@ -226,9 +242,12 @@ static int8_t uBSSeekNameGetBlockSize(void* blockName, uint8_t nameSize, uint32_
   return UBS_RSLT_NOT_FOUND;
 }
 /*
- * uBSEraseBlock
+ * @brief uBSEraseBlocks - erase blocks starting from address
+ * @param address - start address
+ * @param eraseBlocks - number of blocks to erase
+ * @return UBS_RSLT_OK if ok, else error code
  */
-static int8_t uBSEraseBlock(uint32_t address, uint16_t eraseBlocks) {
+static int8_t uBSEraseBlocks(uint32_t address, uint16_t eraseBlocks) {
   uint8_t writeBuf[UBS_BLOCK_SIZE] = {0};
   uint8_t readBuf[UBS_HEADER_BLOCK_SIZE];
   uint32_t nextBlock;
@@ -252,7 +271,7 @@ static int8_t uBSEraseBlock(uint32_t address, uint16_t eraseBlocks) {
   return UBS_RSLT_OK;
 }
 /*
- * uBSFormat - erase all blocks
+ * @brief uBSFormat - Format whole uBS memory
  */
 void uBSFormat(void) {
   uint32_t address = UBS_ADDRESS_START;
@@ -266,11 +285,14 @@ void uBSFormat(void) {
     // Set whole free map to 0b11111111
     memset(&uBSFreeMap[0], 255, UBS_MAP_SIZE);
   #endif
+  #if UBS_USE_MASTER_MAP > 0
+    // Set whole master map to 0b00000000
+  memset(&uBSMasterMap[0], 0, UBS_MAP_SIZE);
+  #endif
 }
 /*
- * uBSInit
- *
- * Calculate free space on start
+ * @brief uBSInit - Initialize uBS system
+ * @return UBS_RSLT_OK if success, else error code
  */
 int8_t uBSInit(void) {
   uint32_t address = UBS_ADDRESS_START;
@@ -302,7 +324,7 @@ int8_t uBSInit(void) {
     }
     #if UBS_USE_MASTER_MAP > 0
       if (UBS_GET_MASTER_FLAG(readBuf[0])) {
-        // Set free bit
+        // Set master bit in
         uBSMasterMap[((address - UBS_ADDRESS_START) / UBS_BLOCK_SIZE) / 8] |=
               (1 << (((address - UBS_ADDRESS_START) / UBS_BLOCK_SIZE) % 8));
       }
@@ -316,9 +338,12 @@ int8_t uBSInit(void) {
   return UBS_RSLT_OK;
 }
 /*
- * uBSErase
+ * @brief uBSDelete - Erase block chain by name
+ * @param name - block name
+ * @param nameSize - size of name
+ * @return UBS_RSLT_OK if success, else error code
  */
-int8_t uBSErase(void* name, uint8_t nameSize) {
+int8_t uBSDelete(void* name, uint8_t nameSize) {
   uint32_t address;
   uint16_t blocks;
 
@@ -328,10 +353,15 @@ int8_t uBSErase(void* name, uint8_t nameSize) {
 
   if (uBSSeekNameGetBlockSize(name, nameSize, &address, &blocks) != UBS_RSLT_OK) return UBS_RSLT_NOT_FOUND;
 
-  return uBSEraseBlock(address, blocks);
+  return uBSEraseBlocks(address, blocks);
 }
 /*
- * uBSWrite
+ * @brief uBSWrite - Write data to block chain by name
+ * @param name - block name
+ * @param nameSize - size of name
+ * @param data - data to write
+ * @param dataSize - size of data
+ * @return UBS_RSLT_OK if success, else error code
  */
 int8_t uBSWrite(void* name, uint8_t nameSize, void *data, uint16_t dataSize) {
   uint16_t curSize, newBlocks, oldBlocks = 0;
@@ -440,7 +470,12 @@ int8_t uBSWrite(void* name, uint8_t nameSize, void *data, uint16_t dataSize) {
   return UBS_RSLT_OK;
 }
 /*
- * uBSRead
+ * @brief uBSRead - Read data from block chain by name
+ * @param name - block name
+ * @param nameSize - size of name
+ * @param data - data buffer
+ * @param dataSize - size of data to read, returns read size
+ * @return UBS_RSLT_OK if success, else error code
  */
 int8_t uBSRead(void* name, uint8_t nameSize, void *data, uint16_t *dataSize) {
   uint16_t block = 0, curSize, readSize = 0;
@@ -489,9 +524,11 @@ int8_t uBSRead(void* name, uint8_t nameSize, void *data, uint16_t *dataSize) {
   return UBS_RSLT_OK;
 }
 /*
- * uBSSeekAll - Find all master block(s).
- * Use 0 as start address.
- *
+ * @brief uBSSeekAll - Seek all master blocks. Use 0 as start address.
+ * @param address - block address
+ * @param name - block name
+ * @param nameSize - size of name
+ * @return UBS_RSLT_OK if found, else error code
  */
 int8_t uBSSeekAll(uint32_t* address, void* name, uint8_t nameSize) {
   uint8_t readBuf[UBS_HEADER_BLOCK_SIZE + UBS_NAME_SIZE];
@@ -501,6 +538,20 @@ int8_t uBSSeekAll(uint32_t* address, void* name, uint8_t nameSize) {
   if (nameSize > UBS_NAME_SIZE) nameSize = UBS_NAME_SIZE;
 
   DBG("uBS Seek all address: %u\r\n", *address);
+  #if UBS_USE_MASTER_MAP > 0
+  // Seek using master map
+  do {
+    if ((uBSMasterMap[((*address - UBS_ADDRESS_START) / UBS_BLOCK_SIZE) / 8] >>
+        (((*address - UBS_ADDRESS_START) / UBS_BLOCK_SIZE) % 8)) & 0b1) {
+      if (uBSReadBlock(*address, &readBuf[0], UBS_HEADER_BLOCK_SIZE + UBS_NAME_SIZE) != UBS_RSLT_OK)
+        return UBS_RSLT_DAMAGED;
+      memcpy(name, &readBuf[UBS_HEADER_BLOCK_SIZE], nameSize);
+      DBG("uBS Seek all found %s, address: %u\r\n", name, *address);
+      return UBS_RSLT_OK;
+    }
+    *address += UBS_BLOCK_SIZE;
+  } while (*address < UBS_ADDRESS_END);
+  #else
   do {
     if (uBSReadBlock(*address, &readBuf[0], UBS_HEADER_BLOCK_SIZE + UBS_NAME_SIZE) != UBS_RSLT_OK)
       return UBS_RSLT_DAMAGED;
@@ -511,6 +562,7 @@ int8_t uBSSeekAll(uint32_t* address, void* name, uint8_t nameSize) {
     }
     *address += UBS_BLOCK_SIZE;
   } while (*address < UBS_ADDRESS_END);
+  #endif
 
   return UBS_RSLT_NOK;
 }
