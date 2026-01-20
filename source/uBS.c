@@ -70,6 +70,12 @@
 #define UBS_GET_BLOCK_DATA_SIZE(x) ((x >> 1U) & UBS_HEADER_ALLOW_SIZE)
 #define UBS_SET_MASTER_FLAG(x)       x |= 1
 #define UBS_SET_BLOCK_DATA_SIZE(x,y) x |= (y << 1U)
+#define UBS_ADDR_TO_BUF(buf, addr) {\
+                                     (buf)[0] = (uint8_t)((addr) >> 16);\
+                                     (buf)[1] = (uint8_t)((addr) >> 8);\
+                                     (buf)[2] = (uint8_t)(addr);\
+                                   }
+#define UBS_BUF_TO_ADDR(buf)       ((((uint32_t)(buf)[0]) << 16) | (((uint32_t)(buf)[1]) << 8) | ((uint32_t)(buf)[2]))
 /*
  * Variables
  */
@@ -91,9 +97,7 @@ static int8_t uBSReadBlock(uint32_t address, uint8_t *data, uint8_t size) {
   if ((address < UBS_ADDRESS_START) || (address > UBS_ADDRESS_END)) return UBS_RSLT_NOK;
 
   uBSCmdBuf[0] = CMD_25AA_READ;
-  for (uint8_t i = 0; i < UBS_ADDRESS_SIZE; i++) {
-    uBSCmdBuf[1 + i] = (address >> ((UBS_ADDRESS_SIZE - i - 1) * 8)) & 0xFF;
-  }
+  UBS_ADDR_TO_BUF(&uBSCmdBuf[1], address);
 
   spiAcquireBus(&SPID1);
   spiSelect(&SPID1);
@@ -118,9 +122,7 @@ static void uBSWriteBlock(uint32_t address, uint8_t* data, uint8_t size) {
   spiUnselect(&SPID1);
 
   uBSCmdBuf[0] = CMD_25AA_WRITE;
-  for (uint8_t i = 0; i < UBS_ADDRESS_SIZE; i++) {
-    uBSCmdBuf[1 + i] = (address >> ((UBS_ADDRESS_SIZE - i - 1) * 8)) & 0xFF;
-  }
+  UBS_ADDR_TO_BUF(&uBSCmdBuf[1], address);
 
   spiSelect(&SPID1);
   spiSend(&SPID1, UBS_CMD_BUF_SIZE, uBSCmdBuf);
@@ -207,17 +209,12 @@ static int8_t uBSSeekNameGetBlockSize(void* blockName, uint8_t nameSize, uint32_
         (memcmp(&readBuf[UBS_HEADER_BLOCK_SIZE], blockName, nameSize) == 0)) {
       DBG("uBS SeekName found, ");
       *blocks = 1;
-      for (uint8_t i = 0; i < UBS_ADDRESS_SIZE; i++) {
-        nextBlock += (readBuf[1 + i] << ((UBS_ADDRESS_SIZE - i - 1) * 8));
-      }
+      nextBlock = UBS_BUF_TO_ADDR(&readBuf[1]);
       while (nextBlock) {
         if (uBSReadBlock(nextBlock, &readBuf[0], UBS_HEADER_BLOCK_SIZE) != UBS_RSLT_OK)
           return UBS_RSLT_DAMAGED;
         (*blocks)++;
-        nextBlock = 0;
-        for (uint8_t i = 0; i < UBS_ADDRESS_SIZE; i++) {
-          nextBlock += (readBuf[1 + i] << ((UBS_ADDRESS_SIZE - i - 1) * 8));
-        }
+        nextBlock = UBS_BUF_TO_ADDR(&readBuf[1]);
       }
       DBG("address: %u, blocks: %u\r\n", *address, *blocks);
       return UBS_RSLT_OK;
@@ -239,10 +236,7 @@ static int8_t uBSEraseBlock(uint32_t address, uint16_t eraseBlocks) {
   for (uint16_t block = 0; block < eraseBlocks; block++) {
     if (uBSReadBlock(address, &readBuf[0], UBS_HEADER_BLOCK_SIZE) != UBS_RSLT_OK)
       return UBS_RSLT_DAMAGED;
-    nextBlock = 0; // 0 to allow byte accumulation
-    for (uint8_t i = 0; i < UBS_ADDRESS_SIZE; i++) {
-      nextBlock += (readBuf[1 + i] << ((UBS_ADDRESS_SIZE - i - 1) * 8));
-    }
+    nextBlock = UBS_BUF_TO_ADDR(&readBuf[1]);
     DBG("uBS Erase block address: %u\r\n", address);
     uBSWriteBlock(address, &writeBuf[0], UBS_BLOCK_SIZE);
     uBSFreeSpace += UBS_DATA_SIZE;
@@ -388,18 +382,13 @@ int8_t uBSWrite(void* name, uint8_t nameSize, void *data, uint16_t dataSize) {
           // Get old pointer
           if (uBSReadBlock(address, &readBuf[0], UBS_HEADER_BLOCK_SIZE) != UBS_RSLT_OK)
             return UBS_RSLT_DAMAGED;
-          for (uint8_t i = 0; i < UBS_ADDRESS_SIZE; i++) {
-            nextBlock += (readBuf[1 + i] << ((UBS_ADDRESS_SIZE - i - 1) * 8));
-          }
+          nextBlock = UBS_BUF_TO_ADDR(&readBuf[1]);
         }
       } else {
         // Store old block pointer to erase
         if (uBSReadBlock(address, &readBuf[0], UBS_HEADER_BLOCK_SIZE) != UBS_RSLT_OK)
           return UBS_RSLT_DAMAGED;
-        eraseBlock = 0;
-        for (uint8_t i = 0; i < UBS_ADDRESS_SIZE; i++) {
-          eraseBlock += (readBuf[1 + i] << ((UBS_ADDRESS_SIZE - i - 1) * 8));
-        }
+        eraseBlock = UBS_BUF_TO_ADDR(&readBuf[1]);
       }
     } else {
       // Last new block no pointer
@@ -408,9 +397,7 @@ int8_t uBSWrite(void* name, uint8_t nameSize, void *data, uint16_t dataSize) {
         uBSGetFreeBlock(&nextBlock);
       }
     }
-    for (uint8_t i = 0; i < UBS_ADDRESS_SIZE; i++) {
-      writeBuf[1 + i] = (nextBlock >> ((UBS_ADDRESS_SIZE - i - 1) * 8)) & 0xFF;
-    }
+    UBS_ADDR_TO_BUF(&writeBuf[1], nextBlock);
     DBG("|%u,%u,%u, size %u, next %u|-", writeBuf[0], writeBuf[1], writeBuf[2], curSize, nextBlock);
 
     // Copy name and/or data
@@ -438,10 +425,7 @@ int8_t uBSWrite(void* name, uint8_t nameSize, void *data, uint16_t dataSize) {
     address = eraseBlock;
     if (uBSReadBlock(address, &readBuf[0], UBS_HEADER_BLOCK_SIZE) != UBS_RSLT_OK)
       return UBS_RSLT_DAMAGED;
-    eraseBlock = 0; // 0 to allow byte accumulation
-    for (uint8_t i = 0; i < UBS_ADDRESS_SIZE; i++) {
-      eraseBlock += (readBuf[1 + i] << ((UBS_ADDRESS_SIZE - i - 1) * 8));
-    }
+    eraseBlock = UBS_BUF_TO_ADDR(&readBuf[1]);
     DBG("uBS Write erase: %u:%u\r\n", block, address);
     uBSWriteBlock(address, &writeBuf[0], UBS_BLOCK_SIZE);
     uBSFreeSpace += UBS_DATA_SIZE;
@@ -492,10 +476,7 @@ int8_t uBSRead(void* name, uint8_t nameSize, void *data, uint16_t *dataSize) {
       memcpy(data, &readBuf[UBS_HEADER_BLOCK_SIZE], curSize);
     }
 
-    address = 0;
-    for (uint8_t i = 0; i < UBS_ADDRESS_SIZE; i++) {
-      address += (readBuf[1 + i] << ((UBS_ADDRESS_SIZE - i - 1) * 8));
-    }
+    address = UBS_BUF_TO_ADDR(&readBuf[1]);
     block++;
     *dataSize -= curSize;
     data += curSize;
