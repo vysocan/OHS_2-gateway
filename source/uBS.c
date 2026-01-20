@@ -179,7 +179,7 @@ static int8_t uBSGetFreeBlock(uint32_t* address) {
   return UBS_RSLT_NOK;
 }
 /*
- * @breif uBSSeekName - Find block with blockName.
+ * @brief uBSSeekName - Find block with blockName.
  * @param blockName - name to seek
  * @param nameSize - size of name
  * @param address - found block address
@@ -251,6 +251,9 @@ static int8_t uBSEraseBlocks(uint32_t address, uint16_t eraseBlocks) {
   uint8_t writeBuf[UBS_BLOCK_SIZE] = {0};
   uint8_t readBuf[UBS_HEADER_BLOCK_SIZE];
   uint32_t nextBlock;
+  #if UBS_USE_MASTER_MAP > 0
+  uint32_t masterAddr = address;  // Save master block address
+  #endif
 
   for (uint16_t block = 0; block < eraseBlocks; block++) {
     if (uBSReadBlock(address, &readBuf[0], UBS_HEADER_BLOCK_SIZE) != UBS_RSLT_OK)
@@ -267,6 +270,11 @@ static int8_t uBSEraseBlocks(uint32_t address, uint16_t eraseBlocks) {
     #endif
     address = nextBlock;
   }
+  #if UBS_USE_MASTER_MAP > 0
+    // Clear master bit for deleted file
+    uBSMasterMap[((masterAddr - UBS_ADDRESS_START) / UBS_BLOCK_SIZE) / 8] &=
+        ~(1 << (((masterAddr - UBS_ADDRESS_START) / UBS_BLOCK_SIZE) % 8));
+  #endif
 
   return UBS_RSLT_OK;
 }
@@ -287,7 +295,7 @@ void uBSFormat(void) {
   #endif
   #if UBS_USE_MASTER_MAP > 0
     // Set whole master map to 0b00000000
-  memset(&uBSMasterMap[0], 0, UBS_MAP_SIZE);
+    memset(&uBSMasterMap[0], 0, UBS_MAP_SIZE);
   #endif
 }
 /*
@@ -440,6 +448,13 @@ int8_t uBSWrite(void* name, uint8_t nameSize, void *data, uint16_t dataSize) {
     //for (uint8_t i = 0; i < UBS_BLOCK_SIZE; i++) DBG("%u-", writeBuf[i]);
     DBG("uBS Write data: %u:%u\r\n", block, address);
     uBSWriteBlock(address, &writeBuf[0], UBS_BLOCK_SIZE);
+    #if UBS_USE_MASTER_MAP > 0
+      if (block == 0) {
+        // Set master bit for new file
+        uBSMasterMap[((address - UBS_ADDRESS_START) / UBS_BLOCK_SIZE) / 8] |=
+            (1 << (((address - UBS_ADDRESS_START) / UBS_BLOCK_SIZE) % 8));
+      }
+    #endif
 
     address = nextBlock;
     (data) += curSize;
