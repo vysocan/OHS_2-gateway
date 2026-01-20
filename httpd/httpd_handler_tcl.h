@@ -130,8 +130,7 @@ static void httpd_post_custom_tcl(char **postDataP) {
           memset(scriptp->name, 0, NAME_LENGTH); // Make sure all is 0, as it gets stored in uBS
           strncpy(scriptp->name, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
           // uBS rename
-          uBSRename(scriptName, strlen(scriptName),
-                    valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+          uBSRename(scriptName, valueP);
         }
         memset(&scriptName[0], 0, NAME_LENGTH); // Make sure all is 0, as it gets stored in uBS
         strncpy(scriptName, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
@@ -189,7 +188,7 @@ static void httpd_post_custom_tcl(char **postDataP) {
                 scriptp->next = scriptLL;
                 scriptLL = scriptp;
                 // uBS
-                if (uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd)) != UBS_RSLT_OK) {
+                if (uBSWrite(&scriptName[0], &tclCmd[0], strlen(tclCmd)) != UBS_RSLT_OK) {
                   chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", TEXT_error_free, TEXT_storage);
                   httpAlert.type = ALERT_ERROR;
                 }
@@ -219,7 +218,7 @@ static void httpd_post_custom_tcl(char **postDataP) {
               memset(scriptp->cmd + number, 0, 1);
               for (int i = 0; i < UBS_NAME_SIZE; i++) { DBG_HTTP("%x;", scriptName[i]); }
               DBG_HTTP("\r\n");
-              if (uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd)) != UBS_RSLT_OK) {
+              if (uBSWrite(&scriptName[0], &tclCmd[0], strlen(tclCmd)) != UBS_RSLT_OK) {
                 chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", TEXT_error_free, TEXT_storage);
                 httpAlert.type = ALERT_ERROR;
               }

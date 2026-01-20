@@ -1121,7 +1121,7 @@ void initScripts(struct scriptLL_t **pointer) {
   uint16_t cmdSize;
   struct scriptLL_t* var;
 
-  while (uBSSeekAll(&blockAddress, &blockName, NAME_LENGTH)) {
+  while (uBSSeekAll(&blockAddress, &blockName)) {
     var = umm_malloc(sizeof(struct scriptLL_t));
     if (var != NULL) {
       // name
@@ -1133,7 +1133,7 @@ void initScripts(struct scriptLL_t **pointer) {
         strncpy(var->name, &blockName[0], NAME_LENGTH);
         // cmd
         cmdSize = TCL_SCRIPT_LENGTH;
-        if (uBSRead(&blockName[0], NAME_LENGTH, &tclCmd[0], &cmdSize) != UBS_RSLT_OK) {
+        if (uBSRead(&blockName[0], &tclCmd[0], &cmdSize) != UBS_RSLT_OK) {
           umm_free(var->name);
           umm_free(var);
           chprintf(console, "uBS storage needs format!\r\n");
