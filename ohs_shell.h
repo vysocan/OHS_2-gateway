@@ -28,7 +28,12 @@ static void cmd_log(BaseSequentialStream *chp, int argc, char *argv[]) {
       FRAMReadPos = (FRAMReadPos - LOGGER_OUTPUT_LEN) * FRAM_MSG_SIZE;
     }
   }
-  if (argc == 0) { FRAMReadPos = FRAMWritePos - (FRAM_MSG_SIZE * LOGGER_OUTPUT_LEN); }
+  if (argc == 0) {
+    FRAMReadPos = FRAMWritePos - (FRAM_MSG_SIZE * LOGGER_OUTPUT_LEN);
+    if (FRAMReadPos >= UINT16_MAX) {
+      FRAMReadPos = 0;
+    }
+  }
 
   spiAcquireBus(&SPID1);                // Acquire ownership of the bus.
   for(uint16_t i = 0; i < LOGGER_OUTPUT_LEN; i++) {
@@ -153,13 +158,71 @@ static void cmd_debug(BaseSequentialStream *chp, int argc, char *argv[]) {
   shellUsage(chp, "debug on|off");
 }
 /*
+ * Helper to show FRAM content
+ */
+static void cmd_ubs_show_fram(BaseSequentialStream *chp, uint16_t block) {
+  uint32_t addressStart = UBS_ADDRESS_START + (block * UBS_BLOCK_SIZE);
+  
+  chprintf(chp, "Block %u (Addr: 0x%06X):" SHELL_NEWLINE_STR, block, addressStart);
+  chprintf(chp, "      0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F" SHELL_NEWLINE_STR);
+
+  spiAcquireBus(&SPID1);
+  for (uint16_t i = 0; i < UBS_BLOCK_SIZE; i += 16) {
+    uint32_t currentAddr = addressStart + i;
+
+    spiSelect(&SPID1);
+    txBuffer[0] = CMD_25AA_READ;
+    txBuffer[1] = (currentAddr >> 16) & 0xFF;
+    txBuffer[2] = (currentAddr >> 8) & 0xFF;
+    txBuffer[3] = (currentAddr) & 0xFF;
+    spiSend(&SPID1, 4, txBuffer);
+    spiReceive(&SPID1, 16, rxBuffer);
+    spiUnselect(&SPID1);
+
+    chprintf(chp, "%04X: ", i);
+    
+    // Print Hex
+    for (uint8_t j = 0; j < 16; j++) {
+      chprintf(chp, "%02X ", rxBuffer[j]);
+    }
+    
+    // Print ASCII
+    for (uint8_t j = 0; j < 16; j++) {
+      if (rxBuffer[j] >= 32 && rxBuffer[j] < 127) {
+        chprintf(chp, "%c", rxBuffer[j]);
+      } else {
+        chprintf(chp, ".");
+      }
+    }
+    chprintf(chp, SHELL_NEWLINE_STR);
+  }
+  spiReleaseBus(&SPID1);
+}
+
+/*
  * Applet to uBS
  */
 static void cmd_ubs(BaseSequentialStream *chp, int argc, char *argv[]) {
 
+  if ((argc == 2) && (argv[0][0] == 's')) {
+    uint32_t block;
+    safeStrtoul(argv[1], &block, 0);
+
+    if (block < UBS_BLOCK_COUNT) {
+      cmd_ubs_show_fram(chp, (uint16_t)block);
+    } else {
+      chprintf(chp, "Error: Block number out of range (0 - %d)." SHELL_NEWLINE_STR, UBS_BLOCK_COUNT - 1);
+    }
+    return;
+  }
+
   if (argc == 1) {
     switch (argv[0][0]) {
       case 's':
+        if (argv[0][1] != 't') {
+          goto ERROR;
+        }
+        // Show uBS status
         chprintf(chp, "uBS      total    free    used" SHELL_NEWLINE_STR);
         chprintf(chp, "------------------------------" SHELL_NEWLINE_STR);
         chprintf(chp, "blocks : %5u   %5u   %5u" SHELL_NEWLINE_STR,
@@ -180,7 +243,7 @@ static void cmd_ubs(BaseSequentialStream *chp, int argc, char *argv[]) {
   return;
 
   ERROR:
-    shellUsage(chp, "ubs status|format");
+    shellUsage(chp, "ubs status|format|show <block>");
 }
 /*
  * Applet to show netif ip address and MAC

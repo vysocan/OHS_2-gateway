@@ -14,8 +14,8 @@
 // Logger related
 #define FRAM_MSG_SIZE     16
 #define FRAM_HEADER_SIZE  4
-volatile uint32_t FRAMWritePos = 0;
-volatile uint32_t FRAMReadPos  = 0;
+volatile uint16_t FRAMWritePos = 0;
+volatile uint16_t FRAMReadPos  = 0;
 // FRAM buffers for decode
 static char rxBuffer[FRAM_MSG_SIZE];
 static char txBuffer[FRAM_HEADER_SIZE + FRAM_MSG_SIZE];
