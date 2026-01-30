@@ -298,5 +298,8 @@ const char durationSelect[][10] = {
 #define TEXT_not_found                "not found"
 #define TEXT_activated                "activated"
 #define TEXT_error_free               "Not enough free space in "
+#define TEXT_error_rename             "Unable to rename"
+#define TEXT_error_name_empty         "Name cannot be empty"
+#define TEXT_error_script_not_found   "Script not found"
 
 #endif /* OHS_TEXT_CONST_H_ */

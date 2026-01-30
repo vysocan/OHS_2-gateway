@@ -31,14 +31,15 @@
 #define UBS_ADDRESS_START     65536 // Offset of uBS space
 // Fixed
 #define UBS_ADDRESS_END       (UBS_ADDRESS_START + (UBS_BLOCK_SIZE * UBS_BLOCK_COUNT))
-#define UBS_HEADER_SIZE       1 // Bytes
+#define UBS_HEADER_SIZE       1 // Byte(s)
+#define UBS_CMD_SIZE          1 // Byte(s)
 #define UBS_ADDRESS_SIZE      3 // Bytes
 #define UBS_HEADER_BLOCK_SIZE (UBS_HEADER_SIZE + UBS_ADDRESS_SIZE)
 // Helpers
 #define UBS_HEADER_ALLOW_SIZE 127 //((UBS_HEADER_SIZE * 255) >> 1)
 #define UBS_DATA_SIZE         (UBS_BLOCK_SIZE - UBS_HEADER_BLOCK_SIZE)
 #define UBS_FIRST_DATA_SIZE   (UBS_DATA_SIZE - UBS_NAME_SIZE)
-#define UBS_CMD_BUF_SIZE      (1 + UBS_ADDRESS_SIZE)
+#define UBS_CMD_BUF_SIZE      (UBS_CMD_SIZE + UBS_ADDRESS_SIZE)
 #define UBS_MAP_SIZE          (UBS_BLOCK_COUNT/8) + ((UBS_BLOCK_COUNT%8) ? 1 : 0)
 // Statistics
 #define UBS_SPACE_MAX         ((UBS_BLOCK_COUNT * UBS_DATA_SIZE) - UBS_NAME_SIZE)
@@ -78,10 +79,10 @@ extern uint16_t uBSFreeBlocks;
 
 void uBSFormat(void);
 int8_t uBSInit(void);
-int8_t uBSErase(void* name, uint8_t nameSize);
-int8_t uBSWrite(void* name, uint8_t nameSize, void *data, uint16_t dataSize);
-int8_t uBSRead(void* name, uint8_t nameSize, void *data, uint16_t *dataSize);
-int8_t uBSSeekAll(uint32_t* address, void* name, uint8_t nameSize);
-int8_t uBSRename(void* oldName, uint8_t oldNameSize, void* newName, uint8_t newNameSize);
+int8_t uBSDelete(void* name);
+int8_t uBSWrite(void* name, void *data, uint16_t dataSize);
+int8_t uBSRead(void* name, void *data, uint16_t *dataSize);
+int8_t uBSSeekAll(uint32_t* address, void* name);
+int8_t uBSRename(void* oldName, void* newName);
 
 #endif /* UBS_H_ */

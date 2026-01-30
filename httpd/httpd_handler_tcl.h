@@ -88,19 +88,31 @@ static void fs_open_custom_tcl(BaseSequentialStream *chp) {
  */
 static void httpd_post_custom_tcl(char **postDataP) {
   uint16_t number, valueLen = 0;
+  int8_t resp;
   char name[3];
   bool repeat;
   char *valueP;
   scriptEvent_t *outMsg;
+  // Example POST data:
+  // first select: s=&P=4&n=\0
+  // save existing: s=1234567890123456789012345678901234567890123456789010%134%15%16%178%19%10%40&P=4&n=2&e=Save\0
+  //
 
   do {
     repeat = getPostData(postDataP, &name[0], sizeof(name), &valueP, &valueLen);
     DBG_HTTP("Parse: %s = '%.*s' (%u)\r\n", name, valueLen, valueP, valueLen);
     switch(name[0]) {
-      case 'P': // select
+      case 's': // script
+        strncpy(tclCmd, valueP, LWIP_MIN(valueLen, TCL_SCRIPT_LENGTH - 1));
+        tclCmd[LWIP_MIN(valueLen, TCL_SCRIPT_LENGTH - 1)] = 0;
+        break;
+      case 'P': // select script
         number = strtol(valueP, NULL, 10);
         if (number != webScript) {
-          webScript = number; repeat = 0;
+          DBG_HTTP("Select script %u\r\n", number);
+          webScript = number;
+          repeat = 0; // Force exit from loop to reload script
+          // Clear script and name
           memset(&tclCmd[0], '\0', TCL_SCRIPT_LENGTH);
           memset(&scriptName[0], '\0', NAME_LENGTH);
           // For old script load values
@@ -111,6 +123,8 @@ static void httpd_post_custom_tcl(char **postDataP) {
               number++;
             }
             if (scriptp != NULL) {
+              // Load script and name
+              DBG_HTTP("Load script '%s'\r\n", scriptp->name);
               strncpy(&scriptName[0], scriptp->name, NAME_LENGTH);
               strncpy(&tclCmd[0], scriptp->cmd, TCL_SCRIPT_LENGTH);
             }
@@ -119,8 +133,13 @@ static void httpd_post_custom_tcl(char **postDataP) {
         break;
       case 'n': // name
         // For existing scripts do rename when name differs
-        if ((webScript != DUMMY_NO_VALUE) && (memcmp(scriptName, valueP, LWIP_MIN(valueLen, strlen(scriptName))))) {
-          DBG_HTTP("Rename: '%s' -> '%.*s'; %d;%d\r\n", scriptName, valueLen, valueP);
+        if ((strcmp(scriptName, valueP)) && (webScript != DUMMY_NO_VALUE)) {
+          DBG_HTTP("Rename: '%s' -> '%.*s'\r\n", scriptName, valueLen, valueP);
+          if (valueLen == 0) {
+            chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, TEXT_error_name_empty);
+            httpAlert.type = ALERT_ERROR;
+            break;
+          }
           number = 1;
           // Find pointer to script
           for (scriptp = scriptLL; scriptp != NULL; scriptp = scriptp->next) {
@@ -130,10 +149,17 @@ static void httpd_post_custom_tcl(char **postDataP) {
           memset(scriptp->name, 0, NAME_LENGTH); // Make sure all is 0, as it gets stored in uBS
           strncpy(scriptp->name, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
           // uBS rename
-          uBSRename(scriptName, strlen(scriptName),
-                    valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
+          resp = uBSRename(scriptName, scriptp->name);
+          if (resp != UBS_RSLT_OK) {
+            DBG_HTTP("Rename error: %d\r\n", resp);
+            chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, TEXT_error_rename);
+            httpAlert.type = ALERT_ERROR;
+            repeat = 0; // exit
+            break;
+          }
         }
-        memset(&scriptName[0], 0, NAME_LENGTH); // Make sure all is 0, as it gets stored in uBS
+        // else just copy name for new script
+        memset(scriptName, 0, NAME_LENGTH);
         strncpy(scriptName, valueP, LWIP_MIN(valueLen, NAME_LENGTH - 1));
         break;
       case 'R': // Run
@@ -151,10 +177,6 @@ static void httpd_post_custom_tcl(char **postDataP) {
           chprintf(console, "CB full %d \r\n", outMsg);
         }
       break;
-      case 's': // script
-        strncpy(tclCmd, valueP, LWIP_MIN(valueLen, TCL_SCRIPT_LENGTH - 1));
-        tclCmd[LWIP_MIN(valueLen, TCL_SCRIPT_LENGTH - 1)] = 0;
-      break;
       case 'e': // save
         if (webScript == DUMMY_NO_VALUE) {
           if (!strlen(scriptName)) {
@@ -165,18 +187,17 @@ static void httpd_post_custom_tcl(char **postDataP) {
           // For new script append linked list
           scriptp = umm_malloc(sizeof(struct scriptLL_t));
           if (scriptp == NULL) {
-            chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", TEXT_error_free, TEXT_heap);
+            chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, TEXT_error_free, TEXT_heap);
             httpAlert.type = ALERT_ERROR;
           } else {
-            //if (checkPointer(scriptp, html_noSpace)) {}
             scriptp->name = umm_malloc(NAME_LENGTH);
             if (scriptp->name == NULL) {
               umm_free(scriptp);
-              chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", TEXT_error_free, TEXT_heap);
+              chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, TEXT_error_free, TEXT_heap);
               httpAlert.type = ALERT_ERROR;
             } else {
               strncpy(scriptp->name, &scriptName[0], NAME_LENGTH);
-              number = strlen(tclCmd);
+              number = strlen(tclCmd); // number as size of new script
               scriptp->cmd = umm_malloc(number + 1); // + NULL
               if (scriptp->cmd == NULL) {
                 umm_free(scriptp->name);
@@ -185,12 +206,12 @@ static void httpd_post_custom_tcl(char **postDataP) {
                 httpAlert.type = ALERT_ERROR;
               } else {
                 strncpy(scriptp->cmd, &tclCmd[0], number);
-                memset(scriptp->cmd + number, 0, 1);
+                scriptp->cmd[number] = 0;
                 scriptp->next = scriptLL;
                 scriptLL = scriptp;
                 // uBS
-                if (uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd)) != UBS_RSLT_OK) {
-                  chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", TEXT_error_free, TEXT_storage);
+                if (uBSWrite(&scriptName[0], &tclCmd[0], number) != UBS_RSLT_OK) {
+                  chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, TEXT_error_free, TEXT_storage);
                   httpAlert.type = ALERT_ERROR;
                 }
                 // new script is added to top of linked list, no need to do pointer check
@@ -207,23 +228,22 @@ static void httpd_post_custom_tcl(char **postDataP) {
             number++;
           }
           if (scriptp != NULL) {
-            number = strlen(tclCmd);
-            //scriptp->cmd = umm_realloc(scriptp->cmd, number + 1);
-            umm_free(scriptp->cmd);
-            scriptp->cmd = umm_malloc(number + 1);
+            number = strlen(tclCmd); // number as size of new script
+            scriptp->cmd = umm_realloc(scriptp->cmd, number + 1);
             if (scriptp->cmd == NULL) {
               chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", TEXT_error_free, TEXT_heap);
               httpAlert.type = ALERT_ERROR;
             } else {
               strncpy(scriptp->cmd, &tclCmd[0], number);
-              memset(scriptp->cmd + number, 0, 1);
-              for (int i = 0; i < UBS_NAME_SIZE; i++) { DBG_HTTP("%x;", scriptName[i]); }
-              DBG_HTTP("\r\n");
-              if (uBSWrite(&scriptName[0], NAME_LENGTH, &tclCmd[0], strlen(tclCmd)) != UBS_RSLT_OK) {
-                chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "%s%s", TEXT_error_free, TEXT_storage);
+              scriptp->cmd[number] = 0;
+              if (uBSWrite(scriptName, &tclCmd[0], number) != UBS_RSLT_OK) {
+                chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, TEXT_error_free, TEXT_storage);
                 httpAlert.type = ALERT_ERROR;
               }
             }
+          } else {
+            chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, TEXT_error_script_not_found);
+            httpAlert.type = ALERT_ERROR;
           }
         }
       break;

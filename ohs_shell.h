@@ -162,41 +162,42 @@ static void cmd_debug(BaseSequentialStream *chp, int argc, char *argv[]) {
  */
 static void cmd_ubs_show_fram(BaseSequentialStream *chp, uint16_t block) {
   uint32_t addressStart = UBS_ADDRESS_START + (block * UBS_BLOCK_SIZE);
+  uint8_t ubsRxBuffer[16], ubsTxBuffer[4];
   
   chprintf(chp, "Block %u (Addr: 0x%06X):" SHELL_NEWLINE_STR, block, addressStart);
   chprintf(chp, "      0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F" SHELL_NEWLINE_STR);
 
-  spiAcquireBus(&SPID1);
   for (uint16_t i = 0; i < UBS_BLOCK_SIZE; i += 16) {
     uint32_t currentAddr = addressStart + i;
 
+    ubsTxBuffer[0] = CMD_25AA_READ;
+    ubsTxBuffer[1] = (currentAddr >> 16) & 0xFF;
+    ubsTxBuffer[2] = (currentAddr >> 8) & 0xFF;
+    ubsTxBuffer[3] = (currentAddr) & 0xFF;
+    spiAcquireBus(&SPID1);
     spiSelect(&SPID1);
-    txBuffer[0] = CMD_25AA_READ;
-    txBuffer[1] = (currentAddr >> 16) & 0xFF;
-    txBuffer[2] = (currentAddr >> 8) & 0xFF;
-    txBuffer[3] = (currentAddr) & 0xFF;
-    spiSend(&SPID1, 4, txBuffer);
-    spiReceive(&SPID1, 16, rxBuffer);
+    spiSend(&SPID1, 4, ubsTxBuffer);
+    spiReceive(&SPID1, 16, ubsRxBuffer);
     spiUnselect(&SPID1);
+    spiReleaseBus(&SPID1);
 
     chprintf(chp, "%04X: ", i);
     
     // Print Hex
     for (uint8_t j = 0; j < 16; j++) {
-      chprintf(chp, "%02X ", rxBuffer[j]);
+      chprintf(chp, "%02X ", ubsRxBuffer[j]);
     }
     
     // Print ASCII
     for (uint8_t j = 0; j < 16; j++) {
-      if (rxBuffer[j] >= 32 && rxBuffer[j] < 127) {
-        chprintf(chp, "%c", rxBuffer[j]);
+      if (ubsRxBuffer[j] >= 32 && ubsRxBuffer[j] < 127) {
+        chprintf(chp, "%c", ubsRxBuffer[j]);
       } else {
         chprintf(chp, ".");
       }
     }
     chprintf(chp, SHELL_NEWLINE_STR);
   }
-  spiReleaseBus(&SPID1);
 }
 
 /*
