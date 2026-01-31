@@ -52,6 +52,10 @@ static void handleMqttSubGroup(char *args, char *savePtr, const char *payload) {
     } else if (safeStrcmp1(payload, MQTT_SUB_PAYLOAD_LENGTH, TEXT_disarm) == 0) {
       disarmGroup(index, index, 0);
     }
+  } else if (safeStrcmp1(args, MQTT_SUB_PAYLOAD_LENGTH, TEXT_refresh) == 0) {
+    mqttRefreshGroupsState();
+  } else {
+    DBG_MQTT_SUB(", unknown group command");
   }
 }
 /*
@@ -131,6 +135,8 @@ static void handleMqttSubZone(char *args, char *savePtr) {
   if (safeStrcmp1(args, MQTT_SUB_PAYLOAD_LENGTH, TEXT_refresh) == 0) {
     DBG_MQTT_SUB(", refresh");
     mqttRefreshZonesState();
+  } else {
+    DBG_MQTT_SUB(", unknown zone command");
   }
 }
 /*
@@ -144,11 +150,15 @@ static void handleMqttSubSms(char *args, char *savePtr, const char *payload) {
   if (args == NULL) return;
 
   if (safeStrcmp1(args, MQTT_SUB_PAYLOAD_LENGTH, TEXT_contact) == 0) {
+    DBG_MQTT_SUB(", contact");
+
     // Parse Index
-    if (!safeStrtoul(args, &index, 10)) return;
+    pch = strtok_r(NULL, "/", &savePtr);
+    if (pch == NULL) return;
+    if (!safeStrtoul(pch, &index, 10)) return;
     index--;// Adjust to 0-based
 
-    DBG_MQTT_SUB(", # %d", index + 1);
+    DBG_MQTT_SUB(" # %d", index + 1);
     if (index >= CONTACTS_SIZE ||
         !GET_CONF_CONTACT_ENABLED(conf.contact[index].setting)) {
       return;
@@ -169,11 +179,15 @@ static void handleMqttSubSms(char *args, char *savePtr, const char *payload) {
       }
     }
   } else if (safeStrcmp1 (args, MQTT_SUB_PAYLOAD_LENGTH, TEXT_group) == 0) {
+    DBG_MQTT_SUB(", group");
+
     // Parse Index
-    if (!safeStrtoul(args, &index, 10)) return;
+    pch = strtok_r(NULL, "/", &savePtr);
+    if (pch == NULL) return;
+    if (!safeStrtoul(pch, &index, 10)) return;
     index--;// Adjust to 0-based
 
-    DBG_MQTT_SUB(", group # %d", index + 1);
+    DBG_MQTT_SUB(" # %d", index + 1);
     if (index >= ALARM_GROUPS ||
         !GET_CONF_GROUP_ENABLED (conf.group[index].setting)) {
       return;
@@ -196,7 +210,7 @@ static void handleMqttSubSms(char *args, char *savePtr, const char *payload) {
           if (chBSemWaitTimeout (&gprsSem, TIME_I2S (1)) == MSG_OK) {
             resp = sendSMSToContact (i, payload);
             chBSemSignal (&gprsSem);
-            DBG_MQTT_SUB(", SMS to contact %d status: %u", i + 1, resp);
+            DBG_MQTT_SUB(", SMS to contact %d status: %u ", i + 1, resp);
           }
         }
       }
@@ -218,8 +232,6 @@ static void handleMqttSubSms(char *args, char *savePtr, const char *payload) {
  *     /value - float value
  * /zone
  *   /refresh - request for all zones status republish  {no payload}
- *
- * ToDo:
  * /SMS - send SMS to contact
  *   /contact - send SMS to specific contact
  *     /{#} - index of user {1 .. CONTACTS_SIZE}
