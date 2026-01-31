@@ -38,7 +38,7 @@
 #endif
 
 #ifndef HTTP_DEBUG
-#define HTTP_DEBUG 1
+#define HTTP_DEBUG 0
 #endif
 
 #if HTTP_DEBUG
