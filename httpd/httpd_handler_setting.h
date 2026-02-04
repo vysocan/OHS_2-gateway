@@ -15,21 +15,21 @@
  */
 static void fs_open_custom_setting(BaseSequentialStream *chp) {
   // Information table
-  chprintf(chp, "%s%s / %s %s%s", HTML_tr_td, TEXT_Arm, TEXT_Authentication, TEXT_time,
-           HTML_e_td_td);
-  printIntInput(chp, 'C', conf.armDelay / 4, 3, 5, 60);
-  chprintf(chp, " %s%s%s %s %s %s%s", durationSelect[0], HTML_e_td_e_tr_tr_td, TEXT_Auto,
+  chprintf(chp, "%sHelp text should be here%s%s / %s %s%s%s", HTML_tr_td_tip, HTML_e_tag, TEXT_Arm, TEXT_Authentication, TEXT_time,
+           HTML_e_span, HTML_e_td_td);
+  printRangeInput(chp, 'C', conf.armDelay / 4, 5, 60, durationSelect[0]);
+  chprintf(chp, " %s%s %s %s %s%s", HTML_e_td_e_tr_tr_td, TEXT_Auto,
            TEXT_arm, TEXT_zone, TEXT_delay, HTML_e_td_td);
-  printIntInput(chp, 'E', conf.autoArm, 3, 1, 240);
-  chprintf(chp, " %s%s%s %s %s %s%s", durationSelect[1], HTML_e_td_e_tr_tr_td, TEXT_Zone,
+  printRangeInput(chp, 'E', conf.autoArm, 1, 240, durationSelect[1]);
+  chprintf(chp, " %s%s %s %s %s%s", HTML_e_td_e_tr_tr_td, TEXT_Zone,
            TEXT_open, TEXT_alarm, TEXT_delay, HTML_e_td_td);
-  printIntInput(chp, 'F', conf.openAlarm, 3, 1, 240);
-  chprintf(chp, " %s%s%s %s%s", durationSelect[1], HTML_e_td_e_tr_tr_td, TEXT_Admin,
+  printRangeInput(chp, 'F', conf.openAlarm, 1, 240, durationSelect[1]);
+  chprintf(chp, " %s%s %s%s", HTML_e_td_e_tr_tr_td, TEXT_Admin,
            TEXT_user, HTML_e_td_td);
   printTextInputWMin(chp, 'u', conf.user, NAME_LENGTH, MIN_PASS_LNEGTH);
   chprintf(chp, "%s%s %s%s", HTML_e_td_e_tr_tr_td, TEXT_Admin, TEXT_password,
            HTML_e_td_td);
-  printPassInput(chp, 'p', conf.password, NAME_LENGTH, MIN_PASS_LNEGTH); chprintf(chp, "%s", HTML_br);
+  printPassInput(chp, 'p', conf.password, NAME_LENGTH, MIN_PASS_LNEGTH); chprintf(chp, HTML_br);
   printPassInput(chp, 'P', conf.password, NAME_LENGTH, MIN_PASS_LNEGTH);
   chprintf(chp, "%s%s", HTML_e_td_e_tr, HTML_e_table);
 

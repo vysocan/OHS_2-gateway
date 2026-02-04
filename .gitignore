@@ -1,3 +1,8 @@
 /build/
 /.dep/
 /.settings/
+
+// ignore files
+*.css
+*.html
+*.js

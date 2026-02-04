@@ -68,6 +68,7 @@
 #define HTML_div_id_2                 "' style='display:block;'>"
 #define HTML_select                   "<select name='"
 #define HTML_Apply                    "<input type='submit' name='A' value='Apply'/>"
+#define HTML_Enroll                   "<input type='submit' name='E' value='Enroll'/>"
 #define HTML_ApplyValPass             "<input type='submit' name='A' value='Apply' onclick='return pv()'/>"
 #define HTML_Save                     "<input type='submit' name='e' value='Save'/>"
 #define HTML_Disarm                   "<input type='submit' name='D' value='Disarm'/>"
@@ -104,8 +105,7 @@
 #define HTML_cbPart2                  "' value='"
 #define HTML_cbPart3                  "'"
 #define HTML_cbChecked                "' checked"
-#define HTML_cbPart4a                 "><label for='"
-#define HTML_cbPart4b                 "'>"
+#define HTML_cbPart4                  "><label for='"
 #define HTML_cbPart5                  "</label></div>"
 #define HTML_cbJSen                   " onclick=\"en"
 #define HTML_cbJSdis                  " onclick=\"dis"
@@ -148,5 +148,17 @@
                                       "document.getElementById('hd_3').style.display='block';" \
                                       "document.getElementById('h').disabled=false;" \
                                       "}}"
+
+// Range Slider Tags
+#define HTML_range_tag_1              "<div class='slidc'><input type='range' autocomplete='off' class='slid' min='"
+#define HTML_range_tag_2              "' max='"
+#define HTML_range_oninput            "' oninput='document.getElementById(\"val_"
+#define HTML_range_val_update         "\").innerHTML=this.value'"
+#define HTML_range_output_1           "<span class='slidv' id='val_"
+
+// Tooltip for table cells
+#define HTML_tr_td_tip                "<tr><td><span class='tip' data-t='"
+#define HTML_td_tip                   "<td><span class='tip' data-t='"
+#define HTML_e_span                   "</span>"
 
 #endif /* OHS_HTTP_CONST_H_ */

@@ -32,8 +32,8 @@ void printRadioButton(BaseSequentialStream *chp, const char *name, const uint8_t
       chprintf(chp, "%s%u%s", HTML_cbJSdis, JSNumber, HTML_cbJSend);
     }
   }
-  chprintf(chp, "%s%s%u", HTML_cbPart4a, name, value);
-  chprintf(chp, "%s%s%s", HTML_cbPart4b, label, HTML_cbPart5);
+  chprintf(chp, "%s%s%u", HTML_cbPart4, name, value);
+  chprintf(chp, "%s%s%s", HTML_e_tag, label, HTML_cbPart5);
 }
 /*
  *
@@ -216,6 +216,16 @@ void printDurationSelect(BaseSequentialStream *chp, const char name, const uint8
      chprintf(chp, "%s%s", durationSelect[i], HTML_e_option);
    }
    chprintf(chp, "%s", HTML_e_select);
+}
+/*
+ * Print a range slider input with a dynamic value display
+ */
+void printRangeInput(BaseSequentialStream *chp, const char name, const int16_t value,
+                     const int16_t min, const int16_t max, const char *suffix) {
+  chprintf(chp, "%s%d%s%d", HTML_range_tag_1, min, HTML_range_tag_2, max);
+  chprintf(chp, "%s%c%s", HTML_range_oninput, name, HTML_range_val_update);
+  chprintf(chp, " name='%c' value='%d' id='%c'>", name, value, name);
+  chprintf(chp, " %s%c%s%d%s%s%s", HTML_range_output_1, name, HTML_e_tag, value, HTML_e_span, suffix, HTML_div_e);
 }
 
 #endif /* OHS_HTTP_PRINT_H_ */

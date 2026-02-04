@@ -445,7 +445,7 @@ uint8_t checkKey(uint8_t groupNum, armType_t armType, uint8_t *key, uint8_t leng
                     // Zone not OK, cannot arm
                     sendCmdToGrp(groupNum, NODE_CMD_ARM_REJECTED, 'K'); // Send arm rejected to all Key nodes
                     tmpLog[0] = 'A'; tmpLog[1] = 'R'; tmpLog[2] = i; tmpLog[3] = j; pushToLog(tmpLog, 4); // Key, Zone
-                    break;// no need to try other
+                    return DUMMY_NO_VALUE; // exit function here
                   }
                 }
               }
@@ -885,22 +885,22 @@ static uint8_t decodeLog(char *in, char *out, bool full){
         if (in[1] != 'U') {
           chprintf(chp, "#%u, %s ", (uint8_t)in[2] + 1, TEXT_linked_to);
           if (conf.key[(uint8_t)in[2]].contact == DUMMY_NO_VALUE) chprintf(chp, "%s ", NOT_SET);
-          else chprintf(chp, "%s ", conf.contact[(conf.key[(uint8_t)in[2]].contact)].name);
+          else chprintf(chp, "%s", conf.contact[(conf.key[(uint8_t)in[2]].contact)].name);
           groupNum = GET_CONF_CONTACT_GROUP(conf.key[(uint8_t)in[2]].contact);
         }
       }
       switch(in[1]){
-        case 'D': chprintf(chp, "%s", TEXT_disarmed); break;
-        case 'A': chprintf(chp, "%s %s", TEXT_armed, TEXT_away); break;
-        case 'H': chprintf(chp, "%s %s", TEXT_armed, TEXT_home); break;
-        case 'R': chprintf(chp, "%s %s, %s: %u. %s ", TEXT_arm, TEXT_rejected, TEXT_zone, (uint8_t)in[3] + 1, conf.zoneName[(uint8_t)in[3]]); break;
-        case 'U': chprintf(chp, "%s %s ", TEXT_is, TEXT_unknown);
+        case 'D': chprintf(chp, ", %s", TEXT_disarmed); break;
+        case 'A': chprintf(chp, ", %s %s", TEXT_armed, TEXT_away); break;
+        case 'H': chprintf(chp, ", %s %s", TEXT_armed, TEXT_home); break;
+        case 'R': chprintf(chp, ", %s %s %s %s %u. %s", TEXT_arm, TEXT_rejected, TEXT_for, TEXT_zone, (uint8_t)in[3] + 1, conf.zoneName[(uint8_t)in[3]]); break;
+        case 'U': chprintf(chp, " %s %s ", TEXT_is, TEXT_unknown);
           if (full) {
             printKey(chp, (uint8_t *)&in[2]);
           }
           break;
-        case 'F': chprintf(chp, "%s %s", TEXT_is, TEXT_disabled); break;
-        default : chprintf(chp, "%s", TEXT_unknown); break;
+        case 'F': chprintf(chp, " %s %s", TEXT_is, TEXT_disabled); break;
+        default : chprintf(chp, " %s", TEXT_unknown); break;
       }
 
     break;

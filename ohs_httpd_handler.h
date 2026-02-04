@@ -119,7 +119,8 @@ static const webPage_t webPage[] = {
 };
 // HTML pages global variables to remember elements user works with last
 static uint8_t webNode = 0, webContact = 0, webKey = 0, webZone = 0,
-    webGroup = 0, webTimer = 0, webScript = DUMMY_NO_VALUE, webTrigger = 0;
+    webGroup = 0, webTimer = 0, webScript = DUMMY_NO_VALUE, webTrigger = 0,
+    webEnroll = 1;
 static char scriptName[NAME_LENGTH];
 static uint16_t webLog = 0;
 /*

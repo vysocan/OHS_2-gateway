@@ -75,6 +75,10 @@ static void fs_open_custom_node(BaseSequentialStream *chp) {
   chprintf(chp, "%s", getNodeTypeString(node[webNode].type));
   chprintf(chp, "%s%s%s", HTML_e_td_e_tr_tr_td, TEXT_Function, HTML_e_td_td);
   printNodeFunction(chp, node[webNode].function);
+  if ((node[webNode].type == 'K') && (node[webNode].function == 'f')) {
+    chprintf(chp, "%s%s%s", HTML_e_td_e_tr_tr_td, TEXT_Enroll, HTML_e_td_td);
+    printIntInput(chp, 'r', webEnroll, 2, 1, KEYS_SIZE);
+  }
   chprintf(chp, "%s%s %s%s", HTML_e_td_e_tr_tr_td, TEXT_Node, TEXT_is, HTML_e_td_td);
   printOnOffButton(chp, "0", GET_NODE_ENABLED(node[webNode].setting));
   chprintf(chp, "%s%s %s %s%s", HTML_e_td_e_tr_tr_td, TEXT_MQTT, TEXT_HA, TEXT_Discovery, HTML_e_td_td);
@@ -86,6 +90,9 @@ static void fs_open_custom_node(BaseSequentialStream *chp) {
   chprintf(chp, "%s%s", HTML_e_td_e_tr, HTML_e_table);
   // Buttons
   chprintf(chp, "%s%s", HTML_Apply, HTML_Reregister);
+  if ((node[webNode].type == 'K') && (node[webNode].function == 'f')) {
+    chprintf(chp, "%s", HTML_Enroll);
+  }
 }
 
 /*
@@ -159,6 +166,15 @@ static void httpd_post_custom_node(char **postDataP) {
         number = strtol(valueP, NULL, 10);
         SET_NODE_GROUP(node[webNode].setting, number);
       break;
+      case 'r': // enroll number
+        webEnroll = strtol(valueP, NULL, 10);
+        break;
+      case 'E': // enroll fingerprint
+        message[0] = 'F';
+        message[1] = 'E';
+        message[2] = (uint8_t)webEnroll;
+        resp = sendData(node[webNode].address, message, 3);
+        break;
       case 'e': // save
         writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
       break;
