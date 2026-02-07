@@ -445,7 +445,7 @@ uint8_t checkKey(uint8_t groupNum, armType_t armType, uint8_t *key, uint8_t leng
                     // Zone not OK, cannot arm
                     sendCmdToGrp(groupNum, NODE_CMD_ARM_REJECTED, 'K'); // Send arm rejected to all Key nodes
                     tmpLog[0] = 'A'; tmpLog[1] = 'R'; tmpLog[2] = i; tmpLog[3] = j; pushToLog(tmpLog, 4); // Key, Zone
-                    return DUMMY_NO_VALUE; // exit function here
+                    return resp; // exit function here
                   }
                 }
               }

@@ -128,6 +128,7 @@ void printNodeValue(BaseSequentialStream *chp, const uint8_t index) {
     case 'G': chprintf(chp, "%.2f ppm", node[index].value); break;
     case 'I': chprintf(chp, "%.0f lux", node[index].value); break;
     case 'i':
+    case 'f':
       // Check if key index is valid
       if ((uint8_t)node[index].value < KEYS_SIZE) {
         chprintf(chp, "%s", conf.contact[conf.key[(uint8_t)node[index].value].contact].name);
