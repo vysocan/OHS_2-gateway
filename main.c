@@ -122,13 +122,13 @@ char modemSmsText[160] __attribute__((section(".ram4")));
 #include "ohs_th_registration.h"
 #include "ohs_th_sensor.h"
 #include "ohs_th_modem.h"
-#include "ohs_th_alert.h"
 #include "ohs_th_service.h"
 #include "ohs_th_radio.h"
 #include "ohs_th_trigger.h"
 #include "ohs_th_tcl.h"
-#include <ohs_th_mqtt_pub.h>
-#include <ohs_th_mqtt_sub.h>
+#include "ohs_th_mqtt_pub.h"
+#include "ohs_th_mqtt_sub.h"
+#include "ohs_th_alert.h"
 #include "ohs_th_heartbeat.h"
 #define SHELL_WA_SIZE THD_WORKING_AREA_SIZE(2*1024)
 /*

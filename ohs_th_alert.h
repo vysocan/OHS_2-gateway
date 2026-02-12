@@ -40,7 +40,7 @@ static THD_FUNCTION(AlertThread, arg) {
   alertEvent_t *inMsg;
   uint8_t groupNum;
   int8_t resp;
-  err_t err; // lwip error type
+
 
   while (true) {
     msg = chMBFetchTimeout(&alert_mb, (msg_t*)&inMsg, TIME_INFINITE);
@@ -119,20 +119,7 @@ static THD_FUNCTION(AlertThread, arg) {
                 // Wait for free MQTT semaphore
                 if (chBSemWaitTimeout(&mqttSem, TIME_MS2I(100)) == MSG_OK) {
                   // publish
-                  LOCK_TCPIP_CORE();
-                  err = mqtt_publish(&mqtt_client, MQTT_ALERT_TOPIC, &modemSmsText[0], strlen(modemSmsText),
-                                     0, 0, mqttPubRequestCB, NULL);
-                  UNLOCK_TCPIP_CORE();
-                  if(err != ERR_OK) {
-                    chprintf(console, "MQTT error: %d\r\n", err);
-                    // Publish error
-                    tmpLog[0] = 'Q'; tmpLog[1] = 'E'; tmpLog[2] = 'P'; tmpLog[3] = abs(err); pushToLog(tmpLog, 4);
-                    // Release semaphore in case of publish error, as CB is not called
-                    chBSemSignal(&mqttSem);
-                  } else {
-                    chprintf(console, "MQTT OK\r\n");
-                    CLEAR_CONF_MQTT_SEMAPHORE_ERROR_LOG(conf.mqtt.setting);
-                  }
+                  mqttPublish(MQTT_ALERT_TOPIC, &modemSmsText[0], 0, 0);
                 } else {
                   chprintf(console, "MQTT timeout!\r\n");
                   // Log this event

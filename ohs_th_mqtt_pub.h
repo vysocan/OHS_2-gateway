@@ -23,6 +23,7 @@
  * Publish topics:
  * MQTT_MAIN_TOPIC - /OHS
  *   /state {On, Off} - Indicates if system is on
+ *   /alert {text} - Alert text from alert thread, e.g., "Alarm! Group 1 (Front Door) triggered!"
  *   /group
  *     /{#} - index of group
  *       /name
@@ -361,9 +362,17 @@ static err_t mqttPublish(const char *topic, const char *payload,
                      qos, retain, mqttPubRequestCB, NULL);
   UNLOCK_TCPIP_CORE();
 
-  DBG_MQTT_PUB(
-      "Publish Topic: %s, Payload: %s, QoS: %d, Retain: %d, Err: %d\r\n", topic,
-      payload, qos, retain, err);
+  if (err != ERR_OK) {
+    DBG_MQTT_PUB(" error: %d\r\n", err);
+    // Log error
+    tmpLog[0] = 'Q'; tmpLog[1] = 'E'; tmpLog[2] = 'P'; tmpLog[3] = abs(err);
+    pushToLog(tmpLog, 4);
+    // Release semaphore in case of publish error (callback won't be called)
+    chBSemSignal(&mqttSem);
+  } else {
+    DBG_MQTT_PUB(" OK\r\n");
+    CLEAR_CONF_MQTT_SEMAPHORE_ERROR_LOG(conf.mqtt.setting);
+  }
 
   return err;
 }
@@ -377,7 +386,7 @@ static THD_FUNCTION( MqttPubThread, arg) {
   chRegSetThreadName (arg);
 
   uint8_t counterMQTT = 225; // Force faster connect on start, 255-30 seconds
-  err_t err;
+
   msg_t msg;
   mqttPubEvent_t *inMsg;
   uint8_t qos;
@@ -475,19 +484,7 @@ static THD_FUNCTION( MqttPubThread, arg) {
     }
 
     // Publish message
-    err = mqttPublish (topic, mqttPayload, qos, retain);
-
-    if (err != ERR_OK) {
-      DBG_MQTT_PUB(" error: %d\r\n", err);
-      // Log error
-      tmpLog[0] = 'Q'; tmpLog[1] = 'E'; tmpLog[2] = 'P'; tmpLog[3] = abs(err);
-      pushToLog (tmpLog, 4);
-      // Release semaphore in case of publish error (callback won't be called)
-      chBSemSignal (&mqttSem);
-    } else {
-      DBG_MQTT_PUB(" OK\r\n");
-      CLEAR_CONF_MQTT_SEMAPHORE_ERROR_LOG (conf.mqtt.setting);
-    }
+    mqttPublish(topic, mqttPayload, qos, retain);
 
     free_msg:
     // Free message in all paths

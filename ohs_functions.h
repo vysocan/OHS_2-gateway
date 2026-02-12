@@ -279,6 +279,20 @@ void armGroup(uint8_t groupNum, uint8_t master, armType_t armType, uint8_t hop) 
   if (GET_CONF_GROUP_ENABLED(conf.group[groupNum].setting)){
     // Group not armed already
     if (!GET_GROUP_ARMED(group[groupNum].setting)){
+      // Check if all zones needed to arm this group are OK
+      for (uint8_t j = 0; j < ALARM_ZONES; j++) {
+        if (GET_CONF_ZONE_GROUP(conf.zone[j]) == groupNum) {
+          if (GET_CONF_ZONE_ENABLED(conf.zone[j])) {
+            if ((GET_CONF_ZONE_NEEDED(conf.zone[j])) && (zone[j].lastEvent != 'O')) {
+              // Zone not OK, cannot arm
+              sendCmdToGrp(groupNum, NODE_CMD_ARM_REJECTED, 'K'); // Send arm rejected to all Key nodes
+              tmpLog[0] = 'A'; tmpLog[1] = 'R'; tmpLog[2] = groupNum; tmpLog[3] = j; pushToLog(tmpLog, 4); // Key, Zone
+              return; // exit function here
+            }
+          }
+        }
+      }
+      // Set auth bit to allow nodes to send alarm status
       if (armType == armAway) {
         group[groupNum].armDelay = conf.armDelay * 4; // set arm delay * 0.250 seconds
       } else {
@@ -436,21 +450,8 @@ uint8_t checkKey(uint8_t groupNum, armType_t armType, uint8_t *key, uint8_t leng
                group[groupNum].armDelay > 0) {
             tmpLog[0] = 'A'; tmpLog[1] = 'D'; tmpLog[2] = i; pushToLog(tmpLog, 3); // Key
             disarmGroup(groupNum, groupNum, 0); // Disarm group and all chained groups
-          } else { // Just do arm
-            // Check if all zones needed to arm this group are OK
-            for (uint8_t j = 0; j < ALARM_ZONES; j++) {
-              if (GET_CONF_ZONE_GROUP(conf.zone[j]) == groupNum) {
-                if (GET_CONF_ZONE_ENABLED(conf.zone[j])) {
-                  if ((GET_CONF_ZONE_NEEDED(conf.zone[j])) && (zone[j].lastEvent != 'O')) {
-                    // Zone not OK, cannot arm
-                    sendCmdToGrp(groupNum, NODE_CMD_ARM_REJECTED, 'K'); // Send arm rejected to all Key nodes
-                    tmpLog[0] = 'A'; tmpLog[1] = 'R'; tmpLog[2] = i; tmpLog[3] = j; pushToLog(tmpLog, 4); // Key, Zone
-                    return resp; // exit function here
-                  }
-                }
-              }
-            }
-            // All zones OK, arm the group
+          } else {
+            // Just do arming
             tmpLog[0] = 'A';
             if (armType == armAway) tmpLog[1] = 'A';
             else                    tmpLog[1] = 'H';
