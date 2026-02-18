@@ -130,6 +130,7 @@ char modemSmsText[160] __attribute__((section(".ram4")));
 #include "ohs_th_mqtt_sub.h"
 #include "ohs_th_alert.h"
 #include "ohs_th_heartbeat.h"
+#include "ohs_th_serial_conf.h"
 #define SHELL_WA_SIZE THD_WORKING_AREA_SIZE(2*1024)
 /*
  * Application entry point.
@@ -149,6 +150,8 @@ int main(void) {
   chBSemObjectInit(&mqttSem, false);
   // Debug port
   sdStart(&SD3,  &serialCfg);
+  // Serial conf port (USART1)
+  sdStart(&SD1,  &serialConfCfg);
   chprintf(console, "\r\nOHS v.%u.%u.%u start\r\n", OHS_MAJOR, OHS_MINOR, OHS_MOD);
   // GPRS modem
   gprsInit(&UARTD6);
@@ -255,6 +258,7 @@ int main(void) {
   chThdCreateStatic(waMqttSubThread, sizeof(waMqttSubThread), NORMALPRIO - 6, MqttSubThread, (void*)"mqttSub");
   //chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg);
   chThdCreateStatic(waHeartBeatThread, sizeof(waHeartBeatThread), LOWPRIO, HeartBeatThread, (void*)"h-beat");
+  chThdCreateStatic(waSerialConfThread, sizeof(waSerialConfThread), NORMALPRIO - 4, SerialConfThread, (void*)"serConf");
 
   // LWIP
   stats_init();

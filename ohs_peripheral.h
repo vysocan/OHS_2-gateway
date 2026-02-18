@@ -61,6 +61,15 @@ static SerialConfig serialCfg = {
   0
 };
 /*
+ * Serial conf port setting (USART1)
+ */
+static SerialConfig serialConfCfg = {
+  115200,
+  0,
+  0,
+  0
+};
+/*
  * RS485 default setting
  */
 // OHS TODO modify port pad to line

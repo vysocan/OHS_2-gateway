@@ -671,8 +671,8 @@ typedef struct {
 
 // Zone struct
 typedef struct {
-  char     name[NAME_LENGTH];
   uint16_t setting;
+  char     name[NAME_LENGTH];
   uint8_t  address;
 } zone_conf_t;
 

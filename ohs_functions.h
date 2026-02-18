@@ -1059,79 +1059,49 @@ int8_t safeStrtoul(const char *str, uint32_t *result, int base) {
   return 1;
 }
 /*
- * @brief Safe   strnlen implementation
- * @param s      Input string
+ * @brief Safe strnlen implementation
+ * @param s      Input string (may not be null-terminated)
  * @param maxlen Maximum length to check
  * @return       Length of string up to maxlen
  */
-static size_t safeStrnLen(const char *s, size_t maxlen) {
+static inline size_t safeStrnLen(const char *s, size_t maxlen) {
     const char *p = memchr(s, 0, maxlen);
     return p ? (size_t)(p - s) : maxlen;
 }
 
 /**
- * Safe string comparison that respects buffer boundaries of both strings
+ * Safe string comparison that respects buffer boundaries of both strings.
+ * Optimized: checks length first for fast rejection, then single memcmp pass.
  *
- * @param s1    First string buffer
+ * @param s1    First string buffer (may not be null-terminated)
  * @param n1    Max size of first buffer
- * @param s2    Second string buffer
+ * @param s2    Second string buffer (may not be null-terminated)
  * @param n2    Max size of second buffer
  * @return      <0 if s1 < s2, >0 if s1 > s2, 0 if equal
  */
-int safeStrcmp2(const char *s1, size_t n1, const char *s2, size_t n2) {
+static inline int safeStrcmp2(const char *s1, size_t n1, const char *s2, size_t n2) {
     size_t l1 = safeStrnLen(s1, n1);
     size_t l2 = safeStrnLen(s2, n2);
 
-    // Compare up to the length of the shorter string
-    size_t limit = (l1 < l2) ? l1 : l2;
-    int cmp = strncmp(s1, s2, limit);
-
-    // If characters differ, we have our answer
-    if (cmp != 0) {
-        return cmp;
-    }
-
-    // If prefixes match, the shorter string is "less than" the longer one
-    if (l1 < l2) {
-        return -1; // s1 is shorter, so s1 < s2
-    } else if (l1 > l2) {
-        return 1;  // s1 is longer, so s1 > s2
-    }
-
-    // Strings are identical in content and length
-    return 0;
+    if (l1 != l2) return (l1 < l2) ? -1 : 1;
+    return memcmp(s1, s2, l1);
 }
+
 /**
  * Safe string comparison that respects buffer boundaries of first string only.
+ * Second string must be a normal null-terminated C string.
  *
- * @param s1    First string buffer
+ * @param s1    First string buffer (may not be null-terminated)
  * @param n1    Max size of first buffer
- * @param s2    Second string buffer
- * @param n2    Max size of second buffer
+ * @param s2    Second string (null-terminated)
  * @return      <0 if s1 < s2, >0 if s1 > s2, 0 if equal
  */
-int safeStrcmp1(const char *s1, size_t n1, const char *s2) {
+static inline int safeStrcmp1(const char *s1, size_t n1, const char *s2) {
     size_t l1 = safeStrnLen(s1, n1);
     size_t l2 = strlen(s2);
 
-    // Compare up to the length of the shorter string
-    size_t limit = (l1 < l2) ? l1 : l2;
-    int cmp = strncmp(s1, s2, limit);
-
-    // If characters differ, we have our answer
-    if (cmp != 0) {
-        return cmp;
-    }
-
-    // If prefixes match, the shorter string is "less than" the longer one
-    if (l1 < l2) {
-        return -1; // s1 is shorter, so s1 < s2
-    } else if (l1 > l2) {
-        return 1;  // s1 is longer, so s1 > s2
-    }
-
-    // Strings are identical in content and length
-    return 0;
+    if (l1 != l2) return (l1 < l2) ? -1 : 1;
+    return memcmp(s1, s2, l1);
 }
 /*
  * @brief Send SMS to contact
