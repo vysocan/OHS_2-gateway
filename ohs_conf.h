@@ -382,6 +382,12 @@ union uint32_tag {
   uint32_t val;
 } uint32Conv;
 
+// uint64_t conversion
+union uint64_tag {
+  uint8_t  byte[8];
+  uint64_t val;
+} uint64Conv;
+
 // Zones alarm events
 #define ALARM_EVENT_FIFO_SIZE 10
 typedef struct {

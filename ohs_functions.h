@@ -420,6 +420,20 @@ uint32_t sdbmHash(uint8_t *toHash, uint8_t length) {
   return hash;
 }
 /*
+ * @brief FNV-1a hash function
+ * @param toHash Pointer to the data to hash
+ * @param length Length of the data to hash
+ * @return FNV-1a hash of the data
+ */
+uint64_t fnv1aHash64(uint8_t *toHash, uint8_t length) {
+  uint64_t hash = 0xcbf29ce484222325ULL; // FNV offset basis
+  while (length--) {
+    hash ^= (uint64_t)*toHash++;
+    hash *= 0x100000001b3ULL;     // FNV prime
+  }
+  return hash;
+}
+/*
  * Check key value to saved keys
  *
  * @retval If key matches then key index, else DUMMY_NO_VALUE
@@ -1049,6 +1063,32 @@ int8_t safeStrtoul(const char *str, uint32_t *result, int base) {
   char *endptr;
   errno = 0;
   *result = strtoul(str, &endptr, base);
+  if (errno == ERANGE) {
+    return 0; // Error out of range
+  }
+  if (endptr == str || *endptr != '\0') {
+    return 0; // Error invalid number
+  }
+
+  return 1;
+}
+/**
+ * Safe strtoull() with error handling
+ *
+ * @param str Input string to parse
+ * @param result Pointer to store parsed value
+ * @param base Numeric base (10, 16, etc.)
+ * @return 1 on success, 0 on error
+ */
+int8_t safeStrtoull(const char *str, uint64_t *result, int base) {
+
+  if (str == NULL || *str == '\0') {
+    return 0; // Error empty string
+  }
+
+  char *endptr;
+  errno = 0;
+  *result = strtoull(str, &endptr, base);
   if (errno == ERANGE) {
     return 0; // Error out of range
   }
