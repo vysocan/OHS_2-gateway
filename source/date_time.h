@@ -18,7 +18,7 @@
 #define SECONDS_PER_MINUTE  60U
 #define MINUTES_PER_HOUR    60U
 #define RTC_LEAP_YEAR(year) ((((year) % 4 == 0) && ((year) % 100 != 0)) || ((year) % 400 == 0))
-#define RTC_DAYS_IN_YEAR(x) RTC_LEAP_YEAR(x) ? 366 : 365
+#define RTC_DAYS_IN_YEAR(x) (RTC_LEAP_YEAR(x) ? 366 : 365)
 #define RTC_OFFSET_YEAR     1970
 
 //extern volatile uint32_t RTCTimestamp;

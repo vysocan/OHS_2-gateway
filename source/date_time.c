@@ -1,41 +1,53 @@
 /*
  * date_time.c
  *
- *  Created on: 13. 10. 2020
+ *  Created on: 13. 10. 2020 - 
  *      Author: Adam Baron
  */
 #include "date_time.h"
-#include "chprintf.h"
+//#include "chprintf.h"
 
 // SNTP timestamp to compare
 //volatile uint32_t RTCTimestamp = 0;
 //volatile int32_t  RTCDeviation = 0;
 
-/*
- * Days in a month
- */
+// Days in a month
 static const uint8_t TM_RTC_Months[2][12] = {
     {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31},   /* Not leap year */
     {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}    /* Leap year */
 };
+// Cumulative days in a year
+static const uint16_t cumDays[2][13] = {
+  {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365},  // normal
+  {0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366}   // leap
+};
+// Number of days from year 0 to the start of 'year'
+/* 
+ * @param year - full year (e.g. 2026)
+ * @retval days - number of days from year 0 to the start of 'year'
+ */
+static inline uint32_t daysToYear(uint16_t year) {
+  uint16_t y = year - 1;
+  return 365U * (year - RTC_OFFSET_YEAR)
+       + (y / 4   - (RTC_OFFSET_YEAR - 1) / 4)
+       - (y / 100 - (RTC_OFFSET_YEAR - 1) / 100)
+       + (y / 400 - (RTC_OFFSET_YEAR - 1) / 400);
+}
 /*
- * Convert RTCDateTime to seconds NOT using tm (ISO C `broken-down time' structure.)
+ * @brief Convert RTCDateTime to seconds NOT using tm (ISO C `broken-down time' structure.)
+ * @param dateTime - pointer to RTCDateTime structure
+ * @retval seconds - number of seconds from 1970-01-01 00:00:00
  */
 uint32_t convertRTCDateTimeToUnixSecond(RTCDateTime *dateTime) {
   uint32_t days = 0, seconds = 0;
-  uint16_t i;
   uint16_t year = (uint16_t) (dateTime->year + 1980);
 
   // Year is below offset year
   if (year < RTC_OFFSET_YEAR) return 0;
   // Days in previous years
-  for (i = RTC_OFFSET_YEAR; i < year; i++) {
-    days += RTC_DAYS_IN_YEAR(i);
-  }
+  days = daysToYear(year);
   // Days in current year
-  for (i = 1; i < dateTime->month; i++) {
-    days += TM_RTC_Months[RTC_LEAP_YEAR(year)][i - 1];
-  }
+  days += cumDays[RTC_LEAP_YEAR(year)][dateTime->month - 1];
   // Day starts with 1
   days += dateTime->day - 1;
   seconds = days * SECONDS_PER_DAY;
@@ -44,14 +56,13 @@ uint32_t convertRTCDateTimeToUnixSecond(RTCDateTime *dateTime) {
   return seconds;
 }
 /*
- * Get Daylight Saving Time for particular rule
- *
- * @parm year - 1900
- * @parm month - 1=Jan, 2=Feb, ... 12=Dec
- * @parm week - 1=First, 2=Second, 3=Third, 4=Fourth, or 0=Last week of the month
- * @parm dow, Day of week - 0=Sun, 1=Mon, ... 6=Sat
- * @parm hour - 0 - 23
- * @retval seconds
+ * @brief Get Daylight Saving Time for particular rule
+ * @param year - 1900
+ * @param month - 1=Jan, 2=Feb, ... 12=Dec
+ * @param week - 1=First, 2=Second, 3=Third, 4=Fourth, or 0=Last week of the month
+ * @param dow - Day of week - 0=Sun, 1=Mon, ... 6=Sat
+ * @param hour - 0 - 23
+ * @retval seconds - number of seconds from 1970-01-01 00:00:00
  */
 uint32_t calculateDST(uint16_t year, uint8_t month, uint8_t week, uint8_t dow, uint8_t hour){
   RTCDateTime dstDateTime;
@@ -92,7 +103,9 @@ uint32_t calculateDST(uint16_t year, uint8_t month, uint8_t week, uint8_t dow, u
   return rawtime;
 }
 /*
- * Convert seconds to RTCDateTime NOT using tm (ISO C `broken-down time' structure.)
+ * @brief Convert seconds to RTCDateTime NOT using tm (ISO C `broken-down time' structure.)
+ * @param dateTime - pointer to RTCDateTime structure
+ * @param unixSeconds - number of seconds from 1970-01-01 00:00:00
  */
 void convertUnixSecondToRTCDateTime(RTCDateTime* dateTime, uint32_t unixSeconds) {
   uint16_t year;
@@ -105,14 +118,9 @@ void convertUnixSecondToRTCDateTime(RTCDateTime* dateTime, uint32_t unixSeconds)
   // Get year
   year = 1970;
   while (true) {
-    if (RTC_LEAP_YEAR(year)) {
-      if (unixSeconds >= 366) {
-        unixSeconds -= 366;
-      } else {
-        break;
-      }
-    } else if (unixSeconds >= 365) {
-      unixSeconds -= 365;
+    uint16_t daysInYear = RTC_DAYS_IN_YEAR(year);
+    if (unixSeconds >= daysInYear) {
+      unixSeconds -= daysInYear;
     } else {
       break;
     }
@@ -121,15 +129,10 @@ void convertUnixSecondToRTCDateTime(RTCDateTime* dateTime, uint32_t unixSeconds)
   // Get year in xx format
   dateTime->year = year - 1980;
   // Get month
+  uint8_t leap = RTC_LEAP_YEAR(year);
   for (dateTime->month = 0; dateTime->month < 12; dateTime->month++) {
-    if (RTC_LEAP_YEAR(year)) {
-      if (unixSeconds >= (uint32_t)TM_RTC_Months[1][dateTime->month]) {
-        unixSeconds -= TM_RTC_Months[1][dateTime->month];
-      } else {
-        break;
-      }
-    } else if (unixSeconds >= (uint32_t)TM_RTC_Months[0][dateTime->month]) {
-      unixSeconds -= TM_RTC_Months[0][dateTime->month];
+    if (unixSeconds >= (uint32_t)TM_RTC_Months[leap][dateTime->month]) {
+      unixSeconds -= TM_RTC_Months[leap][dateTime->month];
     } else {
       break;
     }

@@ -1,6 +1,7 @@
 /build/
 /.dep/
 /.settings/
+/.agent/
 
 // ignore files
 *.css
