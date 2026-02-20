@@ -203,6 +203,19 @@ static THD_FUNCTION(RS485Thread, arg) {
               } while (index < rs485Msg.length);
               DBG_RS485("\r\n");
               break;
+            case MP_MARKER: { // Multipart message
+              int8_t mpResp = multipartRxProcess(&mpRx, rs485Msg.address,
+                                                  rs485Msg.data, rs485Msg.length);
+              if (mpResp == 1) {
+                // Message complete in mpRx.data[0..mpRx.totalLength-1]
+                DBG_RS485("MP: reassembled %u bytes, type '%c'\r\n",
+                           mpRx.totalLength, mpRx.data[0]);
+                // TODO: handle reassembled message from mpRx.data / mpRx.totalLength
+                multipartRxReset(&mpRx);
+              } else if (mpResp < 0) {
+                DBG_RS485("MP: error\r\n");
+              }
+            } break;
           } // switch case
         } // data
       } // MSG_OK

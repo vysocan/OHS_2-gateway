@@ -178,6 +178,20 @@ static THD_FUNCTION(RadioThread, arg) {
           } while (index < rfm69Data.length);
           DBG_RADIO("\r\n");
           break;
+        case MP_MARKER: { // Multipart message
+          int8_t mpResp = multipartRxProcess(&mpRx,
+                            rfm69Data.senderId + RADIO_UNIT_OFFSET,
+                            rfm69Data.data, rfm69Data.length);
+          if (mpResp == 1) {
+            // Message complete in mpRx.data[0..mpRx.totalLength-1]
+            DBG_RADIO("MP: reassembled %u bytes, type '%c'\r\n",
+                       mpRx.totalLength, mpRx.data[0]);
+            // TODO: handle reassembled message from mpRx.data / mpRx.totalLength
+            multipartRxReset(&mpRx);
+          } else if (mpResp < 0) {
+            DBG_RADIO("MP: error\r\n");
+          }
+        } break;
       } // switch case
 
       // Data queue for sleeping nodes

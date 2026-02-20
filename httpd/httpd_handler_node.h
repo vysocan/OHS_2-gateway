@@ -181,6 +181,7 @@ static void httpd_post_custom_node(char **postDataP) {
         message[1] = 'D';
         message[2] = (uint8_t) webEnroll;
         resp = sendData(node[webNode].address, message, 3);
+        break;
       case 'e': // save
         writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
       break;

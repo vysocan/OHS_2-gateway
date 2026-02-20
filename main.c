@@ -70,6 +70,7 @@ char mqttHadUid[12];
 #include "date_time.h"
 #include "ohs_peripheral.h"
 #include "ohs_functions.h"
+#include "ohs_multipart.h"
 
 // GPRS
 #include "gprs.h"
