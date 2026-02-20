@@ -156,6 +156,7 @@ const char durationSelect[][10] = {
 #define TEXT_Queued                   "Queued"
 #define TEXT_Value                    "Value"
 #define TEXT_Enroll                   "Enroll"
+#define TEXT_Fingerprint              "Fingerprint"
 #define TEXT_Number                   "Number"
 #define TEXT_Email                    "Email"
 #define TEXT_Global                   "Global"

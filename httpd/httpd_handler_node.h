@@ -76,7 +76,7 @@ static void fs_open_custom_node(BaseSequentialStream *chp) {
   chprintf(chp, "%s%s%s", HTML_e_td_e_tr_tr_td, TEXT_Function, HTML_e_td_td);
   printNodeFunction(chp, node[webNode].function);
   if ((node[webNode].type == 'K') && (node[webNode].function == 'f')) {
-    chprintf(chp, "%s%s%s", HTML_e_td_e_tr_tr_td, TEXT_Enroll, HTML_e_td_td);
+    chprintf(chp, "%s%s%s", HTML_e_td_e_tr_tr_td, TEXT_Fingerprint, HTML_e_td_td);
     printIntInput(chp, 'r', webEnroll, 2, 1, KEYS_SIZE);
   }
   chprintf(chp, "%s%s %s%s", HTML_e_td_e_tr_tr_td, TEXT_Node, TEXT_is, HTML_e_td_td);
@@ -92,6 +92,7 @@ static void fs_open_custom_node(BaseSequentialStream *chp) {
   chprintf(chp, "%s%s", HTML_Apply, HTML_Reregister);
   if ((node[webNode].type == 'K') && (node[webNode].function == 'f')) {
     chprintf(chp, "%s", HTML_Enroll);
+    chprintf(chp, "%s", HTML_Delete);
   }
 }
 
@@ -175,6 +176,11 @@ static void httpd_post_custom_node(char **postDataP) {
         message[2] = (uint8_t)webEnroll;
         resp = sendData(node[webNode].address, message, 3);
         break;
+      case 'D': // delete fingerprint
+        message[0] = 'F';
+        message[1] = 'D';
+        message[2] = (uint8_t) webEnroll;
+        resp = sendData(node[webNode].address, message, 3);
       case 'e': // save
         writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
       break;

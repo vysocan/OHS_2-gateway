@@ -86,15 +86,6 @@
 #error "NODE_SIZE is set to high!"
 #endif
 
-// Time related
-#define SECONDS_PER_DAY     86400U
-#define SECONDS_PER_HOUR    3600U
-#define SECONDS_PER_MINUTE  60U
-#define MINUTES_PER_HOUR    60U
-#define RTC_LEAP_YEAR(year) ((((year) % 4 == 0) && ((year) % 100 != 0)) || ((year) % 400 == 0))
-#define RTC_DAYS_IN_YEAR(x) RTC_LEAP_YEAR(x) ? 366 : 365
-#define RTC_OFFSET_YEAR     1970
-
 // Node commands
 #define NODE_CMD_ACK          0
 #define NODE_CMD_REGISTRATION 1

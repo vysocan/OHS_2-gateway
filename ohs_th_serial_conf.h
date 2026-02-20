@@ -644,7 +644,7 @@ static THD_FUNCTION(SerialConfThread, arg) {
 
   bool ok, hasData;
   uint8_t cmd, index, fieldLen;
-  uint8_t fieldBuf[32];
+  char fieldBuf[32];
   uint16_t payloadLen, rxCrc;
   uint32_t len, mapCount;  
   size_t dataPos;
@@ -654,7 +654,7 @@ static THD_FUNCTION(SerialConfThread, arg) {
 
   while (true) {
     /* Wait for STX */    
-    dataPos = sdReadTimeout(&SD1, &index, 1, TIME_MS2I(500));
+    dataPos = sdReadTimeout(&SD1, &index, 1, TIME_INFINITE);
     if (dataPos == 0 || index != SC_STX) continue;
 
     /* Read CMD */    
@@ -663,7 +663,7 @@ static THD_FUNCTION(SerialConfThread, arg) {
 
     /* Read LEN (2 bytes LE) */
     
-    dataPos = sdReadTimeout(&SD1, fieldBuf, 2, TIME_MS2I(100));
+    dataPos = sdReadTimeout(&SD1, (uint8_t *)fieldBuf, 2, TIME_MS2I(100));
     if (dataPos < 2) continue;
     payloadLen = (uint16_t)fieldBuf[0] | ((uint16_t)fieldBuf[1] << 8);
 
@@ -676,7 +676,7 @@ static THD_FUNCTION(SerialConfThread, arg) {
     }
 
     /* Read & verify CRC16 */    
-    dataPos = sdReadTimeout(&SD1, fieldBuf, 2, TIME_MS2I(100));
+    dataPos = sdReadTimeout(&SD1, (uint8_t *)fieldBuf, 2, TIME_MS2I(100));
     if (dataPos < 2) continue;
     rxCrc = (uint16_t)fieldBuf[0] | ((uint16_t)fieldBuf[1] << 8);
     if (rxCrc != scCalcFrameCrc(cmd, scRxBuf, payloadLen)) {
