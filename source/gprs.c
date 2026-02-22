@@ -3,7 +3,6 @@
  * Version 1.1
  * Adam Baron 2020-2026
  *
- *
  */
 
 #include <gprs.h>
@@ -150,7 +149,7 @@ uint8_t gprsReadMsg(uint8_t *where, uint8_t responseLength) {
 
   responseLength--; // Subtract one to allow NULL termination
 
-  DBG("Msg: %d\r\n", gprsRingBuffer.message);// chThdSleepMilliseconds(50);
+  DBG("Msg: %d\r\n", gprsRingBuffer.message);
   do {
     rb = gprsRead();
     DBG("%x|%d, ", rb, count);
@@ -172,7 +171,7 @@ static uint8_t gprsWaitAndReadMsg(uint8_t *where, uint8_t responseLength, uint16
 
   responseLength--; // Subtract one to allow NULL termination
 
-  DBG("WaitMsg: %d\r\n", gprsRingBuffer.message);// chThdSleepMilliseconds(50);
+  DBG("WaitMsg: %d\r\n", gprsRingBuffer.message);
   do {
     // Wait for line
     while ((gprsRingBuffer.message == 0) && (waitCount < wait)) {
