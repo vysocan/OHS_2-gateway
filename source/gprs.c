@@ -1,17 +1,12 @@
 /*
  * Modem handler to parse AT commands
- * Version 1.0
- * Adam Baron 2020
+ * Version 1.1
+ * Adam Baron 2020-2026
  *
  *
  */
 
 #include <gprs.h>
-
-/* TODO OHS rewrite the gprs to use UART driver or create special driver,
- * since iqueue is created and not used.
- * Queues are blocking.
- */
 
 #ifndef GPRS_DEBUG
 #define GPRS_DEBUG 0
