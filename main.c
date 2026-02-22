@@ -59,11 +59,6 @@ struct tcl tcl;
 #define LOG_TEXT_LENGTH 80
 char logText[LOG_TEXT_LENGTH] __attribute__((section(".ram4"))); // To decode log text
 
-// MQTT HAD
-#define MQTT_PAYLOAD_LENGTH 512 // same as MQTT_OUTPUT_RINGBUF_SIZE in lwipopts.h
-char mqttPayload[MQTT_PAYLOAD_LENGTH] __attribute__((section(".ram4"))); // To decode log text
-char mqttHadUid[12];
-
 // OHS includes
 #include "ohs_text_const.h"
 #include "ohs_conf.h"
@@ -108,6 +103,10 @@ char modemSmsText[160] __attribute__((section(".ram4")));
 // MQTT
 #include "lwip/apps/mqtt_priv.h" // Needed for conf.mqtt
 #include "lwip/apps/mqtt.h"
+// MQTT HAD
+#define MQTT_PAYLOAD_LENGTH MQTT_OUTPUT_RINGBUF_SIZE // same as MQTT_OUTPUT_RINGBUF_SIZE in lwipopts.h
+char mqttPayload[MQTT_PAYLOAD_LENGTH] __attribute__((section(".ram4"))); // To decode log text
+char mqttHadUid[12];
 #include "ohs_mqtt_functions.h"
 // mDNS
 #include "ohs_mdns_functions.h"

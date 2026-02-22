@@ -202,6 +202,9 @@ static void cmd_ubs_show_fram(BaseSequentialStream *chp, uint16_t block) {
 
 /*
  * Applet to uBS
+ * Usage: ubs show - show uBS status
+ *        ubs show N - show Nth block
+ *        ubs format - format uBS
  */
 static void cmd_ubs(BaseSequentialStream *chp, int argc, char *argv[]) {
 
@@ -402,6 +405,38 @@ void cmd_showpin (BaseSequentialStream *chp, int argc, char **argv) // Debug: pi
 }
 #endif
 /*
+ * Applet to send commands to modem
+ */
+static void cmd_modem(BaseSequentialStream *chp, int argc, char *argv[]) {
+  int8_t resp;
+  uint8_t response[80];
+
+  if (argc == 2) {
+    if (strcmp(argv[0], "cmd") == 0) {
+      if (chBSemWaitTimeout(&gprsSem, TIME_S2I(1)) == MSG_OK) {
+        resp = gprsSendCmd(argv[1]);
+        chBSemSignal(&gprsSem);
+        chprintf(chp, "Result: %d" SHELL_NEWLINE_STR, resp);
+      } else {
+        chprintf(chp, "Modem busy." SHELL_NEWLINE_STR);
+      }
+      return;
+    } else if (strcmp(argv[0], "cmdWR") == 0) {
+      if (chBSemWaitTimeout(&gprsSem, TIME_S2I(1)) == MSG_OK) {
+        resp = gprsSendCmdWR(argv[1], response, sizeof(response));
+        chBSemSignal(&gprsSem);
+        chprintf(chp, "Result: %d, Response: %s" SHELL_NEWLINE_STR, resp, response);
+      } else {
+        chprintf(chp, "Modem busy." SHELL_NEWLINE_STR);
+      }
+      return;
+    }
+  }
+
+  // Usage
+  shellUsage(chp, "modem cmd <AT command> | cmdWR <AT command>");
+}
+/*
  * Shell commands
  */
 static const ShellCommand commands[] = {
@@ -413,6 +448,7 @@ static const ShellCommand commands[] = {
   {"network",  cmd_net},
   {"boot",  cmd_boot},
   {"reset",  cmd_reset},
+  {"modem",  cmd_modem},
 #if SHELL_SHOW_PIN
   {"showpin", cmd_showpin},
 #endif

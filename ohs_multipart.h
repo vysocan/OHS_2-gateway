@@ -37,7 +37,7 @@
 #define MP_CHUNK_PAYLOAD   58      // min(RS485_MSG_SIZE, RF69_MAX_DATA_LEN) - MP_HEADER_SIZE
 #define MP_MAX_MSG_SIZE    1536    // 1.5 kB max reassembled message
 #define MP_MAX_CHUNKS      32      // limited by uint32_t bitmask
-#define MP_TIMEOUT_MS      5000    // timeout for incomplete reassembly
+#define MP_TIMEOUT_MS      3000    // timeout for incomplete reassembly
 
 /*===========================================================================*/
 /* Data structures                                                           */
@@ -53,15 +53,7 @@ typedef struct {
   bool      active;                // reassembly in progress
 } multipartRx_t;
 
-/*===========================================================================*/
-/* Shared reassembly buffer                                                  */
-/*===========================================================================*/
-
 static multipartRx_t mpRx;
-
-/*===========================================================================*/
-/* Receive-side functions                                                    */
-/*===========================================================================*/
 
 /*
  * @brief Reset the reassembly buffer
@@ -185,10 +177,6 @@ static inline int8_t multipartRxProcess(multipartRx_t *rx, uint8_t sender,
 
   return 0;
 }
-
-/*===========================================================================*/
-/* Send-side function                                                        */
-/*===========================================================================*/
 
 /*
  * Send a message that may be larger than a single transport packet.
