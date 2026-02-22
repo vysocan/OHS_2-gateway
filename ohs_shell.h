@@ -440,18 +440,18 @@ static void cmd_modem(BaseSequentialStream *chp, int argc, char *argv[]) {
  * Shell commands
  */
 static const ShellCommand commands[] = {
-  {"date",  cmd_date},
-  {"log",  cmd_log},
-  {"thread",  cmd_thread},
-  {"debug",  cmd_debug},
-  {"ubs",  cmd_ubs},
-  {"network",  cmd_net},
   {"boot",  cmd_boot},
-  {"reset",  cmd_reset},
+  {"date",  cmd_date},
+  {"debug",  cmd_debug},
+  {"log",  cmd_log},
   {"modem",  cmd_modem},
+  {"network",  cmd_net},
+  {"reset",  cmd_reset},
 #if SHELL_SHOW_PIN
   {"showpin", cmd_showpin},
 #endif
+  {"thread",  cmd_thread},
+  {"ubs",  cmd_ubs},
   {NULL, NULL}
 };
 /*
