@@ -138,6 +138,9 @@ static void httpd_post_custom_node(char **postDataP) {
           if (node[webNode].queue != NULL) {
             memcpy(node[webNode].queue, &message[0], REG_PACKET_SIZE + 1);
           }
+          // Show warning
+          chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "Packet not delivered, but queued.");
+          httpAlert.type = ALERT_WARN;
         }
       break;
       case 'n': // name

@@ -39,6 +39,7 @@
 #define AT_DOWNLOAD        "DOWNLOAD"  //
 #define AT_HTTPDATA        "AT+HTTPDATA="
 #define AT_DATA_SIZE       "+HTTPREAD:"
+#define AT_send_sms_prompt "> "
 //
 #define AT_RING_BUFFER_SIZE 256
 

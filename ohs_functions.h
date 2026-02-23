@@ -976,8 +976,8 @@ static uint8_t decodeLog(char *in, char *out, bool full){
       chprintf(chp, "%s", TEXT_Empty);
     break;
     default: chprintf(chp, "%s", TEXT_Undefined);
-      for(uint16_t ii = 0; ii < LOGGER_MSG_LENGTH; ii++) {
-        chprintf(chp, "-%x", in[ii], in[ii]);
+      for(uint8_t j = 0; j < LOGGER_MSG_LENGTH; j++) {
+        chprintf(chp, "-%.2x", in[j]);
       }
     break; // unknown
   }

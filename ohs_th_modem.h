@@ -194,7 +194,8 @@ static THD_FUNCTION ( ModemThread, arg) {
             // Process SMS text
             resp = cmdProcess(modemSmsText, smsTopCommands, ARRAY_COUNT(smsTopCommands), logText, LOG_TEXT_LENGTH);
             DBG_MODEM("SMS command processed, status: %d, response: %s\r\n", resp, logText);
-            if (resp == CMD_OK) {
+            // In not ERROR send reply
+            if (resp != CMD_ERROR) {
               // Send reply SMS
               resp = sendSMSToContact(contactIndex, logText);
               DBG_MODEM("Reply SMS sent, status: %d\r\n", resp);

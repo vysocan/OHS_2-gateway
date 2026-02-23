@@ -203,7 +203,7 @@ static void appendCmdHelp(const cmdEntry_t *cmd, uint8_t indent_level,
   for (uint8_t i = 0; i < indent_level; i++) {
     chprintf(chp, "%s", INDENT_STR);
   }
-  chprintf(chp, "%s\n", cmd->name);
+  chprintf(chp, "%s\r\n", cmd->name);
 }
 
 /*
@@ -238,13 +238,13 @@ cmdStatus_t cmdHandleHelp(const char *tokens[], uint8_t token_count,
   (void) token_count;
 
   if (!g_cmd_table || g_cmd_table_count == 0) {
-    chprintf(chp, "ERROR: Command table not initialized\n");
+    chprintf(chp, "ERROR: Command table not initialized\r\n");
     return CMD_ERROR;
   }
 
-  chprintf(chp, "Commands:\n");
+  chprintf(chp, "Commands:\r\n");
   appendTreeHelp (g_cmd_table, g_cmd_table_count, 0, chp);
-  chprintf(chp, "\n");
+  chprintf(chp, "\r\n");
   return CMD_OK;
 }
 

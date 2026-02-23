@@ -8,7 +8,7 @@
 #include <gprs.h>
 
 #ifndef GPRS_DEBUG
-#define GPRS_DEBUG 0
+#define GPRS_DEBUG 1
 #endif
 
 #if GPRS_DEBUG
@@ -260,21 +260,21 @@ int8_t gprsSendCmdWR(char *what, uint8_t *response, uint8_t responseLength) {
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
   DBG("1>%s<\r\n", (char*)gprsATreply);
   if (resp == 0) return -11;                     // timeout reached
-  if (resp != strlen(what)) return -21;          // echo not match
+  if (resp != strlen(what)) return -12;          // echo not match
   if (memcmp(what, gprsATreply, resp) != 0) return -1; // compare echo
 
   // Get output
   resp = gprsWaitAndReadMsg(response, responseLength, AT_WAIT);
   // done in above //response[respLength] = 0;   // terminate the response by null
   DBG("2>%s<\r\n", (char*)response);
-  if (resp == 0) return -12;                     // timeout reached
-  if (memcmp(AT_ERROR_reply, response, strlen(AT_ERROR_reply)) == 0) return -22; // Error reply
+  if (resp == 0) return -21;                     // timeout reached
+  if (memcmp(AT_ERROR_reply, response, strlen(AT_ERROR_reply)) == 0) return -2; // Error reply
 
   // Get OK / ERROR
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
   DBG("3>%s\r\n", (char*)gprsATreply);
-  if (resp == 0) return -13;                     // timeout reached
-  if (resp != strlen(AT_OK)) return -23;         // 'OK' size
+  if (resp == 0) return -31;                     // timeout reached
+  if (resp != strlen(AT_OK)) return -32;         // 'OK' size
   if (memcmp(AT_OK, gprsATreply, resp) != 0) return -3; // compare OK
 
   return 1;                                      // All OK
@@ -313,15 +313,15 @@ int8_t gprsSendCmdWRI(char *what, uint8_t *response, uint8_t responseLength, uin
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
   DBG("1>%s<\r\n", (char*)gprsATreply);
   if (resp == 0) return -11;                     // timeout reached
-  if (resp != strlen(what)) return -21;          // echo not match
+  if (resp != strlen(what)) return -12;          // echo not match
   if (memcmp(what, gprsATreply, resp) != 0) return -1; // compare echo
 
   // Get output
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
   // done in above //response[resp] = 0;        // terminate the response by null
   DBG("2>%s<\r\n", (char*)gprsATreply);
-  if (resp == 0) return -12;                    // timeout reached
-  if (memcmp(AT_ERROR_reply, response, strlen(AT_ERROR_reply)) == 0) return -22; // Error reply
+  if (resp == 0) return -21;                    // timeout reached
+  if (memcmp(AT_ERROR_reply, response, strlen(AT_ERROR_reply)) == 0) return -2; // Error reply
 
   // Get index
   pch = strtok((char*)gprsATreply," ,.-");
@@ -337,9 +337,9 @@ int8_t gprsSendCmdWRI(char *what, uint8_t *response, uint8_t responseLength, uin
 
   // Get OK / ERROR
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
-  DBG("4>%s\r\n", (char*)gprsATreply);
-  if (resp == 0) return -13;                    // timeout reached
-  if (resp != strlen(AT_OK)) return -23;        // 'OK' size
+  DBG("4>%s<\r\n", (char*)gprsATreply);
+  if (resp == 0) return -31;                    // timeout reached
+  if (resp != strlen(AT_OK)) return -32;        // 'OK' size
   if (memcmp(AT_OK, gprsATreply, resp) != 0) return -3; // compare OK
 
   return respIndex;                             // index returned
@@ -361,10 +361,15 @@ int8_t gprsSendSMSBegin(const char *number) {
 
   // Echo
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
-  DBG("sms-b>%s\r\n", (char*)gprsATreply);
+  DBG("sms-b1>%s<\r\n", (char*)gprsATreply);
   if (resp == 0) return -11; // timeout reached
   if (memcmp(AT_send_sms, gprsATreply, strlen(AT_send_sms)) != 0) return -1; // compare only command part, echo not match
 
+  // Wait for '>' prompt
+  resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
+  DBG("sms-b2>%s<\r\n", (char*)gprsATreply);
+  if (resp == 0) return -21; // timeout reached
+  if (memcmp(AT_send_sms_prompt, gprsATreply, strlen(AT_send_sms_prompt)) != 0) return -2; // compare prompt)
   return 1;
 }
 /*
@@ -382,18 +387,24 @@ int8_t gprsSendSMSEnd(const char *what) {
   // End of SMS
   chprintf((BaseSequentialStream *)&UartS, "%s%c", what, AT_CTRL_Z); // Ctrl+z
 
+  // Echo
+  resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
+  DBG("sms-e1>%s<\r\n", (char*)gprsATreply);
+  if (resp == 0) return -11; // timeout reached
+  if (memcmp(what, gprsATreply, strlen(what)) != 0) return -1; // compare only SMS text part, echo not match
+
   // Wait for SMS reply
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT*10);
-  DBG("sms-e1>%s\r\n", (char*)gprsATreply);
-  if (resp == 0) return -11; // timeout reached, waiting for network ACK
-  if (memcmp(AT_send_sms_reply, gprsATreply, strlen(AT_send_sms_reply)) != 0) return -1; // compare strlen
+  DBG("sms-e2>%s<\r\n", (char*)gprsATreply);
+  if (resp == 0) return -21; // timeout reached, waiting for network ACK
+  if (memcmp(AT_send_sms_reply, gprsATreply, strlen(AT_send_sms_reply)) != 0) return -2; // compare strlen
 
   // Get OK / ERROR
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
-  DBG("sms-e2>%s\r\n", (char*)gprsATreply);
-  if (resp == 0) return -12;                            // timeout reached
-  if (resp != strlen(AT_OK)) return -22;                // 'OK' size
-  if (memcmp(AT_OK, gprsATreply, resp) != 0) return -2; // compare OK
+  DBG("sms-e3>%s<\r\n", (char*)gprsATreply);
+  if (resp == 0) return -31;                            // timeout reached
+  if (resp != strlen(AT_OK)) return -32;                // 'OK' size
+  if (memcmp(AT_OK, gprsATreply, resp) != 0) return -3; // compare OK
 
   return 1;
 }
@@ -426,7 +437,7 @@ int8_t gprsGetSMS(uint8_t index, uint8_t *telNumber, uint8_t telNumberLength, ui
   memset(telNumber, 0, telNumberLength);
 
   chprintf((BaseSequentialStream *)&UartS, "%s%d\r", AT_read_sms, index);
-  DBG("GSMS*>%s%d\r\n", (char*)AT_read_sms, index);
+  DBG("GSMS*>%s%d<\r\n", (char*)AT_read_sms, index);
 
   // Echo
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
@@ -438,7 +449,7 @@ int8_t gprsGetSMS(uint8_t index, uint8_t *telNumber, uint8_t telNumberLength, ui
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
   // done in above //response[respLength] = 0;   // terminate the response by null
   DBG("2>%s<\r\n", (char*)gprsATreply);
-  if (resp == 0) return -12;                     // timeout reached
+  if (resp == 0) return -21;                     // timeout reached
   if (memcmp(AT_ERROR_reply, gprsATreply, strlen(AT_ERROR_reply)) == 0) return -22; // Error reply
 
   // Get index
@@ -458,14 +469,14 @@ int8_t gprsGetSMS(uint8_t index, uint8_t *telNumber, uint8_t telNumberLength, ui
   resp = gprsWaitAndReadMsg(text, textLength, AT_WAIT);
   // done in above //text[textLength] = 0;       // terminate the response by null
   DBG("3>%s<\r\n", (char*)text);
-  if (resp == 0) return -13;                     // timeout reached
-  if (memcmp(AT_ERROR_reply, telNumber, strlen(AT_ERROR_reply)) == 0) return -23; // Error reply
+  if (resp == 0) return -31;                     // timeout reached
+  if (memcmp(AT_ERROR_reply, telNumber, strlen(AT_ERROR_reply)) == 0) return -3; // Error reply
 
   // Get OK / ERROR
   resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);
-  DBG("4>%s\r\n", (char*)gprsATreply);
-  if (resp == 0) return -14;                     // timeout reached
-  if (resp != strlen(AT_OK)) return -24;         // 'OK' size
+  DBG("4>%s<\r\n", (char*)gprsATreply);
+  if (resp == 0) return -41;                     // timeout reached
+  if (resp != strlen(AT_OK)) return -42;         // 'OK' size
   if (memcmp(AT_OK, gprsATreply, resp) != 0) return -4; // compare OK
 
   return 1;                                      // All OK
@@ -489,7 +500,7 @@ int8_t gprsDeleteSMS(uint8_t index) {
 	gprsFlushRX();
 
 	chprintf((BaseSequentialStream*) &UartS, "%s%d\r", AT_delete_sms, index);
-	DBG("DSMS*>%s%d\r\n", (char*)AT_delete_sms, index);
+	DBG("DSMS*>%s%d<\r\n", (char*)AT_delete_sms, index);
 
 	// Echo
 	resp = gprsWaitAndReadMsg(gprsATreply, sizeof(gprsATreply), AT_WAIT);

@@ -439,9 +439,17 @@ static void cmd_modem(BaseSequentialStream *chp, int argc, char *argv[]) {
         chprintf(chp, "Modem busy." SHELL_NEWLINE_STR);
       }
       return;
-    } else if (strcmp(argv[0], "smsText") == 0) {
+    }
+  } else if (argc >= 2) {
+    if (strcmp(argv[0], "smsText") == 0) {
+      // Reconstruct SMS text from argv[1..argc-1]
+      response[0] = '\0';
+      for (int i = 1; i < argc; i++) {
+        if (i > 1) strncat((char*)response, " ", sizeof(response) - strlen((char*)response) - 1);
+        strncat((char*)response, argv[i], sizeof(response) - strlen((char*)response) - 1);
+      }
       if (chBSemWaitTimeout(&gprsSem, TIME_S2I(1)) == MSG_OK) {
-        resp = gprsSendSMSEnd(argv[1]);
+        resp = gprsSendSMSEnd((const char*)response);
         chBSemSignal(&gprsSem);
         chprintf(chp, "Result: %d" SHELL_NEWLINE_STR, resp);
       } else {
