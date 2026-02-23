@@ -430,11 +430,29 @@ static void cmd_modem(BaseSequentialStream *chp, int argc, char *argv[]) {
         chprintf(chp, "Modem busy." SHELL_NEWLINE_STR);
       }
       return;
+    } else if (strcmp(argv[0], "smsTo") == 0) {
+      if (chBSemWaitTimeout(&gprsSem, TIME_S2I(1)) == MSG_OK) {
+        resp = gprsSendSMSBegin(argv[1]);
+        chBSemSignal(&gprsSem);
+        chprintf(chp, "Result: %d" SHELL_NEWLINE_STR, resp);
+      } else {
+        chprintf(chp, "Modem busy." SHELL_NEWLINE_STR);
+      }
+      return;
+    } else if (strcmp(argv[0], "smsText") == 0) {
+      if (chBSemWaitTimeout(&gprsSem, TIME_S2I(1)) == MSG_OK) {
+        resp = gprsSendSMSEnd(argv[1]);
+        chBSemSignal(&gprsSem);
+        chprintf(chp, "Result: %d" SHELL_NEWLINE_STR, resp);
+      } else {
+        chprintf(chp, "Modem busy." SHELL_NEWLINE_STR);
+      }
+      return;
     }
   }
 
   // Usage
-  shellUsage(chp, "modem cmd <AT command> | cmdWR <AT command>");
+  shellUsage(chp, "modem cmd|cmdWR|smsTo|smsText <argument>");
 }
 /*
  * Shell commands
