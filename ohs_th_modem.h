@@ -12,7 +12,7 @@
 #include "cmd_dispatcher.h"
 
 #ifndef MODEM_DEBUG
-#define MODEM_DEBUG 1
+#define MODEM_DEBUG 0
 #endif
 
 #if MODEM_DEBUG
@@ -194,7 +194,7 @@ static THD_FUNCTION ( ModemThread, arg) {
             // Process SMS text
             resp = cmdProcess(modemSmsText, smsTopCommands, ARRAY_COUNT(smsTopCommands), logText, LOG_TEXT_LENGTH);
             DBG_MODEM("SMS command processed, status: %d, response: %s\r\n", resp, logText);
-            // In not ERROR send reply
+            // If not an ERROR send reply
             if (resp != CMD_ERROR) {
               // Send reply SMS
               resp = sendSMSToContact(contactIndex, logText);
