@@ -36,6 +36,9 @@ static THD_FUNCTION(ZoneThread, arg) {
   // Monitoring started
   pushToLogText("SS");
 
+  // Broadcast to register all nodes
+  pushNodeCmd(RADIO_UNIT_OFFSET, NODE_CMD_REGISTRATION);
+
   // MQTT HAD
   if (GET_CONF_MQTT_HAD(conf.mqtt.setting)) {
     mqttGlobalHAD(GET_CONF_MQTT_HAD(conf.mqtt.setting));

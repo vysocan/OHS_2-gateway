@@ -112,13 +112,9 @@ static void handleMqttSubSensor(char *args, char *savePtr, const char *payload) 
         memcpy(&msgBuf[2], floatConv.byte, 4); // Cleaner than manual assignment
 
         // Send Data
-        if (sendData(node[index].address, msgBuf, 6) == 1) {
-           node[index].lastOK = getTimeUnixSec();
-           node[index].value = floatConv.val;
-           if (GET_NODE_MQTT(node[index].setting)) {
-             pushToMqtt(typeSensor, index, functionValue);
-           }
-        }
+        pushNodeData(node[index].address, msgBuf, 6,
+                     index, floatConv.val,
+                     NODE_CMD_FLAG_UPDATE_NODE | NODE_CMD_FLAG_MQTT_PUB);
       } else {
         DBG_MQTT_SUB(", float parse error");
       }

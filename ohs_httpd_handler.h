@@ -158,6 +158,9 @@ int fs_open_custom(struct fs_file *file, const char *name){
       /* initialize fs_file correctly */
       memset(file, 0, sizeof(struct fs_file));
       file->pextension = mem_malloc(HTML_PAGE_SIZE);
+      if (file->pextension == NULL) {
+        return 0;  // Out of memory, cannot serve page
+      }
 
       MemoryStream ms;
       BaseSequentialStream *chp;
@@ -170,7 +173,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
       chprintf(chp, "<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>Open home security</title>\r\n");
       chprintf(chp, "<link rel='stylesheet' href='/css/OHS.css'>\r\n");
       chprintf(chp, "%sEnDis.js'>%s", HTML_script_src, HTML_e_script);
-      chprintf(chp, "</head>\r\n<body onload=\"");
+      chprintf(chp, "</head>\r\n<body onload=\"ca(); "); // Close alerts
       // JavaScript enable/disable on body load
       switch (htmlPage) {
         case PAGE_USER:
@@ -187,10 +190,7 @@ int fs_open_custom(struct fs_file *file, const char *name){
           GET_CONF_TRIGGER_PASS_OFF(conf.trigger[webTrigger].setting) ? chprintf(chp, JS_en2) : chprintf(chp, JS_dis2);
           chprintf(chp, "sd(document.getElementById('y'));"); // Type select
           break;
-        case PAGE_TCL:
-        case PAGE_LOGIN:
-        case PAGE_HOME:
-          chprintf(chp, "ca();"); // Close alerts
+        default:
           break;
       }
       chprintf(chp, "\"><div class='wrp'><div class='sb'>\r\n");

@@ -36,7 +36,7 @@ static void serviceTimeBeacon(time_t timeNow, uint16_t counter, uint8_t *message
     message[0] = 'T';
     memcpy(&message[1], &timeConv.ch[0], sizeof(timeConv.ch));
     // Send it everywhere
-    sendData(RADIO_UNIT_OFFSET, message, 5);
+    pushNodeData(RADIO_UNIT_OFFSET, message, 5, DUMMY_NO_VALUE, 0, NODE_CMD_FLAG_NONE);
   }
 }
 
@@ -225,12 +225,9 @@ static void serviceTimers(time_t timeNow, uint8_t *message) {
             floatConv.val = conf.timer[i].constantOn;
             message[2] = floatConv.byte[0]; message[3] = floatConv.byte[1];
             message[4] = floatConv.byte[2]; message[5] = floatConv.byte[3];
-            if (sendData(conf.timer[i].toAddress, message, 6) == 1) {
-              node[nodeIndex].lastOK = timeNow; // update receiving node current timestamp
-              node[nodeIndex].value   = conf.timer[i].constantOn; // update receiving node value
-              // MQTT
-              if (GET_NODE_MQTT(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionValue);
-            }
+            pushNodeData(conf.timer[i].toAddress, message, 6,
+                         nodeIndex, conf.timer[i].constantOn,
+                         NODE_CMD_FLAG_UPDATE_NODE | NODE_CMD_FLAG_MQTT_PUB);
           }
         }
       }
@@ -247,12 +244,9 @@ static void serviceTimers(time_t timeNow, uint8_t *message) {
               floatConv.val = conf.timer[i].constantOff;
               message[2] = floatConv.byte[0]; message[3] = floatConv.byte[1];
               message[4] = floatConv.byte[2]; message[5] = floatConv.byte[3];
-              if (sendData(conf.timer[i].toAddress, message, 6) == 1) {
-                node[nodeIndex].lastOK = timeNow; // update receiving node current timestamp
-                node[nodeIndex].value   = conf.timer[i].constantOff; // update receiving node value
-                // MQTT
-                if (GET_NODE_MQTT(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionValue);
-              }
+              pushNodeData(conf.timer[i].toAddress, message, 6,
+                           nodeIndex, conf.timer[i].constantOff,
+                           NODE_CMD_FLAG_UPDATE_NODE | NODE_CMD_FLAG_MQTT_PUB);
             }
           }
           CLEAR_CONF_TIMER_TRIGGERED(conf.timer[i].setting);
@@ -286,12 +280,9 @@ static void serviceTriggerOff(time_t timeNow, uint8_t *message) {
               floatConv.val = conf.trigger[i].constantOff;
               message[2] = floatConv.byte[0]; message[3] = floatConv.byte[1];
               message[4] = floatConv.byte[2]; message[5] = floatConv.byte[3];
-              if (sendData(conf.trigger[i].toAddress, message, 6) == 1) {
-                node[nodeIndex].lastOK = timeNow; // update receiving node current timestamp
-                node[nodeIndex].value   = conf.trigger[i].constantOff; // update receiving node value
-                // MQTT
-                if (GET_NODE_MQTT(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionValue);
-              }
+              pushNodeData(conf.trigger[i].toAddress, message, 6,
+                           nodeIndex, conf.trigger[i].constantOff,
+                           NODE_CMD_FLAG_UPDATE_NODE | NODE_CMD_FLAG_MQTT_PUB);
             }
           }
           // Logging enabled & triggered
@@ -315,7 +306,7 @@ static THD_FUNCTION(ServiceThread, arg) {
   chRegSetThreadName(arg);
   uint8_t counterAC = 1;
   uint16_t counter = 65536 - 50;
-  bool    flagAC = false; // Assume power is Off on start
+  bool flagAC = false; // Assume power is Off on start
   time_t  timeNow;
   uint8_t message[6];
 
@@ -333,7 +324,7 @@ static THD_FUNCTION(ServiceThread, arg) {
     serviceGroupAutoArm(timeNow);
     serviceZoneOpenAlarm(timeNow);
     serviceTimers(timeNow, message);
-    serviceTriggerOff(timeNow, message);    
+    serviceTriggerOff(timeNow, message);
     multipartRxCheckTimeout(&mpRx);
 
   } // while(true)

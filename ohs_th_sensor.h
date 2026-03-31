@@ -80,7 +80,7 @@ static THD_FUNCTION(SensorThread, arg) {
         if ((lastNode != inMsg->address) || (timeNow > lastNodeTime)) {
           DBG_SENSOR("Unregistered sensor: %u:%c:%u\r\n", inMsg->address, inMsg->function, inMsg->number);
           chThdSleepMilliseconds(5);  // This is needed for sleeping battery nodes, or they wont see reg. command.
-          nodeIndex = sendCmd(inMsg->address, NODE_CMD_REGISTRATION); // call this address to register
+          pushNodeCmd(inMsg->address, NODE_CMD_REGISTRATION); // call this address to register
           lastNode = inMsg->address;
           lastNodeTime = timeNow + 1; // add 1-2 second(s)
         }

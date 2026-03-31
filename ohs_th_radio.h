@@ -56,8 +56,8 @@ static THD_FUNCTION(RadioThread, arg) {
               if (index == 0) {
                 // This is needed for sleeping battery nodes, or they wont see reg. command.
                 chThdSleepMilliseconds(5);
-                resp = sendCmd(rfm69Data.senderId + RADIO_UNIT_OFFSET, NODE_CMD_REGISTRATION); // call this address to register
-                DBG_RADIO("Unregistered node ping, resp: %d\r\n", resp);
+                pushNodeCmd(rfm69Data.senderId + RADIO_UNIT_OFFSET, NODE_CMD_REGISTRATION); // call this address to register
+                DBG_RADIO("Unregistered node ping\r\n");
               } else {
                 DBG_RADIO("Node %d ping\r\n", rfm69Data.senderId);
               }
@@ -109,8 +109,8 @@ static THD_FUNCTION(RadioThread, arg) {
               tmpLog[5] = rfm69Data.data[2];  pushToLog(tmpLog, 6);
             }
           } else { // node not found
-            chThdSleepMilliseconds(5);  // This is needed for sleeping battery nodes, or they wont see reg. command.
-            resp = sendCmd(rfm69Data.senderId + RADIO_UNIT_OFFSET, NODE_CMD_REGISTRATION); // call this address to register
+            // - send queue - chThdSleepMilliseconds(5);  // This is needed for sleeping battery nodes, or they wont see reg. command.
+            pushNodeCmd(rfm69Data.senderId + RADIO_UNIT_OFFSET, NODE_CMD_REGISTRATION); // call this address to register
           }
           break;
         case 'S': // Sensor data
@@ -195,20 +195,16 @@ static THD_FUNCTION(RadioThread, arg) {
       } // switch case
 
       // Data queue for sleeping nodes
-      for (nodeIndex = 0; nodeIndex < NODE_SIZE; nodeIndex++) {
-        if ((node[nodeIndex].address == (rfm69Data.senderId + RADIO_UNIT_OFFSET)) &&
-            (node[nodeIndex].queue != NULL)) {
-          // Do copy of node[].queue to rfm69Data.data, UMM in CCM not accessible by DMA
-          memcpy(&rfm69Data.data[0], node[nodeIndex].queue, REG_PACKET_SIZE + 1);
-          resp = sendData(node[nodeIndex].address, &rfm69Data.data[0], REG_PACKET_SIZE + 1);
-          DBG_RADIO("Send Q 0x%x, resp %d\r\n", (const uint8_t *)node[nodeIndex].queue, resp);
-          // Sent ?
-          if (resp == 1) {
-            umm_free(node[nodeIndex].queue);
-            node[nodeIndex].queue = NULL;
-          }
-        }
-      }
+      // for (nodeIndex = 0; nodeIndex < NODE_SIZE; nodeIndex++) {
+      //   if ((node[nodeIndex].address == (rfm69Data.senderId + RADIO_UNIT_OFFSET)) &&
+      //       (node[nodeIndex].queue != NULL)) {
+      //     // Do copy of node[].queue to rfm69Data.data, UMM in CCM not accessible by DMA
+      //     memcpy(&rfm69Data.data[0], node[nodeIndex].queue, REG_PACKET_SIZE + 1);
+      //     pushNodeData(node[nodeIndex].address, &rfm69Data.data[0], REG_PACKET_SIZE + 1,
+      //                  nodeIndex, 0, NODE_CMD_FLAG_QUEUE);
+      //     DBG_RADIO("Send Q 0x%x\r\n", (const uint8_t *)node[nodeIndex].queue);
+      //   }
+      // }
     } // received
   }
 }

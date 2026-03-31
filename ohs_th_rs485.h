@@ -79,8 +79,8 @@ static THD_FUNCTION(RS485Thread, arg) {
               }
               // If not found, call this node/zone to register.
               if (index == 0) {
-                resp = sendCmd(rs485Msg.address, NODE_CMD_REGISTRATION); // call this address to register
-                DBG_RS485("Unregistered node ping, resp: %d\r\n", resp);
+                pushNodeCmd(rs485Msg.address, NODE_CMD_REGISTRATION); // call this address to register
+                DBG_RS485("Unregistered node ping\r\n");
               } else {
                 DBG_RS485("Node %d ping\r\n", rs485Msg.address);
               }
@@ -134,8 +134,8 @@ static THD_FUNCTION(RS485Thread, arg) {
                   tmpLog[5] = rs485Msg.data[2];  pushToLog(tmpLog, 6);
                 }
               } else { // node not found
-                chThdSleepMilliseconds(5);  // This is needed for sleeping battery nodes, or they wont see reg. command.
-                resp = sendCmd(rs485Msg.address, NODE_CMD_REGISTRATION); // call this address to register
+                // - send queue - chThdSleepMilliseconds(5);  // This is needed for sleeping battery nodes, or they wont see reg. command.
+                pushNodeCmd(rs485Msg.address, NODE_CMD_REGISTRATION); // call this address to register
               }
               break;
             case 'S': // Sensor data

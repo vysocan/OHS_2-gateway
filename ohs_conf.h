@@ -472,6 +472,22 @@ struct scriptLL_t{
 struct scriptLL_t *scriptLL = NULL; // Holds LL
 struct scriptLL_t *scriptp = NULL;  // Used as temp pointer
 
+// Node command/data events
+#define NODE_CMD_FIFO_SIZE 10
+// Post-send action flags
+#define NODE_CMD_FLAG_NONE        0x00
+#define NODE_CMD_FLAG_UPDATE_NODE 0x01  // Update node[].lastOK and node[].value on success
+#define NODE_CMD_FLAG_MQTT_PUB    0x02  // Push MQTT publish on success
+#define NODE_CMD_FLAG_QUEUE       0x04  // Queue data for sleeping nodes on failure
+typedef struct {
+  uint8_t address;                  // Target node address
+  uint8_t data[RS485_MSG_SIZE];     // Payload (for CMD: data[0]=command)
+  uint8_t length;                   // 0 = sendCmd, >0 = sendData
+  uint8_t nodeIndex;                // Node index for post-send updates (DUMMY_NO_VALUE = none)
+  float   value;                    // Value to set on node on success
+  uint8_t flags;                    // Bit flags for post-send actions
+} nodeCmdEvent_t;
+
 // Alerts
 typedef struct {
   char name[6];
@@ -528,6 +544,9 @@ static MAILBOX_DECL(mqtt_pub_mb, mqtt_pub_mb_buffer, MQTT_PUB_FIFO_SIZE);
 
 static msg_t        mqtt_sub_mb_buffer[MQTT_SUB_FIFO_SIZE];
 static MAILBOX_DECL(mqtt_sub_mb, mqtt_sub_mb_buffer, MQTT_SUB_FIFO_SIZE);
+
+static msg_t        node_cmd_mb_buffer[NODE_CMD_FIFO_SIZE];
+static MAILBOX_DECL(node_cmd_mb, node_cmd_mb_buffer, NODE_CMD_FIFO_SIZE);
 /*
  * Pools
  */
@@ -557,6 +576,9 @@ static MEMORYPOOL_DECL(mqtt_pub_pool, sizeof(mqttPubEvent_t), PORT_NATURAL_ALIGN
 
 static mqttSubEvent_t mqtt_sub_pool_queue[MQTT_SUB_FIFO_SIZE];
 static MEMORYPOOL_DECL(mqtt_sub_pool, sizeof(mqttSubEvent_t), PORT_NATURAL_ALIGN, NULL);
+
+static nodeCmdEvent_t node_cmd_pool_queue[NODE_CMD_FIFO_SIZE];
+static MEMORYPOOL_DECL(node_cmd_pool, sizeof(nodeCmdEvent_t), PORT_NATURAL_ALIGN, NULL);
 
 
 // Triggers

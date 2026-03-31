@@ -6,7 +6,7 @@
  */
 //TODO OHS move arm/disarm group to some kind of fifo, it take a lot of resources calling nodes, mqtt ...
 // Optimize stack and overflow
-#define PORT_IDLE_THREAD_STACK_SIZE 64
+#define PORT_IDLE_THREAD_STACK_SIZE 128
 #define PORT_INT_REQUIRED_STACK 256
 
 // ToDo OHS: replace strtoul, strtof with safe versions
@@ -26,6 +26,7 @@
 #include "shell.h"
 #include "chprintf.h"
 #include "usbcfg.h"
+//#include "hard_fault.h"
 
 // Define debug console
 BaseSequentialStream* console = (BaseSequentialStream*)&SD3;
@@ -33,11 +34,10 @@ BaseSequentialStream* console = (BaseSequentialStream*)&SD3;
 // Semaphores
 binary_semaphore_t gprsSem;
 binary_semaphore_t emailSem;
+binary_semaphore_t mqttSem;
 // TCL callback semaphores
 binary_semaphore_t cbTimerSem;
 binary_semaphore_t cbTriggerSem;
-// MQTT semaphore
-binary_semaphore_t mqttSem;
 
 // RFM69
 #include "rfm69.h"
@@ -130,7 +130,8 @@ char mqttHadUid[12];
 #include "ohs_th_mqtt_sub.h"
 #include "ohs_th_alert.h"
 #include "ohs_th_heartbeat.h"
-#include "ohs_th_serial_conf.h"
+//#include "ohs_th_serial_conf.h"
+#include "ohs_th_send.h"
 #define SHELL_WA_SIZE THD_WORKING_AREA_SIZE(2*1024)
 /*
  * Application entry point.
@@ -211,6 +212,7 @@ int main(void) {
   chPoolObjectInit(&trigger_pool, sizeof(triggerEvent_t), NULL);
   chPoolObjectInit(&mqtt_pub_pool, sizeof(mqttPubEvent_t), NULL);
   chPoolObjectInit(&mqtt_sub_pool, sizeof(mqttSubEvent_t), NULL);
+  chPoolObjectInit(&node_cmd_pool, sizeof(nodeCmdEvent_t), NULL);
   // Prepare pools
   chPoolLoadArray(&alarmEvent_pool, (void *)alarmEvent_pool_queue, ALARM_EVENT_FIFO_SIZE);
   chPoolLoadArray(&logger_pool, (void *)logger_pool_queue, LOGGER_FIFO_SIZE);
@@ -221,6 +223,7 @@ int main(void) {
   chPoolLoadArray(&trigger_pool, (void *)trigger_pool_queue, TRIGGER_FIFO_SIZE);
   chPoolLoadArray(&mqtt_pub_pool, (void *)mqtt_pub_pool_queue, MQTT_PUB_FIFO_SIZE);
   chPoolLoadArray(&mqtt_sub_pool, (void *)mqtt_sub_pool_queue, MQTT_SUB_FIFO_SIZE);
+  chPoolLoadArray(&node_cmd_pool, (void *)node_cmd_pool_queue, NODE_CMD_FIFO_SIZE);
 
   // SPI
   spiStart(&SPID1, &spi1cfg);
@@ -241,9 +244,9 @@ int main(void) {
 
   // Create thread(s).
   chThdCreateStatic(waZoneThread, sizeof(waZoneThread), NORMALPRIO, ZoneThread, (void*)"zone");
-  chThdCreateStatic(waAEThread1, sizeof(waAEThread1), NORMALPRIO + 1, AEThread, (void*)"alarm 1");
-  chThdCreateStatic(waAEThread2, sizeof(waAEThread2), NORMALPRIO + 1, AEThread, (void*)"alarm 2");
-  chThdCreateStatic(waAEThread3, sizeof(waAEThread3), NORMALPRIO + 1, AEThread, (void*)"alarm 3");
+  chThdCreateStatic(waAEThread1, sizeof(waAEThread1), NORMALPRIO + 1, AEThread, (void*)"alarm1");
+  chThdCreateStatic(waAEThread2, sizeof(waAEThread2), NORMALPRIO + 1, AEThread, (void*)"alarm2");
+  chThdCreateStatic(waAEThread3, sizeof(waAEThread3), NORMALPRIO + 1, AEThread, (void*)"alarm3");
   chThdCreateStatic(waLoggerThread, sizeof(waLoggerThread), NORMALPRIO, LoggerThread, (void*)"logger");
   chThdCreateStatic(waRS485Thread, sizeof(waRS485Thread), NORMALPRIO, RS485Thread, (void*)"rs485");
   chThdCreateStatic(waRegistrationThread, sizeof(waRegistrationThread), NORMALPRIO - 2, RegistrationThread, (void*)"reg");
@@ -256,9 +259,9 @@ int main(void) {
   chThdCreateStatic(waTclThread, sizeof(waTclThread), LOWPRIO + 1, tclThread, (void*)"tcl");
   chThdCreateStatic(waMqttPubThread, sizeof(waMqttPubThread), NORMALPRIO - 5, MqttPubThread, (void*)"mqttPub");
   chThdCreateStatic(waMqttSubThread, sizeof(waMqttSubThread), NORMALPRIO - 6, MqttSubThread, (void*)"mqttSub");
-  //chThdCreateStatic(waShell, sizeof(waShell), NORMALPRIO, shellThread, (void *)&shell_cfg);
   chThdCreateStatic(waHeartBeatThread, sizeof(waHeartBeatThread), LOWPRIO, HeartBeatThread, (void*)"h-beat");
-  chThdCreateStatic(waSerialConfThread, sizeof(waSerialConfThread), NORMALPRIO - 4, SerialConfThread, (void*)"serConf");
+  //chThdCreateStatic(waSerialConfThread, sizeof(waSerialConfThread), NORMALPRIO - 4, SerialConfThread, (void*)"serConf");
+  chThdCreateStatic(waSendThread, sizeof(waSendThread), NORMALPRIO, SendThread, (void*)"send");
 
   // LWIP
   stats_init();
@@ -336,7 +339,7 @@ int main(void) {
 
   // Idle runner
   while (true) {
-    chThdSleepMilliseconds(100);
+    chThdSleepMilliseconds(200);
 
     // USB shell
     if (SDU1.config->usbp->state == USB_ACTIVE) {

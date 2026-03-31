@@ -137,6 +137,7 @@ const char durationSelect[][10] = {
 #define TEXT_main                     "main"
 #define TEXT_monitoring               "monitoring"
 #define TEXT_Node                     "Node"
+#define TEXT_node                     "node"
 #define TEXT_Name                     "Name"
 #define TEXT_name                     "name"
 #define TEXT_MQTT                     "MQTT"

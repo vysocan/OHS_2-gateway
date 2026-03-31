@@ -95,7 +95,8 @@ static THD_FUNCTION(AEThread, arg) {
               message[0] = 'H';
               message[1] = node[i].number;
               message[2] = 1;
-              sendData(node[i].address, message, SIREN_MSG_LENGTH);
+              pushNodeData(node[i].address, message, SIREN_MSG_LENGTH,
+                           DUMMY_NO_VALUE, 0, NODE_CMD_FLAG_NONE);
             }
           }
           tmpLog[0] = 'S'; tmpLog[1] = 'X';  tmpLog[2] = groupNum;  pushToLog(tmpLog, 3); // ALARM no auth.

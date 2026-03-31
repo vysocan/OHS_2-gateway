@@ -219,7 +219,7 @@ static int8_t sendDataMultipart(uint8_t address, const uint8_t *data, uint16_t l
     chunkBuf[1] = i; // chunk index
     memcpy(&chunkBuf[MP_HEADER_SIZE], &data[offset], payloadLen);
 
-    resp = sendData(address, chunkBuf, MP_HEADER_SIZE + payloadLen);
+    resp = sendDataDirect(address, chunkBuf, MP_HEADER_SIZE + payloadLen);
     if (resp != 1) {
       DBG_MP("MP: sendData failed at chunk %u/%u, resp=%d\r\n", i + 1, chunksTotal, resp);
       return -1;

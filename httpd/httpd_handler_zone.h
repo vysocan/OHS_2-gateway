@@ -150,7 +150,8 @@ static void httpd_post_custom_zone(char **postDataP) {
           message[4] = (uint8_t)((conf.zone[webZone] >> 8) & 0b11111111);;
           message[5] = (uint8_t)(conf.zone[webZone] & 0b11111111);
           memcpy(&message[6], conf.zoneName[webZone], NAME_LENGTH);
-          resp = sendData(conf.zoneAddress[webZone-HW_ZONES], message, REG_PACKET_SIZE + 1);
+          pushNodeData(conf.zoneAddress[webZone-HW_ZONES], message, REG_PACKET_SIZE + 1,
+                       DUMMY_NO_VALUE, 0, NODE_CMD_FLAG_NONE);
         }
       break;
       case 'n': // name

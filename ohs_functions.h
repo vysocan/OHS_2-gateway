@@ -176,7 +176,7 @@ void mqttRefreshGroupsState(void) {
 /*
  * Send data to node
  */
-int8_t sendData(uint8_t address, const uint8_t *data, uint8_t length){
+int8_t sendDataDirect(uint8_t address, const uint8_t *data, uint8_t length){
   int8_t resp;
 
   // RS485
@@ -205,7 +205,7 @@ int8_t sendData(uint8_t address, const uint8_t *data, uint8_t length){
 /*
  * Send a command to node
  */
-int8_t sendCmd(uint8_t address, uint8_t command) {
+int8_t sendCmdDirect(uint8_t address, uint8_t command) {
   int8_t resp;
 
   // RS485
@@ -233,6 +233,47 @@ int8_t sendCmd(uint8_t address, uint8_t command) {
   return resp;
 }
 /*
+ * Push a command to the node command mailbox (non-blocking)
+ */
+void pushNodeCmd(uint8_t address, uint8_t command) {
+  nodeCmdEvent_t *outMsg = chPoolAlloc(&node_cmd_pool);
+  if (outMsg != NULL) {
+    outMsg->address = address;
+    outMsg->data[0] = command;
+    outMsg->length = 0;  // Signals CMD mode
+    outMsg->nodeIndex = DUMMY_NO_VALUE;
+    outMsg->flags = NODE_CMD_FLAG_NONE;
+    msg_t msg = chMBPostTimeout(&node_cmd_mb, (msg_t)outMsg, TIME_IMMEDIATE);
+    if (msg != MSG_OK) {
+      chPoolFree(&node_cmd_pool, outMsg);
+    }
+  } else {
+    chprintf(console, "NodeCmd pool full!\r\n");
+  }
+}
+/*
+ * Push data to the node command mailbox (non-blocking)
+ */
+void pushNodeData(uint8_t address, const uint8_t *data, uint8_t length,
+                  uint8_t nodeIndex, float value, uint8_t flags) {
+  nodeCmdEvent_t *outMsg = chPoolAlloc(&node_cmd_pool);
+  if (outMsg != NULL) {
+    outMsg->address = address;
+    outMsg->length = length;
+    if (length > RS485_MSG_SIZE) length = RS485_MSG_SIZE;
+    memcpy(&outMsg->data[0], data, length);
+    outMsg->nodeIndex = nodeIndex;
+    outMsg->value = value;
+    outMsg->flags = flags;
+    msg_t msg = chMBPostTimeout(&node_cmd_mb, (msg_t)outMsg, TIME_IMMEDIATE);
+    if (msg != MSG_OK) {
+      chPoolFree(&node_cmd_pool, outMsg);
+    }
+  } else {
+    chprintf(console, "NodeCmd pool full!\r\n");
+  }
+}
+/*
  * Send a command to all members of a group
  */
 void sendCmdToGrp(uint8_t groupNum, uint8_t command, char type) {
@@ -241,7 +282,7 @@ void sendCmdToGrp(uint8_t groupNum, uint8_t command, char type) {
     if (GET_NODE_ENABLED(node[i].setting)) {
       // Auth. node belong to group                         type of node
       if ((GET_NODE_GROUP(node[i].setting) == groupNum) && (type == node[i].type)) {
-        sendCmd(node[i].address, command);
+        pushNodeCmd(node[i].address, command);
       }
     }
   }
@@ -357,7 +398,8 @@ void disarmGroup(uint8_t groupNum, uint8_t master, uint8_t hop) {
         message[0] = 'H';
         message[1] = node[i].number;
         message[2] = 0;
-        sendData(node[i].address, message, SIREN_MSG_LENGTH);
+        pushNodeData(node[i].address, message, SIREN_MSG_LENGTH,
+                     DUMMY_NO_VALUE, 0, NODE_CMD_FLAG_NONE);
       }
     }
   }
@@ -485,7 +527,7 @@ uint8_t checkKey(uint8_t groupNum, armType_t armType, uint8_t *key, uint8_t leng
       }
     } // for
   } else {
-    tmpLog[0] = 'G'; tmpLog[1] = 'F'; tmpLog[2] = groupNum;  pushToLog(tmpLog, 3);
+    tmpLog[0] = 'G'; tmpLog[1] = 'f'; tmpLog[2] = groupNum;  pushToLog(tmpLog, 3);
   }
   return resp;
 }
@@ -861,6 +903,7 @@ static uint8_t decodeLog(char *in, char *out, bool full){
       }
       switch(in[1]){
         case 'F': chprintf(chp, "%s %s", TEXT_is, TEXT_disabled); break;
+        case 'f': chprintf(chp, "%s %s %s %d", TEXT_is, TEXT_disabled, TEXT_for, TEXT_node); break;
         case 'S': chprintf(chp, "%s", TEXT_armed); break;
         case 'D': chprintf(chp, "%s", TEXT_disarmed); break;
         case 'A': chprintf(chp, "%s %s", TEXT_auto, TEXT_armed); break;
@@ -974,12 +1017,13 @@ static uint8_t decodeLog(char *in, char *out, bool full){
       break;
     case 0xff:
       chprintf(chp, "%s", TEXT_Empty);
-    break;
-    default: chprintf(chp, "%s", TEXT_Undefined);
+      break;
+    default: // Unknown
+      chprintf(chp, "%s", TEXT_Undefined);
       for(uint8_t j = 0; j < LOGGER_MSG_LENGTH; j++) {
         chprintf(chp, "-%.2x", in[j]);
       }
-    break; // unknown
+      break;
   }
   //chprintf(chp, "."); // "." as end
 

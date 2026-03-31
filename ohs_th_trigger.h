@@ -148,20 +148,18 @@ static THD_FUNCTION(TriggerThread, arg) {
                     }
                     message[2] = floatConv.byte[0]; message[3] = floatConv.byte[1];
                     message[4] = floatConv.byte[2]; message[5] = floatConv.byte[3];
-                    if (sendData(conf.trigger[i].toAddress, message, 6)) {
-                      node[nodeIndex].lastOK = timeNow; // update receiving node current timestamp
-                      // update receiving node value
-                      if (GET_CONF_TRIGGER_PASS_VALUE(conf.trigger[i].setting)) {
-                        node[nodeIndex].value = inMsg->value;
-                      } else {
-                        node[nodeIndex].value = conf.trigger[i].constantOn;
-                      }
-                      // Pass only once
-                      if (GET_CONF_TRIGGER_PASS(conf.trigger[i].setting) > 1) {
-                        SET_CONF_TRIGGER_PASSED(conf.trigger[i].setting);
-                      }
-                      // MQTT
-                      if (GET_NODE_MQTT(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionValue);
+                    if (GET_CONF_TRIGGER_PASS_VALUE(conf.trigger[i].setting)) {
+                      pushNodeData(conf.trigger[i].toAddress, message, 6,
+                                   nodeIndex, inMsg->value,
+                                   NODE_CMD_FLAG_UPDATE_NODE | NODE_CMD_FLAG_MQTT_PUB);
+                    } else {
+                      pushNodeData(conf.trigger[i].toAddress, message, 6,
+                                   nodeIndex, conf.trigger[i].constantOn,
+                                   NODE_CMD_FLAG_UPDATE_NODE | NODE_CMD_FLAG_MQTT_PUB);
+                    }
+                    // Pass only once
+                    if (GET_CONF_TRIGGER_PASS(conf.trigger[i].setting) > 1) {
+                      SET_CONF_TRIGGER_PASSED(conf.trigger[i].setting);
                     }
                   }
                 } // Node found
@@ -187,20 +185,17 @@ static THD_FUNCTION(TriggerThread, arg) {
                   }
                   message[2] = floatConv.byte[0]; message[3] = floatConv.byte[1];
                   message[4] = floatConv.byte[2]; message[5] = floatConv.byte[3];
-                  if (sendData(conf.trigger[i].toAddress, message, 6)) {
-                    node[nodeIndex].lastOK = timeNow; // update receiving node current timestamp
-                    // update receiving node value
-                    // update receiving node value
-                    if (GET_CONF_TRIGGER_PASS_VALUE(conf.trigger[i].setting)) {
-                      node[nodeIndex].value = inMsg->value;
-                    } else {
-                      node[nodeIndex].value = conf.trigger[i].constantOff;
-                    }
-                    CLEAR_CONF_TRIGGER_TRIGGERED(conf.trigger[i].setting);
-                    CLEAR_CONF_TRIGGER_PASSED(conf.trigger[i].setting);
-                    // MQTT
-                    if (GET_NODE_MQTT(node[nodeIndex].setting)) pushToMqtt(typeSensor, nodeIndex, functionValue);
+                  if (GET_CONF_TRIGGER_PASS_VALUE(conf.trigger[i].setting)) {
+                    pushNodeData(conf.trigger[i].toAddress, message, 6,
+                                 nodeIndex, inMsg->value,
+                                 NODE_CMD_FLAG_UPDATE_NODE | NODE_CMD_FLAG_MQTT_PUB);
+                  } else {
+                    pushNodeData(conf.trigger[i].toAddress, message, 6,
+                                 nodeIndex, conf.trigger[i].constantOff,
+                                 NODE_CMD_FLAG_UPDATE_NODE | NODE_CMD_FLAG_MQTT_PUB);
                   }
+                  CLEAR_CONF_TRIGGER_TRIGGERED(conf.trigger[i].setting);
+                  CLEAR_CONF_TRIGGER_PASSED(conf.trigger[i].setting);
                 } //found
               } // if
               // Pass Off = NO, but alerted/triggered

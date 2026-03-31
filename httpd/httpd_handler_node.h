@@ -117,7 +117,7 @@ static void httpd_post_custom_node(char **postDataP) {
         if (number != webNode) { webNode = number; repeat = 0; }
       break;
       case 'R': // Re-registration
-        resp = sendCmd(RADIO_UNIT_OFFSET, NODE_CMD_REGISTRATION); // Broadcast to register
+        pushNodeCmd(RADIO_UNIT_OFFSET, NODE_CMD_REGISTRATION); // Broadcast to register
       break;
       case 'A': // Apply
         message[0] = 'R';
@@ -127,21 +127,8 @@ static void httpd_post_custom_node(char **postDataP) {
         message[4] = (uint8_t)((node[webNode].setting >> 8) & 0b11111111);;
         message[5] = (uint8_t)(node[webNode].setting & 0b11111111);
         memcpy(&message[6], node[webNode].name, NAME_LENGTH);
-        resp = sendData(node[webNode].address, message, REG_PACKET_SIZE + 1);
-        // Queue data if no response
-        if (resp != 1) {
-          // Not queued, allocate new
-          if (node[webNode].queue == NULL) {
-            node[webNode].queue = umm_malloc(REG_PACKET_SIZE + 1);
-          }
-          // Copy new message to queue pointer
-          if (node[webNode].queue != NULL) {
-            memcpy(node[webNode].queue, &message[0], REG_PACKET_SIZE + 1);
-          }
-          // Show warning
-          chsnprintf(httpAlert.msg, HTTP_ALERT_MSG_SIZE, "Packet not delivered, but queued.");
-          httpAlert.type = ALERT_WARN;
-        }
+        pushNodeData(node[webNode].address, message, REG_PACKET_SIZE + 1,
+                     webNode, 0, NODE_CMD_FLAG_QUEUE);
       break;
       case 'n': // name
         // Calculate resp for MQTT
@@ -177,13 +164,15 @@ static void httpd_post_custom_node(char **postDataP) {
         message[0] = 'F';
         message[1] = 'E';
         message[2] = (uint8_t)webEnroll;
-        resp = sendData(node[webNode].address, message, 3);
+        pushNodeData(node[webNode].address, message, 3,
+                     DUMMY_NO_VALUE, 0, NODE_CMD_FLAG_NONE);
         break;
       case 'D': // delete fingerprint
         message[0] = 'F';
         message[1] = 'D';
         message[2] = (uint8_t) webEnroll;
-        resp = sendData(node[webNode].address, message, 3);
+        pushNodeData(node[webNode].address, message, 3,
+                     DUMMY_NO_VALUE, 0, NODE_CMD_FLAG_NONE);
         break;
       case 'e': // save
         writeToBkpSRAM((uint8_t*)&conf, sizeof(config_t), 0);
