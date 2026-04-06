@@ -15,7 +15,7 @@
  */
 static void fs_open_custom_setting(BaseSequentialStream *chp) {
   // Information table
-  chprintf(chp, "%sHelp text should be here%s%s / %s %s%s%s", HTML_tr_td_tip, HTML_e_tag, TEXT_Arm, TEXT_Authentication, TEXT_time,
+  chprintf(chp, "%s%s / %s %s%s%s", HTML_tr_td, TEXT_Arm, TEXT_Authentication, TEXT_time,
            HTML_e_span, HTML_e_td_td);
   printRangeInput(chp, 'C', conf.armDelay / 4, 5, 60, durationSelect[0]);
   chprintf(chp, " %s%s %s %s %s%s", HTML_e_td_e_tr_tr_td, TEXT_Auto,

@@ -158,6 +158,7 @@
 #define HTML_range_output_1           "<span class='slidv' id='val_"
 
 // Tooltip for table cells
+#define HTML_e_td_e_tr_tr_td_tip      "</td></tr><tr><td><span class='tip' data-t='"
 #define HTML_tr_td_tip                "<tr><td><span class='tip' data-t='"
 #define HTML_td_tip                   "<td><span class='tip' data-t='"
 #define HTML_e_span                   "</span>"
