@@ -127,6 +127,8 @@ void printNodeValue(BaseSequentialStream *chp, const uint8_t index) {
     case 'B': chprintf(chp, "%.2f V", node[index].value); break;
     case 'G': chprintf(chp, "%.2f ppm", node[index].value); break;
     case 'I': chprintf(chp, "%.0f lux", node[index].value); break;
+    case 'p': chprintf(chp, "%.1f W", node[index].value); break;
+    case 'e': chprintf(chp, "%.1f kWh", node[index].value); break;
     case 'i':
     case 'f':
       // Check if key index is valid

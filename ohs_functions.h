@@ -653,6 +653,8 @@ const char *getNodeFunctionString(const char function) {
   switch(function){
     case 'i': return TEXT_iButton;
     case 'f': return TEXT_Fingerprint;
+    case 'p': return TEXT_Power;
+    case 'e': return TEXT_Energy;
     case 'T': return TEXT_Temperature;
     case 'H': return TEXT_Humidity;
     case 'P': return TEXT_Pressure;
@@ -673,6 +675,8 @@ const char *getNodeFunctionString(const char function) {
 const char *getNodeFunctionHAClass(const char function) {
   switch(function){
     case 'T': return TEXT_temperature;
+    case 'p': return TEXT_power;
+    case 'e': return TEXT_energy;
     case 'H': return TEXT_humidity;
     case 'P': return TEXT_pressure;
     case 'V':
@@ -688,6 +692,8 @@ const char *getNodeFunctionHAClass(const char function) {
 const char *getNodeFunctionHAClassUnit(const char function) {
   switch(function){
     case 'T': return "°C";
+    case 'p': return "W";
+    case 'e': return "kWh";
     case 'H': return "%";
     case 'P': return "mbar";
     case 'V':

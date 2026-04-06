@@ -90,23 +90,22 @@ static void fs_open_custom_zone(BaseSequentialStream *chp) {
   printTextInput(chp, 'n', conf.zoneName[webZone], NAME_LENGTH);
   chprintf(chp, "%s%s %s%s", HTML_e_td_e_tr_tr_td, TEXT_Zone, TEXT_is, HTML_e_td_td);
   printOnOffButton(chp, "0", GET_CONF_ZONE_ENABLED(conf.zone[webZone]));
-  chprintf(chp, "%sZone is monitored when group is 'Armed Home'.%s%s %s%s%s", HTML_e_td_e_tr_tr_td_tip, HTML_e_tag, TEXT_Arm, TEXT_home,
+  chprintf(chp, "%sZone is monitored when group is Armed Home.%s%s %s%s%s", HTML_e_td_e_tr_tr_td_tip, HTML_e_tag, TEXT_Arm, TEXT_home,
            HTML_e_span, HTML_e_td_td);
   printOnOffButton(chp, "7", GET_CONF_ZONE_ARM_HOME(conf.zone[webZone]));
-  chprintf(chp, "%s%s %s%s", HTML_e_td_e_tr_tr_td, TEXT_Open, TEXT_alarm, HTML_e_td_td);
-  chprintf(chp, "%sAlert is set for a zone in continuous alarm state exceeding setting.%s%s %s%s%s", HTML_e_td_e_tr_tr_td_tip, HTML_e_tag, TEXT_Open, TEXT_alarm,
+  chprintf(chp, "%sAlert is set for a zone in continuous alarm state exceeding set time.%s%s %s%s%s", HTML_e_td_e_tr_tr_td_tip, HTML_e_tag, TEXT_Open, TEXT_alarm,
              HTML_e_span, HTML_e_td_td);
   printOnOffButton(chp, "8", GET_CONF_ZONE_OPEN_ALARM(conf.zone[webZone]));  
   chprintf(chp, "%sAlert status is forced as a tamper status.%s%s %s %s%s%s", HTML_e_td_e_tr_tr_td_tip, HTML_e_tag, TEXT_Alarm, TEXT_as, TEXT_tamper,
              HTML_e_span, HTML_e_td_td);
   printOnOffButton(chp, "9", GET_CONF_ZONE_PIR_AS_TMP(conf.zone[webZone]));
-  chprintf(chp, "%s%s%s", HTML_e_td_e_tr_tr_td, TEXT_Balanced, HTML_e_td_td);
+  chprintf(chp, "%sZone type.%s%s%s%s", HTML_e_td_e_tr_tr_td_tip, HTML_e_tag, TEXT_Balanced, HTML_e_span, HTML_e_td_td);
   printOnOffButton(chp, "a", GET_CONF_ZONE_BALANCED(conf.zone[webZone]));
-  chprintf(chp, "%sZone needs to be 'OK' when arming a group.%s%s %s %s%s%s", HTML_e_td_e_tr_tr_td_tip, HTML_e_tag, TEXT_Needed, TEXT_to, TEXT_arm,
+  chprintf(chp, "%sZone needs to be OK when arming a group.%s%s %s %s%s%s", HTML_e_td_e_tr_tr_td_tip, HTML_e_tag, TEXT_Needed, TEXT_to, TEXT_arm,
            HTML_e_span, HTML_e_td_td);
   printOnOffButton(chp, "b", GET_CONF_ZONE_NEEDED(conf.zone[webZone]));
-  chprintf(chp, "%s%s %s%s", HTML_e_td_e_tr_tr_td, TEXT_Authentication, TEXT_delay, HTML_e_td_td);
-
+  chprintf(chp, "%sAuthentication delay multiplier.%s%s %s%s%s", HTML_e_td_e_tr_tr_td_tip, HTML_e_tag, TEXT_Authentication, TEXT_delay,
+           HTML_e_span, HTML_e_td_td);
   printFourButton(chp, "D", GET_CONF_ZONE_AUTH_TIME(conf.zone[webZone]), 0, 0b0000,
                   TEXT_0x, TEXT_1x, TEXT_2x, TEXT_3x, 0);
   chprintf(chp, "%s%s %s%s", HTML_e_td_e_tr_tr_td, TEXT_MQTT, TEXT_publish, HTML_e_td_td);
